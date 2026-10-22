@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import * as Blockly from 'blockly/core';
 import * as English from 'blockly/msg/en';
 import type { Condition, Effect, Project, Value } from './contracts';
-import { id, valueFrom } from './model';
+import { flow, flowConditions, id, valueFrom, type FlowConditions } from './model';
+import { refreshChainEnds } from './blockRenderer';
 Blockly.setLocale(
   Object.fromEntries(
     Object.entries(English).filter(([, value]) => typeof value === 'string'),
@@ -130,9 +131,89 @@ export function registerBlocks(p: Project) {
   project = p;
   register();
 }
-export function loadEffectBlocks(workspace: Blockly.Workspace, effects: Effect[]) {
+const conditionLabels = {
+  requirements: 'REQUIRES',
+  condition: 'CONDITION',
+  visible: 'VISIBLE WHEN',
+  available: 'TRAVERSABLE WHEN',
+};
+function setFlowConditionInputs(block: Blockly.Block, names: string[]) {
+  for (const [name, label] of Object.entries(conditionLabels)) {
+    if (!names.includes(name)) {
+      if (block.getInput(name)) block.removeInput(name);
+    } else if (!block.getInput(name)) {
+      block.appendValueInput(name).setCheck('Boolean').appendField(label);
+      block.moveInputBefore(name, 'DO');
+    }
+  }
+}
+export function readFlowConditions(root: Blockly.Block | null): FlowConditions {
+  return Object.fromEntries(
+    Object.keys(conditionLabels)
+      .filter((name) => root?.getInput(name))
+      .map((name) => [name, readCondition(root!.getInputTargetBlock(name))]),
+  );
+}
+function syncFlowConditions(root: Blockly.Block, conditions: FlowConditions) {
+  setFlowConditionInputs(root, Object.keys(conditions));
+  for (const [name, condition] of Object.entries(conditions)) {
+    const previous = root.getInputTargetBlock(name);
+    if (previous && JSON.stringify(readCondition(previous)) === JSON.stringify(condition)) continue;
+    previous?.dispose(false);
+    root
+      .getInput(name)!
+      .connection!.connect(makeCondition(root.workspace, condition).outputConnection!);
+  }
+}
+function groupInputs(block: Blockly.Block) {
+  return block.inputList.filter((input) => /^(A|B|C\d+)$/.test(input.name));
+}
+function setConditionCount(block: Blockly.Block, count: number) {
+  const inputs = groupInputs(block);
+  for (let i = inputs.length - 1; i >= count; i--) block.removeInput(inputs[i].name);
+  for (let i = inputs.length; i < count; i++)
+    block
+      .appendValueInput(i === 0 ? 'A' : i === 1 ? 'B' : `C${i}`)
+      .setCheck('Boolean')
+      .appendField(i === 0 ? '' : block.type === 'condition_all' ? 'AND' : 'OR');
+}
+function conditionCountButton(delta: number) {
+  const mark = delta > 0 ? 'M8 3v10M3 8h10' : 'M3 8h10';
+  return new Blockly.FieldImage(
+    `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" rx="3" fill="#6d501f"/><path d="${mark}" stroke="white" stroke-width="2"/></svg>`)}`,
+    16,
+    16,
+    delta > 0 ? 'Add condition' : 'Remove condition',
+    (field) => {
+      const block = field.getSourceBlock()!;
+      const before = JSON.stringify(block.saveExtraState!());
+      const group = Blockly.Events.getGroup();
+      if (!group) Blockly.Events.setGroup(true);
+      try {
+        setConditionCount(block, Math.max(0, groupInputs(block).length + delta));
+        Blockly.Events.fire(
+          new Blockly.Events.BlockChange(
+            block,
+            'mutation',
+            null,
+            before,
+            JSON.stringify(block.saveExtraState!()),
+          ),
+        );
+      } finally {
+        Blockly.Events.setGroup(group);
+      }
+    },
+  );
+}
+export function loadEffectBlocks(
+  workspace: Blockly.Workspace,
+  effects: Effect[],
+  conditions: FlowConditions = {},
+) {
   register();
   const root = workspace.newBlock('luna_flow');
+  syncFlowConditions(root, conditions);
   makeEffects(workspace, effects, root.getInput('DO')!.connection!);
   return root;
 }
@@ -140,11 +221,20 @@ function register() {
   if (Blockly.Blocks.luna_flow) return;
   Blockly.Blocks.luna_flow = {
     init(this: Blockly.Block) {
-      this.appendDummyInput().appendField('WHEN THIS ACTION RUNS');
+      this.appendDummyInput().appendField(
+        new Blockly.FieldLabel('WHEN THIS ACTION RUNS'),
+        'FLOW_TITLE',
+      );
       this.appendStatementInput('DO');
       this.setColour('#7161c6');
       this.setDeletable(false);
       this.setMovable(false);
+    },
+    saveExtraState(this: Blockly.Block) {
+      return { conditions: Object.keys(conditionLabels).filter((name) => this.getInput(name)) };
+    },
+    loadExtraState(this: Blockly.Block, state: { conditions?: string[] }) {
+      setFlowConditionInputs(this, state.conditions ?? []);
     },
   };
   for (const [type, fields] of Object.entries(effectFields))
@@ -190,14 +280,19 @@ function register() {
   for (const type of ['all', 'any'])
     Blockly.Blocks[`condition_${type}`] = {
       init(this: Blockly.Block) {
-        this.appendValueInput('A')
-          .setCheck('Boolean')
-          .appendField(type === 'all' ? 'BOTH' : 'EITHER');
-        this.appendValueInput('B')
-          .setCheck('Boolean')
-          .appendField(type === 'all' ? 'AND' : 'OR');
+        this.appendDummyInput('HEADER')
+          .appendField(type === 'all' ? 'ALL' : 'ANY')
+          .appendField(conditionCountButton(1))
+          .appendField(conditionCountButton(-1));
+        setConditionCount(this, 2);
         this.setOutput(true, 'Boolean');
         this.setColour('#916b31');
+      },
+      saveExtraState(this: Blockly.Block) {
+        return { count: groupInputs(this).length };
+      },
+      loadExtraState(this: Blockly.Block, state: { count?: number }) {
+        setConditionCount(this, Math.max(0, Math.trunc(state.count ?? 2)));
       },
     };
 }
@@ -222,16 +317,6 @@ function setFields(block: Blockly.Block, data: Record<string, unknown>) {
     }
 }
 function makeCondition(workspace: Blockly.Workspace, c: Condition): Blockly.Block {
-  // Blockly's binary boolean blocks represent arbitrary-length ALL/ANY trees.
-  if ((c.type === 'all' || c.type === 'any') && c.conditions.length > 2)
-    return makeCondition(workspace, {
-      type: c.type,
-      conditions: [c.conditions[0], { type: c.type, conditions: c.conditions.slice(1) }],
-    });
-  if ((c.type === 'all' || c.type === 'any') && c.conditions.length === 0)
-    return makeCondition(workspace, { type: c.type === 'all' ? 'true' : 'false' });
-  if ((c.type === 'all' || c.type === 'any') && c.conditions.length === 1)
-    return makeCondition(workspace, c.conditions[0]);
   const block = workspace.newBlock(`condition_${c.type}`);
   setFields(block, c as unknown as Record<string, unknown>);
   if (c.type === 'not')
@@ -239,12 +324,10 @@ function makeCondition(workspace: Blockly.Workspace, c: Condition): Blockly.Bloc
       .getInput('TEST')!
       .connection!.connect(makeCondition(workspace, c.condition).outputConnection!);
   if (c.type === 'all' || c.type === 'any') {
-    block
-      .getInput('A')!
-      .connection!.connect(makeCondition(workspace, c.conditions[0]).outputConnection!);
-    block
-      .getInput('B')!
-      .connection!.connect(makeCondition(workspace, c.conditions[1]).outputConnection!);
+    setConditionCount(block, c.conditions.length);
+    groupInputs(block).forEach((input, index) =>
+      input.connection!.connect(makeCondition(workspace, c.conditions[index]).outputConnection!),
+    );
   }
   return block;
 }
@@ -308,10 +391,7 @@ export function readCondition(block: Blockly.Block | null): Condition {
   if (type === 'all' || type === 'any')
     return {
       type,
-      conditions: [
-        readCondition(block.getInputTargetBlock('A')),
-        readCondition(block.getInputTargetBlock('B')),
-      ],
+      conditions: groupInputs(block).map((input) => readCondition(input.connection!.targetBlock())),
     };
   return { type, ...fields(block, conditionFields[type] ?? []) } as Condition;
 }
@@ -385,20 +465,24 @@ export default function Blocks({
   saved,
   onChange,
   onError,
+  title = 'WHEN THIS ACTION RUNS',
 }: {
   project: Project;
   flowId: string;
   effects: Effect[];
   saved: unknown;
-  onChange: (effects: Effect[], workspace: unknown) => void;
+  onChange: (effects: Effect[], workspace: unknown, conditions: FlowConditions) => void;
   onError: (e: string) => void;
+  title?: string;
 }) {
   project = p;
   register();
+  const conditions = flowConditions(flow(p, flowId));
+  const conditionVersion = JSON.stringify(conditions);
   const host = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
-  const current = useRef({ effects, saved, onChange, onError });
-  current.current = { effects, saved, onChange, onError };
+  const current = useRef({ effects, conditions, saved, onChange, onError, title });
+  current.current = { effects, conditions, saved, onChange, onError, title };
   const last = useRef('');
   const load = () => {
     const ws = workspace.current!;
@@ -420,15 +504,20 @@ export default function Blocks({
       }
       if (!loaded) {
         ws.clear();
-        const root = ws.newBlock('luna_flow');
+        const root = loadEffectBlocks(ws, current.current.effects, current.current.conditions);
         root.moveBy(24, 24);
-        makeEffects(ws, current.current.effects, root.getInput('DO')!.connection!);
       }
+      const root = ws.getTopBlocks(false).find((block) => block.type === 'luna_flow')!;
+      syncFlowConditions(root, current.current.conditions);
+      root.setFieldValue(current.current.title, 'FLOW_TITLE');
       ws.getAllBlocks(false).forEach((b) => {
         b.initSvg();
       });
       ws.render();
-      last.current = JSON.stringify(current.current.effects);
+      last.current = JSON.stringify({
+        effects: current.current.effects,
+        conditions: current.current.conditions,
+      });
     } finally {
       Blockly.Events.enable();
     }
@@ -436,6 +525,7 @@ export default function Blocks({
   useEffect(() => {
     const ws = Blockly.inject(host.current!, {
       toolbox,
+      renderer: 'luna',
       media: '/blockly-media/',
       sounds: false,
       trashcan: true,
@@ -475,9 +565,11 @@ export default function Blocks({
           }
         }
         const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+        refreshChainEnds(ws);
         const next = readEffects(root?.getInputTargetBlock('DO') ?? null);
-        last.current = JSON.stringify(next);
-        current.current.onChange(next, Blockly.serialization.workspaces.save(ws));
+        const nextConditions = readFlowConditions(root ?? null);
+        last.current = JSON.stringify({ effects: next, conditions: nextConditions });
+        current.current.onChange(next, Blockly.serialization.workspaces.save(ws), nextConditions);
       } catch (e) {
         current.current.onError(String(e));
       }
@@ -493,7 +585,17 @@ export default function Blocks({
     };
   }, [flowId]);
   useEffect(() => {
-    if (workspace.current && last.current !== JSON.stringify(effects)) load();
-  }, [effects]);
+    if (workspace.current && last.current !== JSON.stringify({ effects, conditions })) load();
+  }, [effects, conditionVersion]);
+  useEffect(() => {
+    const root = workspace.current?.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+    if (!root) return;
+    Blockly.Events.disable();
+    try {
+      root.setFieldValue(title, 'FLOW_TITLE');
+    } finally {
+      Blockly.Events.enable();
+    }
+  }, [title]);
   return <div className="block-workspace" ref={host} aria-label="Logic block workspace" />;
 }

@@ -46,10 +46,10 @@ export const character = (at: string): Character => ({
   actions: [],
   triggers: [],
 });
-export const action = (owner?: string): Action => ({
+export const action = (owner?: string, verb = 'examine'): Action => ({
   id: id(),
   name: 'New action',
-  verb: 'examine',
+  verb,
   pattern: owner ? [{ type: 'entity', entity: owner }] : [],
   priority: 0,
   requirements: yes,
@@ -83,6 +83,14 @@ export function entity(p: Project, key: string) {
 export function owner(p: Project, key: string) {
   return key === p.game.id ? p.game : entity(p, key);
 }
+export function flowOwner(p: Project, key: string) {
+  return [p.game, ...p.locations, ...p.objects, ...p.characters].find(
+    (entity) =>
+      entity.actions.some((action) => action.id === key) ||
+      entity.triggers.some((trigger) => trigger.id === key) ||
+      ('exits' in entity && entity.exits.some((exit) => exit.id === key)),
+  );
+}
 export function flows(p: Project): Array<Action | Trigger | Exit> {
   return [p.game, ...p.locations, ...p.objects, ...p.characters].flatMap((o) => [
     ...o.actions,
@@ -92,6 +100,15 @@ export function flows(p: Project): Array<Action | Trigger | Exit> {
 }
 export function flow(p: Project, key: string) {
   return flows(p).find((f) => f.id === key);
+}
+export type FlowConditions = Partial<
+  Record<'requirements' | 'condition' | 'visible' | 'available', Condition>
+>;
+export function flowConditions(f: Action | Trigger | Exit | undefined): FlowConditions {
+  if (!f) return {};
+  if ('requirements' in f) return { requirements: f.requirements };
+  if ('condition' in f) return { condition: f.condition };
+  return { visible: f.visible, available: f.available };
 }
 export function allEffects(
   effects: Effect[],

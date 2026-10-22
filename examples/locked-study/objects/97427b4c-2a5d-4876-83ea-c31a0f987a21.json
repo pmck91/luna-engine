@@ -89,7 +89,7 @@
         },
         {
           "type": "say",
-          "text": "You drop the key"
+          "text": "You drop the key, it <bright-yellow>clatters</bright-yellow> on the floor."
         }
       ]
     }

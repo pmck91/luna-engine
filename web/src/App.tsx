@@ -11,12 +11,20 @@ import type {
   Span,
 } from './contracts';
 import { ApiError, bundle, request } from './api';
-import { character, flow, location as makeLocation, object as makeObject } from './model';
+import {
+  character,
+  flow,
+  flowOwner,
+  owner,
+  location as makeLocation,
+  object as makeObject,
+} from './model';
 import { lockedStudy } from './example';
 import { Check, Field, StateInspector, Text } from './Forms';
 import Inspector from './Inspector';
 import WorldMap from './WorldMap';
 import Blocks from './Blocks';
+import Actions from './Actions';
 type Log = { command?: string; spans?: Span[] };
 export default function App() {
   const [config, setConfig] = useState<ConfigView | null>(null);
@@ -27,6 +35,9 @@ export default function App() {
   const [selected, setSelected] = useState('');
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('map');
+  const [actionSelections, setActionSelections] = useState<Record<string, string>>({});
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const [playtestCollapsed, setPlaytestCollapsed] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('Saved');
@@ -88,6 +99,7 @@ export default function App() {
     setPlayProject(null);
     setLogs([]);
     setMode('map');
+    setActionSelections({});
   };
   const edit = useCallback((f: (p: Project) => void) => {
     const old = current.current.doc;
@@ -106,9 +118,15 @@ export default function App() {
   }, []);
   const select = (key: string) => {
     setSelected(key);
-    if (current.current.doc && flow(current.current.doc, key)) {
+    const project = current.current.doc;
+    const selectedFlow = project && flow(project, key);
+    if (project && selectedFlow) {
       setConnecting(false);
-      setMode('logic');
+      if ('requirements' in selectedFlow) {
+        const parent = flowOwner(project, key)!;
+        setActionSelections((previous) => ({ ...previous, [parent.id]: key }));
+        setMode('actions');
+      } else setMode('logic');
     }
   };
   const save = useCallback((): Promise<void> => {
@@ -279,6 +297,7 @@ export default function App() {
   };
   const remove = (key: string) => {
     if (!window.confirm('Delete this content? References will be reported by validation.')) return;
+    const parent = doc && flowOwner(doc, key);
     edit((p) => {
       p.locations = p.locations.filter((l) => l.id !== key);
       p.objects = p.objects.filter((o) => o.id !== key);
@@ -297,7 +316,7 @@ export default function App() {
       for (const route of Object.keys(p.editor.routes))
         if (!exits.has(route)) delete p.editor.routes[route];
     });
-    setSelected(doc?.game.id ?? '');
+    setSelected(parent?.id ?? doc?.game.id ?? '');
   };
   const upload = async (file: File) => {
     if (!view) return;
@@ -333,6 +352,11 @@ export default function App() {
     }
   };
   const activeFlow = doc && flow(doc, selected);
+  const actionOwner = doc && (owner(doc, selected) ?? flowOwner(doc, selected));
+  const activeAction =
+    actionOwner?.actions.find((action) => action.id === selected) ??
+    actionOwner?.actions.find((action) => action.id === actionSelections[actionOwner.id]) ??
+    actionOwner?.actions[0];
   const countErrors = diagnostics.filter((d) => d.severity === 'error').length;
   return (
     <div className="app">
@@ -522,7 +546,7 @@ export default function App() {
           </div>
         </main>
       ) : (
-        <main className="workspace">
+        <main className={`workspace ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}>
           <nav className="hierarchy" aria-label="Project hierarchy">
             <h3>Project</h3>
             <input
@@ -584,7 +608,7 @@ export default function App() {
                   .map((e) => (
                     <button
                       key={e.id}
-                      className={`tree-item ${e.id === selected ? 'active' : ''}`}
+                      className={`tree-item ${e.id === selected || (mode === 'actions' && actionOwner?.id === e.id) ? 'active' : ''}`}
                       onClick={() => select(e.id)}
                     >
                       <span>◇</span>
@@ -644,9 +668,21 @@ export default function App() {
                     World map
                   </button>
                   <button
+                    className={mode === 'actions' ? 'active' : ''}
+                    disabled={!actionOwner}
+                    onClick={() => {
+                      setConnecting(false);
+                      if (activeAction) setSelected(activeAction.id);
+                      setMode('actions');
+                    }}
+                  >
+                    Actions
+                  </button>
+                  <button
                     className={mode === 'logic' ? 'active' : ''}
                     onClick={() => {
                       setConnecting(false);
+                      if (!activeFlow && activeAction) setSelected(activeAction.id);
                       setMode('logic');
                     }}
                   >
@@ -667,9 +703,13 @@ export default function App() {
                     ? connecting
                       ? 'Click a source room, then a target room · Esc cancels'
                       : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
-                    : activeFlow
-                      ? 'Drag blocks from the palette into the flow'
-                      : 'Select a command action or trigger'}
+                    : mode === 'actions'
+                      ? actionOwner
+                        ? 'Choose an action, then build its logic'
+                        : 'Select an object, location, or character'
+                      : activeFlow
+                        ? 'Drag blocks from the palette into the flow'
+                        : 'Select a command action or trigger'}
                 </span>
               </div>
               <div className="canvas">
@@ -681,15 +721,25 @@ export default function App() {
                     edit={edit}
                     connecting={connecting}
                   />
+                ) : mode === 'actions' && actionOwner ? (
+                  <Actions
+                    key={actionOwner.id}
+                    project={doc}
+                    ownerId={actionOwner.id}
+                    active={activeAction}
+                    edit={edit}
+                    select={select}
+                    error={error}
+                  />
                 ) : activeFlow ? (
                   <Blocks
                     project={doc}
                     flowId={activeFlow.id}
                     effects={activeFlow.effects}
                     saved={doc.editor.blocks[activeFlow.id]}
-                    onChange={(effects, workspace) =>
+                    onChange={(effects, workspace, conditions) =>
                       edit((p) => {
-                        flow(p, activeFlow.id)!.effects = effects;
+                        Object.assign(flow(p, activeFlow.id)!, conditions, { effects });
                         p.editor.blocks[activeFlow.id] =
                           workspace as (typeof p.editor.blocks)[string];
                       })
@@ -704,7 +754,10 @@ export default function App() {
                 )}
               </div>
             </section>
-            <section className="playtest">
+            <section
+              className={`playtest ${playtestCollapsed ? 'is-collapsed' : ''}`}
+              aria-label="Playtest"
+            >
               <div className="playtest-toolbar">
                 <h2>Playtest</h2>
                 <span className="session-status">
@@ -712,117 +765,166 @@ export default function App() {
                     ? `● ${play.state.ending ? 'Ended' : playSource !== editingVersion ? 'Restart to apply edits' : 'Running'}`
                     : 'Ready to start'}
                 </span>
+                <div className="playtest-controls" hidden={playtestCollapsed}>
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      void start();
+                    }}
+                  >
+                    {play ? 'Restart' : 'Start playtest'}
+                  </button>
+                  <select
+                    aria-label="Start at location"
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) void start(e.target.value);
+                    }}
+                  >
+                    <option value="">Start at…</option>
+                    {doc.locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Check label="Plain text" value={plain} onChange={setPlain} />
+                </div>
                 <button
-                  disabled={busy}
-                  onClick={() => {
-                    void start();
+                  className="panel-toggle"
+                  aria-label={playtestCollapsed ? 'Expand playtest' : 'Collapse playtest'}
+                  aria-expanded={!playtestCollapsed}
+                  aria-controls="playtest-content"
+                  title={playtestCollapsed ? 'Expand playtest' : 'Collapse playtest'}
+                  onClick={() => setPlaytestCollapsed((collapsed) => !collapsed)}
+                >
+                  <span aria-hidden="true">{playtestCollapsed ? '▴' : '▾'}</span>
+                </button>
+              </div>
+              <div id="playtest-content" className="playtest-content" hidden={playtestCollapsed}>
+                <div
+                  className="transcript"
+                  ref={transcript}
+                  role="log"
+                  aria-label="Game transcript"
+                >
+                  {logs.length ? (
+                    logs.map((log, i) =>
+                      log.command ? (
+                        <p className="command-line" key={i}>
+                          &gt; {log.command}
+                        </p>
+                      ) : (
+                        <p key={i}>
+                          {log.spans?.map((s, j) => (
+                            <span
+                              key={j}
+                              style={{
+                                color: !plain && s.colour ? `var(--colour-${s.colour})` : undefined,
+                              }}
+                            >
+                              {s.text}
+                            </span>
+                          ))}
+                        </p>
+                      ),
+                    )
+                  ) : (
+                    <p className="muted">
+                      Your story will appear here. Start a playtest to explore it.
+                    </p>
+                  )}
+                </div>
+                <form
+                  className="command-input"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void send();
                   }}
                 >
-                  {play ? 'Restart' : 'Start playtest'}
-                </button>
-                <select
-                  aria-label="Start at location"
-                  value=""
-                  onChange={(e) => {
-                    if (e.target.value) void start(e.target.value);
-                  }}
-                >
-                  <option value="">Start at…</option>
-                  {doc.locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-                <Check label="Plain text" value={plain} onChange={setPlain} />
-              </div>
-              <div className="transcript" ref={transcript} role="log" aria-label="Game transcript">
-                {logs.length ? (
-                  logs.map((log, i) =>
-                    log.command ? (
-                      <p className="command-line" key={i}>
-                        &gt; {log.command}
-                      </p>
-                    ) : (
-                      <p key={i}>
-                        {log.spans?.map((s, j) => (
-                          <span
-                            key={j}
-                            style={{
-                              color: !plain && s.colour ? `var(--colour-${s.colour})` : undefined,
-                            }}
-                          >
-                            {s.text}
-                          </span>
-                        ))}
-                      </p>
-                    ),
-                  )
-                ) : (
-                  <p className="muted">
-                    Your story will appear here. Start a playtest to explore it.
-                  </p>
-                )}
-              </div>
-              <form
-                className="command-input"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void send();
-                }}
-              >
-                <span>&gt;</span>
-                <input
-                  aria-label="Player command"
-                  placeholder="Type a command, e.g. examine painting"
-                  value={input}
-                  disabled={!play || busy}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      const n = Math.max(0, historyAt - 1);
-                      setHistoryAt(n);
-                      setInput(history[n] ?? '');
-                    }
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      const n = Math.min(history.length, historyAt + 1);
-                      setHistoryAt(n);
-                      setInput(history[n] ?? '');
-                    }
-                  }}
-                />
-                <button disabled={!play || busy}>Run ↵</button>
-              </form>
-              <div className="debug-toolbar">
-                <details>
-                  <summary>Parser trace</summary>
-                  <pre>{play?.result.trace.join('\n') || 'No command matches yet.'}</pre>
-                </details>
-                <details>
-                  <summary>Command history</summary>
-                  {history.map((h, i) => (
-                    <button key={i} onClick={() => setInput(h)}>
-                      {h}
-                    </button>
-                  ))}
-                </details>
-                <button disabled={!play} onClick={() => setShowState(true)}>
-                  World state inspector
-                </button>
+                  <span>&gt;</span>
+                  <input
+                    aria-label="Player command"
+                    placeholder="Type a command, e.g. examine painting"
+                    value={input}
+                    disabled={!play || busy}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const n = Math.max(0, historyAt - 1);
+                        setHistoryAt(n);
+                        setInput(history[n] ?? '');
+                      }
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const n = Math.min(history.length, historyAt + 1);
+                        setHistoryAt(n);
+                        setInput(history[n] ?? '');
+                      }
+                    }}
+                  />
+                  <button disabled={!play || busy}>Run ↵</button>
+                </form>
+                <div className="debug-toolbar">
+                  <details>
+                    <summary>Parser trace</summary>
+                    <pre>{play?.result.trace.join('\n') || 'No command matches yet.'}</pre>
+                  </details>
+                  <details>
+                    <summary>Command history</summary>
+                    {history.map((h, i) => (
+                      <button key={i} onClick={() => setInput(h)}>
+                        {h}
+                      </button>
+                    ))}
+                  </details>
+                  <button disabled={!play} onClick={() => setShowState(true)}>
+                    World state inspector
+                  </button>
+                </div>
               </div>
             </section>
           </div>
-          <aside className="inspector">
-            <Inspector
-              project={doc}
-              selected={selected}
-              edit={edit}
-              select={select}
-              remove={remove}
-              error={error}
-            />
+          <aside
+            className={`inspector-panel ${inspectorCollapsed ? 'is-collapsed' : ''}`}
+            aria-label="Inspector"
+          >
+            <div className="inspector-toolbar">
+              {!inspectorCollapsed &&
+                (activeFlow && actionOwner ? (
+                  <button
+                    className="inspector-back"
+                    onClick={() => select(actionOwner.id)}
+                    title={`Back to ${'title' in actionOwner ? actionOwner.title : actionOwner.name} properties`}
+                  >
+                    ← Back to {'title' in actionOwner ? actionOwner.title : actionOwner.name}
+                  </button>
+                ) : (
+                  <span>Properties</span>
+                ))}
+              <button
+                className="panel-toggle"
+                aria-label={inspectorCollapsed ? 'Expand inspector' : 'Collapse inspector'}
+                aria-expanded={!inspectorCollapsed}
+                aria-controls="inspector-content"
+                title={inspectorCollapsed ? 'Expand inspector' : 'Collapse inspector'}
+                onClick={() => setInspectorCollapsed((collapsed) => !collapsed)}
+              >
+                <span aria-hidden="true">{inspectorCollapsed ? '‹' : '›'}</span>
+                {inspectorCollapsed && <span>Inspector</span>}
+              </button>
+            </div>
+            <div id="inspector-content" className="inspector" hidden={inspectorCollapsed}>
+              <Inspector
+                project={doc}
+                selected={selected}
+                edit={edit}
+                select={select}
+                remove={remove}
+                error={error}
+              />
+            </div>
           </aside>
         </main>
       )}

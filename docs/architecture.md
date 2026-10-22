@@ -10,6 +10,8 @@
 
 The React/TypeScript editor uses React Flow for locations and exits and custom Blockly blocks for typed action flows. It never executes game rules in JavaScript. Rust types generate `web/src/contracts.ts`; CI checks that this file has not drifted.
 
+Flow roots expose action requirements, trigger conditions, or exit visibility and traversability as Boolean inputs alongside the effects. These inputs and the inspector edit the same canonical conditions. ALL/ANY blocks preserve arbitrary child counts, including empty and single-child groups. Restoring an older workspace adds missing condition inputs from the canonical model without discarding its effect layout. Inspector and playtest collapse controls affect only the editor layout and keep panel contents mounted.
+
 ## Authoring contract
 
 `game.json` contains game identity, format version, a three-component numeric content version, metadata, initial typed variables, endings, global actions/triggers, and the relative asset list. `vocabulary.json` stores shared verbs, synonyms, and optional semantic interaction events. Locations, objects, and characters have individual JSON files named by immutable IDs. Renaming display text does not rename IDs or references. New content receives UUIDs; imported IDs may also use safe ASCII slugs.

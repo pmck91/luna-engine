@@ -33,8 +33,7 @@
     "id": "go",
     "canonical": "go",
     "synonyms": [
-      "walk",
-      "follow",
+      "walk to",
       "go to"
     ],
     "event": null
@@ -73,7 +72,8 @@
     "id": "talk",
     "canonical": "talk",
     "synonyms": [
-      "speak to"
+      "speak to",
+      "talk to"
     ],
     "event": "speak"
   },

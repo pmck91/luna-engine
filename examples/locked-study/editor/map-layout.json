@@ -341,6 +341,11 @@
         "blocks": [
           {
             "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
             "id": "X2N]1on`ei@pLpg-x.!.",
             "inputs": {
               "DO": {
@@ -353,13 +358,20 @@
                   "next": {
                     "block": {
                       "fields": {
-                        "text": "You drop the key"
+                        "text": "You drop the key, it clatters on the floor."
                       },
                       "id": "Ea4mCJgAl|%Le.BMi|eD",
                       "type": "luna_say"
                     }
                   },
                   "type": "luna_place"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "j6z3+%p1@Fi,/(vF+ver",
+                  "type": "condition_true"
                 }
               }
             },

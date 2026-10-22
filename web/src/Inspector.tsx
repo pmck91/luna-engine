@@ -370,9 +370,7 @@ export default function Inspector({
       ))}
       <button
         onClick={() => {
-          const a = action(
-            isGame || p.locations.some((l) => l.id === selected) ? undefined : selected,
-          );
+          const a = action(isGame ? undefined : selected);
           edit((n) => {
             owner(n, selected)!.actions.push(a);
           });

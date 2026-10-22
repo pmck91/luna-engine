@@ -56,7 +56,7 @@ test('create a world through forms, starter actions, and the exit tool', async (
   expect(body).not.toBeNull();
   await page.mouse.move(block!.x + 20, block!.y + 12);
   await page.mouse.down();
-  await page.mouse.move(body!.x + 20, body!.y + body!.height + 8, { steps: 20 });
+  await page.mouse.move(body!.x + 20, body!.y + body!.height + 12, { steps: 20 });
   await page.mouse.up();
   await expect(page.getByLabel('SAY text', { exact: true })).toHaveCount(2);
   await page.getByLabel('SAY text', { exact: true }).last().fill('You pocket the coin.');
