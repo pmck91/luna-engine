@@ -19,6 +19,7 @@ Suggested priority: arithmetic, character inventories, and sequence exhaustion f
 
 ## UI
 
+- [ ] Add assets/logo to readme, and to editors main page.
 - [ ] Move command vocabulary alongside variables in the project hierarchy.
 - [ ] Give endings their own hierarchy item and editor alongside variables and vocabulary, using the existing ending model.
 - [ ] Add saved block templates for reusable command snippets. Initially insert independent copies, with a way to replace entity references during insertion. Copied actions and response sequences need fresh IDs so sequence progress remains independent. Templates can stay in editor metadata; inserted blocks become ordinary game logic in exported content.
