@@ -347,11 +347,35 @@ pub struct Point {
     pub x: f64,
     pub y: f64,
 }
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BorderSide {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BorderAnchor {
+    pub side: BorderSide,
+    // Fraction of the border length, from left to right or top to bottom.
+    pub offset: f64,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct RouteLayout {
+    pub source: Option<BorderAnchor>,
+    pub target: Option<BorderAnchor>,
+    // Label displacement from the route midpoint in map coordinates.
+    pub label_offset: Option<Point>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct EditorLayout {
     pub positions: BTreeMap<String, Point>,
     pub blocks: BTreeMap<String, serde_json::Value>,
+    pub routes: BTreeMap<String, RouteLayout>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(deny_unknown_fields)]

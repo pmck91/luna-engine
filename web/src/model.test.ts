@@ -38,7 +38,7 @@ const base: Project = {
   ],
   objects: [],
   characters: [],
-  editor: { positions: {}, blocks: {} },
+  editor: { positions: {}, blocks: {}, routes: {} },
 };
 describe('semantic block round trips', () => {
   it('preserves broken references instead of silently selecting another entity', () => {

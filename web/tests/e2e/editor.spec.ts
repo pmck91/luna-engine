@@ -25,26 +25,11 @@ test('create a world through forms, starter actions, and the exit tool', async (
   await page.getByRole('button', { name: 'Add location', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('Hall');
   await page.getByRole('button', { name: 'Exit tool' }).click();
-  const source = await page
-    .locator('.react-flow__node')
-    .filter({ hasText: 'Atrium' })
-    .locator('.react-flow__handle.source')
-    .boundingBox();
-  const target = await page
-    .locator('.react-flow__node')
-    .filter({ hasText: 'Hall' })
-    .locator('.react-flow__handle.target')
-    .boundingBox();
-  expect(source).not.toBeNull();
-  expect(target).not.toBeNull();
-  await page.mouse.move(source!.x + source!.width / 2, source!.y + source!.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, {
-    steps: 15,
-  });
-  await page.mouse.up();
+  await page.locator('.react-flow__node').filter({ hasText: 'Atrium' }).click();
+  await page.locator('.react-flow__node').filter({ hasText: 'Hall' }).click();
   await expect(page.getByLabel('Destination', { exact: true })).toBeVisible();
   await page.getByLabel('Name', { exact: true }).fill('east');
+  await page.getByRole('button', { name: 'Exit tool', exact: true }).click();
   await page.getByRole('button', { name: 'Add object', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('coin');
   await page.getByLabel('Can be taken', { exact: true }).check();

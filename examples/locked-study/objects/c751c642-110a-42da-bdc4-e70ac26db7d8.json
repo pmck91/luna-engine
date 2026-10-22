@@ -1,13 +1,15 @@
 {
   "id": "c751c642-110a-42da-bdc4-e70ac26db7d8",
   "name": "rose",
-  "aliases": [],
+  "aliases": [
+    "flower"
+  ],
   "description": "One perfect rose.",
   "placement": {
     "type": "location",
     "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6"
   },
-  "portable": false,
+  "portable": true,
   "hidden": false,
   "open": false,
   "state": {},
@@ -31,6 +33,28 @@
         {
           "type": "end",
           "ending": "290b8b0f-8996-4ce8-a2f3-1aacbfea5d25"
+        }
+      ]
+    },
+    {
+      "id": "987f3c45-f313-4f6a-ab2c-ba8f8a9b91a0",
+      "name": "Pick the rose",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "c751c642-110a-42da-bdc4-e70ac26db7d8"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "end",
+          "ending": "cce1a92e-e33c-4ad7-bb03-c240b2383c1f"
         }
       ]
     }

@@ -291,6 +291,36 @@ header {
   font-size: 10px;
   text-align: right;
 }
+.canvas-toolbar .exit-tool {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.exit-tool.active {
+  background: #3b3357;
+  border-color: #9e8bf1;
+}
+.world-map {
+  width: 100%;
+  height: 100%;
+}
+.world-map.connecting .room-node {
+  cursor: crosshair;
+}
+.room-node.connection-source {
+  outline: 2px dashed #b8a7ff;
+}
+.map-connection-hint {
+  position: absolute;
+  z-index: 6;
+  left: 12px;
+  top: 12px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  background: #262b35e8;
+  color: #d1c8fc;
+  pointer-events: none;
+  font-size: 11px;
+}
 .tabs {
   display: flex;
   gap: 7px;
@@ -346,11 +376,52 @@ header {
   outline: 2px solid #a894fd;
   border-color: transparent;
 }
-.react-flow__handle {
-  background: #b6a5fc;
+.react-flow__handle.exit-port {
+  border: 0;
+  background: transparent;
+  width: 12px;
+  height: 12px;
+}
+.exit-anchor {
+  position: absolute;
+  inset: 0;
+  width: 12px;
+  height: 12px;
+  padding: 0;
   border: 2px solid #242630;
-  width: 9px;
-  height: 9px;
+  border-radius: 50%;
+  background: #979fb5;
+  pointer-events: all;
+  cursor: grab;
+  touch-action: none;
+}
+.exit-anchor.active,
+.exit-anchor:hover {
+  background: #b8a7ff;
+}
+.exit-label-leader {
+  fill: none;
+  stroke: #949db1;
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  opacity: 0.45;
+  pointer-events: none;
+}
+.connection-preview {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+.connection-preview path {
+  fill: none;
+  stroke: #b8a7ff;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+}
+.connection-preview circle {
+  fill: #b8a7ff;
 }
 .exit-label {
   position: absolute;
@@ -362,6 +433,8 @@ header {
   color: #c1c7d6;
   font: 11px / 14px system-ui;
   white-space: nowrap;
+  cursor: grab;
+  touch-action: none;
 }
 .exit-label.active {
   background: #3b3357;

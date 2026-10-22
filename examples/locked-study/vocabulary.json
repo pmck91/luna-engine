@@ -34,7 +34,8 @@
     "canonical": "go",
     "synonyms": [
       "walk",
-      "follow"
+      "follow",
+      "go to"
     ],
     "event": null
   },
@@ -81,5 +82,22 @@
     "canonical": "unlock",
     "synonyms": [],
     "event": "use"
+  },
+  {
+    "id": "6efa8d02-c099-4930-85a7-3088b679e0d2",
+    "canonical": "pick",
+    "synonyms": [
+      "take"
+    ],
+    "event": "take"
+  },
+  {
+    "id": "0255172e-dc26-4594-b340-5791da5e3bcc",
+    "canonical": "pet",
+    "synonyms": [
+      "stroke",
+      "scratch"
+    ],
+    "event": null
   }
 ]

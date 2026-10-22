@@ -32,7 +32,9 @@ The editor opens a browser with a per-launch session token. Keep that launch URL
 
 On first launch without `--projects-dir`, enter an absolute projects-directory path in the editor. The choice is saved in the per-user configuration directory. Run the editor with another `--projects-dir` to use a different root.
 
-The `examples` directory contains an editor-authored **The Locked Study** project and its actual exported bundle. You can open the project from the editor, or create a new project using the Locked Study template. Selecting a command action opens its Blockly flow; the inspector edits text and response sequences. The Exit tool enables map connections between location handles.
+The `examples` directory contains an editor-authored **The Locked Study** project and its actual exported bundle. You can open the project from the editor, or create a new project using the Locked Study template. Selecting a command action opens its Blockly flow; the inspector edits text and response sequences.
+
+On the World map toolbar, enable **Exit tool**, then click a source room and a target room. Each click creates an exit point at the nearest free position on that room's border. Click the tool again to return to moving rooms; Escape cancels an unfinished connection. Drag an exit point around any of the four borders to adjust its route, or drag its label independently. Detached labels have a faint dashed guide to the closest point on their arrow. Double-click a label to restore automatic placement. Anchor positions and label offsets are saved with the project.
 
 ## Play a game
 

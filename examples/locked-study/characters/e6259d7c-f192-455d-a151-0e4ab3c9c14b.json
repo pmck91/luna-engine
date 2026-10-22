@@ -1,0 +1,66 @@
+{
+  "id": "e6259d7c-f192-455d-a151-0e4ab3c9c14b",
+  "name": "Tom the Tabby",
+  "aliases": [
+    "cat",
+    "tom"
+  ],
+  "description": "The neighbors friendly big fat tabby cat, lounging carefree in the sun.",
+  "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6",
+  "hidden": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "78edf6f7-cf59-4de0-95d6-37a0f9ce093f",
+      "name": "Pet tom",
+      "verb": "0255172e-dc26-4594-b340-5791da5e3bcc",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "respond",
+          "id": "c8003608-5e34-43b2-85de-54ce3affca84",
+          "responses": [
+            "Tom purrs <yellow>happily</yellow> as he flops around enjoying the pets.",
+            "Tom rolls onto his back exposing his fluffy tummy for more scratches",
+            "Tom meows, happy for the attention!"
+          ],
+          "mode": "loop",
+          "fallback": ""
+        }
+      ]
+    },
+    {
+      "id": "77411fe8-74a1-4129-9afd-6b674341a1ae",
+      "name": "New action",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "say",
+          "text": "The neighbors friendly big fat tabby cat, lounging carefree in the sun."
+        }
+      ]
+    }
+  ],
+  "triggers": []
+}

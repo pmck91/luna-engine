@@ -16,7 +16,7 @@ The React/TypeScript editor uses React Flow for locations and exits and custom B
 
 Actions, conditions, and effects are tagged enums defined in `luna-model`. Boolean, signed 32-bit integer, and text values are supported. Custom entity properties have declared initial types. Command patterns combine a verb reference with literal phrases and fixed entity references. No scripts, regular expressions, or executable Blockly code are persisted.
 
-`editor/map-layout.json` stores map positions and optional Blockly workspaces. The typed effects remain canonical; workspace restoration must agree with them or the editor rebuilds the blocks. Response-sequence IDs are independent of response order and persist across edits.
+`editor/map-layout.json` stores map positions, optional Blockly workspaces, and route layouts keyed by exit ID. A route layout records optional source/target border anchors (side and fractional position) and a label displacement from the route midpoint. Anchors move with their rooms; labels never alter arrow geometry. Older layouts without route data use automatic placement. These fields are editor metadata and remain excluded from exported games. The typed effects remain canonical; workspace restoration must agree with them or the editor rebuilds the blocks. Response-sequence IDs are independent of response order and persist across edits.
 
 Drafts can have semantic validation errors and remain saveable. Export and new playtests require valid content. Runtime restores additionally validate every saved entity, property, visit counter, ending, and response cursor against the immutable game definition.
 

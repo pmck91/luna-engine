@@ -41,7 +41,13 @@ export type Game = { id: string, title: string, description: string, author: str
 
 export type Point = { x: number, y: number, };
 
-export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, };
+export type BorderSide = "top" | "right" | "bottom" | "left";
+
+export type BorderAnchor = { side: BorderSide, offset: number, };
+
+export type RouteLayout = { source: BorderAnchor | null, target: BorderAnchor | null, label_offset: Point | null, };
+
+export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, };
 
 export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, editor: EditorLayout, };
 

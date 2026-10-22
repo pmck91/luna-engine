@@ -481,7 +481,21 @@ mod tests {
     #[test]
     fn stable_roundtrip_and_conflicts() {
         let tmp = tempfile::tempdir().unwrap();
-        let p = Project::blank("Roundtrip");
+        let mut p = Project::blank("Roundtrip");
+        p.editor.routes.insert(
+            "exit-layout".into(),
+            RouteLayout {
+                source: Some(BorderAnchor {
+                    side: BorderSide::Top,
+                    offset: 0.3,
+                }),
+                target: Some(BorderAnchor {
+                    side: BorderSide::Bottom,
+                    offset: 0.7,
+                }),
+                label_offset: Some(Point { x: 40.0, y: -60.0 }),
+            },
+        );
         let rev = save_project(tmp.path(), &p, None).unwrap();
         let loaded = load_project(tmp.path()).unwrap();
         assert_eq!(p, loaded);
@@ -493,6 +507,11 @@ mod tests {
                 .to_string()
                 .contains("CONFLICT")
         );
+    }
+    #[test]
+    fn legacy_editor_layout_remains_readable() {
+        let layout: EditorLayout = serde_json::from_str(r#"{"positions":{},"blocks":{}}"#).unwrap();
+        assert!(layout.routes.is_empty());
     }
     #[test]
     fn export_roundtrip() {

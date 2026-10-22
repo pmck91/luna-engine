@@ -1,13 +1,13 @@
 {
   "id": "ad700f74-e584-4d5d-8b9e-b7c54438b0fe",
   "title": "The Locked Study",
-  "description": "",
-  "author": "",
+  "description": "Basic example project",
+  "author": "Luna Engine Team",
   "format_version": 1,
   "content_version": "0.1.0",
   "starting_location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca",
-  "opening_text": "Find a way out of the study.",
-  "help_text": "Try examine painting, take key, use brass key on door, and go east.",
+  "opening_text": "Find a way to the garden.",
+  "help_text": "Try examine the room, and interacting with what you see! type <green>help</green> for a list of commands.",
   "require_ending": true,
   "variables": {
     "door_unlocked": false,
@@ -19,9 +19,28 @@
       "name": "A quiet moment",
       "text": "You stop to admire the rose. For now, this is enough.",
       "outcome": "neutral"
+    },
+    {
+      "id": "cce1a92e-e33c-4ad7-bb03-c240b2383c1f",
+      "name": "A gift for a loved one",
+      "text": "You stop to admire the rose. Avoiding the thorns carefully, you pick it. It will make a perfect gift for someone very special.",
+      "outcome": "neutral"
     }
   ],
-  "actions": [],
+  "actions": [
+    {
+      "id": "68d2b3c4-8227-4b93-ad9b-bae9b4fe6da3",
+      "name": "New action",
+      "verb": "examine",
+      "pattern": [],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": []
+    }
+  ],
   "triggers": [],
   "assets": []
 }

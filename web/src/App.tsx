@@ -106,7 +106,10 @@ export default function App() {
   }, []);
   const select = (key: string) => {
     setSelected(key);
-    if (current.current.doc && flow(current.current.doc, key)) setMode('logic');
+    if (current.current.doc && flow(current.current.doc, key)) {
+      setConnecting(false);
+      setMode('logic');
+    }
   };
   const save = useCallback((): Promise<void> => {
     const operation = queue.current.then(async () => {
@@ -287,6 +290,12 @@ export default function App() {
       }
       delete p.editor.positions[key];
       delete p.editor.blocks[key];
+      delete p.editor.routes[key];
+      const exits = new Set(
+        p.locations.flatMap((location) => location.exits.map((exit) => exit.id)),
+      );
+      for (const route of Object.keys(p.editor.routes))
+        if (!exits.has(route)) delete p.editor.routes[route];
     });
     setSelected(doc?.game.id ?? '');
   };
@@ -595,15 +604,6 @@ export default function App() {
             <button className="tree-item" onClick={() => select('vocabulary')}>
               ⌘ Command vocabulary
             </button>
-            <button
-              className={`tree-item ${connecting ? 'active' : ''}`}
-              onClick={() => {
-                setConnecting((v) => !v);
-                setMode('map');
-              }}
-            >
-              ↗ Exit tool
-            </button>
             <button className="tree-item" onClick={() => select(doc.game.id)}>
               ⚙ Game settings
             </button>
@@ -645,15 +645,27 @@ export default function App() {
                   </button>
                   <button
                     className={mode === 'logic' ? 'active' : ''}
-                    onClick={() => setMode('logic')}
+                    onClick={() => {
+                      setConnecting(false);
+                      setMode('logic');
+                    }}
                   >
                     Logic
                   </button>
                 </div>
+                {mode === 'map' && (
+                  <button
+                    className={`exit-tool ${connecting ? 'active' : ''}`}
+                    aria-pressed={connecting}
+                    onClick={() => setConnecting((value) => !value)}
+                  >
+                    Exit tool
+                  </button>
+                )}
                 <span>
                   {mode === 'map'
                     ? connecting
-                      ? 'Drag a connection handle to another location'
+                      ? 'Click a source room, then a target room · Esc cancels'
                       : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
                     : activeFlow
                       ? 'Drag blocks from the palette into the flow'
@@ -665,7 +677,7 @@ export default function App() {
                   <WorldMap
                     project={doc}
                     selected={selected}
-                    select={select}
+                    select={setSelected}
                     edit={edit}
                     connecting={connecting}
                   />

@@ -43,7 +43,7 @@
         "op": "eq",
         "value": true
       },
-      "blocked_text": "That route is unavailable.",
+      "blocked_text": "The door is locked, there must be a way to unlock it nearby...",
       "text": "",
       "effects": []
     }
