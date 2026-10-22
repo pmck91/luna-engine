@@ -1,0 +1,39 @@
+{
+  "id": "c751c642-110a-42da-bdc4-e70ac26db7d8",
+  "name": "rose",
+  "aliases": [],
+  "description": "One perfect rose.",
+  "placement": {
+    "type": "location",
+    "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "2ef07a95-2fd6-43ce-8a38-5f34394f3240",
+      "name": "Examine rose",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "c751c642-110a-42da-bdc4-e70ac26db7d8"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "end",
+          "ending": "290b8b0f-8996-4ce8-a2f3-1aacbfea5d25"
+        }
+      ]
+    }
+  ],
+  "triggers": []
+}

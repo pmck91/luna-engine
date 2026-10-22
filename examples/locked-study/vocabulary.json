@@ -1,0 +1,85 @@
+[
+  {
+    "id": "examine",
+    "canonical": "examine",
+    "synonyms": [
+      "inspect",
+      "look at"
+    ],
+    "event": "examine"
+  },
+  {
+    "id": "take",
+    "canonical": "take",
+    "synonyms": [
+      "get",
+      "pick up"
+    ],
+    "event": "take"
+  },
+  {
+    "id": "drop",
+    "canonical": "drop",
+    "synonyms": [],
+    "event": "drop"
+  },
+  {
+    "id": "use",
+    "canonical": "use",
+    "synonyms": [],
+    "event": "use"
+  },
+  {
+    "id": "go",
+    "canonical": "go",
+    "synonyms": [
+      "walk",
+      "follow"
+    ],
+    "event": null
+  },
+  {
+    "id": "pull",
+    "canonical": "pull",
+    "synonyms": [],
+    "event": "pull"
+  },
+  {
+    "id": "push",
+    "canonical": "push",
+    "synonyms": [],
+    "event": "push"
+  },
+  {
+    "id": "turn",
+    "canonical": "turn",
+    "synonyms": [],
+    "event": "turn"
+  },
+  {
+    "id": "open",
+    "canonical": "open",
+    "synonyms": [],
+    "event": null
+  },
+  {
+    "id": "close",
+    "canonical": "close",
+    "synonyms": [],
+    "event": null
+  },
+  {
+    "id": "talk",
+    "canonical": "talk",
+    "synonyms": [
+      "speak to"
+    ],
+    "event": "speak"
+  },
+  {
+    "id": "99c1de9b-c5d5-4233-a4f7-2a9aed04990e",
+    "canonical": "unlock",
+    "synonyms": [],
+    "event": "use"
+  }
+]

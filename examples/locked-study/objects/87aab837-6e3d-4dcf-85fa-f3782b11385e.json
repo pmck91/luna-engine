@@ -1,0 +1,233 @@
+{
+  "id": "87aab837-6e3d-4dcf-85fa-f3782b11385e",
+  "name": "locked door",
+  "aliases": [
+    "door",
+    "stone door"
+  ],
+  "description": "A locked door to the garden.",
+  "placement": {
+    "type": "location",
+    "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "45a636fe-4c4a-4fb5-8742-bdd1ac58d46b",
+      "name": "Unlock door",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+        },
+        {
+          "type": "literal",
+          "text": "on"
+        },
+        {
+          "type": "entity",
+          "entity": "87aab837-6e3d-4dcf-85fa-f3782b11385e"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "carrying",
+        "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+      },
+      "failure_text": "Take the key first.",
+      "effects": [
+        {
+          "type": "if",
+          "condition": {
+            "type": "variable",
+            "name": "door_unlocked",
+            "op": "eq",
+            "value": true
+          },
+          "then": [
+            {
+              "type": "say",
+              "text": "The door is already unlocked."
+            }
+          ],
+          "otherwise": [
+            {
+              "type": "set_variable",
+              "name": "door_unlocked",
+              "value": true
+            },
+            {
+              "type": "open",
+              "object": "87aab837-6e3d-4dcf-85fa-f3782b11385e"
+            },
+            {
+              "type": "say",
+              "text": "The brass key turns. The door is <green>unlocked</green>."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "926ae891-7bb3-4e06-8224-37253e9d87fe",
+      "name": "examine door",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "87aab837-6e3d-4dcf-85fa-f3782b11385e"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "if",
+          "condition": {
+            "type": "variable",
+            "name": "door_unlocked",
+            "op": "eq",
+            "value": false
+          },
+          "then": [
+            {
+              "type": "if",
+              "condition": {
+                "type": "carrying",
+                "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+              },
+              "then": [
+                {
+                  "type": "say",
+                  "text": "An old stone door to the garden, its locked, I wonder if that key you have fits?"
+                }
+              ],
+              "otherwise": [
+                {
+                  "type": "respond",
+                  "id": "264aa003-b316-4aee-833f-0f9bc405e867",
+                  "responses": [
+                    "A locked door. The Key must be around here somewhere...",
+                    "The same locked door... You should find the key!",
+                    "For Gods sake <red>FIND THE KEY</red>"
+                  ],
+                  "mode": "repeat_last",
+                  "fallback": ""
+                }
+              ]
+            }
+          ],
+          "otherwise": [
+            {
+              "type": "say",
+              "text": "The door is <green>unlocked</green>."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "46b8d142-882a-4455-8269-fcf04fe57dfd",
+      "name": "Unlock Door",
+      "verb": "99c1de9b-c5d5-4233-a4f7-2a9aed04990e",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "87aab837-6e3d-4dcf-85fa-f3782b11385e"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "carrying",
+        "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "if",
+          "condition": {
+            "type": "variable",
+            "name": "door_unlocked",
+            "op": "eq",
+            "value": false
+          },
+          "then": [
+            {
+              "type": "say",
+              "text": "You turn the key in the door, you hear a deep mechanical clunk. <cyan>Very </cyan>satisfying."
+            },
+            {
+              "type": "set_variable",
+              "name": "door_unlocked",
+              "value": true
+            }
+          ],
+          "otherwise": [
+            {
+              "type": "respond",
+              "id": "0863bf34-507f-43c1-af85-5b64ad68e255",
+              "responses": [
+                "The door is already unlocked!",
+                "It's unlocked...",
+                "The door is unlocked bozo."
+              ],
+              "mode": "repeat_last",
+              "fallback": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b2b38562-5afb-43e3-8fa3-a525576b2dc9",
+      "name": "Use door",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "87aab837-6e3d-4dcf-85fa-f3782b11385e"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "if",
+          "condition": {
+            "type": "variable",
+            "name": "door_unlocked",
+            "op": "eq",
+            "value": false
+          },
+          "then": [
+            {
+              "type": "say",
+              "text": "You turn the handle, but nothing happens. It's locked!"
+            }
+          ],
+          "otherwise": [
+            {
+              "type": "say",
+              "text": "You open the door and walk out into the garden"
+            },
+            {
+              "type": "move",
+              "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "triggers": []
+}

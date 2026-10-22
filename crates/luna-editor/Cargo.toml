@@ -1,0 +1,28 @@
+[package]
+name = "luna-editor"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+luna-model = { path = "../luna-model" }
+luna-core = { path = "../luna-core" }
+luna-project = { path = "../luna-project" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+clap.workspace = true
+directories.workspace = true
+axum = "0.8"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+rust-embed = { version = "8", features = ["include-exclude"] }
+mime_guess = "2"
+webbrowser = "1"
+ts-rs.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+luna-runner = { path = "../luna-runner" }
+tempfile.workspace = true
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

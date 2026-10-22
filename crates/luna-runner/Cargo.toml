@@ -1,0 +1,26 @@
+[package]
+name = "luna-runner"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "luna"
+path = "src/main.rs"
+
+[dependencies]
+luna-model = { path = "../luna-model" }
+luna-core = { path = "../luna-core" }
+luna-project = { path = "../luna-project" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+directories.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+fs2.workspace = true
+toml = "0.8"
+tempfile.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

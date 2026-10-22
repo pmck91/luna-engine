@@ -1,0 +1,19 @@
+[package]
+name = "luna-project"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+luna-model = { path = "../luna-model" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+zip.workspace = true
+uuid.workspace = true
+fs2.workspace = true
+
+[dev-dependencies]
+luna-core = { path = "../luna-core" }
+

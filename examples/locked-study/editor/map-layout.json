@@ -1,0 +1,285 @@
+{
+  "positions": {
+    "8b7e69bd-426e-4c3c-a87d-03f40ced27e6": {
+      "x": 416.0367998120952,
+      "y": 103.25000970612189
+    },
+    "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca": {
+      "x": 92.0,
+      "y": 89.0
+    }
+  },
+  "blocks": {
+    "46b8d142-882a-4455-8269-fcf04fe57dfd": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "id": "rr@m0i,TDOgKMJp)t`lu",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"if\",\"condition\":{\"type\":\"variable\",\"name\":\"door_unlocked\",\"op\":\"eq\",\"value\":false},\"then\":[{\"type\":\"say\",\"text\":\"You turn the key in the door, you hear a deep mechanical clunk. <cyan>Very </cyan>satisfying.\"}],\"otherwise\":[{\"type\":\"respond\",\"id\":\"0863bf34-507f-43c1-af85-5b64ad68e255\",\"responses\":[\"The door is already unlocked!\",\"It's unlocked...\",\"The door is unlocked bozo.\"],\"mode\":\"repeat_last\",\"fallback\":\"\"}]}",
+                  "id": "{Wxq=kzlkv~e])FA!CLq",
+                  "inputs": {
+                    "ELSE": {
+                      "block": {
+                        "data": "{\"type\":\"respond\",\"id\":\"0863bf34-507f-43c1-af85-5b64ad68e255\",\"responses\":[\"The door is already unlocked!\",\"It's unlocked...\",\"The door is unlocked bozo.\"],\"mode\":\"repeat_last\",\"fallback\":\"\"}",
+                        "id": "(QHVQ;MRG|}^?;hZRzB!",
+                        "type": "luna_respond"
+                      }
+                    },
+                    "TEST": {
+                      "block": {
+                        "data": "{\"type\":\"variable\",\"name\":\"door_unlocked\",\"op\":\"eq\",\"value\":false}",
+                        "fields": {
+                          "name": "door_unlocked",
+                          "op": "eq",
+                          "value": "false"
+                        },
+                        "id": "C)K8o5HY!7Tzt7~}wB~l",
+                        "type": "condition_variable"
+                      }
+                    },
+                    "THEN": {
+                      "block": {
+                        "data": "{\"type\":\"say\",\"text\":\"You turn the key in the door, you hear a deep mechanical clunk. <cyan>Very </cyan>satisfying.\"}",
+                        "fields": {
+                          "text": "You turn the key in the door, you hear a deep mechanical clunk. <cyan>Very </cyan>satisfying."
+                        },
+                        "id": "@ITw+8PP#V{^2j,w3|qD",
+                        "next": {
+                          "block": {
+                            "fields": {
+                              "name": "door_unlocked",
+                              "value": "true"
+                            },
+                            "id": "%Z[tY#.,3)|7V0#8;9zV",
+                            "type": "luna_set_variable"
+                          }
+                        },
+                        "type": "luna_say"
+                      }
+                    }
+                  },
+                  "type": "luna_if"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "6c267afe-26e2-465a-97ca-3569c0ead464": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "id": "(ck;YoXhC.un;6jM(NmU",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "fields": {
+                    "text": "An old brass key, probably unlocks something nearby!"
+                  },
+                  "id": "=nmn|EH]dM@g(3=G689N",
+                  "type": "luna_say"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "926ae891-7bb3-4e06-8224-37253e9d87fe": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "id": "er54XB8h(-Mvc1K5Ugym",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"if\",\"condition\":{\"type\":\"variable\",\"name\":\"door_unlocked\",\"op\":\"eq\",\"value\":false},\"then\":[{\"type\":\"respond\",\"id\":\"264aa003-b316-4aee-833f-0f9bc405e867\",\"responses\":[\"A locked door. The Key must be around here somewhere...\",\"The same locked door... You should find the key!\",\"For Gods sake <red>FIND THE KEY</red>\"],\"mode\":\"repeat_last\",\"fallback\":\"\"}],\"otherwise\":[{\"type\":\"say\",\"text\":\"The door is <green>unlocked</green>.\"}]}",
+                  "id": "^uT3v+Z/Xf_|-V#mlt*o",
+                  "inputs": {
+                    "ELSE": {
+                      "block": {
+                        "data": "{\"type\":\"say\",\"text\":\"The door is <green>unlocked</green>.\"}",
+                        "fields": {
+                          "text": "The door is <green>unlocked</green>."
+                        },
+                        "id": "VC[]3S[yj6o3L|2:Z8.%",
+                        "type": "luna_say"
+                      }
+                    },
+                    "TEST": {
+                      "block": {
+                        "data": "{\"type\":\"variable\",\"name\":\"door_unlocked\",\"op\":\"eq\",\"value\":false}",
+                        "fields": {
+                          "name": "door_unlocked",
+                          "op": "eq",
+                          "value": "false"
+                        },
+                        "id": "baa6.MD!f!E:DDVk8nS9",
+                        "type": "condition_variable"
+                      }
+                    },
+                    "THEN": {
+                      "block": {
+                        "id": "+MFzV@#c5{CTQtP}d?qb",
+                        "inputs": {
+                          "ELSE": {
+                            "block": {
+                              "data": "{\"type\":\"respond\",\"id\":\"264aa003-b316-4aee-833f-0f9bc405e867\",\"responses\":[\"A locked door. The Key must be around here somewhere...\",\"The same locked door... You should find the key!\",\"For Gods sake <red>FIND THE KEY</red>\"],\"mode\":\"repeat_last\",\"fallback\":\"\"}",
+                              "id": "4o/`;$^YWv!@xo%`)}?%",
+                              "type": "luna_respond"
+                            }
+                          },
+                          "TEST": {
+                            "block": {
+                              "fields": {
+                                "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+                              },
+                              "id": "gf`~RkkwiM9Yx;r57vY3",
+                              "type": "condition_carrying"
+                            }
+                          },
+                          "THEN": {
+                            "block": {
+                              "fields": {
+                                "text": "An old stone door to the garden, its locked, I wonder if that key you have fits?"
+                              },
+                              "id": "~K|]zZ8H}u19i`+si#Bs",
+                              "type": "luna_say"
+                            }
+                          }
+                        },
+                        "type": "luna_if"
+                      }
+                    }
+                  },
+                  "type": "luna_if"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "b2b38562-5afb-43e3-8fa3-a525576b2dc9": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "id": ";(i`Y-hT3}@Fd*+^_1CJ",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "id": "BN]y0##lZpEBnPj4BfM8",
+                  "inputs": {
+                    "ELSE": {
+                      "block": {
+                        "fields": {
+                          "text": "You open the door and walk out into the garden"
+                        },
+                        "id": "J@st^8,lq68NX;*lefzv",
+                        "next": {
+                          "block": {
+                            "fields": {
+                              "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6"
+                            },
+                            "id": "[Z}SE_x)ek9AD^MSiJoz",
+                            "type": "luna_move"
+                          }
+                        },
+                        "type": "luna_say"
+                      }
+                    },
+                    "TEST": {
+                      "block": {
+                        "fields": {
+                          "name": "door_unlocked",
+                          "op": "eq",
+                          "value": "false"
+                        },
+                        "id": ".h22@Y8i.qn.dsw5QG5Y",
+                        "type": "condition_variable"
+                      }
+                    },
+                    "THEN": {
+                      "block": {
+                        "fields": {
+                          "text": "You turn the handle, but nothing happens. It's locked!"
+                        },
+                        "id": "+=o6jP1B|7r3X~r:ud=Q",
+                        "type": "luna_say"
+                      }
+                    }
+                  },
+                  "type": "luna_if"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "f829562d-873c-4867-9aeb-b4f3b71d0536": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "id": "X2N]1on`ei@pLpg-x.!.",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "fields": {
+                    "location": "@current",
+                    "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+                  },
+                  "id": "bI!EXHs)EcMWvkXL99$K",
+                  "next": {
+                    "block": {
+                      "fields": {
+                        "text": "You drop the key"
+                      },
+                      "id": "Ea4mCJgAl|%Le.BMi|eD",
+                      "type": "luna_say"
+                    }
+                  },
+                  "type": "luna_place"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    }
+  }
+}

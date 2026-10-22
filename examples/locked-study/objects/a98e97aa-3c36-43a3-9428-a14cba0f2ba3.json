@@ -1,0 +1,47 @@
+{
+  "id": "a98e97aa-3c36-43a3-9428-a14cba0f2ba3",
+  "name": "old painting",
+  "aliases": [
+    "painting"
+  ],
+  "description": "A painting of an old man.",
+  "placement": {
+    "type": "location",
+    "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "5758f47d-3004-4398-b33e-d01d19bc6f2f",
+      "name": "Examine painting",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "a98e97aa-3c36-43a3-9428-a14cba0f2ba3"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "respond",
+          "id": "6ffb4082-41ab-408f-8348-c32c627a718f",
+          "responses": [
+            "A painting of an old man.",
+            "Still an old man."
+          ],
+          "mode": "repeat_last",
+          "fallback": ""
+        }
+      ]
+    }
+  ],
+  "triggers": []
+}

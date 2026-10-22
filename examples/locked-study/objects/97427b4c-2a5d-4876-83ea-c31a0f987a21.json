@@ -1,0 +1,98 @@
+{
+  "id": "97427b4c-2a5d-4876-83ea-c31a0f987a21",
+  "name": "brass key",
+  "aliases": [
+    "key"
+  ],
+  "description": "A small brass key.",
+  "placement": {
+    "type": "location",
+    "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "5728efaf-e88c-4157-aa1c-6e32ba63452b",
+      "name": "Take key",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+        }
+      },
+      "failure_text": "You already have the key.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+        },
+        {
+          "type": "say",
+          "text": "Taken."
+        }
+      ]
+    },
+    {
+      "id": "6c267afe-26e2-465a-97ca-3569c0ead464",
+      "name": "Examine Key",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "say",
+          "text": "An old <yellow>brass</yellow> key, probably unlocks something nearby!"
+        }
+      ]
+    },
+    {
+      "id": "f829562d-873c-4867-9aeb-b4f3b71d0536",
+      "name": "Drop key",
+      "verb": "drop",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "place",
+          "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21",
+          "location": "@current"
+        },
+        {
+          "type": "say",
+          "text": "You drop the key"
+        }
+      ]
+    }
+  ],
+  "triggers": []
+}

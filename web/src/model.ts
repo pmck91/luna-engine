@@ -1,0 +1,164 @@
+import type {
+  Action,
+  Character,
+  Condition,
+  Effect,
+  Exit,
+  Location,
+  Object as GameObject,
+  Project,
+  Trigger,
+  Value,
+} from './contracts';
+export const id = () => crypto.randomUUID();
+export const yes: Condition = { type: 'true' };
+export const location = (name = 'New location'): Location => ({
+  id: id(),
+  name,
+  aliases: [],
+  description: '',
+  actions: [],
+  triggers: [],
+  exits: [],
+  state: {},
+});
+export const object = (at: string): GameObject => ({
+  id: id(),
+  name: 'New object',
+  aliases: [],
+  description: '',
+  placement: { type: 'location', location: at },
+  portable: false,
+  hidden: false,
+  open: false,
+  state: {},
+  actions: [],
+  triggers: [],
+});
+export const character = (at: string): Character => ({
+  id: id(),
+  name: 'New character',
+  aliases: [],
+  description: '',
+  location: at,
+  hidden: false,
+  state: {},
+  actions: [],
+  triggers: [],
+});
+export const action = (owner?: string): Action => ({
+  id: id(),
+  name: 'New action',
+  verb: 'examine',
+  pattern: owner ? [{ type: 'entity', entity: owner }] : [],
+  priority: 0,
+  requirements: yes,
+  failure_text: 'You cannot do that yet.',
+  effects: [],
+});
+export const trigger = (): Trigger => ({
+  id: id(),
+  event: 'enter',
+  priority: 0,
+  condition: yes,
+  effects: [],
+});
+export const exit = (destination: string): Exit => ({
+  id: id(),
+  name: 'east',
+  aliases: [],
+  verb: 'go',
+  priority: 0,
+  pattern: [],
+  destination,
+  visible: yes,
+  available: yes,
+  blocked_text: 'That route is unavailable.',
+  text: '',
+  effects: [],
+});
+export function entity(p: Project, key: string) {
+  return [...p.locations, ...p.objects, ...p.characters].find((e) => e.id === key);
+}
+export function owner(p: Project, key: string) {
+  return key === p.game.id ? p.game : entity(p, key);
+}
+export function flows(p: Project): Array<Action | Trigger | Exit> {
+  return [p.game, ...p.locations, ...p.objects, ...p.characters].flatMap((o) => [
+    ...o.actions,
+    ...o.triggers,
+    ...('exits' in o ? o.exits : []),
+  ]);
+}
+export function flow(p: Project, key: string) {
+  return flows(p).find((f) => f.id === key);
+}
+export function allEffects(
+  effects: Effect[],
+  path: number[] = [],
+): Array<{ effect: Effect; path: number[] }> {
+  return effects.flatMap((effect, index) => [
+    { effect, path: [...path, index] },
+    ...(effect.type === 'if'
+      ? [
+          ...allEffects(effect.then, [...path, index, 0]),
+          ...allEffects(effect.otherwise, [...path, index, 1]),
+        ]
+      : []),
+  ]);
+}
+export function replaceEffect(effects: Effect[], path: number[], replacement: Effect) {
+  const [index, branch, ...rest] = path;
+  if (path.length === 1) effects[index] = replacement;
+  else {
+    const e = effects[index];
+    if (e.type === 'if') replaceEffect(branch === 0 ? e.then : e.otherwise, rest, replacement);
+  }
+}
+export function valueFrom(text: string, schema?: Value): Value {
+  if (typeof schema === 'boolean') {
+    if (!['true', 'false'].includes(text.toLowerCase())) throw new Error('Enter true or false.');
+    return text.toLowerCase() === 'true';
+  }
+  if (typeof schema === 'number') {
+    const n = Number(text);
+    if (!Number.isInteger(n) || n < -2147483648 || n > 2147483647)
+      throw new Error('Enter a whole number between −2147483648 and 2147483647.');
+    return n;
+  }
+  return text;
+}
+export function literal(s: string) {
+  return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+export const colourNames = [
+  'black',
+  'red',
+  'green',
+  'yellow',
+  'blue',
+  'magenta',
+  'cyan',
+  'white',
+  'bright-black',
+  'bright-red',
+  'bright-green',
+  'bright-yellow',
+  'bright-blue',
+  'bright-magenta',
+  'bright-cyan',
+  'bright-white',
+];
+export function preview(text: string): Array<{ text: string; colour: string | null }> {
+  const spans: Array<{ text: string; colour: string | null }> = [];
+  let colour: string | null = null;
+  const decode = (s: string) =>
+    s.replace(/&(lt|gt|amp);/g, (_, k: string) => ({ lt: '<', gt: '>', amp: '&' })[k]!);
+  for (const token of text.split(/(<\/?[a-z-]+>)/gi)) {
+    const match = token.match(/^<(\/?)([a-z-]+)>$/i);
+    if (match && colourNames.includes(match[2].toLowerCase()))
+      colour = match[1] ? null : match[2].toLowerCase();
+    else if (token) spans.push({ text: decode(token), colour });
+  }
+  return spans;
+}

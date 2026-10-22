@@ -1,0 +1,673 @@
+import { cloneElement, useId, useRef, useState } from 'react';
+import type { Condition, Project, Value, Comparison, GameState } from './contracts';
+import { colourNames, literal, preview } from './model';
+export function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactElement<{ id?: string }>;
+}) {
+  const id = useId();
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      {cloneElement(children, { id })}
+    </div>
+  );
+}
+export function Text({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [focused, setFocused] = useState(false);
+  return (
+    <Field label={label}>
+      <input
+        value={focused ? draft : value}
+        onFocus={() => {
+          setDraft(value);
+          setFocused(true);
+        }}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          onChange(e.target.value);
+        }}
+      />
+    </Field>
+  );
+}
+export function Check({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="check">
+      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
+export function Select({
+  label,
+  value,
+  items,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  items: Array<{ id: string; name: string }>;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <Field label={label}>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {!items.some((i) => i.id === value) && <option value={value}>{value || 'Choose…'}</option>}
+        {items.map((i) => (
+          <option key={i.id} value={i.id}>
+            {i.name}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+function activeColour(text: string) {
+  let active: string | null = null;
+  for (const m of text.matchAll(/<(\/?)([a-z-]+)>/gi))
+    if (colourNames.includes(m[2].toLowerCase())) active = m[1] ? null : m[2].toLowerCase();
+  return active;
+}
+export function recolour(text: string, start: number, end: number, colour: string): string {
+  if (start === end) return text;
+  for (const m of text.matchAll(/<\/?[a-z-]+>/gi)) {
+    const a = m.index!;
+    const b = a + m[0].length;
+    if (start > a && start < b) start = a;
+    if (end > a && end < b) end = b;
+  }
+  const before = text.slice(0, start);
+  const after = text.slice(end);
+  const left = activeColour(before);
+  const right = activeColour(text.slice(0, end));
+  const selected = text
+    .slice(start, end)
+    .replace(/<\/?([a-z-]+)>/gi, (tag, name: string) =>
+      colourNames.includes(name.toLowerCase()) ? '' : tag,
+    );
+  return (
+    before +
+    (left ? `</${left}>` : '') +
+    (colour ? `<${colour}>${selected}</${colour}>` : selected) +
+    (right ? `<${right}>` : '') +
+    after
+  );
+}
+export function RichText({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const [plain, setPlain] = useState(false);
+  const apply = (colour: string) => {
+    const area = ref.current!;
+    onChange(
+      recolour(value, area.selectionStart, area.selectionEnd, colour === 'default' ? '' : colour),
+    );
+    area.focus();
+  };
+  return (
+    <div className="rich-text">
+      <Field label={label}>
+        <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rows={3} />
+      </Field>
+      <div className="text-toolbar">
+        <select
+          aria-label={`${label} colour`}
+          defaultValue=""
+          onChange={(e) => {
+            apply(e.target.value);
+            e.target.value = '';
+          }}
+        >
+          <option value="" disabled>
+            Colour selection…
+          </option>
+          <option value="default">Default</option>
+          {colourNames.map((c) => (
+            <option key={c} value={c}>
+              {c.replaceAll('-', ' ')}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => {
+            const area = ref.current!;
+            const selected = value.slice(area.selectionStart, area.selectionEnd);
+            const text = selected || window.prompt('Text to display literally');
+            if (text !== null)
+              onChange(
+                value.slice(0, area.selectionStart) +
+                  literal(text) +
+                  value.slice(area.selectionEnd),
+              );
+          }}
+        >
+          Literal text
+        </button>
+        <label className="check">
+          <input type="checkbox" checked={plain} onChange={(e) => setPlain(e.target.checked)} />
+          Plain
+        </label>
+      </div>
+      <div className="text-preview">
+        {preview(value).map((s, i) => (
+          <span
+            key={i}
+            style={{ color: !plain && s.colour ? `var(--colour-${s.colour})` : undefined }}
+          >
+            {s.text}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+export function Values({
+  values: inputValues,
+  onChange,
+  fixed = false,
+}: {
+  values?: Record<string, Value | undefined>;
+  onChange: (v: Record<string, Value>) => void;
+  fixed?: boolean;
+}) {
+  const values = Object.fromEntries(
+    Object.entries(inputValues ?? {}).filter(
+      (entry): entry is [string, Value] => entry[1] !== undefined,
+    ),
+  );
+  const [name, setName] = useState('');
+  return (
+    <div className="values">
+      {Object.entries(values).map(([key, value]) => (
+        <div className="value-row" key={key}>
+          <span title={key}>{key}</span>
+          {!fixed && (
+            <select
+              aria-label={`${key} type`}
+              value={typeof value}
+              onChange={(e) =>
+                onChange({
+                  ...values,
+                  [key]:
+                    e.target.value === 'boolean' ? false : e.target.value === 'number' ? 0 : '',
+                })
+              }
+            >
+              <option value="boolean">Boolean</option>
+              <option value="number">Integer</option>
+              <option value="string">Text</option>
+            </select>
+          )}
+          {typeof value === 'boolean' ? (
+            <select
+              aria-label={`${key} value`}
+              value={String(value)}
+              onChange={(e) => onChange({ ...values, [key]: e.target.value === 'true' })}
+            >
+              <option>true</option>
+              <option>false</option>
+            </select>
+          ) : (
+            <input
+              aria-label={`${key} value`}
+              type={typeof value === 'number' ? 'number' : 'text'}
+              value={value}
+              min={typeof value === 'number' ? -2147483648 : undefined}
+              max={typeof value === 'number' ? 2147483647 : undefined}
+              step={1}
+              onChange={(e) => {
+                const v = typeof value === 'number' ? Number(e.target.value) : e.target.value;
+                if (
+                  typeof v !== 'number' ||
+                  (Number.isInteger(v) && v >= -2147483648 && v <= 2147483647)
+                )
+                  onChange({ ...values, [key]: v });
+              }}
+            />
+          )}
+          {!fixed && (
+            <button
+              aria-label={`Remove ${key}`}
+              onClick={() => {
+                const next = { ...values };
+                delete next[key];
+                onChange(next);
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      ))}
+      {!fixed && (
+        <form
+          className="inline"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const key = name.trim();
+            if (key && !(key in values)) {
+              onChange({ ...values, [key]: false });
+              setName('');
+            }
+          }}
+        >
+          <input
+            aria-label="New variable or property name"
+            placeholder="New name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button>Add</button>
+        </form>
+      )}
+    </div>
+  );
+}
+const kinds: Array<Condition['type']> = [
+  'true',
+  'false',
+  'all',
+  'any',
+  'not',
+  'variable',
+  'property',
+  'carrying',
+  'exists',
+  'at',
+  'visited',
+  'opened',
+  'visible',
+];
+const comparisons = ['eq', 'ne', 'gt', 'ge', 'lt', 'le'];
+function defaultCondition(type: Condition['type'], p: Project): Condition {
+  const object = p.objects[0]?.id ?? '';
+  const location = p.locations[0]?.id ?? '';
+  const entity = object || location;
+  const name = Object.keys(p.game.variables)[0] ?? '';
+  switch (type) {
+    case 'true':
+    case 'false':
+      return { type };
+    case 'all':
+    case 'any':
+      return { type, conditions: [{ type: 'true' }] };
+    case 'not':
+      return { type, condition: { type: 'true' } };
+    case 'variable':
+      return { type, name, op: 'eq', value: p.game.variables[name] ?? false };
+    case 'property':
+      return { type, entity, name: '', op: 'eq', value: false };
+    case 'carrying':
+    case 'exists':
+    case 'opened':
+      return { type, object };
+    case 'at':
+      return { type, location };
+    case 'visited':
+      return { type, location, op: 'eq', count: 0 };
+    case 'visible':
+      return { type, entity };
+  }
+}
+export function ConditionEditor({
+  value: c,
+  project: p,
+  onChange,
+}: {
+  value: Condition;
+  project: Project;
+  onChange: (c: Condition) => void;
+}) {
+  const entities = [...p.objects, ...p.characters, ...p.locations];
+  const patch = (v: Partial<Condition>) => onChange({ ...c, ...v } as Condition);
+  const comparison = 'op' in c && (
+    <Select
+      label="Comparison"
+      value={c.op}
+      items={comparisons.map((id) => ({
+        id,
+        name: (
+          {
+            eq: 'equals',
+            ne: 'does not equal',
+            gt: 'greater than',
+            ge: 'at least',
+            lt: 'less than',
+            le: 'at most',
+          } as Record<string, string>
+        )[id],
+      }))}
+      onChange={(op) => patch({ op: op as Comparison })}
+    />
+  );
+  return (
+    <div className="condition">
+      <Select
+        label="Condition"
+        value={c.type}
+        items={kinds.map((id) => ({ id, name: id.replaceAll('_', ' ') }))}
+        onChange={(type) => onChange(defaultCondition(type as Condition['type'], p))}
+      />
+      {(c.type === 'all' || c.type === 'any') && (
+        <>
+          {c.conditions.map((child, i) => (
+            <div key={i}>
+              <ConditionEditor
+                project={p}
+                value={child}
+                onChange={(next) =>
+                  patch({ conditions: c.conditions.map((v, j) => (i === j ? next : v)) })
+                }
+              />
+              <button onClick={() => patch({ conditions: c.conditions.filter((_, j) => j !== i) })}>
+                Remove condition
+              </button>
+            </div>
+          ))}
+          <button onClick={() => patch({ conditions: [...c.conditions, { type: 'true' }] })}>
+            Add condition
+          </button>
+        </>
+      )}
+      {c.type === 'not' && (
+        <ConditionEditor
+          project={p}
+          value={c.condition}
+          onChange={(condition) => onChange({ type: 'not', condition })}
+        />
+      )}
+      {'object' in c && (
+        <Select
+          label="Object"
+          value={c.object}
+          items={p.objects}
+          onChange={(object) => patch({ object })}
+        />
+      )}
+      {'location' in c && (
+        <Select
+          label="Location"
+          value={c.location}
+          items={p.locations}
+          onChange={(location) => patch({ location })}
+        />
+      )}
+      {'entity' in c && (
+        <Select
+          label="Entity"
+          value={c.entity}
+          items={entities}
+          onChange={(entity) => patch({ entity })}
+        />
+      )}
+      {c.type === 'variable' && (
+        <Select
+          label="Variable"
+          value={c.name}
+          items={Object.keys(p.game.variables).map((id) => ({ id, name: id }))}
+          onChange={(name) => onChange({ ...c, name, value: p.game.variables[name] ?? false })}
+        />
+      )}
+      {c.type === 'property' && (
+        <Select
+          label="Property"
+          value={c.name}
+          items={Object.keys(entities.find((e) => e.id === c.entity)?.state ?? {}).map((id) => ({
+            id,
+            name: id,
+          }))}
+          onChange={(name) =>
+            onChange({
+              ...c,
+              name,
+              value: entities.find((e) => e.id === c.entity)?.state[name] ?? false,
+            })
+          }
+        />
+      )}
+      {comparison}
+      {'value' in c && (
+        <Values fixed values={{ value: c.value }} onChange={(v) => patch({ value: v.value })} />
+      )}
+      {c.type === 'visited' && (
+        <Field label="Count">
+          <input
+            type="number"
+            min={0}
+            max={2147483647}
+            value={c.count}
+            onChange={(e) => patch({ count: Number(e.target.value) })}
+          />
+        </Field>
+      )}
+    </div>
+  );
+}
+export function StateInspector({
+  state,
+  project,
+  onApply,
+}: {
+  state: GameState;
+  project: Project;
+  onApply: (s: GameState) => void | Promise<void>;
+}) {
+  const [draft, setDraft] = useState(() => structuredClone(state));
+  const [message, setMessage] = useState('');
+  const edit = (f: (s: GameState) => void) =>
+    setDraft((old) => {
+      const next = structuredClone(old);
+      f(next);
+      return next;
+    });
+  return (
+    <div className="state-editor">
+      <p>Changes apply only to this playtest.</p>
+      <Select
+        label="Current location"
+        value={draft.location}
+        items={project.locations}
+        onChange={(v) =>
+          edit((s) => {
+            s.location = v;
+          })
+        }
+      />
+      <Select
+        label="Ending"
+        value={draft.ending ?? ''}
+        items={[{ id: '', name: 'Still playing' }, ...project.game.endings]}
+        onChange={(v) =>
+          edit((s) => {
+            s.ending = v || null;
+          })
+        }
+      />
+      <h4>Variables</h4>
+      <Values
+        fixed
+        values={draft.variables}
+        onChange={(v) =>
+          edit((s) => {
+            s.variables = v;
+          })
+        }
+      />
+      <h4>Objects</h4>
+      {project.objects.map((o) => {
+        const current = draft.objects[o.id];
+        return (
+          current && (
+            <details key={o.id}>
+              <summary>{o.name}</summary>
+              <Select
+                label="Placement"
+                value={
+                  current.placement.type === 'location'
+                    ? current.placement.location
+                    : current.placement.type
+                }
+                items={[
+                  { id: 'inventory', name: 'Inventory' },
+                  { id: 'absent', name: 'Absent' },
+                  ...project.locations,
+                ]}
+                onChange={(v) =>
+                  edit((s) => {
+                    s.objects[o.id]!.placement =
+                      v === 'inventory' || v === 'absent'
+                        ? { type: v }
+                        : { type: 'location', location: v };
+                  })
+                }
+              />
+              {(['exists', 'consumed', 'hidden', 'open'] as const).map((key) => (
+                <Check
+                  key={key}
+                  label={key}
+                  value={current[key]}
+                  onChange={(v) =>
+                    edit((s) => {
+                      s.objects[o.id]![key] = v;
+                    })
+                  }
+                />
+              ))}
+              <Values
+                fixed
+                values={draft.properties[o.id]}
+                onChange={(v) =>
+                  edit((s) => {
+                    s.properties[o.id] = v;
+                  })
+                }
+              />
+            </details>
+          )
+        );
+      })}
+      <h4>Characters</h4>
+      {project.characters.map((c) => (
+        <details key={c.id}>
+          <summary>{c.name}</summary>
+          <Select
+            label="Character location"
+            value={draft.characters[c.id]!.location}
+            items={project.locations}
+            onChange={(v) =>
+              edit((s) => {
+                s.characters[c.id]!.location = v;
+              })
+            }
+          />
+          <Check
+            label="Hidden"
+            value={draft.characters[c.id]!.hidden}
+            onChange={(v) =>
+              edit((s) => {
+                s.characters[c.id]!.hidden = v;
+              })
+            }
+          />
+          <Values
+            fixed
+            values={draft.properties[c.id]}
+            onChange={(v) =>
+              edit((s) => {
+                s.properties[c.id] = v;
+              })
+            }
+          />
+        </details>
+      ))}
+      <h4>Visits and location state</h4>
+      {project.locations.map((l) => (
+        <details key={l.id}>
+          <summary>{l.name}</summary>
+          <Field label="Visit count">
+            <input
+              type="number"
+              min={0}
+              value={draft.visits[l.id]}
+              onChange={(e) =>
+                edit((s) => {
+                  s.visits[l.id] = Math.max(0, Number(e.target.value));
+                })
+              }
+            />
+          </Field>
+          <Values
+            fixed
+            values={draft.properties[l.id]}
+            onChange={(v) =>
+              edit((s) => {
+                s.properties[l.id] = v;
+              })
+            }
+          />
+        </details>
+      ))}
+      <h4>Response positions (zero based)</h4>
+      {Object.entries(draft.sequences).map(([key, cursor]) => (
+        <Field key={key} label={key}>
+          <input
+            type="number"
+            min={0}
+            value={cursor}
+            onChange={(e) =>
+              edit((s) => {
+                s.sequences[key] = Math.max(0, Number(e.target.value));
+              })
+            }
+          />
+        </Field>
+      ))}
+      <div className="inline">
+        <button
+          onClick={async () => {
+            setMessage('');
+            try {
+              await onApply(draft);
+            } catch (e) {
+              setMessage(String(e));
+            }
+          }}
+        >
+          Apply test state
+        </button>
+        <button onClick={() => setDraft(structuredClone(state))}>Reset form</button>
+      </div>
+      {message && <p role="alert">{message}</p>}
+    </div>
+  );
+}

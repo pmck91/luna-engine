@@ -1,0 +1,29 @@
+{
+  "id": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6",
+  "name": "Garden",
+  "aliases": [],
+  "description": "Sunlight falls across a single rose.",
+  "actions": [],
+  "triggers": [],
+  "exits": [
+    {
+      "id": "2a9faf4c-f754-4034-ac24-02acdfb3ffb7",
+      "name": "Study",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "That route is unavailable.",
+      "text": "",
+      "effects": []
+    }
+  ],
+  "state": {}
+}

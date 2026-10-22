@@ -1,0 +1,27 @@
+{
+  "id": "ad700f74-e584-4d5d-8b9e-b7c54438b0fe",
+  "title": "The Locked Study",
+  "description": "",
+  "author": "",
+  "format_version": 1,
+  "content_version": "0.1.0",
+  "starting_location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca",
+  "opening_text": "Find a way out of the study.",
+  "help_text": "Try examine painting, take key, use brass key on door, and go east.",
+  "require_ending": true,
+  "variables": {
+    "door_unlocked": false,
+    "study_entries": 0
+  },
+  "endings": [
+    {
+      "id": "290b8b0f-8996-4ce8-a2f3-1aacbfea5d25",
+      "name": "A quiet moment",
+      "text": "You stop to admire the rose. For now, this is enough.",
+      "outcome": "neutral"
+    }
+  ],
+  "actions": [],
+  "triggers": [],
+  "assets": []
+}

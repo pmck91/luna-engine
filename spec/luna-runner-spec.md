@@ -36,7 +36,7 @@ The runner provides:
 - A command-line interface for importing, listing, launching, and removing installed games.
 - An interactive, line-oriented text session for playing a game by typing commands.
 - Parser behavior and world-state execution from the shared Rust engine core.
-- Automatic color handling and plain-text output according to the [Text Colour Addendum](luna-text-colour-addendum.md).
+- Automatic color handling and plain-text output according to the [Text Colour Addendum](luna-editor-text-colour-addendum.md).
 - One rolling autosave and multiple named save slots for each installed game version.
 - Local, per-user game and save storage, with configurable directories.
 - Validation of imported bundles before installation.
@@ -159,7 +159,7 @@ The exact platform-specific path names and configuration-file format are impleme
 
 The runner writes normal game transcript text to standard output and diagnostics to standard error. Terminal control sequences must never be included in game data or save data.
 
-Color rendering follows the separate [Text Colour Addendum](luna-text-colour-addendum.md): automatic mode uses terminal colors only when appropriate, respects `NO_COLOR`, and supports a plain-text mode. When color is disabled, markup is removed while its text is preserved. Text and error messages remain understandable without color.
+Color rendering follows the separate [Text Colour Addendum](luna-editor-text-colour-addendum.md): automatic mode uses terminal colors only when appropriate, respects `NO_COLOR`, and supports a plain-text mode. When color is disabled, markup is removed while its text is preserved. Text and error messages remain understandable without color.
 
 Input is line-oriented in the first release. Empty input is ignored. End-of-file behaves like `quit`, with the same unsaved-progress handling where possible. The runner must handle Unicode game text and player input without crashing on invalid or unusual input.
 
