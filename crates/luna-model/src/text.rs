@@ -95,6 +95,38 @@ pub fn parse(text: &str) -> Result<Vec<Span>> {
 pub fn plain(spans: &[Span]) -> String {
     spans.iter().map(|s| s.text.as_str()).collect()
 }
+/// Resolve message values after parsing markup, so inserted text stays literal.
+pub fn format(text: &str, mut resolve: impl FnMut(&str) -> Result<String>) -> Result<Vec<Span>> {
+    let mut spans = parse(text)?;
+    for span in &mut spans {
+        let mut remaining = span.text.as_str();
+        let mut output = String::new();
+        while let Some(start) = remaining.find('%') {
+            output.push_str(&remaining[..start]);
+            remaining = &remaining[start + 1..];
+            if let Some(rest) = remaining.strip_prefix('%') {
+                output.push('%');
+                remaining = rest;
+                continue;
+            }
+            if let Some(end) = remaining.find('%') {
+                let reference = &remaining[..end];
+                if !reference.is_empty()
+                    && reference.trim() == reference
+                    && !reference.chars().any(char::is_control)
+                {
+                    output.push_str(&resolve(reference)?);
+                    remaining = &remaining[end + 1..];
+                    continue;
+                }
+            }
+            output.push('%');
+        }
+        output.push_str(remaining);
+        span.text = output;
+    }
+    Ok(spans)
+}
 pub fn render(spans: &[Span], colour: bool) -> String {
     if !colour {
         return plain(spans);
@@ -125,10 +157,41 @@ pub fn literal(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
+        .replace('%', "%%")
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn message_values_are_literal_coloured_and_not_recursive() {
+        let spans = format(
+            "<green>You have %chances% left: %word%.</green> %%chances%% 50% and 20%",
+            |name| {
+                Ok(match name {
+                    "chances" => "3".into(),
+                    "word" => "<red>& %chances%</red>".into(),
+                    _ => panic!("Unexpected reference: {name}"),
+                })
+            },
+        )
+        .unwrap();
+        assert_eq!(spans[0].colour.as_deref(), Some("green"));
+        assert_eq!(spans[0].text, "You have 3 left: <red>& %chances%</red>.");
+        assert_eq!(spans[1].text, " %chances% 50% and 20%");
+        assert_eq!(
+            plain(
+                &format(&literal("%unknown% <red> &"), |_| panic!(
+                    "literal reference"
+                ))
+                .unwrap()
+            ),
+            "%unknown% <red> &"
+        );
+        assert_eq!(
+            plain(&format("50% and %chances%", |_| Ok("3".into())).unwrap()),
+            "50% and 3"
+        );
+    }
     #[test]
     fn markup() {
         let s = parse("The <BRIGHT-red>door</BRIGHT-red> &lt;red&gt; &amp;amp;").unwrap();

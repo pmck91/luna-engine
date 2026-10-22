@@ -121,15 +121,27 @@
         "blocks": [
           {
             "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
             "id": "uivR-29tl~^)7`Cn~+[}",
             "inputs": {
               "DO": {
                 "block": {
                   "fields": {
-                    "text": "The neighbors friendly big fat tabby cat, lounging carefree in the sun."
+                    "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
                   },
-                  "id": "y9[aJQp3uAn0RdLBF5gj",
-                  "type": "luna_say"
+                  "id": "Fi%.-jdaLUv1[ktVB^ye",
+                  "type": "luna_print_description"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "ZwON{@J~58P-#1`E|F~[",
+                  "type": "condition_true"
                 }
               }
             },

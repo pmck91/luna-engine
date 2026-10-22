@@ -86,7 +86,12 @@ impl Check<'_> {
         }
     }
     fn text(&mut self, s: &str, f: &str, t: &str) {
-        if let Err(e) = text::parse(t) {
+        if let Err(e) = text::format(t, |reference| {
+            self.p
+                .initial_text_value(reference)
+                .map(ToString::to_string)
+                .ok_or_else(|| anyhow::anyhow!("Unknown message value: %{reference}%"))
+        }) {
             self.error(s, f, e.to_string())
         }
     }
@@ -168,6 +173,7 @@ impl Check<'_> {
             let f = format!("{f}.{i}");
             match e {
                 Effect::Say { text } => self.text(s, &f, text),
+                Effect::PrintDescription { entity } => self.entity(s, &f, entity),
                 Effect::Respond {
                     id,
                     responses,
@@ -734,6 +740,40 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn descriptions_and_message_values_validate_references() {
+        let mut p = Project::blank("Messages");
+        p.game.variables.insert("chances".into(), Value::Integer(3));
+        p.locations[0]
+            .state
+            .insert("charges".into(), Value::Integer(7));
+        p.locations[0].description = format!(
+            "%chances% / %{}.charges% / %%not-a-variable%%",
+            p.locations[0].id
+        );
+        assert!(!has_errors(&validate(&p)));
+        p.locations[0].state.clear();
+        assert!(
+            validate(&p)
+                .iter()
+                .any(|d| d.field == "description" && d.message.contains("charges"))
+        );
+        p.locations[0].description = "%missing%".into();
+        p.locations[0].actions[0].effects = vec![Effect::PrintDescription {
+            entity: "deleted".into(),
+        }];
+        let diagnostics = validate(&p);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.field == "description" && d.message.contains("%missing%"))
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.field == "effects.0" && d.message.contains("Missing entity: deleted"))
+        );
+    }
     #[test]
     fn ignored_words_have_backwards_compatible_defaults_and_validate_entries() {
         let mut value = serde_json::to_value(Project::blank("Legacy")).unwrap();

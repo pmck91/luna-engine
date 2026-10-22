@@ -37,6 +37,19 @@ impl Value {
         std::mem::discriminant(self) == std::mem::discriminant(other)
     }
 }
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bool(value) => value.fmt(f),
+            Self::Integer(value) => value.fmt(f),
+            Self::Text(value) => value.fmt(f),
+        }
+    }
+}
+pub enum TextReference<'a> {
+    Variable(&'a str),
+    Property { entity: &'a str, name: &'a str },
+}
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Comparison {
@@ -126,6 +139,9 @@ pub enum SequenceMode {
 pub enum Effect {
     Say {
         text: String,
+    },
+    PrintDescription {
+        entity: String,
     },
     Respond {
         id: String,
@@ -397,12 +413,13 @@ pub struct Project {
 }
 impl Project {
     pub fn blank(title: &str) -> Self {
-        let location = Location {
+        let mut location = Location {
             id: new_id(),
             name: "Starting location".into(),
             description: "Your adventure begins here.".into(),
             ..Default::default()
         };
+        location.actions.push(description_action(&location.id));
         Self {
             game: Game {
                 id: new_id(),
@@ -446,6 +463,47 @@ impl Project {
                     .find(|e| e.id == id)
                     .map(|e| e.name.as_str())
             })
+    }
+    pub fn entity_description(&self, id: &str) -> Option<&str> {
+        self.locations
+            .iter()
+            .find(|e| e.id == id)
+            .map(|e| e.description.as_str())
+            .or_else(|| {
+                self.objects
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| e.description.as_str())
+            })
+            .or_else(|| {
+                self.characters
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| e.description.as_str())
+            })
+    }
+    pub fn text_reference<'a>(&'a self, reference: &'a str) -> Option<TextReference<'a>> {
+        if self.game.variables.contains_key(reference) {
+            return Some(TextReference::Variable(reference));
+        }
+        // Prefer the longest matching stable ID when an imported ID contains dots.
+        self.locations
+            .iter()
+            .map(|e| (&e.id, &e.state))
+            .chain(self.objects.iter().map(|e| (&e.id, &e.state)))
+            .chain(self.characters.iter().map(|e| (&e.id, &e.state)))
+            .filter_map(|(id, schema)| {
+                let name = reference.strip_prefix(id.as_str())?.strip_prefix('.')?;
+                schema.contains_key(name).then_some((id.as_str(), name))
+            })
+            .max_by_key(|(id, _)| id.len())
+            .map(|(entity, name)| TextReference::Property { entity, name })
+    }
+    pub fn initial_text_value(&self, reference: &str) -> Option<&Value> {
+        match self.text_reference(reference)? {
+            TextReference::Variable(name) => self.game.variables.get(name),
+            TextReference::Property { entity, name } => self.state_schema(entity)?.get(name),
+        }
     }
     pub fn entity_aliases(&self, id: &str) -> Vec<&str> {
         if let Some(e) = self.locations.iter().find(|e| e.id == id) {
@@ -525,6 +583,20 @@ pub fn standard_vocabulary() -> Vec<Verb> {
     })
     .collect()
 }
+pub fn description_action(entity: &str) -> Action {
+    Action {
+        id: new_id(),
+        name: "Examine".into(),
+        verb: "examine".into(),
+        pattern: vec![PatternPart::Entity {
+            entity: entity.into(),
+        }],
+        effects: vec![Effect::PrintDescription {
+            entity: entity.into(),
+        }],
+        ..Default::default()
+    }
+}
 pub fn starter_actions(object: &Object) -> Vec<Action> {
     let action = |verb: &str, effects| Action {
         id: new_id(),
@@ -536,12 +608,7 @@ pub fn starter_actions(object: &Object) -> Vec<Action> {
         effects,
         ..Default::default()
     };
-    let mut v = vec![action(
-        "examine",
-        vec![Effect::Say {
-            text: object.description.clone(),
-        }],
-    )];
+    let mut v = vec![description_action(&object.id)];
     if object.portable {
         let mut take = action(
             "take",

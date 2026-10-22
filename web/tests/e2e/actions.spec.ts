@@ -45,16 +45,16 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   // Locations have the same Actions view and receive their own entity-bound action.
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
   await expect(page.getByRole('region', { name: 'Actions for Study', exact: true })).toBeVisible();
-  await page.getByLabel('Verb for new action').selectOption('examine');
+  await page.getByLabel('Verb for new action').selectOption('pull');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await expect(page.getByLabel('Target', { exact: true }).locator('option:checked')).toHaveText(
     'Study',
   );
-  // A new character starts with an empty action list.
+  // A new character has a linked description action before custom actions are added.
   await page.getByRole('button', { name: 'Add character', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('Keeper');
   await expect(page.getByRole('region', { name: 'Actions for Keeper', exact: true })).toContainText(
-    'No actions yet',
+    'Examine',
   );
   await page.getByLabel('Verb for new action').selectOption('talk');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
@@ -108,10 +108,10 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   await page.getByLabel('SAY text', { exact: true }).last().fill('The Keeper stays silent.');
   await expect(canvas.locator('.luna_say.luna-chain-end')).toHaveCount(2);
   // Switching actions and entities preserves the selected action and its flow.
-  await page.getByLabel('Verb for new action').selectOption('examine');
+  await page.getByLabel('Verb for new action').selectOption('pull');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   const actions = page.getByRole('list', { name: 'Entity actions' });
-  await expect(actions.getByRole('listitem')).toHaveCount(2);
+  await expect(actions.getByRole('listitem')).toHaveCount(3);
   await actions.getByRole('button', { name: /^talk Keeper/ }).click();
   await expect(page.getByLabel('SAY text', { exact: true }).first()).toHaveValue(
     'Hello from Keeper.',
@@ -126,9 +126,9 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   const keeper = readdirSync(join(projectFolder, 'characters'))
     .map((file) => JSON.parse(readFileSync(join(projectFolder, 'characters', file), 'utf8')))
     .find((character) => character.name === 'Keeper');
-  expect(keeper.actions[0].verb).toBe('talk');
-  expect(keeper.actions[0].pattern).toEqual([{ type: 'entity', entity: keeper.id }]);
-  expect(keeper.actions[0].effects[0]).toEqual({
+  const talk = keeper.actions.find((action: { verb: string }) => action.verb === 'talk');
+  expect(talk.pattern).toEqual([{ type: 'entity', entity: keeper.id }]);
+  expect(talk.effects[0]).toEqual({
     type: 'if',
     condition: { type: 'true' },
     then: [{ type: 'say', text: 'Hello from Keeper.' }],
@@ -157,6 +157,10 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
   await hierarchy.getByRole('button', { name: /Keeper/ }).click();
   await page.getByRole('button', { name: 'Actions', exact: true }).click();
+  await page
+    .getByRole('list', { name: 'Entity actions' })
+    .getByRole('button', { name: /^talk Keeper/ })
+    .click();
   await expect(page.getByLabel('SAY text', { exact: true }).first()).toHaveValue(
     'Hello from Keeper.',
   );

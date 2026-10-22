@@ -12,40 +12,49 @@ import type {
 } from './contracts';
 export const id = () => crypto.randomUUID();
 export const yes: Condition = { type: 'true' };
-export const location = (name = 'New location'): Location => ({
-  id: id(),
-  name,
-  aliases: [],
-  description: '',
-  actions: [],
-  triggers: [],
-  exits: [],
-  state: {},
-});
-export const object = (at: string): GameObject => ({
-  id: id(),
-  name: 'New object',
-  aliases: [],
-  description: '',
-  placement: { type: 'location', location: at },
-  portable: false,
-  hidden: false,
-  open: false,
-  state: {},
-  actions: [],
-  triggers: [],
-});
-export const character = (at: string): Character => ({
-  id: id(),
-  name: 'New character',
-  aliases: [],
-  description: '',
-  location: at,
-  hidden: false,
-  state: {},
-  actions: [],
-  triggers: [],
-});
+export const location = (name = 'New location'): Location => {
+  const key = id();
+  return {
+    id: key,
+    name,
+    aliases: [],
+    description: '',
+    actions: [descriptionAction(key)],
+    triggers: [],
+    exits: [],
+    state: {},
+  };
+};
+export const object = (at: string): GameObject => {
+  const key = id();
+  return {
+    id: key,
+    name: 'New object',
+    aliases: [],
+    description: '',
+    placement: { type: 'location', location: at },
+    portable: false,
+    hidden: false,
+    open: false,
+    state: {},
+    actions: [descriptionAction(key)],
+    triggers: [],
+  };
+};
+export const character = (at: string): Character => {
+  const key = id();
+  return {
+    id: key,
+    name: 'New character',
+    aliases: [],
+    description: '',
+    location: at,
+    hidden: false,
+    state: {},
+    actions: [descriptionAction(key)],
+    triggers: [],
+  };
+};
 export const action = (owner?: string, verb = 'examine'): Action => ({
   id: id(),
   name: 'New action',
@@ -56,6 +65,23 @@ export const action = (owner?: string, verb = 'examine'): Action => ({
   failure_text: 'You cannot do that yet.',
   effects: [],
 });
+export function descriptionAction(entity: string): Action {
+  return { ...action(entity), name: 'Examine', effects: [{ type: 'print_description', entity }] };
+}
+export function messageValues(p: Project) {
+  return [
+    ...Object.keys(p.game.variables).map((name) => ({
+      token: `%${name}%`,
+      label: `Variable · ${name}`,
+    })),
+    ...[...p.locations, ...p.objects, ...p.characters].flatMap((entity) =>
+      Object.keys(entity.state).map((name) => ({
+        token: `%${entity.id}.${name}%`,
+        label: `${entity.name} · ${name}`,
+      })),
+    ),
+  ];
+}
 export const trigger = (): Trigger => ({
   id: id(),
   event: 'enter',
@@ -146,7 +172,11 @@ export function valueFrom(text: string, schema?: Value): Value {
   return text;
 }
 export function literal(s: string) {
-  return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  return s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('%', '%%');
 }
 export const colourNames = [
   'black',
@@ -175,7 +205,7 @@ export function preview(text: string): Array<{ text: string; colour: string | nu
     const match = token.match(/^<(\/?)([a-z-]+)>$/i);
     if (match && colourNames.includes(match[2].toLowerCase()))
       colour = match[1] ? null : match[2].toLowerCase();
-    else if (token) spans.push({ text: decode(token), colour });
+    else if (token) spans.push({ text: decode(token).replaceAll('%%', '%'), colour });
   }
   return spans;
 }

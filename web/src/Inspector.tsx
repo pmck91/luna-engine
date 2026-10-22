@@ -195,11 +195,13 @@ export default function Inspector({
             onChange={(starting_location) => update({ starting_location })}
           />
           <RichText
+            project={p}
             label="Opening text"
             value={p.game.opening_text}
             onChange={(opening_text) => update({ opening_text })}
           />
           <RichText
+            project={p}
             label="Help text"
             value={p.game.help_text}
             onChange={(help_text) => update({ help_text })}
@@ -233,6 +235,7 @@ export default function Inspector({
                   }
                 />
                 <RichText
+                  project={p}
                   label="Ending text"
                   value={ending.text}
                   onChange={(v) =>
@@ -286,6 +289,7 @@ export default function Inspector({
             />
           )}
           <RichText
+            project={p}
             label="Description"
             value={o.description}
             onChange={(description) => update({ description })}
@@ -325,7 +329,18 @@ export default function Inspector({
                   void request<Action[]>('/templates/object-actions', 'POST', o)
                     .then((actions) =>
                       edit((n) => {
-                        owner(n, selected)!.actions.push(...actions);
+                        const existing = owner(n, selected)!.actions;
+                        existing.push(
+                          ...actions.filter(
+                            (candidate) =>
+                              !existing.some(
+                                (current) =>
+                                  current.verb === candidate.verb &&
+                                  JSON.stringify(current.pattern) ===
+                                    JSON.stringify(candidate.pattern),
+                              ),
+                          ),
+                        );
                       }),
                     )
                     .catch((e) => error(String(e)));
@@ -518,6 +533,7 @@ function FlowInspector({
             onChange={(requirements) => update({ requirements })}
           />
           <RichText
+            project={p}
             label="Failed requirement response"
             value={f.failure_text}
             onChange={(failure_text) => update({ failure_text })}
@@ -576,12 +592,18 @@ function FlowInspector({
               onChange={(available) => update({ available })}
             />
             <RichText
+              project={p}
               label="Blocked response"
               value={f.blocked_text}
               onChange={(blocked_text) => update({ blocked_text })}
             />
           </details>
-          <RichText label="Traversal text" value={f.text} onChange={(text) => update({ text })} />
+          <RichText
+            project={p}
+            label="Traversal text"
+            value={f.text}
+            onChange={(text) => update({ text })}
+          />
           <button
             onClick={() =>
               edit((n) => {
@@ -608,11 +630,12 @@ function FlowInspector({
       <h3>Text and responses</h3>
       <p className="muted">Drag blocks into the action flow. Edit their text and sequences here.</p>
       {allEffects(f.effects)
-        .filter(({ effect }) => effect.type === 'say' || effect.type === 'respond')
+        .filter(({ effect }) => ['say', 'respond', 'print_description'].includes(effect.type))
         .map(({ effect, path }) => (
           <div className="card" key={path.join('.')}>
             {effect.type === 'say' ? (
               <RichText
+                project={p}
                 label="SAY text"
                 value={effect.text}
                 onChange={(text) => patchEffect(path, { ...effect, text })}
@@ -623,6 +646,7 @@ function FlowInspector({
                 {effect.responses.map((reply, i) => (
                   <div className="response" key={i}>
                     <RichText
+                      project={p}
                       label={`Response ${i + 1}`}
                       value={reply}
                       onChange={(text) =>
@@ -690,11 +714,25 @@ function FlowInspector({
                 />
                 {effect.mode === 'fallback' && (
                   <RichText
+                    project={p}
                     label="Fallback response"
                     value={effect.fallback}
                     onChange={(fallback) => patchEffect(path, { ...effect, fallback })}
                   />
                 )}
+              </>
+            ) : effect.type === 'print_description' ? (
+              <>
+                <h4>Print description</h4>
+                <Select
+                  label="Description entity"
+                  value={effect.entity}
+                  items={[...p.locations, ...p.objects, ...p.characters]}
+                  onChange={(entity) => patchEffect(path, { ...effect, entity })}
+                />
+                <p className="muted">
+                  Prints the entity's current description when the action runs.
+                </p>
               </>
             ) : null}
           </div>

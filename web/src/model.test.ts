@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as Blockly from 'blockly/core';
 import { registerBlocks, loadEffectBlocks, readEffects, readFlowConditions } from './Blocks';
 import { recolour } from './Forms';
-import { preview } from './model';
+import { character, location, object, literal, messageValues, preview } from './model';
 import { lockedStudy } from './example';
 import type { Project, Effect, Condition } from './contracts';
 const base: Project = {
@@ -42,6 +42,23 @@ const base: Project = {
   editor: { positions: {}, blocks: {}, routes: {} },
 };
 describe('semantic block round trips', () => {
+  it('creates linked description actions for every new entity and preserves their blocks', () => {
+    const p = structuredClone(base);
+    for (const created of [object('study'), character('study'), location()]) {
+      expect(created.actions).toHaveLength(1);
+      const examine = created.actions[0];
+      expect(examine.verb).toBe('examine');
+      expect(examine.pattern).toEqual([{ type: 'entity', entity: created.id }]);
+      expect(examine.effects).toEqual([{ type: 'print_description', entity: created.id }]);
+    }
+    p.objects.push(object('study'));
+    registerBlocks(p);
+    const workspace = new Blockly.Workspace();
+    const effects = p.objects[0].actions[0].effects;
+    const root = loadEffectBlocks(workspace, effects);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
+    workspace.dispose();
+  });
   it('preserves every requirement kind and condition groups of any size', () => {
     const p = lockedStudy(structuredClone(base));
     registerBlocks(p);
@@ -144,6 +161,18 @@ describe('semantic block round trips', () => {
   });
 });
 describe('colour authoring', () => {
+  it('inserts stable property references and escapes literal percent placeholders', () => {
+    const p = structuredClone(base);
+    p.game.variables.chances = 3;
+    p.locations[0].state.charges = 7;
+    expect(messageValues(p)).toEqual([
+      { token: '%chances%', label: 'Variable · chances' },
+      { token: '%study.charges%', label: 'Study · charges' },
+    ]);
+    expect(preview(literal('%chances% <red>'))).toEqual([
+      { text: '%chances% <red>', colour: null },
+    ]);
+  });
   it('changes a selection inside an existing span without nesting', () => {
     const source = '<red>danger</red>';
     expect(recolour(source, 6, 9, 'blue')).toBe('<red>d</red><blue>ang</blue><red>er</red>');

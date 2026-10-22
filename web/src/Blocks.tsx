@@ -12,6 +12,7 @@ Blockly.setLocale(
 let project: Project;
 const effectFields: Record<string, string[]> = {
   say: ['text'],
+  print_description: ['entity'],
   respond: [],
   set_variable: ['name', 'value'],
   set_property: ['entity', 'name', 'value'],
@@ -42,6 +43,7 @@ const conditionFields: Record<string, string[]> = {
 };
 const labels: Record<string, string> = {
   say: 'SAY',
+  print_description: 'PRINT DESCRIPTION',
   respond: 'RESPONSE SEQUENCE',
   set_variable: 'SET VARIABLE',
   set_property: 'SET PROPERTY',
@@ -61,9 +63,18 @@ const labels: Record<string, string> = {
 function choices(items: Array<{ id: string; name: string }>): [string, string][] {
   return items.length ? items.map((e) => [e.name, e.id]) : [['Choose…', '']];
 }
+class LiveDropdown extends Blockly.FieldDropdown {
+  refresh() {
+    const value = this.getValue();
+    if (value === null) return;
+    this.getOptions(false);
+    this.doValueUpdate_(value);
+    this.forceRerender();
+  }
+}
 function field(name: string, type: string): Blockly.Field {
   const dropdown = (items: (block: Blockly.Block | null) => Array<{ id: string; name: string }>) =>
-    new Blockly.FieldDropdown(function () {
+    new LiveDropdown(function () {
       const block = this.getSourceBlock();
       const options = choices(items(block));
       let original: unknown;
@@ -247,7 +258,11 @@ function register() {
         this.setPreviousStatement(true);
         this.setNextStatement(true);
         this.setColour(
-          type === 'say' || type === 'respond' ? '#386b58' : type === 'end' ? '#9c4a63' : '#555f7f',
+          ['say', 'respond', 'print_description'].includes(type)
+            ? '#386b58'
+            : type === 'end'
+              ? '#9c4a63'
+              : '#555f7f',
         );
       },
     };
@@ -434,7 +449,10 @@ const toolbox = {
       kind: 'category',
       name: 'Responses',
       colour: '#386b58',
-      contents: ['say', 'respond'].map((t) => ({ kind: 'block', type: `luna_${t}` })),
+      contents: ['say', 'respond', 'print_description'].map((t) => ({
+        kind: 'block',
+        type: `luna_${t}`,
+      })),
     },
     {
       kind: 'category',
@@ -453,7 +471,7 @@ const toolbox = {
       name: 'World & state',
       colour: '#555f7f',
       contents: Object.keys(effectFields)
-        .filter((t) => !['say', 'respond'].includes(t))
+        .filter((t) => !['say', 'respond', 'print_description'].includes(t))
         .map((t) => ({ kind: 'block', type: `luna_${t}` })),
     },
   ],
@@ -479,6 +497,15 @@ export default function Blocks({
   register();
   const conditions = flowConditions(flow(p, flowId));
   const conditionVersion = JSON.stringify(conditions);
+  const choiceVersion = JSON.stringify({
+    entities: [...p.locations, ...p.objects, ...p.characters].map((entity) => [
+      entity.id,
+      entity.name,
+      Object.keys(entity.state),
+    ]),
+    variables: Object.keys(p.game.variables),
+    endings: p.game.endings.map((ending) => [ending.id, ending.name]),
+  });
   const host = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   const current = useRef({ effects, conditions, saved, onChange, onError, title });
@@ -587,6 +614,19 @@ export default function Blocks({
   useEffect(() => {
     if (workspace.current && last.current !== JSON.stringify({ effects, conditions })) load();
   }, [effects, conditionVersion]);
+  useEffect(() => {
+    const ws = workspace.current;
+    if (!ws) return;
+    Blockly.Events.disable();
+    try {
+      for (const surface of [ws, ws.getFlyout()?.getWorkspace()])
+        for (const block of surface?.getAllBlocks(false) ?? [])
+          for (const input of block.inputList)
+            for (const field of input.fieldRow) if (field instanceof LiveDropdown) field.refresh();
+    } finally {
+      Blockly.Events.enable();
+    }
+  }, [choiceVersion]);
   useEffect(() => {
     const root = workspace.current?.getTopBlocks(false).find((block) => block.type === 'luna_flow');
     if (!root) return;

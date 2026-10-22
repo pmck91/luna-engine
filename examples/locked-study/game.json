@@ -8,6 +8,11 @@
   "starting_location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca",
   "opening_text": "Find a way to the garden.",
   "help_text": "Try examine the room, and interacting with what you see! type <green>help</green> for a list of commands.",
+  "ignored_words": [
+    "a",
+    "an",
+    "the"
+  ],
   "require_ending": true,
   "variables": {
     "door_unlocked": false,

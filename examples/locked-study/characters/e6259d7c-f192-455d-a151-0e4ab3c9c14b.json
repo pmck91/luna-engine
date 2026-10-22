@@ -56,8 +56,8 @@
       "failure_text": "You cannot do that yet.",
       "effects": [
         {
-          "type": "say",
-          "text": "The neighbors friendly big fat tabby cat, lounging carefree in the sun."
+          "type": "print_description",
+          "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
         }
       ]
     }

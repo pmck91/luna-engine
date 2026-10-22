@@ -14,7 +14,8 @@
  - there should be the ability to create command snippets that can be saved to prevent having to duplicate logic by hand (in the game code itself, these can duplicate, the snippet can be UI only)
 
 ## engine behaviour
-- there needs to be a way to link an action (like examine) to display an entities description, this rule should be created by default when a new entity is added.
+- [x] Add Print description response blocks and default examine actions for new entities.
+- [x] Print variables and entity properties in messages with `%variable_name%` and `%entity_id.property_name%`, with an insertion menu in the editor.
 
 ## Docs
 

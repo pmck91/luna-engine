@@ -328,7 +328,19 @@ impl<'a> Run<'a> {
     }
     fn say(&mut self, t: &str) -> Result<()> {
         if !t.is_empty() {
-            self.result.messages.push(text::parse(t)?)
+            let spans = text::format(t, |reference| {
+                let value = match self.p.text_reference(reference) {
+                    Some(TextReference::Variable(name)) => self.state.variables.get(name),
+                    Some(TextReference::Property { entity, name }) => {
+                        self.state.properties.get(entity).and_then(|m| m.get(name))
+                    }
+                    None => None,
+                };
+                value
+                    .map(ToString::to_string)
+                    .with_context(|| format!("Unknown message value: %{reference}%"))
+            })?;
+            self.result.messages.push(spans)
         }
         Ok(())
     }
@@ -533,6 +545,13 @@ impl<'a> Run<'a> {
             }
             match effect {
                 Effect::Say { text } => self.say(text)?,
+                Effect::PrintDescription { entity } => {
+                    let description = self
+                        .p
+                        .entity_description(entity)
+                        .context("Unknown description entity")?;
+                    self.say(description)?;
+                }
                 Effect::Respond {
                     id,
                     responses,
@@ -1024,6 +1043,117 @@ pub fn host_control(input: &str) -> Option<HostControl> {
 mod tests {
     use super::*;
     #[test]
+    fn print_description_uses_current_descriptions_for_every_entity_kind() {
+        let mut p = Project::blank("Descriptions");
+        p.objects.push(Object {
+            id: "coin".into(),
+            name: "coin".into(),
+            description: "Old description".into(),
+            placement: Placement::Location {
+                location: p.game.starting_location.clone(),
+            },
+            actions: vec![description_action("coin")],
+            ..Default::default()
+        });
+        p.characters.push(Character {
+            id: "keeper".into(),
+            name: "keeper".into(),
+            description: "An attentive keeper.".into(),
+            location: p.game.starting_location.clone(),
+            actions: vec![description_action("keeper")],
+            ..Default::default()
+        });
+        let (mut s, _) = Session::start(p, None).unwrap();
+        s.project.objects[0].description = "A <green>gleaming</green> coin.".into();
+        assert_eq!(
+            output(s.command("inspect the coin").unwrap()),
+            "A gleaming coin."
+        );
+        assert_eq!(
+            output(s.command("examine keeper").unwrap()),
+            "An attentive keeper."
+        );
+        assert_eq!(
+            output(s.command("look at the starting location").unwrap()),
+            "Your adventure begins here."
+        );
+        s.project.objects[0].description.clear();
+        let result = s.command("inspect coin").unwrap();
+        assert!(result.messages.is_empty());
+        assert!(!result.state_changed);
+    }
+    #[test]
+    fn messages_expand_live_variables_properties_and_sequences() {
+        let mut p = Project::blank("Messages");
+        let room = p.locations[0].id.clone();
+        p.game.variables.insert("chances".into(), Value::Integer(3));
+        p.game.variables.insert("ready".into(), Value::Bool(true));
+        p.game
+            .variables
+            .insert("word".into(), Value::Text("<red>& %chances%</red>".into()));
+        p.locations[0]
+            .state
+            .insert("charges".into(), Value::Integer(7));
+        p.locations[0].description = "Current chances: %chances%.".into();
+        p.game.actions.push(Action {
+            id: "pull-lever".into(),
+            verb: "pull".into(),
+            pattern: vec![PatternPart::Literal {
+                text: "lever".into(),
+            }],
+            effects: vec![
+                Effect::Say {
+                    text: format!("<green>%chances% / %{room}.charges% / %ready% / %word%</green>"),
+                },
+                Effect::SetVariable {
+                    name: "chances".into(),
+                    value: Value::Integer(1),
+                },
+                Effect::SetProperty {
+                    entity: room.clone(),
+                    name: "charges".into(),
+                    value: Value::Integer(5),
+                },
+                Effect::Respond {
+                    id: "replies".into(),
+                    responses: vec![format!("%chances% / %{room}.charges%")],
+                    mode: SequenceMode::Fallback,
+                    fallback: "No more than %chances%.".into(),
+                },
+                Effect::PrintDescription { entity: room },
+            ],
+            ..Default::default()
+        });
+        let (mut s, _) = Session::start(p, None).unwrap();
+        let r = s.command("pull lever").unwrap();
+        assert_eq!(
+            r.messages[0],
+            vec![text::Span {
+                text: "3 / 7 / true / <red>& %chances%</red>".into(),
+                colour: Some("green".into())
+            }]
+        );
+        assert_eq!(text::plain(&r.messages[1]), "1 / 5");
+        assert_eq!(text::plain(&r.messages[2]), "Current chances: 1.");
+        let state = s.state.clone();
+        let mut restored = Session::restore(s.project.clone(), state.clone()).unwrap();
+        assert_eq!(
+            text::plain(&restored.command("pull lever").unwrap().messages[1]),
+            "No more than 1."
+        );
+        s.project.game.actions[0].effects = vec![
+            Effect::SetVariable {
+                name: "chances".into(),
+                value: Value::Integer(99),
+            },
+            Effect::Say {
+                text: "%deleted%".into(),
+            },
+        ];
+        assert!(s.command("pull lever").is_err());
+        assert_eq!(s.state, state);
+    }
+    #[test]
     fn optional_entity_words_apply_to_names_aliases_characters_and_locations() {
         let mut p = world();
         p.objects[0].name = "The old painting".into();
@@ -1032,7 +1162,7 @@ mod tests {
             text: "Painting".into(),
         }];
         let location = p.game.starting_location.clone();
-        p.locations[0].actions.push(Action {
+        p.locations[0].actions = vec![Action {
             id: "inspect-room".into(),
             verb: "examine".into(),
             pattern: vec![PatternPart::Entity {
@@ -1042,7 +1172,7 @@ mod tests {
                 text: "Room".into(),
             }],
             ..Default::default()
-        });
+        }];
         p.characters.push(Character {
             id: "keeper".into(),
             name: "The Keeper".into(),

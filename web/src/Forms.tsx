@@ -1,6 +1,6 @@
 import { cloneElement, useId, useRef, useState } from 'react';
 import type { Condition, Project, Value, Comparison, GameState } from './contracts';
-import { colourNames, literal, preview } from './model';
+import { colourNames, literal, messageValues, preview } from './model';
 export function Field({
   label,
   children,
@@ -119,13 +119,25 @@ export function RichText({
   label,
   value,
   onChange,
+  project,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  project?: Project;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [plain, setPlain] = useState(false);
+  const inserts = project ? messageValues(project) : [];
+  const insert = (text: string) => {
+    const area = ref.current!;
+    const end = area.selectionStart + text.length;
+    onChange(value.slice(0, area.selectionStart) + text + value.slice(area.selectionEnd));
+    requestAnimationFrame(() => {
+      area.focus();
+      area.setSelectionRange(end, end);
+    });
+  };
   const apply = (colour: string) => {
     const area = ref.current!;
     onChange(
@@ -173,6 +185,22 @@ export function RichText({
         >
           Literal text
         </button>
+        <select
+          aria-label={`${label} insert value`}
+          title="Insert a game variable or entity property at the cursor"
+          value=""
+          disabled={!inserts.length}
+          onChange={(event) => insert(event.target.value)}
+        >
+          <option value="" disabled>
+            Insert variable / property…
+          </option>
+          {inserts.map((item) => (
+            <option key={item.token} value={item.token}>
+              {item.label}
+            </option>
+          ))}
+        </select>
         <label className="check">
           <input type="checkbox" checked={plain} onChange={(e) => setPlain(e.target.checked)} />
           Plain

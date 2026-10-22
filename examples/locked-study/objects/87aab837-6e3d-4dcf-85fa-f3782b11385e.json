@@ -2,10 +2,9 @@
   "id": "87aab837-6e3d-4dcf-85fa-f3782b11385e",
   "name": "locked door",
   "aliases": [
-    "door",
-    "stone door"
+    "door"
   ],
-  "description": "A locked door to the garden.",
+  "description": "A door to the garden.",
   "placement": {
     "type": "location",
     "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca"
