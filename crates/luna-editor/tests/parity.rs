@@ -60,12 +60,12 @@ async fn editor_http_and_installed_runner_have_identical_gameplay() {
     );
     for command in [
         "look",
-        "examine painting",
+        "inspect the painting",
         "examine painting",
         "go east",
-        "take key",
+        "take the key",
         "inventory",
-        "use brass key on door",
+        "use the brass key on the door",
         "use key on door",
         "go east",
         "examine rose",

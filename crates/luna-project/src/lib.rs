@@ -516,7 +516,8 @@ mod tests {
     #[test]
     fn export_roundtrip() {
         let tmp = tempfile::tempdir().unwrap();
-        let p = Project::blank("Bundle");
+        let mut p = Project::blank("Bundle");
+        p.game.ignored_words = vec!["this".into(), "the".into()];
         save_project(tmp.path(), &p, None).unwrap();
         let bytes = export_bundle(tmp.path(), &p).unwrap();
         let stage = tempfile::tempdir().unwrap();

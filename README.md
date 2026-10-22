@@ -46,6 +46,8 @@ cargo run -p luna-runner -- run <game-id>
 
 Use the game ID printed by `import` or `list`. Try `examine painting` twice, `take key`, `use brass key on door`, `save before garden`, `go east`, and `examine rose`. `load before garden` restores the exact earlier state without firing game-start or entry triggers.
 
+In the editor's **Command vocabulary**, **Ignored words before entity names** controls optional prefixes. The defaults are `a, an, the`, so `inspect painting` and `inspect the painting` match the same action, as do `place book on table` and `place the book on the table` when that action is authored. Prefixes work before object, character, location, and route names and their aliases. Words within names and authored connecting words such as `on` retain their meaning. Clear the list to require exact names. The list is saved in `game.json` and included in exported games.
+
 Reserved controls are `look`, `inventory`, `help`, `save [name]`, `load [name]`, `saves`, and `quit`. `look` does not fire entry triggers. After an ending, inspection and session controls remain available.
 
 ```sh

@@ -280,6 +280,7 @@ pub fn validate_state(p: &Project, s: &GameState) -> Result<()> {
 
 struct Run<'a> {
     p: &'a Project,
+    entity_words: EntityWords,
     state: GameState,
     result: CommandResult,
     budget: usize,
@@ -309,6 +310,7 @@ impl<'a> Run<'a> {
     fn new(p: &'a Project, state: GameState) -> Self {
         Self {
             p,
+            entity_words: EntityWords::new(&p.game.ignored_words),
             state,
             result: CommandResult::default(),
             budget: 2048,
@@ -721,11 +723,16 @@ impl<'a> Run<'a> {
         tokens: &[&str],
         pattern: &[PatternPart],
         route_destination: Option<&str>,
+        named_route: bool,
     ) -> bool {
         let mut positions = std::collections::BTreeSet::from([0usize]);
         for part in pattern {
             let alternatives = match part {
-                PatternPart::Literal { text } => vec![normalize(text)],
+                PatternPart::Literal { text } => vec![if named_route {
+                    self.entity_words.name(text)
+                } else {
+                    normalize(text)
+                }],
                 PatternPart::Entity { entity } => {
                     if !self.available(entity) && route_destination != Some(entity.as_str()) {
                         return false;
@@ -733,7 +740,7 @@ impl<'a> Run<'a> {
                     self.p
                         .entity_aliases(entity)
                         .into_iter()
-                        .map(normalize)
+                        .map(|name| self.entity_words.name(name))
                         .collect()
                 }
             };
@@ -742,8 +749,15 @@ impl<'a> Run<'a> {
                 let words = alt.split_whitespace().collect::<Vec<_>>();
                 if !words.is_empty() {
                     for position in &positions {
-                        if tokens[*position..].starts_with(&words) {
-                            next.insert(position + words.len());
+                        let starts = if named_route || matches!(part, PatternPart::Entity { .. }) {
+                            self.entity_words.starts(tokens, *position)
+                        } else {
+                            *position..=*position
+                        };
+                        for start in starts {
+                            if tokens[start..].starts_with(&words) {
+                                next.insert(start + words.len());
+                            }
                         }
                     }
                 }
@@ -761,6 +775,7 @@ impl<'a> Run<'a> {
         verb: &str,
         pattern: &[PatternPart],
         route_destination: Option<&str>,
+        named_route: bool,
     ) -> bool {
         self.p
             .vocabulary
@@ -772,13 +787,14 @@ impl<'a> Run<'a> {
                     .any(|name| {
                         let n = normalize(name);
                         if input == n {
-                            self.pattern_matches(&[], pattern, route_destination)
+                            self.pattern_matches(&[], pattern, route_destination, named_route)
                         } else {
                             input.strip_prefix(&(n + " ")).is_some_and(|rest| {
                                 self.pattern_matches(
                                     &rest.split_whitespace().collect::<Vec<_>>(),
                                     pattern,
                                     route_destination,
+                                    named_route,
                                 )
                             })
                         }
@@ -846,7 +862,7 @@ impl<'a> Run<'a> {
                 2
             };
             for a in actions {
-                if self.matches(&normalized, &a.verb, &a.pattern, None) {
+                if self.matches(&normalized, &a.verb, &a.pattern, None, false) {
                     let (literals, entities) = specificity(&a.pattern);
                     matches.push(Candidate {
                         id: a.id.clone(),
@@ -877,8 +893,21 @@ impl<'a> Run<'a> {
                 vec![exit.pattern.clone()]
             };
             for pattern in patterns {
-                if self.matches(&normalized, &exit.verb, &pattern, Some(&exit.destination)) {
-                    let (literals, entities) = specificity(&pattern);
+                if self.matches(
+                    &normalized,
+                    &exit.verb,
+                    &pattern,
+                    Some(&exit.destination),
+                    exit.pattern.is_empty(),
+                ) {
+                    let (literals, entities) = if exit.pattern.is_empty() {
+                        let PatternPart::Literal { text } = &pattern[0] else {
+                            unreachable!()
+                        };
+                        (self.entity_words.name(text).split_whitespace().count(), 0)
+                    } else {
+                        specificity(&pattern)
+                    };
                     matches.push(Candidate {
                         id: exit.id.clone(),
                         name: exit.name.clone(),
@@ -994,6 +1023,220 @@ pub fn host_control(input: &str) -> Option<HostControl> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn optional_entity_words_apply_to_names_aliases_characters_and_locations() {
+        let mut p = world();
+        p.objects[0].name = "The old painting".into();
+        p.objects[0].aliases.push("the portrait".into());
+        p.objects[0].actions[0].effects = vec![Effect::Say {
+            text: "Painting".into(),
+        }];
+        let location = p.game.starting_location.clone();
+        p.locations[0].actions.push(Action {
+            id: "inspect-room".into(),
+            verb: "examine".into(),
+            pattern: vec![PatternPart::Entity {
+                entity: location.clone(),
+            }],
+            effects: vec![Effect::Say {
+                text: "Room".into(),
+            }],
+            ..Default::default()
+        });
+        p.characters.push(Character {
+            id: "keeper".into(),
+            name: "The Keeper".into(),
+            location,
+            actions: vec![Action {
+                id: "talk-keeper".into(),
+                verb: "talk".into(),
+                pattern: vec![PatternPart::Entity {
+                    entity: "keeper".into(),
+                }],
+                effects: vec![Effect::Say {
+                    text: "Hello".into(),
+                }],
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        let (mut session, _) = Session::start(p, None).unwrap();
+        for command in [
+            "inspect painting",
+            "inspect THE painting",
+            "look at an old painting",
+            "inspect portrait",
+            "inspect the portrait",
+        ] {
+            assert_eq!(
+                output(session.command(command).unwrap()),
+                "Painting",
+                "{command}"
+            );
+        }
+        assert_eq!(
+            output(session.command("speak to the keeper").unwrap()),
+            "Hello"
+        );
+        assert_eq!(
+            output(session.command("inspect the starting location").unwrap()),
+            "Room"
+        );
+        session.state.objects.get_mut("painting").unwrap().hidden = true;
+        assert_eq!(
+            session.command("inspect the painting").unwrap().status,
+            "unmatched"
+        );
+    }
+    #[test]
+    fn optional_words_work_at_each_entity_boundary_without_removing_literals() {
+        let mut p = Project::blank("Place");
+        p.game.ignored_words.push("on".into());
+        p.vocabulary.push(Verb {
+            id: "place".into(),
+            canonical: "place".into(),
+            synonyms: vec![],
+            event: None,
+        });
+        for (id, name) in [("book", "The book of the moon"), ("table", "table")] {
+            p.objects.push(Object {
+                id: id.into(),
+                name: name.into(),
+                aliases: vec![id.into()],
+                placement: Placement::Inventory,
+                ..Default::default()
+            });
+        }
+        p.game.actions.push(Action {
+            id: "place-book".into(),
+            verb: "place".into(),
+            pattern: vec![
+                PatternPart::Entity {
+                    entity: "book".into(),
+                },
+                PatternPart::Literal { text: "on".into() },
+                PatternPart::Entity {
+                    entity: "table".into(),
+                },
+            ],
+            effects: vec![Effect::Say {
+                text: "Placed".into(),
+            }],
+            ..Default::default()
+        });
+        let (mut session, _) = Session::start(p, None).unwrap();
+        for command in [
+            "place book on table",
+            "place the book on the table",
+            "place the book of the moon on a table",
+        ] {
+            assert_eq!(
+                output(session.command(command).unwrap()),
+                "Placed",
+                "{command}"
+            );
+        }
+        for command in [
+            "the place book on table",
+            "place book the on table",
+            "place book table",
+            "place book on table the",
+            "place book of moon on table",
+        ] {
+            assert_eq!(
+                session.command(command).unwrap().status,
+                "unmatched",
+                "{command}"
+            );
+        }
+    }
+    #[test]
+    fn optional_words_apply_to_named_routes_and_explicit_destination_patterns() {
+        for explicit in [false, true] {
+            let mut p = world();
+            p.locations.push(Location {
+                id: "garden".into(),
+                name: "The garden".into(),
+                aliases: vec!["the courtyard".into()],
+                ..Default::default()
+            });
+            p.locations[0].exits.push(Exit {
+                id: "garden-route".into(),
+                name: "the garden".into(),
+                aliases: vec!["courtyard".into()],
+                verb: "go".into(),
+                destination: "garden".into(),
+                pattern: if explicit {
+                    vec![PatternPart::Entity {
+                        entity: "garden".into(),
+                    }]
+                } else {
+                    vec![]
+                },
+                ..Default::default()
+            });
+            for command in [
+                "go garden",
+                "go the garden",
+                "go courtyard",
+                "go the courtyard",
+            ] {
+                let (mut session, _) = Session::start(p.clone(), None).unwrap();
+                assert_eq!(session.command(command).unwrap().status, "ok", "{command}");
+                assert_eq!(session.state.location, "garden", "{command}");
+            }
+        }
+    }
+    #[test]
+    fn configurable_ignored_words_preserve_ambiguity_and_host_control_text() {
+        let mut p = world();
+        p.game.ignored_words = vec!["this".into()];
+        let (mut session, _) = Session::start(p.clone(), None).unwrap();
+        assert_eq!(
+            output(session.command("inspect this painting").unwrap()),
+            "First"
+        );
+        assert_eq!(
+            session.command("inspect the painting").unwrap().status,
+            "unmatched"
+        );
+        p.game.ignored_words.clear();
+        let (mut session, _) = Session::start(p, None).unwrap();
+        assert_eq!(
+            session.command("inspect this painting").unwrap().status,
+            "unmatched"
+        );
+        assert_eq!(
+            output(session.command("inspect painting").unwrap()),
+            "First"
+        );
+        assert_eq!(
+            session.command("save the garden").unwrap().control,
+            Some(HostControl::Save {
+                name: Some("the garden".into())
+            })
+        );
+        let mut p = world();
+        let mut other = p.objects[0].clone();
+        other.id = "other".into();
+        other.name = "the painting".into();
+        other.aliases.clear();
+        other.actions[0].id = "inspect-other".into();
+        other.actions[0].pattern = vec![PatternPart::Entity {
+            entity: "other".into(),
+        }];
+        other.actions[0].effects = vec![Effect::Say {
+            text: "Other".into(),
+        }];
+        p.objects.push(other);
+        let (mut session, _) = Session::start(p, None).unwrap();
+        let before = session.state.clone();
+        assert_eq!(
+            session.command("inspect the painting").unwrap().status,
+            "ambiguous"
+        );
+        assert_eq!(session.state, before);
+    }
     #[test]
     fn named_exits_bind_destination_aliases_without_exposing_remote_objects() {
         let mut p = world();

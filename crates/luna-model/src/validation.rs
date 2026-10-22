@@ -343,10 +343,16 @@ pub fn all_effects(p: &Project) -> Vec<&Effect> {
     out
 }
 
-fn command_forms(p: &Project, verb: &str, pattern: &[PatternPart]) -> Vec<String> {
+fn command_forms(
+    p: &Project,
+    verb: &str,
+    pattern: &[PatternPart],
+    named_route: bool,
+) -> Vec<String> {
     let Some(verb) = p.vocabulary.iter().find(|v| v.id == verb) else {
         return vec![];
     };
+    let entity_words = EntityWords::new(&p.game.ignored_words);
     let mut forms = std::iter::once(&verb.canonical)
         .chain(&verb.synonyms)
         .map(|v| normalize(v))
@@ -354,11 +360,17 @@ fn command_forms(p: &Project, verb: &str, pattern: &[PatternPart]) -> Vec<String
         .collect::<Vec<_>>();
     for part in pattern {
         let alternatives = match part {
-            PatternPart::Literal { text } => vec![normalize(text)],
+            PatternPart::Literal { text } => {
+                if named_route {
+                    entity_words.forms(text)
+                } else {
+                    vec![normalize(text)]
+                }
+            }
             PatternPart::Entity { entity } => p
                 .entity_aliases(entity)
                 .into_iter()
-                .map(normalize)
+                .flat_map(|name| entity_words.forms(name))
                 .collect(),
         };
         forms = forms
@@ -390,6 +402,23 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         ids: BTreeSet::new(),
     };
     let game = &p.game;
+    let mut ignored_words = BTreeSet::new();
+    for word in &game.ignored_words {
+        let normalized = normalize(word);
+        if normalized.split_whitespace().count() != 1 {
+            c.error(
+                &game.id,
+                "ignored_words",
+                "Each ignored entry must be a single word",
+            );
+        } else if !ignored_words.insert(normalized) {
+            c.warn(
+                &game.id,
+                "ignored_words",
+                format!("Ignored word '{word}' is repeated"),
+            );
+        }
+    }
     if let Ok(mut runtime) = serde_json::to_value(p) {
         runtime.as_object_mut().unwrap().remove("editor");
         if contains_control(&runtime) {
@@ -502,7 +531,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
             c.condition(&a.id, "requirements", &a.requirements);
             c.text(&a.id, "failure_text", &a.failure_text);
             c.effects(&a.id, "effects", &a.effects);
-            for command in command_forms(p, &a.verb, &a.pattern) {
+            for command in command_forms(p, &a.verb, &a.pattern, false) {
                 if let Some(old) = patterns.insert(command.clone(), a.id.clone())
                     && old != a.id
                     && overlaps.insert((old.clone(), a.id.clone()))
@@ -535,11 +564,12 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                             p,
                             &exit.verb,
                             &[PatternPart::Literal { text: name.clone() }],
+                            true,
                         )
                     })
                     .collect::<Vec<_>>()
             } else {
-                command_forms(p, &exit.verb, &exit.pattern)
+                command_forms(p, &exit.verb, &exit.pattern, false)
             };
             for command in forms {
                 if let Some(old) = patterns.insert(command.clone(), exit.id.clone())
@@ -704,6 +734,57 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ignored_words_have_backwards_compatible_defaults_and_validate_entries() {
+        let mut value = serde_json::to_value(Project::blank("Legacy")).unwrap();
+        value["game"]
+            .as_object_mut()
+            .unwrap()
+            .remove("ignored_words");
+        let mut project: Project = serde_json::from_value(value).unwrap();
+        assert_eq!(project.game.ignored_words, default_ignored_words());
+        project.game.ignored_words = vec!["the old".into()];
+        assert!(
+            validate(&project)
+                .iter()
+                .any(|d| d.field == "ignored_words" && d.severity == Severity::Error)
+        );
+        project.game.ignored_words = vec!["the".into(), "THE".into()];
+        assert!(
+            validate(&project)
+                .iter()
+                .any(|d| d.field == "ignored_words" && d.severity == Severity::Warning)
+        );
+        project.game.ignored_words.clear();
+        let restored: Project =
+            serde_json::from_slice(&serde_json::to_vec(&project).unwrap()).unwrap();
+        assert!(restored.game.ignored_words.is_empty());
+    }
+    #[test]
+    fn entity_prefixes_are_accounted_for_in_command_overlap_validation() {
+        let mut p = Project::blank("Overlaps");
+        for (id, name) in [("first", "painting"), ("second", "the painting")] {
+            let mut object = Object {
+                id: id.into(),
+                name: name.into(),
+                placement: Placement::Inventory,
+                ..Default::default()
+            };
+            object.actions = starter_actions(&object);
+            p.objects.push(object);
+        }
+        assert!(
+            validate(&p)
+                .iter()
+                .any(|d| d.field == "pattern" && d.message.contains("overlaps"))
+        );
+        p.game.ignored_words.clear();
+        assert!(
+            !validate(&p)
+                .iter()
+                .any(|d| d.field == "pattern" && d.message.contains("overlaps"))
+        );
+    }
     #[test]
     fn alias_overlaps_and_false_endings_are_diagnosed() {
         let mut p = Project::blank("Test");

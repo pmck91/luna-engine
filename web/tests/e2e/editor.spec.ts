@@ -70,7 +70,7 @@ test('create a world through forms, starter actions, and the exit tool', async (
   await page.getByRole('button', { name: 'Start playtest', exact: true }).click();
   const command = page.getByLabel('Player command');
   await expect(command).toBeEnabled();
-  await command.fill('take money');
+  await command.fill('take the money');
   await page.getByRole('button', { name: 'Run ↵', exact: true }).click();
   await expect(page.getByRole('log')).toContainText('Taken.');
   await expect(page.getByRole('log')).toContainText('You pocket the coin.');
@@ -99,6 +99,12 @@ test('author, inspect, play, and export The Locked Study', async ({ page }, info
   await page.getByLabel('Start with The Locked Study example').check();
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start playtest', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Command vocabulary/ }).click();
+  const ignoredWords = page.getByLabel('Ignored words before entity names (comma separated)', {
+    exact: true,
+  });
+  await expect(ignoredWords).toHaveValue('a, an, the');
+  await ignoredWords.fill('a, an, the, this');
   await page
     .getByRole('navigation', { name: 'Project hierarchy' })
     .getByRole('button', { name: /old painting/ })
@@ -134,16 +140,16 @@ test('author, inspect, play, and export The Locked Study', async ({ page }, info
   expect((await log.innerText()).match(/You enter the study for the first time\./g)).toHaveLength(
     1,
   );
-  await command('examine painting');
+  await command('inspect this painting');
   await expect(log).toContainText('A painting of an old man.');
-  await command('examine painting');
+  await command('inspect the painting');
   await expect(log).toContainText('Still an old man.');
   await command('go east');
   await expect(log).toContainText('The door is locked.');
-  await command('take key');
+  await command('take the key');
   await command('inventory');
   await expect(log).toContainText('You are carrying: brass key.');
-  await command('use brass key on door');
+  await command('use the brass key on the door');
   await expect(log).toContainText('The brass key turns. The door is unlocked.');
   await command('use key on door');
   await expect(log).toContainText('already unlocked');
@@ -171,6 +177,7 @@ test('author, inspect, play, and export The Locked Study', async ({ page }, info
   const gamePath = join(folder, 'game.json');
   const game = JSON.parse(readFileSync(gamePath, 'utf8'));
   expect(game.title).toBe('The Locked Study');
+  expect(game.ignored_words).toEqual(['a', 'an', 'the', 'this']);
   await page.screenshot({ path: join(process.env.LUNA_TEST_DIR!, 'editor.png'), fullPage: true });
   // External edits pause saving rather than overwriting the disk version.
   game.author = 'Changed externally';

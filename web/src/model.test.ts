@@ -16,6 +16,7 @@ const base: Project = {
     starting_location: 'study',
     opening_text: '',
     help_text: '',
+    ignored_words: ['a', 'an', 'the'],
     require_ending: false,
     variables: {},
     endings: [],

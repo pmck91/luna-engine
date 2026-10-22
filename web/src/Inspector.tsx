@@ -64,6 +64,22 @@ export default function Inspector({
       <>
         <h2>Command vocabulary</h2>
         <p className="muted">Reserved: look, inventory, help, save, load, saves, quit.</p>
+        <Text
+          label="Ignored words before entity names (comma separated)"
+          value={p.game.ignored_words.join(', ')}
+          onChange={(value) =>
+            edit((project) => {
+              project.game.ignored_words = value
+                .split(',')
+                .map((word) => word.trim())
+                .filter(Boolean);
+            })
+          }
+        />
+        <p className="muted">
+          Optional before object, character, location, and route names: inspect the painting, or use
+          the key on the door. Clear the list to require exact names.
+        </p>
         {p.vocabulary.map((v, i) => (
           <details key={v.id}>
             <summary>{v.canonical || 'New verb'}</summary>

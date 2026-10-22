@@ -1,6 +1,8 @@
 //! Versioned, host-independent Luna authoring contract.
+mod command_words;
 pub mod text;
 mod validation;
+pub use command_words::EntityWords;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -8,6 +10,9 @@ pub use validation::*;
 
 pub const FORMAT_VERSION: u32 = 1;
 pub const RESERVED: &[&str] = &["look", "inventory", "help", "save", "load", "saves", "quit"];
+pub fn default_ignored_words() -> Vec<String> {
+    ["a", "an", "the"].into_iter().map(str::to_owned).collect()
+}
 pub fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
@@ -335,6 +340,8 @@ pub struct Game {
     pub starting_location: String,
     pub opening_text: String,
     pub help_text: String,
+    #[serde(default = "default_ignored_words")]
+    pub ignored_words: Vec<String>,
     pub require_ending: bool,
     pub variables: BTreeMap<String, Value>,
     pub endings: Vec<Ending>,
@@ -407,6 +414,7 @@ impl Project {
                 starting_location: location.id.clone(),
                 opening_text: "Welcome to your adventure.".into(),
                 help_text: "Type commands to interact with the world.".into(),
+                ignored_words: default_ignored_words(),
                 require_ending: false,
                 variables: BTreeMap::new(),
                 endings: vec![],
