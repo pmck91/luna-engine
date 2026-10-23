@@ -309,10 +309,42 @@ pub enum Event {
 #[serde(default, deny_unknown_fields)]
 pub struct Trigger {
     pub id: String,
+    pub name: String,
     pub event: Event,
+    pub watch: Option<TriggerWatch>,
     pub priority: i32,
     pub condition: Condition,
     pub effects: Vec<Effect>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum ValueTarget {
+    Variable { name: String },
+    Property { entity: String, name: String },
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum WatchMode {
+    #[default]
+    BecomesTrue,
+    EachChange,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(default, deny_unknown_fields)]
+pub struct TriggerWatch {
+    pub target: ValueTarget,
+    pub mode: WatchMode,
+}
+impl Default for TriggerWatch {
+    fn default() -> Self {
+        Self {
+            target: ValueTarget::Variable {
+                name: String::new(),
+            },
+            mode: WatchMode::default(),
+        }
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]

@@ -37,6 +37,7 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
   await expect(data.getByRole('button')).toHaveText([
     /Variables$/,
     /Command vocabulary$/,
+    /Triggers$/,
     /Endings$/,
   ]);
   await expect(tools.getByRole('button', { name: /Command vocabulary|Endings/ })).toHaveCount(0);

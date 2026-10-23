@@ -372,7 +372,7 @@ function TemplateUse({
       {destination && (
         <p className="muted">
           Blocks append to{' '}
-          {'name' in destination
+          {!('event' in destination)
             ? destination.name || 'this action'
             : `the ${destination.event} trigger`}
           .

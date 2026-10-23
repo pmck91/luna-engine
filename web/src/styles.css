@@ -388,6 +388,16 @@ header {
   min-height: 0;
   overflow: auto;
 }
+.trigger-workspace {
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+.trigger-workspace .action-browser > .field {
+  margin-block: 8px;
+}
+.trigger-workspace .action-toolbar strong {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
 .action-group h3 {
   margin: 16px 0 8px;
   font-size: 10px;
@@ -1208,6 +1218,22 @@ summary {
   }
   .action-browser h2 {
     margin: 0;
+  }
+  .trigger-workspace .action-browser {
+    grid-template-columns: minmax(0, 1fr) 185px;
+    max-height: 280px;
+    overflow: auto;
+  }
+  .trigger-workspace .action-browser > .field {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 0;
+  }
+  .trigger-workspace .action-flows {
+    grid-row: 3;
+  }
+  .trigger-workspace .new-action {
+    grid-row: 1 / span 3;
   }
   .action-flows {
     grid-column: 1;

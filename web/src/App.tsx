@@ -28,6 +28,8 @@ import WorldMap from './WorldMap';
 import type { BlocksHandle } from './Blocks';
 import Actions from './Actions';
 import Hints from './Hints';
+import Triggers from './Triggers';
+import { projectTriggers, triggerPage } from './triggerModel';
 import HintInspector from './HintInspector';
 import type { HintSelection } from './HintBlocks';
 import Templates, { type TemplateContext } from './Templates';
@@ -40,7 +42,8 @@ export default function App() {
   const [doc, setDoc] = useState<Project | null>(null);
   const [selected, setSelected] = useState('');
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState<'map' | 'actions' | 'hints'>('map');
+  const [mode, setMode] = useState<'map' | 'actions' | 'hints' | 'triggers'>('map');
+  const [triggerFilter, setTriggerFilter] = useState('');
   const [flowSelections, setFlowSelections] = useState<Record<string, string>>({});
   const [hintSelection, setHintSelection] = useState<HintSelection | null>(null);
   const [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
@@ -112,6 +115,7 @@ export default function App() {
     setLogs([]);
     setMode('map');
     setFlowSelections({});
+    setTriggerFilter('');
     setHintSelection(null);
     setTemplateContext(null);
   };
@@ -132,6 +136,14 @@ export default function App() {
   }, []);
   const select = (key: string) => {
     const project = current.current.doc;
+    if (key === gameDataPages.triggers || key.startsWith(triggerPage())) {
+      setSelected(gameDataPages.triggers);
+      setTriggerFilter(key === gameDataPages.triggers ? '' : key.slice(triggerPage().length));
+      setConnecting(false);
+      setInspectorCollapsed(false);
+      setMode('triggers');
+      return;
+    }
     const page = project?.game.endings.some((ending) => ending.id === key)
       ? gameDataPages.endings
       : Object.values(gameDataPages).find((page) => page === key);
@@ -146,8 +158,17 @@ export default function App() {
     if (project && selectedFlow) {
       setConnecting(false);
       const parent = flowOwner(project, key)!;
-      setFlowSelections((previous) => ({ ...previous, [parent.id]: key }));
-      setMode('actions');
+      if ('event' in selectedFlow) {
+        if (mode !== 'triggers' || (triggerFilter && triggerFilter !== parent.id))
+          setTriggerFilter(parent.id);
+        setMode('triggers');
+        setInspectorCollapsed(false);
+      } else {
+        setFlowSelections((previous) => ({ ...previous, [parent.id]: key }));
+        setMode('actions');
+      }
+    } else if (mode === 'triggers') {
+      setMode('map');
     }
   };
   useEffect(() => {
@@ -381,11 +402,33 @@ export default function App() {
   const actionOwner = doc && (owner(doc, selected) ?? flowOwner(doc, selected));
   const hintOwner = actionOwner && 'hints' in actionOwner ? actionOwner : null;
   const actionFlow =
-    activeFlow ??
+    (activeFlow && !('event' in activeFlow) ? activeFlow : undefined) ??
     (doc && actionOwner && flow(doc, flowSelections[actionOwner.id])) ??
     actionOwner?.actions[0] ??
-    actionOwner?.triggers[0] ??
     (actionOwner && 'exits' in actionOwner ? actionOwner.exits[0] : undefined);
+  const activeTrigger =
+    activeFlow && 'event' in activeFlow
+      ? activeFlow
+      : doc
+        ? projectTriggers(doc).find((item) => !triggerFilter || item.ownerId === triggerFilter)
+            ?.trigger
+        : undefined;
+  const inspectedFlow = mode === 'triggers' ? activeTrigger : activeFlow;
+  const inspectedOwner = doc && inspectedFlow ? flowOwner(doc, inspectedFlow.id) : actionOwner;
+  useEffect(() => {
+    if (mode === 'triggers') inspectorContent.current?.scrollTo({ top: 0 });
+  }, [mode, activeTrigger?.id]);
+  useEffect(() => {
+    if (
+      mode === 'triggers' &&
+      activeFlow &&
+      'event' in activeFlow &&
+      actionOwner &&
+      triggerFilter &&
+      triggerFilter !== actionOwner.id
+    )
+      setTriggerFilter(actionOwner.id);
+  }, [mode, activeFlow, actionOwner, triggerFilter]);
   const countErrors = diagnostics.filter((d) => d.severity === 'error').length;
   return (
     <div className="app">
@@ -654,12 +697,18 @@ export default function App() {
               {[
                 { id: gameDataPages.variables, name: 'Variables', icon: '◈' },
                 { id: gameDataPages.vocabulary, name: 'Command vocabulary', icon: '⌘' },
+                { id: gameDataPages.triggers, name: 'Triggers', icon: '⚡' },
                 { id: gameDataPages.endings, name: 'Endings', icon: '⚑' },
               ].map((item) => (
                 <button
                   key={item.id}
-                  className={`tree-item ${selected === item.id ? 'active' : ''}`}
-                  aria-current={selected === item.id ? 'page' : undefined}
+                  className={`tree-item ${selected === item.id || (item.id === gameDataPages.triggers && mode === 'triggers') ? 'active' : ''}`}
+                  aria-current={
+                    selected === item.id ||
+                    (item.id === gameDataPages.triggers && mode === 'triggers')
+                      ? 'page'
+                      : undefined
+                  }
                   onClick={() => select(item.id)}
                 >
                   <span aria-hidden="true">{item.icon}</span>
@@ -734,9 +783,15 @@ export default function App() {
                 </div>
                 <button
                   onClick={() => {
-                    const source = mode === 'actions' ? actionFlow : undefined;
+                    const source =
+                      mode === 'actions'
+                        ? actionFlow
+                        : mode === 'triggers'
+                          ? activeTrigger
+                          : undefined;
                     setTemplateContext({
-                      ownerId: actionOwner?.id ?? doc.game.id,
+                      ownerId:
+                        (source && flowOwner(doc, source.id)?.id) ?? actionOwner?.id ?? doc.game.id,
                       flowId: source?.id ?? null,
                       selectedEffects: source ? (blocks.current?.selectedEffects() ?? null) : null,
                     });
@@ -760,9 +815,11 @@ export default function App() {
                       : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
                     : mode === 'hints'
                       ? 'Author progressive clues and optional solutions'
-                      : actionOwner
-                        ? 'Choose an action, trigger, or exit, then build its logic'
-                        : 'Select an object, location, or character'}
+                      : mode === 'triggers'
+                        ? 'Command, state, and value triggers'
+                        : actionOwner
+                          ? 'Choose an action or exit, then build its logic'
+                          : 'Select an object, location, or character'}
                 </span>
               </div>
               <div className="canvas">
@@ -773,6 +830,20 @@ export default function App() {
                     select={setSelected}
                     edit={edit}
                     connecting={connecting}
+                  />
+                ) : mode === 'triggers' ? (
+                  <Triggers
+                    project={doc}
+                    active={activeTrigger}
+                    ownerFilter={triggerFilter}
+                    filterOwner={(id) => {
+                      setTriggerFilter(id);
+                      setSelected(gameDataPages.triggers);
+                    }}
+                    edit={edit}
+                    select={select}
+                    error={error}
+                    blocksRef={blocks}
                   />
                 ) : mode === 'hints' && hintOwner ? (
                   <Hints
@@ -964,13 +1035,14 @@ export default function App() {
                   >
                     ← Back to {hintOwner.name}
                   </button>
-                ) : activeFlow && actionOwner ? (
+                ) : inspectedFlow && inspectedOwner ? (
                   <button
                     className="inspector-back"
-                    onClick={() => select(actionOwner.id)}
-                    title={`Back to ${'title' in actionOwner ? actionOwner.title : actionOwner.name} properties`}
+                    onClick={() => select(inspectedOwner.id)}
+                    title={`Back to ${'title' in inspectedOwner ? inspectedOwner.title : inspectedOwner.name} properties`}
                   >
-                    ← Back to {'title' in actionOwner ? actionOwner.title : actionOwner.name}
+                    ← Back to{' '}
+                    {'title' in inspectedOwner ? inspectedOwner.title : inspectedOwner.name}
                   </button>
                 ) : (
                   <span>Properties</span>
@@ -1001,10 +1073,15 @@ export default function App() {
                   select={(selection) => setHintSelection(selection)}
                   edit={edit}
                 />
+              ) : mode === 'triggers' && !activeTrigger ? (
+                <>
+                  <h2>Triggers</h2>
+                  <p className="muted">Add a trigger to build its conditions and effects.</p>
+                </>
               ) : (
                 <Inspector
                   project={doc}
-                  selected={selected}
+                  selected={mode === 'triggers' && activeTrigger ? activeTrigger.id : selected}
                   edit={edit}
                   select={select}
                   remove={remove}

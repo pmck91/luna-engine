@@ -171,7 +171,9 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   expect(browserErrors).toEqual([]);
 });
 
-test('Actions edits triggers and exits without a separate Logic tab', async ({ page }, info) => {
+test('Triggers and Actions preserve existing flows without a separate Logic tab', async ({
+  page,
+}, info) => {
   page.setDefaultTimeout(10000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -205,9 +207,16 @@ test('Actions edits triggers and exits without a separate Logic tab', async ({ p
       .find((location) => location.name === 'Study');
   const original = readStudy();
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
-  await inspector.getByRole('button', { name: 'On first enter', exact: false }).click();
+  await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
+  await page
+    .getByRole('list', { name: 'State triggers' })
+    .getByRole('button', { name: /On first enter/ })
+    .click();
   const actionsTab = page.getByRole('button', { name: 'Actions', exact: true });
-  await expect(actionsTab).toHaveClass('active');
+  await expect(hierarchy.getByRole('button', { name: 'Triggers', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
   const triggerCanvas = page
     .locator('.blocklyBlockCanvas')
     .filter({ hasText: 'WHEN FIRST ENTER · Study' });
@@ -221,6 +230,8 @@ test('Actions edits triggers and exits without a separate Logic tab', async ({ p
   const library = page.getByRole('dialog', { name: 'Block templates', exact: true });
   await expect(library.getByLabel('Save from', { exact: true })).toHaveValue('effects');
   await library.getByRole('button', { name: 'Close', exact: true }).click();
+  await inspector.getByRole('button', { name: /Back to Study/ }).click();
+  await actionsTab.click();
   await page
     .getByRole('list', { name: 'Entity exits' })
     .getByRole('button', { name: /^east/ })
@@ -241,12 +252,15 @@ test('Actions edits triggers and exits without a separate Logic tab', async ({ p
   await expect(inspector.getByLabel('Traversal text', { exact: true })).toHaveValue(
     'Through the doorway.',
   );
+  await inspector.getByRole('button', { name: /Back to Study/ }).click();
+  await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
   await page
-    .getByRole('list', { name: 'Entity triggers' })
+    .getByRole('list', { name: 'State triggers' })
     .getByRole('button', { name: /On first enter/ })
     .click();
   await hierarchy.getByRole('button', { name: /old painting/ }).click();
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
+  await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
   await expect(triggerCanvas).toContainText('The study is ready.');
   // A map-selected route opens in the same Actions editor and becomes the remembered flow.
   await page.getByRole('button', { name: 'World map', exact: true }).click();
@@ -264,9 +278,15 @@ test('Actions edits triggers and exits without a separate Logic tab', async ({ p
   await page.reload();
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
-  await inspector.getByRole('button', { name: 'On first enter', exact: false }).click();
+  await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
+  await page
+    .getByRole('list', { name: 'State triggers' })
+    .getByRole('button', { name: /On first enter/ })
+    .click();
   await expect(triggerCanvas).toContainText('The study is ready.');
   await page.setViewportSize({ width: 1100, height: 982 });
+  await inspector.getByRole('button', { name: /Back to Study/ }).click();
+  await actionsTab.click();
   await page
     .getByRole('list', { name: 'Entity exits' })
     .getByRole('button', { name: /^east/ })

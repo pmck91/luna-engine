@@ -31,7 +31,13 @@ export type Action = { id: string, name: string, verb: string, pattern: Array<Pa
 
 export type Event = "start" | "ending" | "enter" | "first_enter" | "leave" | "command" | "examine" | "take" | "drop" | "pull" | "push" | "turn" | "open" | "close" | "use" | "speak" | "interact";
 
-export type Trigger = { id: string, event: Event, priority: number, condition: Condition, effects: Array<Effect>, };
+export type ValueTarget = { "type": "variable", name: string, } | { "type": "property", entity: string, name: string, };
+
+export type WatchMode = "becomes_true" | "each_change";
+
+export type TriggerWatch = { target: ValueTarget, mode: WatchMode, };
+
+export type Trigger = { id: string, name: string, event: Event, watch: TriggerWatch | null, priority: number, condition: Condition, effects: Array<Effect>, };
 
 export type Verb = { id: string, canonical: string, synonyms: Array<string>, event: Event | null, };
 

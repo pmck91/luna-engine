@@ -4,27 +4,7 @@
   "aliases": [],
   "description": "A quiet study. A locked door leads east to the garden.",
   "actions": [],
-  "triggers": [
-    {
-      "id": "1d746601-bc90-47f5-9885-10a9aea214bb",
-      "event": "first_enter",
-      "priority": 0,
-      "condition": {
-        "type": "true"
-      },
-      "effects": [
-        {
-          "type": "set_variable",
-          "name": "study_entries",
-          "value": 1
-        },
-        {
-          "type": "say",
-          "text": "You enter the study for the first time."
-        }
-      ]
-    }
-  ],
+  "triggers": [],
   "exits": [
     {
       "id": "7c5da5f0-450c-4fec-bc03-e414003f9166",

@@ -678,7 +678,22 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
             c.id(&t.id, "triggers.id");
             c.condition(&t.id, "condition", &t.condition);
             c.effects(&t.id, "effects", &t.effects);
-            let key = format!("{owner}:{:?}:{}", t.event, t.priority);
+            if let Some(watch) = &t.watch {
+                let schema = match &watch.target {
+                    ValueTarget::Variable { name } => p.game.variables.get(name),
+                    ValueTarget::Property { entity, name } => {
+                        p.state_schema(entity).and_then(|state| state.get(name))
+                    }
+                };
+                if schema.is_none() {
+                    c.error(
+                        &t.id,
+                        "watch.target",
+                        "Watched variable/property does not exist",
+                    );
+                }
+            }
+            let key = format!("{owner}:{:?}:{:?}:{}", t.event, t.watch, t.priority);
             if let Some(old) = trigger_keys.insert(key, t.id.clone()) {
                 c.warn(
                     &t.id,
@@ -737,28 +752,30 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                 || p.characters
                     .iter()
                     .any(|ch| ch.id == owner && reachable.contains(&ch.location));
+            let mut effects = vec![];
             if active {
-                let mut effects = vec![];
                 for a in actions {
                     if constant(&a.requirements) != Some(false) {
                         possible_effects(&a.effects, &mut effects)
                     }
                 }
-                for t in triggers {
-                    if t.event != Event::Ending && constant(&t.condition) != Some(false) {
-                        possible_effects(&t.effects, &mut effects)
-                    }
+            }
+            for t in triggers {
+                if (t.watch.is_some() || (active && t.event != Event::Ending))
+                    && constant(&t.condition) != Some(false)
+                {
+                    possible_effects(&t.effects, &mut effects)
                 }
-                for e in effects {
-                    match e {
-                        Effect::Move { location } => {
-                            reachable.insert(location.clone());
-                        }
-                        Effect::End { ending } => {
-                            reachable_endings.insert(ending.clone());
-                        }
-                        _ => {}
+            }
+            for e in effects {
+                match e {
+                    Effect::Move { location } => {
+                        reachable.insert(location.clone());
                     }
+                    Effect::End { ending } => {
+                        reachable_endings.insert(ending.clone());
+                    }
+                    _ => {}
                 }
             }
         }
@@ -813,7 +830,8 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     let mut graph = BTreeMap::<String, Vec<String>>::new();
     for l in &p.locations {
         for t in &l.triggers {
-            if t.event == Event::Enter && constant(&t.condition) == Some(true) {
+            if t.watch.is_none() && t.event == Event::Enter && constant(&t.condition) == Some(true)
+            {
                 for effect in &t.effects {
                     if let Effect::Move { location } = effect {
                         graph

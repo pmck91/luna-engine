@@ -12,12 +12,14 @@ import type {
   HintSet,
   HintStage,
 } from './contracts';
+import { triggerLabel } from './triggerModel';
 export const id = () => crypto.randomUUID();
 // Page keys contain a colon so they cannot collide with valid imported entity IDs.
 export const gameDataPages = {
   variables: 'project:variables',
   vocabulary: 'project:vocabulary',
   endings: 'project:endings',
+  triggers: 'project:triggers',
 } as const;
 export const yes: Condition = { type: 'true' };
 export const location = (name = 'New location'): Location => {
@@ -95,6 +97,8 @@ export function messageValues(p: Project) {
 }
 export const trigger = (): Trigger => ({
   id: id(),
+  name: '',
+  watch: null,
   event: 'enter',
   priority: 0,
   condition: yes,
@@ -166,7 +170,7 @@ export function sequenceChoices(p: Project) {
       .flatMap(({ effect }) => (effect.type === 'respond' ? [effect] : []))
       .map((effect, index) => ({
         id: effect.id,
-        name: `${ownerName} · ${'name' in flow ? flow.name || 'Action' : `On ${flow.event}`} · sequence ${index + 1}`,
+        name: `${ownerName} · ${'event' in flow ? triggerLabel(flow, p) : flow.name || 'Action'} · sequence ${index + 1}`,
       }));
   });
 }

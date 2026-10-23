@@ -1,15 +1,5 @@
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
-import {
-  action,
-  trigger,
-  owner,
-  flow,
-  id,
-  allEffects,
-  replaceEffect,
-  entity,
-  gameDataPages,
-} from './model';
+import { action, owner, flow, id, allEffects, replaceEffect, entity, gameDataPages } from './model';
 import {
   Check,
   ConditionEditor,
@@ -22,26 +12,10 @@ import {
 } from './Forms';
 import { request } from './api';
 import Endings from './Endings';
+import TriggerSettings from './TriggerSettings';
+import { commandEvents, stateEvents, triggerLabel, triggerPage } from './triggerModel';
 type Edit = (change: (p: Project) => void) => void;
-const events: Event[] = [
-  'start',
-  'ending',
-  'first_enter',
-  'enter',
-  'leave',
-  'command',
-  'examine',
-  'take',
-  'drop',
-  'pull',
-  'push',
-  'turn',
-  'open',
-  'close',
-  'use',
-  'speak',
-  'interact',
-];
+const events: Event[] = [...stateEvents, ...commandEvents];
 export default function Inspector({
   project: p,
   selected,
@@ -415,27 +389,7 @@ export default function Inspector({
       <h3>
         Triggers <span>{o.triggers.length}</span>
       </h3>
-      {o.triggers.map((t) => (
-        <button className="list-item" key={t.id} onClick={() => select(t.id)}>
-          ⚡ On {t.event.replaceAll('_', ' ')}
-        </button>
-      ))}
-      <button
-        onClick={() => {
-          const t = trigger();
-          t.event = isGame
-            ? 'start'
-            : p.locations.some((l) => l.id === selected)
-              ? 'enter'
-              : 'command';
-          edit((n) => {
-            owner(n, selected)!.triggers.push(t);
-          });
-          select(t.id);
-        }}
-      >
-        Add trigger
-      </button>
+      <button onClick={() => select(triggerPage(o.id))}>View triggers</button>
       {'exits' in o && (
         <>
           <h3>
@@ -473,7 +427,7 @@ function FlowInspector({
   return (
     <>
       <div className="section-heading">
-        <h2>{'event' in f ? `On ${f.event.replaceAll('_', ' ')}` : f.name || 'Action'}</h2>
+        <h2>{'event' in f ? triggerLabel(f, p) : f.name || 'Action'}</h2>
         <button className="danger" onClick={() => remove(f.id)}>
           Delete
         </button>
@@ -560,12 +514,7 @@ function FlowInspector({
       )}
       {'event' in f && (
         <>
-          <Select
-            label="Event"
-            value={f.event}
-            items={events.map((id) => ({ id, name: id.replaceAll('_', ' ') }))}
-            onChange={(event) => update({ event })}
-          />
+          <TriggerSettings project={p} trigger={f} edit={edit} />
           <ConditionEditor
             project={p}
             value={f.condition}

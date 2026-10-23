@@ -102,6 +102,8 @@ export function lockedStudy(p: Project): Project {
   study.triggers = [
     {
       id: id(),
+      name: '',
+      watch: null,
       event: 'first_enter',
       priority: 0,
       condition: { type: 'true' },

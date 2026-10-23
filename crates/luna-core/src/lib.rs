@@ -492,7 +492,7 @@ impl<'a> Run<'a> {
             .flat_map(|(id, _, ts)| {
                 let scope = if id == owner { 0 } else if id == self.p.game.id { 2 } else { 1 };
                 ts.iter()
-                    .filter(move |t| t.event == event)
+                    .filter(move |t| t.watch.is_none() && t.event == event)
                     .map(move |t| (scope, t.clone()))
             })
             .collect::<Vec<_>>();
@@ -597,6 +597,80 @@ impl<'a> Run<'a> {
             _ => bail!("Arithmetic operand must reference an integer"),
         }
     }
+    fn value(&self, target: &ValueTarget) -> Result<&Value> {
+        match target {
+            ValueTarget::Variable { name } => self.state.variables.get(name),
+            ValueTarget::Property { entity, name } => self
+                .state
+                .properties
+                .get(entity)
+                .and_then(|state| state.get(name)),
+        }
+        .context("Unknown variable/property")
+    }
+    fn set_value(&mut self, target: &ValueTarget, value: Value) -> Result<()> {
+        let previous = self.value(target)?;
+        ensure!(
+            previous.same_type(&value),
+            "Variable/property type mismatch"
+        );
+        if *previous == value {
+            return Ok(());
+        }
+        let mut eligible = self
+            .p
+            .owners()
+            .into_iter()
+            .flat_map(|(_, _, triggers)| triggers)
+            .filter(|trigger| {
+                trigger
+                    .watch
+                    .as_ref()
+                    .is_some_and(|watch| watch.target == *target)
+            })
+            .map(|trigger| (trigger.clone(), self.condition(&trigger.condition)))
+            .collect::<Vec<_>>();
+        match target {
+            ValueTarget::Variable { name } => {
+                self.state.variables.insert(name.clone(), value);
+            }
+            ValueTarget::Property { entity, name } => {
+                self.state
+                    .properties
+                    .get_mut(entity)
+                    .context("Unknown entity")?
+                    .insert(name.clone(), value);
+            }
+        }
+        eligible.retain(|(trigger, before)| {
+            (!before || trigger.watch.as_ref().unwrap().mode == WatchMode::EachChange)
+                && self.condition(&trigger.condition)
+        });
+        if eligible.is_empty() {
+            return Ok(());
+        }
+        self.step()?;
+        ensure!(
+            self.depth < 64,
+            "Trigger chain exceeded 64 nested events; the command was rolled back"
+        );
+        self.depth += 1;
+        eligible
+            .sort_by(|(a, _), (b, _)| b.priority.cmp(&a.priority).then_with(|| a.id.cmp(&b.id)));
+        for (trigger, _) in eligible {
+            if self.state.ending.is_some() && !self.finalizing {
+                break;
+            }
+            if self.condition(&trigger.condition) {
+                self.result
+                    .trace
+                    .push(format!("Trigger {} (value change)", trigger.id));
+                self.effects(&trigger.effects)?;
+            }
+        }
+        self.depth -= 1;
+        Ok(())
+    }
     fn update_integer(target: &mut Value, op: ArithmeticOperation, operand: i32) -> Result<()> {
         let Value::Integer(current) = target else {
             bail!("Arithmetic target must be an integer");
@@ -677,36 +751,27 @@ impl<'a> Run<'a> {
                         .context("Unknown response sequence")? = 0;
                 }
                 Effect::SetVariable { name, value } => {
-                    let current = self
-                        .state
-                        .variables
-                        .get_mut(name)
-                        .context("Unknown variable")?;
-                    ensure!(current.same_type(value), "Variable type mismatch");
-                    *current = value.clone();
+                    self.set_value(&ValueTarget::Variable { name: name.clone() }, value.clone())?;
                 }
                 Effect::SetProperty {
                     entity,
                     name,
                     value,
                 } => {
-                    let current = self
-                        .state
-                        .properties
-                        .get_mut(entity)
-                        .and_then(|m| m.get_mut(name))
-                        .context("Unknown property")?;
-                    ensure!(current.same_type(value), "Property type mismatch");
-                    *current = value.clone();
+                    self.set_value(
+                        &ValueTarget::Property {
+                            entity: entity.clone(),
+                            name: name.clone(),
+                        },
+                        value.clone(),
+                    )?;
                 }
                 Effect::UpdateVariable { name, op, operand } => {
                     let operand = self.numeric_operand(operand)?;
-                    let target = self
-                        .state
-                        .variables
-                        .get_mut(name)
-                        .context("Unknown variable")?;
-                    Self::update_integer(target, *op, operand)?;
+                    let target = ValueTarget::Variable { name: name.clone() };
+                    let mut value = self.value(&target)?.clone();
+                    Self::update_integer(&mut value, *op, operand)?;
+                    self.set_value(&target, value)?;
                 }
                 Effect::UpdateProperty {
                     entity,
@@ -715,13 +780,13 @@ impl<'a> Run<'a> {
                     operand,
                 } => {
                     let operand = self.numeric_operand(operand)?;
-                    let target = self
-                        .state
-                        .properties
-                        .get_mut(entity)
-                        .and_then(|m| m.get_mut(name))
-                        .context("Unknown property")?;
-                    Self::update_integer(target, *op, operand)?;
+                    let target = ValueTarget::Property {
+                        entity: entity.clone(),
+                        name: name.clone(),
+                    };
+                    let mut value = self.value(&target)?.clone();
+                    Self::update_integer(&mut value, *op, operand)?;
+                    self.set_value(&target, value)?;
                 }
                 Effect::Give { object } => {
                     let o = self

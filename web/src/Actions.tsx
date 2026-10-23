@@ -37,15 +37,6 @@ export default function Actions({
       })),
     },
     {
-      name: 'Triggers',
-      label: 'Entity triggers',
-      items: entity.triggers.map((trigger) => ({
-        id: trigger.id,
-        name: `On ${trigger.event.replaceAll('_', ' ')}`,
-        detail: 'Trigger',
-      })),
-    },
-    {
       name: 'Exits',
       label: 'Entity exits',
       items:
