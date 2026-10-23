@@ -24,6 +24,117 @@ fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.fixtures/locked-study.luna")
 }
 #[test]
+fn response_follow_ups_resume_before_and_after_completion_and_can_be_reset() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("Sequence CLI");
+    p.game.variables.insert("punches".into(), Value::Integer(0));
+    p.game.actions = vec![
+        Action {
+            id: "poke".into(),
+            verb: "use".into(),
+            pattern: vec![PatternPart::Literal {
+                text: "poke".into(),
+            }],
+            effects: vec![Effect::Respond {
+                id: "warnings".into(),
+                responses: vec![
+                    "First warning.".into(),
+                    "Second warning.".into(),
+                    "Last warning.".into(),
+                ],
+                mode: SequenceMode::Fallback,
+                fallback: String::new(),
+                exhaustion: ExhaustionMode::Once,
+                on_exhausted: vec![
+                    Effect::UpdateVariable {
+                        name: "punches".into(),
+                        op: ArithmeticOperation::Add,
+                        operand: NumericOperand::Literal { value: 1 },
+                    },
+                    Effect::Say {
+                        text: "Punch %punches%.".into(),
+                    },
+                ],
+            }],
+            ..Default::default()
+        },
+        Action {
+            id: "reset".into(),
+            verb: "use".into(),
+            pattern: vec![PatternPart::Literal {
+                text: "reset".into(),
+            }],
+            effects: vec![Effect::ResetResponses {
+                sequence: "warnings".into(),
+            }],
+            ..Default::default()
+        },
+    ];
+    let bundle = temp.path().join("sequences.luna");
+    fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        command(temp.path(), &["import", bundle.to_str().unwrap()], b"")
+            .status
+            .success()
+    );
+    let first = command(temp.path(), &["run", &p.game.id, "--new"], b"use poke\nuse poke\nuse poke\nsave before punch\nuse poke\nsave after punch\nuse poke\nquit\n");
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let text = String::from_utf8(first.stdout).unwrap();
+    assert_eq!(text.matches("Punch 1.").count(), 1);
+    assert!(text.find("Last warning.").unwrap() < text.find("Punch 1.").unwrap());
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage.records().unwrap().pop().unwrap();
+    assert_eq!(
+        storage
+            .load_save(&installed, &p, Some("before punch"))
+            .unwrap()
+            .state
+            .sequences["warnings"],
+        3
+    );
+    for slot in [Some("after punch"), None] {
+        assert_eq!(
+            storage
+                .load_save(&installed, &p, slot)
+                .unwrap()
+                .state
+                .sequences["warnings"],
+            4
+        );
+    }
+    for slot in ["after punch", "autosave"] {
+        let resumed = command(
+            temp.path(),
+            &["run", &p.game.id, "--load", slot],
+            b"use poke\nquit\n",
+        );
+        assert!(resumed.status.success());
+        assert!(!String::from_utf8(resumed.stdout).unwrap().contains("Punch"));
+    }
+    let resumed = command(
+        temp.path(),
+        &["run", &p.game.id, "--load", "before punch"],
+        b"use poke\nuse poke\nuse reset\nuse poke\nquit\n",
+    );
+    assert!(resumed.status.success());
+    let text = String::from_utf8(resumed.stdout).unwrap();
+    assert_eq!(text.matches("Punch 1.").count(), 1);
+    assert!(text.contains("First warning."));
+    let auto = storage.load_save(&installed, &p, None).unwrap();
+    assert_eq!(auto.state.sequences["warnings"], 1);
+    assert_eq!(auto.state.variables["punches"], Value::Integer(1));
+}
+
+#[test]
 fn puzzle_hints_autosave_and_named_loads_resume_clues_without_revealing_solutions() {
     use luna_model::{HintSet, HintStage, Project};
     let temp = tempfile::tempdir().unwrap();

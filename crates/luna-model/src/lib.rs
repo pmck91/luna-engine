@@ -149,6 +149,13 @@ pub enum SequenceMode {
     Loop,
     Fallback,
 }
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ExhaustionMode {
+    #[default]
+    Once,
+    Repeat,
+}
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ArithmeticOperation {
@@ -180,6 +187,13 @@ pub enum Effect {
         responses: Vec<String>,
         mode: SequenceMode,
         fallback: String,
+        #[serde(default)]
+        exhaustion: ExhaustionMode,
+        #[serde(default)]
+        on_exhausted: Vec<Effect>,
+    },
+    ResetResponses {
+        sequence: String,
     },
     SetVariable {
         name: String,

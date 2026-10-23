@@ -778,13 +778,36 @@ function FlowInspector({
                   }
                 />
                 {effect.mode === 'fallback' && (
-                  <RichText
-                    project={p}
-                    label="Fallback response"
-                    value={effect.fallback}
-                    onChange={(fallback) => patchEffect(path, { ...effect, fallback })}
-                  />
+                  <>
+                    <RichText
+                      project={p}
+                      label="Fallback response"
+                      value={effect.fallback}
+                      onChange={(fallback) => patchEffect(path, { ...effect, fallback })}
+                    />
+                    <Select
+                      label="Follow-up effects"
+                      value={effect.exhaustion}
+                      items={[
+                        { id: 'once', name: 'Once' },
+                        { id: 'repeat', name: 'Every later interaction' },
+                      ]}
+                      onChange={(exhaustion) =>
+                        patchEffect(path, {
+                          ...effect,
+                          exhaustion: exhaustion as typeof effect.exhaustion,
+                        })
+                      }
+                    />
+                  </>
                 )}
+                <p className="muted">
+                  Add effects to AFTER LAST REPLY on the response block. In Separate fallback mode,
+                  they start on the next interaction after the final reply, after the fallback text.
+                  Repeat last and Loop to first leave them inactive. RESET RESPONSE SEQUENCE starts
+                  the replies and once-only follow-ups again.
+                </p>
+                <p className="stable-id">Sequence ID: {effect.id}</p>
               </>
             ) : effect.type === 'print_description' ? (
               <>

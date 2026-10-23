@@ -27,6 +27,8 @@ export function lockedStudy(p: Project): Project {
       responses: ['A painting of an old man.', 'Still an old man.'],
       mode: 'repeat_last',
       fallback: '',
+      exhaustion: 'once',
+      on_exhausted: [],
     },
   ];
   painting.actions = [examine];

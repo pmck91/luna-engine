@@ -152,6 +152,18 @@ export function flows(p: Project): Array<Action | Trigger | Exit> {
     ...('exits' in o ? o.exits : []),
   ]);
 }
+export function sequenceChoices(p: Project) {
+  return flows(p).flatMap((flow) => {
+    const owner = flowOwner(p, flow.id)!;
+    const ownerName = 'title' in owner ? owner.title : owner.name;
+    return allEffects(flow.effects)
+      .flatMap(({ effect }) => (effect.type === 'respond' ? [effect] : []))
+      .map((effect, index) => ({
+        id: effect.id,
+        name: `${ownerName} · ${'name' in flow ? flow.name || 'Action' : `On ${flow.event}`} · sequence ${index + 1}`,
+      }));
+  });
+}
 export function flow(p: Project, key: string) {
   return flows(p).find((f) => f.id === key);
 }
@@ -175,7 +187,9 @@ export function allEffects(
           ...allEffects(effect.then, [...path, index, 0]),
           ...allEffects(effect.otherwise, [...path, index, 1]),
         ]
-      : []),
+      : effect.type === 'respond'
+        ? allEffects(effect.on_exhausted, [...path, index, 0])
+        : []),
   ]);
 }
 export function replaceEffect(effects: Effect[], path: number[], replacement: Effect) {
@@ -184,6 +198,7 @@ export function replaceEffect(effects: Effect[], path: number[], replacement: Ef
   else {
     const e = effects[index];
     if (e.type === 'if') replaceEffect(branch === 0 ? e.then : e.otherwise, rest, replacement);
+    if (e.type === 'respond') replaceEffect(e.on_exhausted, rest, replacement);
   }
 }
 export function valueFrom(text: string, schema?: Value): Value {

@@ -272,10 +272,11 @@ pub fn validate_state(p: &Project, s: &GameState) -> Result<()> {
                 id,
                 responses,
                 mode,
+                on_exhausted,
                 ..
             } = e
             {
-                Some((id, responses, mode))
+                Some((id, responses, mode, on_exhausted))
             } else {
                 None
             }
@@ -285,11 +286,13 @@ pub fn validate_state(p: &Project, s: &GameState) -> Result<()> {
         seq.len() == s.sequences.len(),
         "Saved response sequences do not match this game"
     );
-    for (id, responses, mode) in seq {
+    for (id, responses, mode, on_exhausted) in seq {
         let cursor = *s.sequences.get(id).context("Missing saved sequence")?;
         ensure!(
             cursor < responses.len()
-                || (*mode == SequenceMode::Fallback && cursor == responses.len()),
+                || (*mode == SequenceMode::Fallback
+                    && (cursor == responses.len()
+                        || (!on_exhausted.is_empty() && cursor == responses.len() + 1))),
             "Invalid response cursor for {id}"
         )
     }
@@ -632,6 +635,8 @@ impl<'a> Run<'a> {
                     responses,
                     mode,
                     fallback,
+                    exhaustion,
+                    on_exhausted,
                 } => {
                     let cursor = *self
                         .state
@@ -640,6 +645,21 @@ impl<'a> Run<'a> {
                         .context("Unknown response sequence")?;
                     let len = responses.len();
                     ensure!(len > 0, "Empty response sequence");
+                    if *mode == SequenceMode::Fallback && cursor >= len {
+                        self.say(fallback)?;
+                        if !on_exhausted.is_empty()
+                            && (*exhaustion == ExhaustionMode::Repeat || cursor == len)
+                        {
+                            // Mark before executing: nested triggers must not run a once-only
+                            // follow-up twice, and an explicit reset in the flow must persist.
+                            self.state.sequences.insert(id.clone(), len + 1);
+                            let flow = self.effects(on_exhausted)?;
+                            if flow != Flow::Continue {
+                                return Ok(flow);
+                            }
+                        }
+                        continue;
+                    }
                     let text = responses.get(cursor).unwrap_or(fallback);
                     self.say(text)?;
                     let next = match mode {
@@ -648,6 +668,13 @@ impl<'a> Run<'a> {
                         SequenceMode::Fallback => (cursor + 1).min(len),
                     };
                     self.state.sequences.insert(id.clone(), next);
+                }
+                Effect::ResetResponses { sequence } => {
+                    *self
+                        .state
+                        .sequences
+                        .get_mut(sequence)
+                        .context("Unknown response sequence")? = 0;
                 }
                 Effect::SetVariable { name, value } => {
                     let current = self
@@ -1524,6 +1551,8 @@ mod tests {
                     responses: vec![format!("%chances% / %{room}.charges%")],
                     mode: SequenceMode::Fallback,
                     fallback: "No more than %chances%.".into(),
+                    exhaustion: ExhaustionMode::Once,
+                    on_exhausted: vec![],
                 },
                 Effect::PrintDescription { entity: room },
             ],
@@ -1981,6 +2010,8 @@ mod tests {
                 responses: vec!["First".into(), "Second".into()],
                 mode: SequenceMode::RepeatLast,
                 fallback: String::new(),
+                exhaustion: ExhaustionMode::Once,
+                on_exhausted: vec![],
             }],
             ..Default::default()
         });

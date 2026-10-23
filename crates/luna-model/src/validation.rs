@@ -223,6 +223,7 @@ impl Check<'_> {
                     id,
                     responses,
                     fallback,
+                    on_exhausted,
                     ..
                 } => {
                     self.id(id, &f);
@@ -232,7 +233,16 @@ impl Check<'_> {
                     for t in responses {
                         self.text(s, &f, t)
                     }
-                    self.text(s, &f, fallback)
+                    self.text(s, &f, fallback);
+                    self.effects(s, &format!("{f}.on_exhausted"), on_exhausted)
+                }
+                Effect::ResetResponses { sequence } => {
+                    if !all_effects(self.p)
+                        .iter()
+                        .any(|e| matches!(e, Effect::Respond { id, .. } if id == sequence))
+                    {
+                        self.error(s, &f, format!("Missing response sequence: {sequence}"))
+                    }
                 }
                 Effect::SetVariable { name, value } => {
                     self.value(s, &f, self.p.game.variables.get(name), value, None)
@@ -341,12 +351,15 @@ impl Check<'_> {
 pub fn walk_effects<'a>(effects: &'a [Effect], out: &mut Vec<&'a Effect>) {
     for e in effects {
         out.push(e);
-        if let Effect::If {
-            then, otherwise, ..
-        } = e
-        {
-            walk_effects(then, out);
-            walk_effects(otherwise, out)
+        match e {
+            Effect::If {
+                then, otherwise, ..
+            } => {
+                walk_effects(then, out);
+                walk_effects(otherwise, out)
+            }
+            Effect::Respond { on_exhausted, .. } => walk_effects(on_exhausted, out),
+            _ => {}
         }
     }
 }
@@ -393,6 +406,13 @@ fn possible_effects<'a>(effects: &'a [Effect], out: &mut Vec<&'a Effect>) {
                 }
             }
             Effect::Stop | Effect::End { .. } => break,
+            Effect::Respond {
+                mode: SequenceMode::Fallback,
+                on_exhausted,
+                ..
+            } => {
+                possible_effects(on_exhausted, out);
+            }
             _ => {}
         }
     }

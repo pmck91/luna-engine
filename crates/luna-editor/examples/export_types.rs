@@ -17,6 +17,7 @@ fn main() -> Result<()> {
         HintStage,
         HintSet,
         SequenceMode,
+        ExhaustionMode,
         ArithmeticOperation,
         NumericOperand,
         Effect,

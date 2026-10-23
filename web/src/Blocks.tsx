@@ -2,7 +2,15 @@ import { useEffect, useRef } from 'react';
 import * as Blockly from 'blockly/core';
 import * as English from 'blockly/msg/en';
 import type { Condition, Effect, NumericOperand, Project, Value } from './contracts';
-import { flow, flowConditions, id, valueFrom, hintChoices, type FlowConditions } from './model';
+import {
+  flow,
+  flowConditions,
+  id,
+  valueFrom,
+  hintChoices,
+  sequenceChoices,
+  type FlowConditions,
+} from './model';
 import { refreshChainEnds } from './blockRenderer';
 Blockly.setLocale(
   Object.fromEntries(
@@ -14,6 +22,7 @@ const effectFields: Record<string, string[]> = {
   say: ['text'],
   print_description: ['entity'],
   respond: [],
+  reset_responses: ['sequence'],
   set_variable: ['name', 'value'],
   set_property: ['entity', 'name', 'value'],
   update_variable: ['name', 'op'],
@@ -50,6 +59,7 @@ const labels: Record<string, string> = {
   say: 'SAY',
   print_description: 'PRINT DESCRIPTION',
   respond: 'RESPONSE SEQUENCE',
+  reset_responses: 'RESET RESPONSE SEQUENCE',
   set_variable: 'SET VARIABLE',
   set_property: 'SET PROPERTY',
   update_variable: 'UPDATE VARIABLE',
@@ -100,6 +110,7 @@ function field(name: string, type: string): Blockly.Field {
     return dropdown(() => project.objects);
   if (name === 'character') return dropdown(() => project.characters);
   if (name === 'hint') return dropdown(() => hintChoices(project));
+  if (name === 'sequence') return dropdown(() => sequenceChoices(project));
   if (name === 'entity')
     return dropdown(() => [...project.locations, ...project.objects, ...project.characters]);
   if (name === 'location')
@@ -276,7 +287,21 @@ function register() {
         const input = this.appendDummyInput().appendField(labels[type]);
         for (const key of fields)
           input.appendField(key.replaceAll('_', ' ')).appendField(field(key, type), key);
-        if (type === 'respond') input.appendField('Edit replies in the inspector');
+        if (type === 'respond') {
+          input.appendField('Edit replies in the inspector');
+          this.appendStatementInput('ON_EXHAUSTED')
+            .appendField('AFTER LAST REPLY')
+            .appendField(
+              new Blockly.FieldDropdown([
+                ['once', 'once'],
+                ['each time', 'repeat'],
+              ]),
+              'exhaustion',
+            );
+          this.setTooltip(
+            'In Separate fallback mode, these effects run on the interaction after the final reply. Reset this sequence to start again.',
+          );
+        }
         if (type.startsWith('update_')) {
           this.appendValueInput('OPERAND').setCheck('Number').appendField('by');
           this.getInput('OPERAND')!.connection!.setShadowState({
@@ -287,7 +312,7 @@ function register() {
         this.setPreviousStatement(true);
         this.setNextStatement(true);
         this.setColour(
-          ['say', 'respond', 'print_description'].includes(type)
+          ['say', 'respond', 'print_description', 'reset_responses'].includes(type)
             ? '#386b58'
             : type === 'end'
               ? '#9c4a63'
@@ -424,6 +449,8 @@ function makeEffects(
       makeEffects(workspace, e.then, block.getInput('THEN')!.connection!);
       makeEffects(workspace, e.otherwise, block.getInput('ELSE')!.connection!);
     }
+    if (e.type === 'respond')
+      makeEffects(workspace, e.on_exhausted, block.getInput('ON_EXHAUSTED')!.connection!);
   }
 }
 function schema(block: Blockly.Block): Value | undefined {
@@ -498,7 +525,7 @@ export function readEffects(first: Blockly.Block | null): Effect[] {
       });
     else if (type === 'respond') {
       const data = block.data ? (JSON.parse(block.data) as Effect) : null;
-      const e: Effect =
+      const e: Extract<Effect, { type: 'respond' }> =
         data?.type === 'respond'
           ? data
           : {
@@ -507,9 +534,17 @@ export function readEffects(first: Blockly.Block | null): Effect[] {
               responses: ['New response'],
               mode: 'repeat_last',
               fallback: '',
+              exhaustion: 'once',
+              on_exhausted: [],
             };
-      block.data = JSON.stringify(e);
-      effects.push(e);
+      const response: Effect = {
+        ...e,
+        type: 'respond',
+        exhaustion: block.getFieldValue('exhaustion'),
+        on_exhausted: readEffects(block.getInputTargetBlock('ON_EXHAUSTED')),
+      };
+      block.data = JSON.stringify(response);
+      effects.push(response);
     } else if (type === 'update_variable' || type === 'update_property')
       effects.push({
         type,
@@ -529,7 +564,7 @@ const toolbox = {
       kind: 'category',
       name: 'Responses',
       colour: '#386b58',
-      contents: ['say', 'respond', 'print_description'].map((t) => ({
+      contents: ['say', 'respond', 'print_description', 'reset_responses'].map((t) => ({
         kind: 'block',
         type: `luna_${t}`,
       })),
@@ -560,7 +595,7 @@ const toolbox = {
       name: 'World & state',
       colour: '#555f7f',
       contents: Object.keys(effectFields)
-        .filter((t) => !['say', 'respond', 'print_description'].includes(t))
+        .filter((t) => !['say', 'respond', 'print_description', 'reset_responses'].includes(t))
         .map((t) => ({ kind: 'block', type: `luna_${t}` })),
     },
   ],
@@ -595,6 +630,7 @@ export default function Blocks({
     variables: Object.entries(p.game.variables).map(([name, value]) => [name, typeof value]),
     endings: p.game.endings.map((ending) => [ending.id, ending.name]),
     hints: hintChoices(p),
+    sequences: sequenceChoices(p),
   });
   const host = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);

@@ -27,6 +27,136 @@ async fn post(app: axum::Router, path: &str, body: Value) -> Value {
 }
 
 #[tokio::test]
+async fn response_follow_ups_match_exported_runner_and_survive_every_save_boundary() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("Sequence parity");
+    p.game
+        .variables
+        .insert("punches".into(), luna_model::Value::Integer(0));
+    p.game.actions = vec![
+        Action {
+            id: "poke".into(),
+            verb: "use".into(),
+            pattern: vec![PatternPart::Literal {
+                text: "poke".into(),
+            }],
+            effects: vec![Effect::Respond {
+                id: "warnings".into(),
+                responses: vec!["First.".into(), "Second.".into(), "Third.".into()],
+                mode: SequenceMode::Fallback,
+                fallback: String::new(),
+                exhaustion: ExhaustionMode::Once,
+                on_exhausted: vec![Effect::If {
+                    condition: Condition::True,
+                    then: vec![
+                        Effect::UpdateVariable {
+                            name: "punches".into(),
+                            op: ArithmeticOperation::Add,
+                            operand: NumericOperand::Literal { value: 1 },
+                        },
+                        Effect::Say {
+                            text: "Punch %punches%.".into(),
+                        },
+                    ],
+                    otherwise: vec![],
+                }],
+            }],
+            ..Default::default()
+        },
+        Action {
+            id: "reset".into(),
+            verb: "use".into(),
+            pattern: vec![PatternPart::Literal {
+                text: "reset".into(),
+            }],
+            effects: vec![Effect::ResetResponses {
+                sequence: "warnings".into(),
+            }],
+            ..Default::default()
+        },
+    ];
+    let bundle = temp.path().join("sequences.luna");
+    std::fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let loaded = storage.load_game(&installed).unwrap();
+    assert_eq!(loaded.game.actions, p.game.actions);
+    let (mut runner, _) = Session::start(loaded, None).unwrap();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let mut editor = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"location":null}),
+    )
+    .await;
+    for command in [
+        "use poke",
+        "use poke",
+        "use poke",
+        "use poke",
+        "use poke",
+        "use reset",
+        "use poke",
+        "use poke",
+        "use poke",
+        "use poke",
+    ] {
+        let result = runner.command(command).unwrap();
+        editor = post(
+            app.clone(),
+            &format!(
+                "/api/v1/playtests/{}/commands",
+                editor["session"].as_str().unwrap()
+            ),
+            json!({"command":command}),
+        )
+        .await;
+        assert_eq!(
+            editor["result"]["messages"],
+            serde_json::to_value(&result.messages).unwrap(),
+            "{command}"
+        );
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(&runner.state).unwrap(),
+            "{command}"
+        );
+        assert_eq!(
+            editor["result"]["state_changed"], result.state_changed,
+            "{command}"
+        );
+        for slot in [None, Some("checkpoint")] {
+            storage
+                .write_save(&installed, &runner.project, &runner.state, slot)
+                .unwrap();
+            let save = storage
+                .load_save(&installed, &runner.project, slot)
+                .unwrap();
+            runner = Session::restore(storage.load_game(&installed).unwrap(), save.state).unwrap();
+        }
+    }
+    assert_eq!(
+        runner.state.variables["punches"],
+        luna_model::Value::Integer(2)
+    );
+    assert_eq!(runner.state.sequences["warnings"], 4);
+}
+
+#[tokio::test]
 async fn authored_hints_match_runner_exports_and_resume_saved_progress() {
     use luna_model::*;
     let temp = tempfile::tempdir().unwrap();

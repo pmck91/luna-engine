@@ -1,15 +1,11 @@
 # Project todo
 
-Suggested priority: sequence exhaustion next, followed by templates and UI organisation. Prioritise the first-game tutorial over the deeper architecture documents.
+Suggested priority: saved block templates next, followed by UI organisation. Prioritise the first-game tutorial over the deeper architecture documents.
 
 ## Characters
 
 - [ ] Add a MOVE CHARACTER effect. Items held by a character follow their owner; define which movement events fire.
 - [ ] Add CHARACTER SAYS alongside ordinary SAY. Select the speaker by entity reference and print their current name followed by "says:" and the message. Support the existing colours and variable/property placeholders.
-
-## Actions
-
-- [ ] Add follow-up effects when a response sequence is exhausted. Define whether they run immediately after the last response or on the next interaction, whether they fire once or repeatedly, and how looping and resetting affect them. Acceptance example: the first three pokes produce separate replies, and the fourth makes the character punch the player. Preserve completion state across save/load. Start with follow-up effect blocks; define requirements and trigger behaviour separately if calling another command action is added.
 
 ## Engine behaviour
 
@@ -40,6 +36,7 @@ Suggested priority: sequence exhaustion next, followed by templates and UI organ
 
 ## Completed
 
+- [x] Add follow-up effect blocks to fallback response sequences. Run on the next interaction after the final reply, once or on every later interaction; repeat-last and looping sequences keep follow-ups inactive. Support IF / ELSE and ordinary effects, plus RESET RESPONSE SEQUENCE by stable ID. Preserve pending/completed progress across saves, roll back failed follow-ups, and propagate STOP/END. Covered by core, editor/runner parity, export, CLI/autosave/named saves, legacy compatibility, and Chromium/Firefox authoring/reopen checks.
 - [x] Add Off / Basic / Full help modes. Basic defaults to verbs and syntax without revealing other targets or requirement readiness; Full lists complete currently available commands. Support a playtest-only override, aliases, scope, and read-only help. Covered by core, export, editor/runner parity, CLI/autosave, and Chromium/Firefox checks.
 - [x] Add authored puzzle hints on objects, characters, and locations, with availability/solved conditions, ordered conditional stages and clues, and optional explicitly requested solutions. Save clue/solution history per stage, expose HINT USED for authored score/ending logic, and support legacy saves with new writes in format 2. Covered by authoring/reopen, export, runner parity, CLI saves, compatibility, and both browsers.
 - [x] Add character inventories with one canonical object placement, initial inventory editing, transfers between player/character/room, and CHARACTER CARRYING conditions. Character-held objects require an explicit transfer before player commands can target them. REMOVE ITEM makes an object absent; Place in room explicitly selects a room. Covered by editor authoring, export, editor/runner parity, CLI, rollback, and autosave/named-save restoration tests.

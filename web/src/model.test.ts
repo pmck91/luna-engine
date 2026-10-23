@@ -2,7 +2,18 @@ import { describe, expect, it } from 'vitest';
 import * as Blockly from 'blockly/core';
 import { registerBlocks, loadEffectBlocks, readEffects, readFlowConditions } from './Blocks';
 import { recolour } from './Forms';
-import { character, location, object, literal, messageValues, preview, hintSet } from './model';
+import {
+  character,
+  location,
+  object,
+  literal,
+  messageValues,
+  preview,
+  hintSet,
+  allEffects,
+  replaceEffect,
+  sequenceChoices,
+} from './model';
 import { lockedStudy } from './example';
 import type { Project, Effect, Condition, ArithmeticOperation, NumericOperand } from './contracts';
 const base: Project = {
@@ -45,6 +56,110 @@ const base: Project = {
   editor: { positions: {}, blocks: {}, routes: {} },
 };
 describe('semantic block round trips', () => {
+  it('preserves nested follow-ups, reset targets, stable IDs, and repeat choices through saved blocks', () => {
+    const p = lockedStudy(structuredClone(base));
+    const inner: Effect = {
+      type: 'respond',
+      id: 'inner',
+      responses: ['One more warning.'],
+      mode: 'fallback',
+      fallback: '',
+      exhaustion: 'once',
+      on_exhausted: [{ type: 'reset_responses', sequence: 'outer' }],
+    };
+    const effects: Effect[] = [
+      {
+        type: 'respond',
+        id: 'outer',
+        responses: ['First', 'Second', 'Third'],
+        mode: 'fallback',
+        fallback: 'Enough!',
+        exhaustion: 'repeat',
+        on_exhausted: [
+          {
+            type: 'if',
+            condition: { type: 'carrying', object: p.objects[1].id },
+            then: [inner],
+            otherwise: [{ type: 'say', text: 'The keeper punches you.' }],
+          },
+        ],
+      },
+    ];
+    p.game.actions.push({ ...p.objects[0].actions[0], id: 'follow-ups', effects });
+    registerBlocks(p);
+    expect(sequenceChoices(p).map((choice) => choice.id)).toContain('inner');
+    expect(sequenceChoices(p).find((choice) => choice.id === 'outer')?.name).toContain(
+      'The Locked Study',
+    );
+    expect(
+      sequenceChoices(p).find((choice) => !['outer', 'inner'].includes(choice.id))?.name,
+    ).toContain('old painting');
+    const workspace = new Blockly.Workspace();
+    const root = loadEffectBlocks(workspace, effects);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
+    const restored = new Blockly.Workspace();
+    Blockly.serialization.workspaces.load(
+      Blockly.serialization.workspaces.save(workspace),
+      restored,
+    );
+    const loaded = restored.getTopBlocks(false).find((b) => b.type === 'luna_flow')!;
+    expect(readEffects(loaded.getInputTargetBlock('DO'))).toEqual(effects);
+    const response = loaded.getInputTargetBlock('DO')!;
+    response.setFieldValue('once', 'exhaustion');
+    expect(readEffects(response)[0]).toMatchObject({ id: 'outer', exhaustion: 'once' });
+    response.getInputTargetBlock('ON_EXHAUSTED')!.dispose(false);
+    expect(readEffects(response)[0]).toMatchObject({ id: 'outer', on_exhausted: [] });
+    workspace.dispose();
+    restored.dispose();
+  });
+  it('edits nested follow-up messages through the inspector paths without changing adjacent effects', () => {
+    const p = lockedStudy(structuredClone(base));
+    const effects = p.objects[0].actions[0].effects;
+    const response = effects[0];
+    if (response.type !== 'respond') throw new Error('Expected example response');
+    const sequenceId = response.id;
+    response.on_exhausted = [
+      {
+        type: 'if',
+        condition: { type: 'true' },
+        then: [{ type: 'say', text: 'Before' }],
+        otherwise: [{ type: 'say', text: 'Otherwise' }],
+      },
+    ];
+    const target = allEffects(effects).find(
+      ({ effect }) => effect.type === 'say' && effect.text === 'Before',
+    )!;
+    replaceEffect(effects, target.path, { type: 'say', text: 'After' });
+    expect(response.on_exhausted[0]).toMatchObject({
+      then: [{ type: 'say', text: 'After' }],
+      otherwise: [{ type: 'say', text: 'Otherwise' }],
+    });
+    expect(response.id).toBe(sequenceId);
+  });
+  it('rebuilds legacy response metadata with safe defaults and keeps missing reset references visible', () => {
+    registerBlocks(lockedStudy(structuredClone(base)));
+    const workspace = new Blockly.Workspace();
+    const response = workspace.newBlock('luna_respond');
+    response.data = JSON.stringify({
+      type: 'respond',
+      id: 'legacy',
+      responses: ['Hello'],
+      mode: 'repeat_last',
+      fallback: '',
+    });
+    expect(readEffects(response)[0]).toMatchObject({
+      id: 'legacy',
+      exhaustion: 'once',
+      on_exhausted: [],
+    });
+    const root = loadEffectBlocks(workspace, [
+      { type: 'reset_responses', sequence: 'deleted-sequence' },
+    ]);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toEqual([
+      { type: 'reset_responses', sequence: 'deleted-sequence' },
+    ]);
+    workspace.dispose();
+  });
   it('creates linked description actions for every new entity and preserves their blocks', () => {
     const p = structuredClone(base);
     for (const created of [object('study'), character('study'), location()]) {
