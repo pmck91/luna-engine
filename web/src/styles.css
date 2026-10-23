@@ -194,7 +194,7 @@ header {
   border-right: 1px solid var(--border);
   position: relative;
 }
-.hierarchy > h3 {
+.hierarchy h3 {
   margin-top: 5px;
   text-transform: uppercase;
   letter-spacing: 1.6px;
@@ -246,6 +246,10 @@ header {
 }
 .tree-item span {
   color: #aca0d2;
+}
+.ending-card h3 {
+  margin-top: 0;
+  overflow-wrap: anywhere;
 }
 .local-note {
   display: block;

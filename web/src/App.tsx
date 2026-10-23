@@ -16,6 +16,7 @@ import {
   character,
   flow,
   flowOwner,
+  gameDataPages,
   owner,
   location as makeLocation,
   object as makeObject,
@@ -70,6 +71,7 @@ export default function App() {
   const saved = useRef('');
   const queue = useRef(Promise.resolve());
   const transcript = useRef<HTMLDivElement>(null);
+  const inspectorContent = useRef<HTMLDivElement>(null);
   const editingVersion = doc ? JSON.stringify(doc) : '';
   const playVersion = `${playHelpMode}:${editingVersion}`;
   const error = useCallback((e: unknown) => {
@@ -125,8 +127,17 @@ export default function App() {
     );
   }, []);
   const select = (key: string) => {
-    setSelected(key);
     const project = current.current.doc;
+    const page = project?.game.endings.some((ending) => ending.id === key)
+      ? gameDataPages.endings
+      : Object.values(gameDataPages).find((page) => page === key);
+    setSelected(page ?? key);
+    if (page) {
+      setConnecting(false);
+      setInspectorCollapsed(false);
+      setMode('map');
+      return;
+    }
     const selectedFlow = project && flow(project, key);
     if (project && selectedFlow) {
       setConnecting(false);
@@ -137,6 +148,10 @@ export default function App() {
       } else setMode('logic');
     }
   };
+  useEffect(() => {
+    if (Object.values(gameDataPages).some((page) => page === selected))
+      inspectorContent.current?.scrollTo({ top: 0 });
+  }, [selected]);
   const save = useCallback((): Promise<void> => {
     const operation = queue.current.then(async () => {
       const { doc, view, conflict } = current.current;
@@ -628,42 +643,55 @@ export default function App() {
               </section>
             ))}
             <hr />
-            <button
-              className={`tree-item ${selected === 'variables' ? 'active' : ''}`}
-              onClick={() => select('variables')}
-            >
-              ◈ Variables
-            </button>
-            <h3>Tools</h3>
-            <button className="tree-item" onClick={() => select('vocabulary')}>
-              ⌘ Command vocabulary
-            </button>
-            <button className="tree-item" onClick={() => select(doc.game.id)}>
-              ⚙ Game settings
-            </button>
-            <button
-              className="tree-item"
-              onClick={() => {
-                void request(`/projects/${view!.handle}/folder`, 'POST').catch(error);
-              }}
-            >
-              ▣ Open project folder
-            </button>
-            <details className="assets">
-              <summary>Assets · {doc.game.assets.length}</summary>
-              {doc.game.assets.map((a) => (
-                <small key={a}>{a}</small>
+            <section aria-label="Game data">
+              <div className="section-heading">
+                <h4>Game data</h4>
+              </div>
+              {[
+                { id: gameDataPages.variables, name: 'Variables', icon: '◈' },
+                { id: gameDataPages.vocabulary, name: 'Command vocabulary', icon: '⌘' },
+                { id: gameDataPages.endings, name: 'Endings', icon: '⚑' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  className={`tree-item ${selected === item.id ? 'active' : ''}`}
+                  aria-current={selected === item.id ? 'page' : undefined}
+                  onClick={() => select(item.id)}
+                >
+                  <span aria-hidden="true">{item.icon}</span>
+                  {item.name}
+                </button>
               ))}
-              <label className="file-button">
-                Add asset
-                <input
-                  type="file"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) void upload(e.target.files[0]);
-                  }}
-                />
-              </label>
-            </details>
+            </section>
+            <section aria-label="Tools">
+              <h3>Tools</h3>
+              <button className="tree-item" onClick={() => select(doc.game.id)}>
+                ⚙ Game settings
+              </button>
+              <button
+                className="tree-item"
+                onClick={() => {
+                  void request(`/projects/${view!.handle}/folder`, 'POST').catch(error);
+                }}
+              >
+                ▣ Open project folder
+              </button>
+              <details className="assets">
+                <summary>Assets · {doc.game.assets.length}</summary>
+                {doc.game.assets.map((a) => (
+                  <small key={a}>{a}</small>
+                ))}
+                <label className="file-button">
+                  Add asset
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) void upload(e.target.files[0]);
+                    }}
+                  />
+                </label>
+              </details>
+            </section>
             <small className="local-note">
               ● Local project
               <br />
@@ -965,7 +993,12 @@ export default function App() {
                 {inspectorCollapsed && <span>Inspector</span>}
               </button>
             </div>
-            <div id="inspector-content" className="inspector" hidden={inspectorCollapsed}>
+            <div
+              id="inspector-content"
+              ref={inspectorContent}
+              className="inspector"
+              hidden={inspectorCollapsed}
+            >
               <Inspector
                 project={doc}
                 selected={selected}

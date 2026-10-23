@@ -13,6 +13,12 @@ import type {
   HintStage,
 } from './contracts';
 export const id = () => crypto.randomUUID();
+// Page keys contain a colon so they cannot collide with valid imported entity IDs.
+export const gameDataPages = {
+  variables: 'project:variables',
+  vocabulary: 'project:vocabulary',
+  endings: 'project:endings',
+} as const;
 export const yes: Condition = { type: 'true' };
 export const location = (name = 'New location'): Location => {
   const key = id();

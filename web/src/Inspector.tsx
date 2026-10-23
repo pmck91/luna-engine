@@ -1,5 +1,15 @@
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
-import { action, trigger, owner, flow, id, allEffects, replaceEffect, entity } from './model';
+import {
+  action,
+  trigger,
+  owner,
+  flow,
+  id,
+  allEffects,
+  replaceEffect,
+  entity,
+  gameDataPages,
+} from './model';
 import {
   Check,
   ConditionEditor,
@@ -11,6 +21,7 @@ import {
   Values,
 } from './Forms';
 import { request } from './api';
+import Endings from './Endings';
 type Edit = (change: (p: Project) => void) => void;
 const events: Event[] = [
   'start',
@@ -53,7 +64,7 @@ export default function Inspector({
       const target = flow(next, selected) ?? owner(next, selected);
       if (target) Object.assign(target, changes);
     });
-  if (selected === 'variables')
+  if (selected === gameDataPages.variables)
     return (
       <>
         <h2>Variables</h2>
@@ -68,11 +79,14 @@ export default function Inspector({
         />
       </>
     );
-  if (selected === 'vocabulary')
+  if (selected === gameDataPages.endings) return <Endings project={p} edit={edit} />;
+  if (selected === gameDataPages.vocabulary)
     return (
       <>
         <h2>Command vocabulary</h2>
-        <p className="muted">Reserved: look, inventory, help [entity], save, load, saves, quit.</p>
+        <p className="muted">
+          Reserved: look, inventory, help [entity], hint [entity], save, load, saves, quit.
+        </p>
         <Text
           label="Ignored words before entity names (comma separated)"
           value={p.game.ignored_words.join(', ')}
@@ -233,70 +247,9 @@ export default function Inspector({
             value={p.game.hints_enabled}
             onChange={(hints_enabled) => update({ hints_enabled })}
           />
-          <Check
-            label="Require a reachable ending"
-            value={p.game.require_ending}
-            onChange={(require_ending) => update({ require_ending })}
-          />
-          <details>
-            <summary>Endings · {p.game.endings.length}</summary>
-            {p.game.endings.map((ending, i) => (
-              <div className="card" key={ending.id}>
-                <Text
-                  label="Ending name"
-                  value={ending.name}
-                  onChange={(v) =>
-                    edit((n) => {
-                      n.game.endings[i].name = v;
-                    })
-                  }
-                />
-                <Select
-                  label="Outcome"
-                  value={ending.outcome}
-                  items={['victory', 'loss', 'neutral'].map((id) => ({ id, name: id }))}
-                  onChange={(v) =>
-                    edit((n) => {
-                      n.game.endings[i].outcome = v as typeof ending.outcome;
-                    })
-                  }
-                />
-                <RichText
-                  project={p}
-                  label="Ending text"
-                  value={ending.text}
-                  onChange={(v) =>
-                    edit((n) => {
-                      n.game.endings[i].text = v;
-                    })
-                  }
-                />
-                <button
-                  onClick={() =>
-                    edit((n) => {
-                      n.game.endings.splice(i, 1);
-                    })
-                  }
-                >
-                  Remove ending
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={() =>
-                edit((n) => {
-                  n.game.endings.push({
-                    id: id(),
-                    name: 'New ending',
-                    outcome: 'neutral',
-                    text: '',
-                  });
-                })
-              }
-            >
-              Add ending
-            </button>
-          </details>
+          <button onClick={() => select(gameDataPages.endings)}>
+            Edit endings ({p.game.endings.length})
+          </button>
         </>
       ) : (
         <>

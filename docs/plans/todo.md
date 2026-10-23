@@ -1,11 +1,11 @@
 # Project todo
 
-Suggested priority: UI organisation next. Prioritise the first-game tutorial over the deeper architecture documents.
+Suggested priority: hint authoring with blocks next. Prioritise the first-game tutorial over the deeper architecture documents.
 
 ## Characters
 
 - [ ] Add a MOVE CHARACTER effect. Items held by a character follow their owner; define which movement events fire.
-- [ ] Add CHARACTER SAYS alongside ordinary SAY. Select the speaker by entity reference and print their current name followed by "says:" and the message. Support the existing colours and variable/property placeholders.
+- [ ] Add CHARACTER SAYS alongside ordinary SAY. Select the speaker by entity reference and print their current name followed by "says:" and the message. Support the existing colours and variable/property placeholders. allow the designer to set a character colour, so their name appears in that colour e.g. <yellow><name></yellow>: <message>
 
 ## Engine behaviour
 
@@ -15,8 +15,6 @@ Suggested priority: UI organisation next. Prioritise the first-game tutorial ove
 
 - [ ] Add Blockly authoring for entity puzzle hints: puzzle and stage blocks, availability/solved/stage conditions, ordered clues, and optional solutions. Support the existing HINT USED condition in these flows. Keep blocks and the current hint forms synchronised through the same content model, preserving stable puzzle/stage IDs, saved hint progress, and editor layout when switching views or reopening a project.
 - [ ] Add assets/logo to readme, and to editors main page.
-- [ ] Move command vocabulary alongside variables in the project hierarchy.
-- [ ] Give endings their own hierarchy item and editor alongside variables and vocabulary, using the existing ending model.
 - [ ] Add project-wide undo/redo for inspector edits, entity creation/deletion, and map changes, alongside the existing Blockly undo.
 - [ ] Add reference management with a "used by" view before changing or deleting entities, variables, properties, or templates. Support safe variable/property renames, including references in message placeholders, and show affected content before destructive changes.
 
@@ -35,6 +33,7 @@ Suggested priority: UI organisation next. Prioritise the first-game tutorial ove
 
 ## Completed
 
+- [x] Group Variables, Command vocabulary, and Endings under Game data in the hierarchy, with clear selection states and automatic inspector expansion. Give endings a dedicated editor for names, formatted messages, outcomes, and the reachable-ending requirement, plus a Game settings shortcut. Preserve ending IDs and existing END GAME references. Covered by Chromium/Firefox navigation, authoring/reopen, export, terminal playback, and ending autosave checks.
 - [x] Add saved block templates for whole command actions, all effects in a flow, or a selected block chain. Insert independent actions or append blocks with entity replacements, including property placeholders and typed references. Give actions and nested response sequences fresh IDs and remap their internal reset references. Preserve existing Blockly positions and undo/redo metadata; persist, rename, and delete project-local templates independently of inserted copies. Keep the library in editor metadata and export inserted logic as ordinary effects. Covered by storage/legacy compatibility, nested-reference and copy tests, Chromium/Firefox authoring/reopen/undo checks, and exported runner save/load with independent response progress.
 - [x] Add follow-up effect blocks to fallback response sequences. Run on the next interaction after the final reply, once or on every later interaction; repeat-last and looping sequences keep follow-ups inactive. Support IF / ELSE and ordinary effects, plus RESET RESPONSE SEQUENCE by stable ID. Preserve pending/completed progress across saves, roll back failed follow-ups, and propagate STOP/END. Covered by core, editor/runner parity, export, CLI/autosave/named saves, legacy compatibility, and Chromium/Firefox authoring/reopen checks.
 - [x] Add Off / Basic / Full help modes. Basic defaults to verbs and syntax without revealing other targets or requirement readiness; Full lists complete currently available commands. Support a playtest-only override, aliases, scope, and read-only help. Covered by core, export, editor/runner parity, CLI/autosave, and Chromium/Firefox checks.
