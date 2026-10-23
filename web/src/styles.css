@@ -1308,6 +1308,117 @@ summary {
   overflow: auto;
   padding: 20px;
 }
+.entity-hints {
+  display: grid;
+  grid-template-columns: 185px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+.hint-browser {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  gap: 8px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--border);
+  background: #20242d;
+}
+.hint-browser h2 {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.hint-browser p {
+  margin: 0 0 6px;
+  font-size: 11px;
+}
+.hint-list {
+  flex: 1;
+  min-height: 60px;
+  overflow: auto;
+}
+.hint-list-controls,
+.hint-part-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-block: 10px;
+}
+.hint-browser > button,
+.hint-list-controls button {
+  font-size: 11px;
+}
+.hint-part-list button {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-height: 5em;
+  overflow: hidden;
+}
+.hint-canvas {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.hint-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: #20242d;
+  border-bottom: 1px solid var(--border);
+}
+.hint-toolbar button {
+  font-size: 11px;
+}
+.hint-instructions,
+.hint-notice {
+  padding: 8px 12px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.hint-notice {
+  color: #ebca85;
+}
+.hint-content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+@media (max-width: 1250px) {
+  .entity-hints {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .hint-browser {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    max-height: 180px;
+    padding: 8px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .hint-browser > p {
+    display: none;
+  }
+  .hint-list {
+    grid-column: 1;
+    display: flex;
+    gap: 6px;
+  }
+  .hint-list > [role='listitem'] {
+    flex: 0 0 140px;
+  }
+  .hint-list-controls {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin: 0;
+  }
+}
 .hint-editor > .card {
   max-width: 850px;
 }

@@ -43,6 +43,7 @@ test('authored hint stages, explicit solutions, and help settings survive save a
   await inspector.getByLabel('Name', { exact: true }).fill('door');
   await page.getByRole('button', { name: 'Hints', exact: true }).click();
   const hints = page.getByRole('region', { name: 'Hints for door', exact: true });
+  await hints.getByRole('button', { name: 'Forms', exact: true }).click();
   await hints.getByRole('button', { name: 'Add puzzle hints', exact: true }).click();
   const puzzle = hints.getByRole('group', { name: 'Puzzle 1', exact: true });
   await puzzle.getByLabel('Puzzle name', { exact: true }).fill('The locked door');
@@ -147,6 +148,7 @@ test('authored hint stages, explicit solutions, and help settings survive save a
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
   await hierarchy.getByRole('button', { name: /^◇.*door/ }).click();
   await page.getByRole('button', { name: 'Hints', exact: true }).click();
+  await hints.getByRole('button', { name: 'Forms', exact: true }).click();
   await expect(first.getByLabel('Stage name')).toHaveValue('Using the key');
   await page.getByRole('button', { name: 'Start playtest', exact: true }).click();
   await command('hint door');

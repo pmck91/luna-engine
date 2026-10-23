@@ -118,7 +118,9 @@
                     "For Gods sake <red>FIND THE KEY</red>"
                   ],
                   "mode": "repeat_last",
-                  "fallback": ""
+                  "fallback": "",
+                  "exhaustion": "once",
+                  "on_exhausted": []
                 }
               ]
             }
@@ -178,7 +180,9 @@
                 "The door is unlocked bozo."
               ],
               "mode": "repeat_last",
-              "fallback": ""
+              "fallback": "",
+              "exhaustion": "once",
+              "on_exhausted": []
             }
           ]
         }
@@ -228,5 +232,6 @@
       ]
     }
   ],
-  "triggers": []
+  "triggers": [],
+  "hints": []
 }

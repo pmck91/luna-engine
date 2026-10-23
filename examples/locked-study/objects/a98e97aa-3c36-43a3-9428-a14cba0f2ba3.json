@@ -50,7 +50,9 @@
                 "Still an old man. Still <red>crooked</red>. "
               ],
               "mode": "loop",
-              "fallback": ""
+              "fallback": "",
+              "exhaustion": "once",
+              "on_exhausted": []
             }
           ],
           "otherwise": [
@@ -99,5 +101,6 @@
       ]
     }
   ],
-  "triggers": []
+  "triggers": [],
+  "hints": []
 }

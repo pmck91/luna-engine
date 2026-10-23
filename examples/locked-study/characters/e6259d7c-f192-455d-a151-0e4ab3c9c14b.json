@@ -35,7 +35,9 @@
             "Tom meows, happy for the attention!"
           ],
           "mode": "loop",
-          "fallback": ""
+          "fallback": "",
+          "exhaustion": "once",
+          "on_exhausted": []
         }
       ]
     },
@@ -147,5 +149,6 @@
       ]
     }
   ],
-  "triggers": []
+  "triggers": [],
+  "hints": []
 }

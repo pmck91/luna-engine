@@ -432,7 +432,7 @@ function setFields(block: Blockly.Block, data: Record<string, unknown>) {
       }
     }
 }
-function makeCondition(workspace: Blockly.Workspace, c: Condition): Blockly.Block {
+export function makeCondition(workspace: Blockly.Workspace, c: Condition): Blockly.Block {
   const block = workspace.newBlock(`condition_${c.type}`);
   setFields(block, c as unknown as Record<string, unknown>);
   if (c.type === 'not')
@@ -586,6 +586,60 @@ export function readEffects(first: Blockly.Block | null): Effect[] {
   }
   return effects;
 }
+export const conditionToolbox = [...Object.keys(conditionFields), 'not', 'all', 'any'].map((t) => ({
+  kind: 'block',
+  type: `condition_${t}`,
+}));
+export function refreshBlockFields(workspace: Blockly.WorkspaceSvg) {
+  for (const surface of [workspace, workspace.getFlyout()?.getWorkspace()])
+    for (const block of surface?.getAllBlocks(false) ?? [])
+      for (const input of block.inputList)
+        for (const field of input.fieldRow) if (field instanceof LiveDropdown) field.refresh();
+}
+export function conditionFieldChanged(event: Blockly.Events.Abstract, ws: Blockly.Workspace) {
+  if (
+    event instanceof Blockly.Events.BlockChange &&
+    (event.name === 'name' || event.name === 'entity')
+  ) {
+    const changed = event.blockId ? ws.getBlockById(event.blockId) : null;
+    if (event.name === 'entity' && changed?.getField('name') instanceof LiveDropdown)
+      (changed.getField('name') as LiveDropdown).refresh();
+    if (changed?.getField('value')) {
+      try {
+        valueFrom(String(changed.getFieldValue('value')), schema(changed));
+      } catch {
+        changed.setFieldValue(String(schema(changed) ?? ''), 'value');
+      }
+    }
+  }
+}
+export function blockWorkspaceOptions(
+  toolbox: Blockly.utils.toolbox.ToolboxDefinition,
+): Blockly.BlocklyOptions {
+  return {
+    toolbox,
+    renderer: 'luna',
+    media: '/blockly-media/',
+    sounds: false,
+    trashcan: true,
+    scrollbars: true,
+    zoom: { controls: true, wheel: true },
+    theme: Blockly.Theme.defineTheme('luna', {
+      name: 'luna',
+      base: Blockly.Themes.Classic,
+      componentStyles: {
+        workspaceBackgroundColour: '#181b23',
+        toolboxBackgroundColour: '#222630',
+        toolboxForegroundColour: '#e3e5ed',
+        flyoutBackgroundColour: '#292d38',
+        flyoutForegroundColour: '#e3e5ed',
+        flyoutOpacity: 1,
+        scrollbarColour: '#667085',
+      },
+      fontStyle: { family: 'system-ui', weight: 'normal', size: 11 },
+    }),
+  };
+}
 const toolbox = {
   kind: 'categoryToolbox',
   contents: [
@@ -602,13 +656,7 @@ const toolbox = {
       kind: 'category',
       name: 'Logic',
       colour: '#916b31',
-      contents: [
-        { kind: 'block', type: 'luna_if' },
-        ...[...Object.keys(conditionFields), 'not', 'all', 'any'].map((t) => ({
-          kind: 'block',
-          type: `condition_${t}`,
-        })),
-      ],
+      contents: [{ kind: 'block', type: 'luna_if' }, ...conditionToolbox],
     },
     {
       kind: 'category',
@@ -746,29 +794,7 @@ export default function Blocks({
     }
   };
   useEffect(() => {
-    const ws = Blockly.inject(host.current!, {
-      toolbox,
-      renderer: 'luna',
-      media: '/blockly-media/',
-      sounds: false,
-      trashcan: true,
-      scrollbars: true,
-      zoom: { controls: true, wheel: true },
-      theme: Blockly.Theme.defineTheme('luna', {
-        name: 'luna',
-        base: Blockly.Themes.Classic,
-        componentStyles: {
-          workspaceBackgroundColour: '#181b23',
-          toolboxBackgroundColour: '#222630',
-          toolboxForegroundColour: '#e3e5ed',
-          flyoutBackgroundColour: '#292d38',
-          flyoutForegroundColour: '#e3e5ed',
-          flyoutOpacity: 1,
-          scrollbarColour: '#667085',
-        },
-        fontStyle: { family: 'system-ui', weight: 'normal', size: 11 },
-      }),
-    });
+    const ws = Blockly.inject(host.current!, blockWorkspaceOptions(toolbox));
     workspace.current = ws;
     load();
     const listener = (event: Blockly.Events.Abstract) => {
@@ -778,21 +804,7 @@ export default function Blocks({
       }
       if (event.isUiEvent) return;
       try {
-        if (
-          event instanceof Blockly.Events.BlockChange &&
-          (event.name === 'name' || event.name === 'entity')
-        ) {
-          const changed = event.blockId ? ws.getBlockById(event.blockId) : null;
-          if (event.name === 'entity' && changed?.getField('name') instanceof LiveDropdown)
-            (changed.getField('name') as LiveDropdown).refresh();
-          if (changed?.getField('value')) {
-            try {
-              valueFrom(String(changed.getFieldValue('value')), schema(changed));
-            } catch {
-              changed.setFieldValue(String(schema(changed) ?? ''), 'value');
-            }
-          }
-        }
+        conditionFieldChanged(event, ws);
         const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
         refreshChainEnds(ws);
         const next = readEffects(root?.getInputTargetBlock('DO') ?? null);
@@ -821,10 +833,7 @@ export default function Blocks({
     if (!ws) return;
     Blockly.Events.disable();
     try {
-      for (const surface of [ws, ws.getFlyout()?.getWorkspace()])
-        for (const block of surface?.getAllBlocks(false) ?? [])
-          for (const input of block.inputList)
-            for (const field of input.fieldRow) if (field instanceof LiveDropdown) field.refresh();
+      refreshBlockFields(ws);
     } finally {
       Blockly.Events.enable();
     }

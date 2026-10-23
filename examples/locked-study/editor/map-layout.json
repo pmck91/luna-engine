@@ -859,6 +859,206 @@
         ],
         "languageVersion": 0
       }
+    },
+    "hints:711a06fe-f5a7-495e-a980-99cddebef85b": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "fields": {
+              "name": "Tom"
+            },
+            "id": "711a06fe-f5a7-495e-a980-99cddebef85b",
+            "inputs": {
+              "AVAILABLE": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "o1MMpm}%.XLZ0Uj6iA_C",
+                  "type": "condition_true"
+                }
+              },
+              "SOLVED": {
+                "block": {
+                  "fields": {
+                    "character": "e6259d7c-f192-455d-a151-0e4ab3c9c14b",
+                    "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                  },
+                  "id": "`I835Epusfp:}eAf)*%R",
+                  "type": "condition_character_carrying"
+                }
+              },
+              "STAGES": {
+                "block": {
+                  "fields": {
+                    "name": "Get the toy"
+                  },
+                  "id": "93a77ce5-028f-474b-8e8b-10641da4968a",
+                  "inputs": {
+                    "CLUES": {
+                      "block": {
+                        "fields": {
+                          "text": "Someone small fat and fluffy is probably missing that <yellow>toy</yellow>! It seems important."
+                        },
+                        "id": "KV7U}~Kq;@N2NF!%`?=+",
+                        "type": "hint_clue"
+                      }
+                    },
+                    "SOLUTION": {
+                      "block": {
+                        "fields": {
+                          "text": "<red>take</red> the <yellow>toy</yellow>."
+                        },
+                        "id": "j}D[~}|W*|W|mJq=$cPr",
+                        "type": "hint_solution"
+                      }
+                    },
+                    "WHEN": {
+                      "block": {
+                        "id": "CJ@7lbl4pZbi:xV5^Kl=",
+                        "inputs": {
+                          "TEST": {
+                            "block": {
+                              "fields": {
+                                "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                              },
+                              "id": "!U9QE|x%;a3RmZ!@e3M1",
+                              "type": "condition_carrying"
+                            }
+                          }
+                        },
+                        "type": "condition_not"
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "fields": {
+                        "name": "Find the toys owner (study)"
+                      },
+                      "id": "LzE#fy4N5~iA[=L+#;y$",
+                      "inputs": {
+                        "CLUES": {
+                          "block": {
+                            "fields": {
+                              "text": "<green>Tom</green> loves spending time lounging in the sun"
+                            },
+                            "id": ")OgH#_fC*M0+-8I5S#z7",
+                            "type": "hint_clue"
+                          }
+                        },
+                        "SOLUTION": {
+                          "block": {
+                            "fields": {
+                              "text": "Find <green>Tom</green> in the <blue>garden</blue>"
+                            },
+                            "id": "!9M4r+WpIu_/vU,G65V}",
+                            "type": "hint_solution"
+                          }
+                        },
+                        "WHEN": {
+                          "block": {
+                            "extraState": {
+                              "count": 2
+                            },
+                            "id": "YL`N03axm3JDEY^XG`SB",
+                            "inline": true,
+                            "inputs": {
+                              "A": {
+                                "block": {
+                                  "fields": {
+                                    "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                                  },
+                                  "id": "cPt`6rrr|)0AsbkMe@J2",
+                                  "type": "condition_carrying"
+                                }
+                              },
+                              "B": {
+                                "block": {
+                                  "fields": {
+                                    "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca"
+                                  },
+                                  "id": "I0s)peWc}x2NY/~;v!v~",
+                                  "type": "condition_at"
+                                }
+                              }
+                            },
+                            "type": "condition_all"
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "fields": {
+                            "name": "find the toys owner (garden)"
+                          },
+                          "id": ".96}9#B9I*EX)=gNy3:U",
+                          "inputs": {
+                            "CLUES": {
+                              "block": {
+                                "fields": {
+                                  "text": "<green>Tom</green> probably misses his <yellow>toy</yellow>."
+                                },
+                                "id": "f~6S2`ux-H*c627Qn#Sy",
+                                "type": "hint_clue"
+                              }
+                            },
+                            "SOLUTION": {
+                              "block": {
+                                "fields": {
+                                  "text": "<red>give</red> the <yellow>toy</yellow> to <green>tom</green>."
+                                },
+                                "id": "1?e8!fxRZ02bo8r(dfCp",
+                                "type": "hint_solution"
+                              }
+                            },
+                            "WHEN": {
+                              "block": {
+                                "extraState": {
+                                  "count": 2
+                                },
+                                "id": "@__5ug]OQSNSv_f=V/8@",
+                                "inline": true,
+                                "inputs": {
+                                  "A": {
+                                    "block": {
+                                      "fields": {
+                                        "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                                      },
+                                      "id": "AaZiu}5D|k*9u;YYQVN=",
+                                      "type": "condition_carrying"
+                                    }
+                                  },
+                                  "B": {
+                                    "block": {
+                                      "fields": {
+                                        "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6"
+                                      },
+                                      "id": "UtK$+n}{b32prm=}WE#*",
+                                      "type": "condition_at"
+                                    }
+                                  }
+                                },
+                                "type": "condition_all"
+                              }
+                            }
+                          },
+                          "type": "hint_stage"
+                        }
+                      },
+                      "type": "hint_stage"
+                    }
+                  },
+                  "type": "hint_stage"
+                }
+              }
+            },
+            "type": "hint_puzzle",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
     }
   },
   "routes": {
@@ -884,5 +1084,6 @@
         "y": -3.0
       }
     }
-  }
+  },
+  "templates": []
 }

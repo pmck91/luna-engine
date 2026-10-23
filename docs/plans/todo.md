@@ -1,6 +1,6 @@
 # Project todo
 
-Suggested priority: hint authoring with blocks next. Prioritise the first-game tutorial over the deeper architecture documents.
+Prioritise the first-game tutorial over the deeper architecture documents.
 
 ## Characters
 
@@ -13,7 +13,6 @@ Suggested priority: hint authoring with blocks next. Prioritise the first-game t
 
 ## UI
 
-- [ ] Add Blockly authoring for entity puzzle hints: puzzle and stage blocks, availability/solved/stage conditions, ordered clues, and optional solutions. Support the existing HINT USED condition in these flows. Keep blocks and the current hint forms synchronised through the same content model, preserving stable puzzle/stage IDs, saved hint progress, and editor layout when switching views or reopening a project.
 - [ ] Add assets/logo to readme, and to editors main page.
 - [ ] Add project-wide undo/redo for inspector edits, entity creation/deletion, and map changes, alongside the existing Blockly undo.
 - [ ] Add reference management with a "used by" view before changing or deleting entities, variables, properties, or templates. Support safe variable/property renames, including references in message placeholders, and show affected content before destructive changes.
@@ -33,6 +32,7 @@ Suggested priority: hint authoring with blocks next. Prioritise the first-game t
 
 ## Completed
 
+- [x] Add Blockly hint authoring with an entity puzzle list, typed puzzle/stage/clue/solution blocks, all existing conditions including HINT USED, and a right-hand inspector for formatted clue/solution messages. Keep Forms and Blocks synchronized through canonical content, preserve puzzle/stage IDs and saved layout, retain disconnected drafts, and give duplicated stages independent valid IDs. Covered by condition/serialization/layout tests, Chromium/Firefox dragging, undo, forms/reopen and puzzle-priority checks, plus editor playback and exported runner named-save restoration with independent stage history.
 - [x] Group Variables, Command vocabulary, and Endings under Game data in the hierarchy, with clear selection states and automatic inspector expansion. Give endings a dedicated editor for names, formatted messages, outcomes, and the reachable-ending requirement, plus a Game settings shortcut. Preserve ending IDs and existing END GAME references. Covered by Chromium/Firefox navigation, authoring/reopen, export, terminal playback, and ending autosave checks.
 - [x] Add saved block templates for whole command actions, all effects in a flow, or a selected block chain. Insert independent actions or append blocks with entity replacements, including property placeholders and typed references. Give actions and nested response sequences fresh IDs and remap their internal reset references. Preserve existing Blockly positions and undo/redo metadata; persist, rename, and delete project-local templates independently of inserted copies. Keep the library in editor metadata and export inserted logic as ordinary effects. Covered by storage/legacy compatibility, nested-reference and copy tests, Chromium/Firefox authoring/reopen/undo checks, and exported runner save/load with independent response progress.
 - [x] Add follow-up effect blocks to fallback response sequences. Run on the next interaction after the final reply, once or on every later interaction; repeat-last and looping sequences keep follow-ups inactive. Support IF / ELSE and ordinary effects, plus RESET RESPONSE SEQUENCE by stable ID. Preserve pending/completed progress across saves, roll back failed follow-ups, and propagate STOP/END. Covered by core, editor/runner parity, export, CLI/autosave/named saves, legacy compatibility, and Chromium/Firefox authoring/reopen checks.

@@ -28,6 +28,8 @@ import WorldMap from './WorldMap';
 import Blocks, { type BlocksHandle } from './Blocks';
 import Actions from './Actions';
 import Hints from './Hints';
+import HintInspector from './HintInspector';
+import type { HintSelection } from './HintBlocks';
 import Templates, { type TemplateContext } from './Templates';
 type Log = { command?: string; spans?: Span[] };
 export default function App() {
@@ -40,6 +42,7 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('map');
   const [actionSelections, setActionSelections] = useState<Record<string, string>>({});
+  const [hintSelection, setHintSelection] = useState<HintSelection | null>(null);
   const [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
   const blocks = useRef<BlocksHandle>(null);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
@@ -109,6 +112,7 @@ export default function App() {
     setLogs([]);
     setMode('map');
     setActionSelections({});
+    setHintSelection(null);
     setTemplateContext(null);
   };
   const edit = useCallback((f: (p: Project) => void) => {
@@ -786,7 +790,18 @@ export default function App() {
                     connecting={connecting}
                   />
                 ) : mode === 'hints' && hintOwner ? (
-                  <Hints project={doc} ownerId={hintOwner.id} edit={edit} />
+                  <Hints
+                    key={hintOwner.id}
+                    project={doc}
+                    ownerId={hintOwner.id}
+                    selection={hintSelection}
+                    select={(selection) => {
+                      setHintSelection(selection);
+                      setInspectorCollapsed(false);
+                    }}
+                    edit={edit}
+                    error={error}
+                  />
                 ) : mode === 'actions' && actionOwner ? (
                   <Actions
                     key={actionOwner.id}
@@ -970,7 +985,17 @@ export default function App() {
           >
             <div className="inspector-toolbar">
               {!inspectorCollapsed &&
-                (activeFlow && actionOwner ? (
+                (mode === 'hints' && hintOwner ? (
+                  <button
+                    className="inspector-back"
+                    onClick={() => {
+                      setSelected(hintOwner.id);
+                      setMode('map');
+                    }}
+                  >
+                    ← Back to {hintOwner.name}
+                  </button>
+                ) : activeFlow && actionOwner ? (
                   <button
                     className="inspector-back"
                     onClick={() => select(actionOwner.id)}
@@ -999,14 +1024,24 @@ export default function App() {
               className="inspector"
               hidden={inspectorCollapsed}
             >
-              <Inspector
-                project={doc}
-                selected={selected}
-                edit={edit}
-                select={select}
-                remove={remove}
-                error={error}
-              />
+              {mode === 'hints' && hintOwner ? (
+                <HintInspector
+                  project={doc}
+                  ownerId={hintOwner.id}
+                  selection={hintSelection}
+                  select={(selection) => setHintSelection(selection)}
+                  edit={edit}
+                />
+              ) : (
+                <Inspector
+                  project={doc}
+                  selected={selected}
+                  edit={edit}
+                  select={select}
+                  remove={remove}
+                  error={error}
+                />
+              )}
             </div>
           </aside>
         </main>

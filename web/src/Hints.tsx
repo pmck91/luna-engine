@@ -1,186 +1,178 @@
-import type { HintSet, HintStage, Project } from './contracts';
+import { useState } from 'react';
+import type { Project } from './contracts';
 import { entity, hintSet, hintStage } from './model';
-import { Check, ConditionEditor, RichText, Text } from './Forms';
+import HintBlocks, { hintWorkspaceKey, type HintSelection } from './HintBlocks';
+import HintForms from './HintForms';
 
-function move<T>(items: T[], index: number, delta: number) {
-  const target = index + delta;
-  if (target >= 0 && target < items.length)
-    [items[index], items[target]] = [items[target], items[index]];
-}
 export default function Hints({
   project,
   ownerId,
+  selection,
+  select,
   edit,
+  error,
 }: {
   project: Project;
   ownerId: string;
+  selection: HintSelection | null;
+  select: (selection: HintSelection) => void;
   edit: (change: (project: Project) => void) => void;
+  error: (message: string) => void;
 }) {
   const owner = entity(project, ownerId)!;
-  const change = (f: (hints: HintSet[]) => void) => edit((p) => f(entity(p, ownerId)!.hints));
-  const patch = (index: number, value: Partial<HintSet>) =>
-    change((hints) => Object.assign(hints[index], value));
-  const stagePatch = (puzzle: number, index: number, value: Partial<HintStage>) =>
-    change((hints) => Object.assign(hints[puzzle].stages[index], value));
+  const [view, setView] = useState<'blocks' | 'forms'>('blocks');
+  const active =
+    owner.hints.find((hint) => selection?.ownerId === ownerId && hint.id === selection.puzzleId) ??
+    owner.hints[0];
+  const index = owner.hints.findIndex((hint) => hint.id === active?.id);
+  const choose = (puzzleId: string) => select({ ownerId, puzzleId, part: { type: 'puzzle' } });
   return (
-    <section className="hint-editor" aria-label={`Hints for ${owner.name}`}>
-      <h2>Hints for {owner.name}</h2>
-      <p className="muted">
-        Players request clues with hint {owner.name}. The first available, unsolved puzzle and first
-        matching stage apply. Put specific stages before a general fallback.
-      </p>
-      {!project.game.hints_enabled && (
-        <p>Puzzle hints are disabled in Game settings. You can still author them here.</p>
-      )}
-      {owner.hints.map((hint, h) => (
-        <fieldset className="card" key={hint.id} aria-label={`Puzzle ${h + 1}`}>
-          <legend>{hint.name || 'Puzzle'}</legend>
-          <Text label="Puzzle name" value={hint.name} onChange={(name) => patch(h, { name })} />
-          <div className="inline">
-            <button disabled={h === 0} onClick={() => change((hints) => move(hints, h, -1))}>
+    <section className="entity-hints" aria-label={`Hints for ${owner.name}`}>
+      <div className="hint-browser">
+        <h2>{owner.name}</h2>
+        <p className="muted">Puzzles · first match wins</p>
+        <div className="hint-list" role="list" aria-label="Entity puzzles">
+          {owner.hints.map((hint) => (
+            <div key={hint.id} role="listitem">
+              <button
+                className={`action-item ${active?.id === hint.id ? 'active' : ''}`}
+                aria-pressed={active?.id === hint.id}
+                onClick={() => choose(hint.id)}
+              >
+                <strong>{hint.name || 'Unnamed puzzle'}</strong>
+                <span>{hint.stages.length} stages</span>
+              </button>
+            </div>
+          ))}
+          {!owner.hints.length && <p className="muted">Add a puzzle to start writing clues.</p>}
+        </div>
+        {active && (
+          <div className="hint-list-controls">
+            <button
+              disabled={index === 0}
+              onClick={() =>
+                edit((p) => {
+                  const hints = entity(p, ownerId)!.hints;
+                  [hints[index - 1], hints[index]] = [hints[index], hints[index - 1]];
+                })
+              }
+            >
               Move puzzle up
             </button>
             <button
-              disabled={h === owner.hints.length - 1}
-              onClick={() => change((hints) => move(hints, h, 1))}
+              disabled={index === owner.hints.length - 1}
+              onClick={() =>
+                edit((p) => {
+                  const hints = entity(p, ownerId)!.hints;
+                  [hints[index], hints[index + 1]] = [hints[index + 1], hints[index]];
+                })
+              }
             >
               Move puzzle down
             </button>
-            <button onClick={() => change((hints) => hints.splice(h, 1))}>Remove puzzle</button>
+            <button
+              onClick={() =>
+                edit((p) => {
+                  entity(p, ownerId)!.hints.splice(index, 1);
+                  delete p.editor.blocks[hintWorkspaceKey(active.id)];
+                })
+              }
+            >
+              Remove puzzle
+            </button>
           </div>
-          <details>
-            <summary>Available when</summary>
-            <ConditionEditor
-              project={project}
-              value={hint.available}
-              onChange={(available) => patch(h, { available })}
-            />
-          </details>
-          <details>
-            <summary>Solved when</summary>
-            <ConditionEditor
-              project={project}
-              value={hint.solved}
-              onChange={(solved) => patch(h, { solved })}
-            />
-          </details>
-          {hint.stages.map((stage, s) => (
-            <fieldset className="card" key={stage.id} aria-label={`Stage ${s + 1}`}>
-              <legend>{stage.name || 'Stage'}</legend>
-              <Text
-                label="Stage name"
-                value={stage.name}
-                onChange={(name) => stagePatch(h, s, { name })}
-              />
-              <div className="inline">
-                <button
-                  disabled={s === 0}
-                  onClick={() => change((hints) => move(hints[h].stages, s, -1))}
-                >
-                  Move stage up
-                </button>
-                <button
-                  disabled={s === hint.stages.length - 1}
-                  onClick={() => change((hints) => move(hints[h].stages, s, 1))}
-                >
-                  Move stage down
-                </button>
-                <button onClick={() => change((hints) => hints[h].stages.splice(s, 1))}>
-                  Remove stage
-                </button>
-              </div>
-              <details>
-                <summary>Stage applies when</summary>
-                <ConditionEditor
-                  project={project}
-                  value={stage.condition}
-                  onChange={(condition) => stagePatch(h, s, { condition })}
-                />
-              </details>
-              {stage.clues.map((clue, c) => (
-                <div className="hint-clue" key={c}>
-                  <RichText
-                    project={project}
-                    label={`Clue ${c + 1}`}
-                    value={clue}
-                    onChange={(text) =>
-                      change((hints) => {
-                        hints[h].stages[s].clues[c] = text;
-                      })
-                    }
-                  />
-                  <div className="inline">
-                    <button
-                      disabled={c === 0}
-                      onClick={() => change((hints) => move(hints[h].stages[s].clues, c, -1))}
-                    >
-                      Move clue up
-                    </button>
-                    <button
-                      disabled={c === stage.clues.length - 1}
-                      onClick={() => change((hints) => move(hints[h].stages[s].clues, c, 1))}
-                    >
-                      Move clue down
-                    </button>
-                    <button
-                      onClick={() =>
-                        change((hints) => {
-                          hints[h].stages[s].clues.splice(c, 1);
-                        })
-                      }
-                    >
-                      Remove clue
-                    </button>
-                  </div>
-                </div>
-              ))}
+        )}
+        <button
+          onClick={() => {
+            const hint = hintSet();
+            edit((p) => entity(p, ownerId)!.hints.push(hint));
+            choose(hint.id);
+          }}
+        >
+          Add puzzle hints
+        </button>
+      </div>
+      <div className="hint-canvas">
+        <div className="hint-toolbar">
+          <div className="tabs" aria-label="Hint authoring view">
+            <button
+              className={view === 'blocks' ? 'active' : ''}
+              aria-pressed={view === 'blocks'}
+              onClick={() => setView('blocks')}
+            >
+              Blocks
+            </button>
+            <button
+              className={view === 'forms' ? 'active' : ''}
+              aria-pressed={view === 'forms'}
+              onClick={() => setView('forms')}
+            >
+              Forms
+            </button>
+          </div>
+          {active && view === 'blocks' && (
+            <>
+              <button onClick={() => choose(active.id)}>Puzzle settings</button>
               <button
-                onClick={() =>
-                  change((hints) => {
-                    hints[h].stages[s].clues.push('Another clue.');
-                  })
-                }
+                onClick={() => {
+                  const stage = hintStage();
+                  edit((p) =>
+                    entity(p, ownerId)!
+                      .hints.find((hint) => hint.id === active.id)!
+                      .stages.push(stage),
+                  );
+                  select({
+                    ownerId,
+                    puzzleId: active.id,
+                    part: { type: 'stage', stageId: stage.id },
+                  });
+                }}
               >
-                Add clue
+                Add stage
               </button>
-              <Check
-                label="Include a final solution"
-                value={stage.solution !== null}
-                onChange={(enabled) => stagePatch(h, s, { solution: enabled ? '' : null })}
-              />
-              {stage.solution !== null && (
-                <RichText
+            </>
+          )}
+        </div>
+        {!project.game.hints_enabled && (
+          <p className="hint-notice">
+            Puzzle hints are disabled in Game settings. You can still author them here.
+          </p>
+        )}
+        {active ? (
+          <>
+            <p className="hint-instructions">
+              Players type <code>hint {owner.name}</code>. Put specific stages before a general
+              fallback. Select a block to edit its settings.
+            </p>
+            <div className="hint-content">
+              {view === 'forms' ? (
+                <HintForms project={project} ownerId={ownerId} puzzleId={active.id} edit={edit} />
+              ) : (
+                <HintBlocks
                   project={project}
-                  label="Final solution"
-                  value={stage.solution}
-                  onChange={(solution) => stagePatch(h, s, { solution })}
+                  hint={active}
+                  saved={project.editor.blocks[hintWorkspaceKey(active.id)]}
+                  onChange={(hint, workspace) =>
+                    edit((p) => {
+                      const target = entity(p, ownerId)?.hints.find((item) => item.id === hint.id);
+                      if (!target) return;
+                      Object.assign(target, hint);
+                      p.editor.blocks[hintWorkspaceKey(hint.id)] =
+                        workspace as (typeof p.editor.blocks)[string];
+                    })
+                  }
+                  onSelect={(part) => select({ ownerId, puzzleId: active.id, part })}
+                  onError={error}
                 />
               )}
-              <p className="muted">
-                The solution is shown only when requested with hint {owner.name} solution.
-              </p>
-            </fieldset>
-          ))}
-          <button
-            onClick={() =>
-              change((hints) => {
-                hints[h].stages.push(hintStage());
-              })
-            }
-          >
-            Add stage
-          </button>
-        </fieldset>
-      ))}
-      <button
-        onClick={() =>
-          change((hints) => {
-            hints.push(hintSet());
-          })
-        }
-      >
-        Add puzzle hints
-      </button>
+            </div>
+          </>
+        ) : (
+          <div className="canvas-empty">
+            Add a puzzle, then connect stages and clues using the Hints palette.
+          </div>
+        )}
+      </div>
     </section>
   );
 }
