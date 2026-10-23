@@ -148,9 +148,10 @@ header {
   font-size: 20px;
   letter-spacing: 0.4px;
 }
-.moon {
-  font-size: 27px;
-  color: #d1c8fc;
+.brand-logo {
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 .project-title {
   color: #9ea7bb;
@@ -1033,6 +1034,11 @@ summary {
   width: 530px;
   margin-block: auto;
   padding: 45px 25px;
+}
+.welcome-logo {
+  display: block;
+  object-fit: contain;
+  margin-bottom: 24px;
 }
 .welcome-card h1 {
   font-size: 47px;

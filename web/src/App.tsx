@@ -12,6 +12,7 @@ import type {
   Span,
 } from './contracts';
 import { ApiError, bundle, request } from './api';
+import logoUrl from '../../assets/logo-transparent.png';
 import {
   character,
   flow,
@@ -434,7 +435,7 @@ export default function App() {
     <div className="app">
       <header>
         <div className="brand">
-          <span className="moon">☾</span>
+          <img className="brand-logo" src={logoUrl} alt="" width="38" height="38" />
           <strong>Luna Engine</strong>
           {doc && <span className="project-title">/ {doc.game.title}</span>}
         </div>
@@ -556,6 +557,13 @@ export default function App() {
       {!config?.projects_root ? (
         <main className="welcome">
           <div className="welcome-card">
+            <img
+              className="welcome-logo"
+              src={logoUrl}
+              alt="Luna Engine logo: a black cat sitting on a golden crescent moon"
+              width="112"
+              height="112"
+            />
             <div className="eyebrow">LOCAL WORLDS. YOUR STORIES.</div>
             <h1>
               A world begins
@@ -585,6 +593,13 @@ export default function App() {
       ) : !doc ? (
         <main className="welcome">
           <div className="welcome-card">
+            <img
+              className="welcome-logo"
+              src={logoUrl}
+              alt="Luna Engine logo: a black cat sitting on a golden crescent moon"
+              width="112"
+              height="112"
+            />
             <div className="eyebrow">YOUR NEXT ADVENTURE</div>
             <h1>
               Build a world.

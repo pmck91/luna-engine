@@ -1,5 +1,9 @@
 # Luna Engine
 
+<p align="center">
+  <img src="assets/logo-transparent.png" alt="Luna Engine logo: a black cat sitting on a golden crescent moon" width="240">
+</p>
+
 A local visual editor and terminal runner for parser-driven text adventures. Both execute the same transactional Rust engine.
 
 The first release targets Linux x86_64. The editor uses a desktop browser; Chromium and Firefox are covered by the browser acceptance tests. Projects, installed games, and player saves stay on your machine.

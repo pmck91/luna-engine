@@ -13,7 +13,6 @@ Prioritise the first-game tutorial over the deeper architecture documents.
 
 ## UI
 
-- [ ] Add assets/logo to readme, and to editors main page.
 - [ ] Add project-wide undo/redo for inspector edits, entity creation/deletion, and map changes, alongside the existing Blockly undo.
 - [ ] Add reference management with a "used by" view before changing or deleting entities, variables, properties, or templates. Support safe variable/property renames, including references in message placeholders, and show affected content before destructive changes.
 
@@ -32,6 +31,7 @@ Prioritise the first-game tutorial over the deeper architecture documents.
 
 ## Completed
 
+- [x] Add the Luna Engine logo to the README and editor header/welcome pages. Use a transparent background so the logo fits the editor's dark theme, with descriptive alt text and compact display sizes.
 - [x] Add a dedicated Triggers workspace under Game data, grouping command, state, and value triggers with owner filters, names, entity shortcuts, condition/effect blocks, and stable layout/IDs when changing owners. Add watches on global variables and entity properties with false-to-true or every-matching-change modes, immediate SET/arithmetic dispatch, deterministic priorities, chained events, rollback/loop limits, and no replay on save restoration. Cover player death and character defeat with core tests and Chromium/Firefox authoring, legacy trigger navigation, export, and runner named-save checks. Existing trigger files default safely; player saves stay in format 2.
 - [x] Remove the duplicate Logic tab and use Actions for command actions, triggers, and exit flows. List each kind separately, preserve the last selected flow per owner, and keep condition blocks, inspector navigation, templates, map-selected routes, and saved flow IDs working. Covered by Chromium/Firefox navigation, editing/playback, reopening, and compact layout checks.
 - [x] Add Blockly hint authoring with an entity puzzle list, typed puzzle/stage/clue/solution blocks, all existing conditions including HINT USED, and a right-hand inspector for formatted clue/solution messages. Keep Forms and Blocks synchronized through canonical content, preserve puzzle/stage IDs and saved layout, retain disconnected drafts, and give duplicated stages independent valid IDs. Covered by condition/serialization/layout tests, Chromium/Firefox dragging, undo, forms/reopen and puzzle-priority checks, plus editor playback and exported runner named-save restoration with independent stage history.
