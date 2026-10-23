@@ -381,9 +381,20 @@ header {
   font-size: 11px;
 }
 .action-list {
+  min-width: 0;
+}
+.action-flows {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+.action-group h3 {
+  margin: 16px 0 8px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.action-group:first-child h3 {
+  margin-top: 6px;
 }
 .action-item {
   display: flex;
@@ -1198,8 +1209,16 @@ summary {
   .action-browser h2 {
     margin: 0;
   }
-  .action-browser > p {
-    display: none;
+  .action-flows {
+    grid-column: 1;
+    display: flex;
+    gap: 12px;
+    max-height: 104px;
+    min-width: 0;
+  }
+  .action-group h3,
+  .action-group:first-child h3 {
+    margin-top: 0;
   }
   .action-list {
     display: flex;

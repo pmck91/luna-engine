@@ -170,3 +170,110 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   await expect(canvas.locator('.condition_false')).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
+
+test('Actions edits triggers and exits without a separate Logic tab', async ({ page }, info) => {
+  page.setDefaultTimeout(10000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto(process.env.LUNA_TEST_URL!);
+  await expect(
+    page
+      .getByRole('button', { name: 'Create a project' })
+      .or(page.getByRole('button', { name: 'Use this directory' })),
+  ).toBeVisible();
+  if (await page.getByRole('button', { name: 'Use this directory' }).isVisible()) {
+    await page
+      .getByLabel('Projects directory (absolute path)')
+      .fill(join(process.env.LUNA_TEST_DIR!, 'projects'));
+    await page.getByRole('button', { name: 'Use this directory' }).click();
+  }
+  const folder = `shared-actions-${info.project.name}`;
+  await page.getByRole('button', { name: 'Create a project' }).click();
+  await page.getByLabel('Folder name').fill(folder);
+  await page.getByLabel('Start with The Locked Study example').check();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
+  await expect(hierarchy.getByRole('button', { name: /locked door/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Logic', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('status')).toHaveText('Saved');
+  const root = join(process.env.LUNA_TEST_DIR!, 'projects', folder);
+  const readStudy = () =>
+    readdirSync(join(root, 'locations'))
+      .map((file) => JSON.parse(readFileSync(join(root, 'locations', file), 'utf8')))
+      .find((location) => location.name === 'Study');
+  const original = readStudy();
+  await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
+  await inspector.getByRole('button', { name: 'On first enter', exact: false }).click();
+  const actionsTab = page.getByRole('button', { name: 'Actions', exact: true });
+  await expect(actionsTab).toHaveClass('active');
+  const triggerCanvas = page
+    .locator('.blocklyBlockCanvas')
+    .filter({ hasText: 'WHEN FIRST ENTER · Study' });
+  await expect(triggerCanvas).toContainText('CONDITION');
+  await inspector.getByLabel('SAY text', { exact: true }).fill('The study is ready.');
+  await expect(triggerCanvas).toContainText('The study is ready.');
+  await inspector.getByLabel('Condition', { exact: true }).selectOption('false');
+  await expect(triggerCanvas.locator('.condition_false')).toBeVisible();
+  await inspector.getByLabel('Condition', { exact: true }).selectOption('true');
+  await page.getByRole('button', { name: 'Block templates', exact: true }).click();
+  const library = page.getByRole('dialog', { name: 'Block templates', exact: true });
+  await expect(library.getByLabel('Save from', { exact: true })).toHaveValue('effects');
+  await library.getByRole('button', { name: 'Close', exact: true }).click();
+  await page
+    .getByRole('list', { name: 'Entity exits' })
+    .getByRole('button', { name: /^east/ })
+    .click();
+  const exitCanvas = page
+    .locator('.blocklyBlockCanvas')
+    .filter({ hasText: 'WHEN go east · Study' });
+  await expect(exitCanvas).toContainText('VISIBLE WHEN');
+  await expect(exitCanvas).toContainText('TRAVERSABLE WHEN');
+  await expect(
+    inspector.getByLabel('Destination', { exact: true }).locator('option:checked'),
+  ).toHaveText('Garden');
+  await inspector.getByLabel('Traversal text', { exact: true }).fill('Through the doorway.');
+  await inspector.getByRole('button', { name: /Back to Study/ }).click();
+  await expect(inspector.getByLabel('Name', { exact: true })).toHaveValue('Study');
+  await expect(exitCanvas).toBeVisible();
+  await actionsTab.click();
+  await expect(inspector.getByLabel('Traversal text', { exact: true })).toHaveValue(
+    'Through the doorway.',
+  );
+  await page
+    .getByRole('list', { name: 'Entity triggers' })
+    .getByRole('button', { name: /On first enter/ })
+    .click();
+  await hierarchy.getByRole('button', { name: /old painting/ }).click();
+  await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
+  await expect(triggerCanvas).toContainText('The study is ready.');
+  // A map-selected route opens in the same Actions editor and becomes the remembered flow.
+  await page.getByRole('button', { name: 'World map', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit exit east', exact: true }).click();
+  await actionsTab.click();
+  await expect(exitCanvas).toBeVisible();
+  await inspector.getByRole('button', { name: /Back to Study/ }).click();
+  await expect(exitCanvas).toBeVisible();
+  await page.getByRole('button', { name: 'Start playtest', exact: true }).click();
+  await expect(page.getByRole('log')).toContainText('The study is ready.');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('status')).toHaveText('Saved');
+  expect(readStudy().triggers[0].id).toBe(original.triggers[0].id);
+  expect(readStudy().exits[0].id).toBe(original.exits[0].id);
+  await page.reload();
+  await page.getByLabel('Open project', { exact: true }).selectOption(folder);
+  await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
+  await inspector.getByRole('button', { name: 'On first enter', exact: false }).click();
+  await expect(triggerCanvas).toContainText('The study is ready.');
+  await page.setViewportSize({ width: 1100, height: 982 });
+  await page
+    .getByRole('list', { name: 'Entity exits' })
+    .getByRole('button', { name: /^east/ })
+    .click();
+  await expect(inspector.getByLabel('Traversal text', { exact: true })).toHaveValue(
+    'Through the doorway.',
+  );
+  await expect(page.getByRole('button', { name: 'Logic', exact: true })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

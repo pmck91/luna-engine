@@ -25,7 +25,7 @@ import { lockedStudy } from './example';
 import { Check, Field, StateInspector, Text } from './Forms';
 import Inspector from './Inspector';
 import WorldMap from './WorldMap';
-import Blocks, { type BlocksHandle } from './Blocks';
+import type { BlocksHandle } from './Blocks';
 import Actions from './Actions';
 import Hints from './Hints';
 import HintInspector from './HintInspector';
@@ -40,8 +40,8 @@ export default function App() {
   const [doc, setDoc] = useState<Project | null>(null);
   const [selected, setSelected] = useState('');
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState('map');
-  const [actionSelections, setActionSelections] = useState<Record<string, string>>({});
+  const [mode, setMode] = useState<'map' | 'actions' | 'hints'>('map');
+  const [flowSelections, setFlowSelections] = useState<Record<string, string>>({});
   const [hintSelection, setHintSelection] = useState<HintSelection | null>(null);
   const [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
   const blocks = useRef<BlocksHandle>(null);
@@ -111,7 +111,7 @@ export default function App() {
     setPlayProject(null);
     setLogs([]);
     setMode('map');
-    setActionSelections({});
+    setFlowSelections({});
     setHintSelection(null);
     setTemplateContext(null);
   };
@@ -145,11 +145,9 @@ export default function App() {
     const selectedFlow = project && flow(project, key);
     if (project && selectedFlow) {
       setConnecting(false);
-      if ('requirements' in selectedFlow) {
-        const parent = flowOwner(project, key)!;
-        setActionSelections((previous) => ({ ...previous, [parent.id]: key }));
-        setMode('actions');
-      } else setMode('logic');
+      const parent = flowOwner(project, key)!;
+      setFlowSelections((previous) => ({ ...previous, [parent.id]: key }));
+      setMode('actions');
     }
   };
   useEffect(() => {
@@ -382,10 +380,12 @@ export default function App() {
   const activeFlow = doc && flow(doc, selected);
   const actionOwner = doc && (owner(doc, selected) ?? flowOwner(doc, selected));
   const hintOwner = actionOwner && 'hints' in actionOwner ? actionOwner : null;
-  const activeAction =
-    actionOwner?.actions.find((action) => action.id === selected) ??
-    actionOwner?.actions.find((action) => action.id === actionSelections[actionOwner.id]) ??
-    actionOwner?.actions[0];
+  const actionFlow =
+    activeFlow ??
+    (doc && actionOwner && flow(doc, flowSelections[actionOwner.id])) ??
+    actionOwner?.actions[0] ??
+    actionOwner?.triggers[0] ??
+    (actionOwner && 'exits' in actionOwner ? actionOwner.exits[0] : undefined);
   const countErrors = diagnostics.filter((d) => d.severity === 'error').length;
   return (
     <div className="app">
@@ -714,7 +714,7 @@ export default function App() {
                     disabled={!actionOwner}
                     onClick={() => {
                       setConnecting(false);
-                      if (activeAction) setSelected(activeAction.id);
+                      if (actionFlow) select(actionFlow.id);
                       setMode('actions');
                     }}
                   >
@@ -731,21 +731,10 @@ export default function App() {
                   >
                     Hints
                   </button>
-                  <button
-                    className={mode === 'logic' ? 'active' : ''}
-                    onClick={() => {
-                      setConnecting(false);
-                      if (!activeFlow && activeAction) setSelected(activeAction.id);
-                      setMode('logic');
-                    }}
-                  >
-                    Logic
-                  </button>
                 </div>
                 <button
                   onClick={() => {
-                    const source =
-                      mode === 'actions' ? activeAction : mode === 'logic' ? activeFlow : undefined;
+                    const source = mode === 'actions' ? actionFlow : undefined;
                     setTemplateContext({
                       ownerId: actionOwner?.id ?? doc.game.id,
                       flowId: source?.id ?? null,
@@ -771,13 +760,9 @@ export default function App() {
                       : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
                     : mode === 'hints'
                       ? 'Author progressive clues and optional solutions'
-                      : mode === 'actions'
-                        ? actionOwner
-                          ? 'Choose an action, then build its logic'
-                          : 'Select an object, location, or character'
-                        : activeFlow
-                          ? 'Drag blocks from the palette into the flow'
-                          : 'Select a command action or trigger'}
+                      : actionOwner
+                        ? 'Choose an action, trigger, or exit, then build its logic'
+                        : 'Select an object, location, or character'}
                 </span>
               </div>
               <div className="canvas">
@@ -807,27 +792,11 @@ export default function App() {
                     key={actionOwner.id}
                     project={doc}
                     ownerId={actionOwner.id}
-                    active={activeAction}
+                    active={actionFlow ?? undefined}
                     edit={edit}
                     select={select}
                     error={error}
                     blocksRef={blocks}
-                  />
-                ) : activeFlow ? (
-                  <Blocks
-                    ref={blocks}
-                    project={doc}
-                    flowId={activeFlow.id}
-                    effects={activeFlow.effects}
-                    saved={doc.editor.blocks[activeFlow.id]}
-                    onChange={(effects, workspace, conditions) =>
-                      edit((p) => {
-                        Object.assign(flow(p, activeFlow.id)!, conditions, { effects });
-                        p.editor.blocks[activeFlow.id] =
-                          workspace as (typeof p.editor.blocks)[string];
-                      })
-                    }
-                    onError={error}
                   />
                 ) : (
                   <div className="canvas-empty">

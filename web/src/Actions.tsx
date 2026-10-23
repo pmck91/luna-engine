@@ -1,6 +1,6 @@
 import { useState, type Ref } from 'react';
-import type { Action, Project } from './contracts';
-import { action, flow, owner } from './model';
+import type { Action, Exit, Project, Trigger } from './contracts';
+import { action, entity as findEntity, flow, owner } from './model';
 import Blocks, { type BlocksHandle } from './Blocks';
 
 export default function Actions({
@@ -14,7 +14,7 @@ export default function Actions({
 }: {
   project: Project;
   ownerId: string;
-  active: Action | undefined;
+  active: Action | Trigger | Exit | undefined;
   edit: (change: (project: Project) => void) => void;
   select: (id: string) => void;
   error: (message: string) => void;
@@ -26,30 +26,74 @@ export default function Actions({
   const verb = p.vocabulary.some((verb) => verb.id === newVerb)
     ? newVerb
     : (p.vocabulary[0]?.id ?? '');
+  const groups = [
+    {
+      name: 'Command actions',
+      label: 'Entity actions',
+      items: entity.actions.map((action) => ({
+        id: action.id,
+        name: action.name || 'Unnamed action',
+        detail: p.vocabulary.find((verb) => verb.id === action.verb)?.canonical ?? 'Missing verb',
+      })),
+    },
+    {
+      name: 'Triggers',
+      label: 'Entity triggers',
+      items: entity.triggers.map((trigger) => ({
+        id: trigger.id,
+        name: `On ${trigger.event.replaceAll('_', ' ')}`,
+        detail: 'Trigger',
+      })),
+    },
+    {
+      name: 'Exits',
+      label: 'Entity exits',
+      items:
+        'exits' in entity
+          ? entity.exits.map((exit) => ({
+              id: exit.id,
+              name: exit.name || 'Unnamed exit',
+              detail: `To ${findEntity(p, exit.destination)?.name ?? 'Missing location'}`,
+            }))
+          : [],
+    },
+  ];
+  const title =
+    active &&
+    ('event' in active
+      ? `WHEN ${active.event.replaceAll('_', ' ').toUpperCase()} · ${name}`
+      : `WHEN ${p.vocabulary.find((verb) => verb.id === active.verb)?.canonical ?? 'MISSING VERB'}${'destination' in active ? ` ${active.name}` : ''} · ${name}`);
   return (
     <div className="entity-actions">
       <section className="action-browser" aria-label={`Actions for ${name}`}>
         <h2>{name}</h2>
-        <p className="muted">Command actions · {entity.actions.length}</p>
-        <div className="action-list" role="list" aria-label="Entity actions">
-          {entity.actions.map((action) => (
-            <div key={action.id} role="listitem">
-              <button
-                className={`action-item ${active?.id === action.id ? 'active' : ''}`}
-                aria-pressed={active?.id === action.id}
-                onClick={() => select(action.id)}
-              >
-                <strong>{action.name || 'Unnamed action'}</strong>
-                <span>
-                  {p.vocabulary.find((verb) => verb.id === action.verb)?.canonical ??
-                    'Missing verb'}
-                </span>
-              </button>
-            </div>
-          ))}
-          {!entity.actions.length && (
-            <p className="muted">No actions yet. Choose a verb below to add one.</p>
-          )}
+        <div className="action-flows">
+          {groups
+            .filter((group) => group.label === 'Entity actions' || group.items.length)
+            .map((group) => (
+              <section className="action-group" key={group.label}>
+                <h3>
+                  {group.name} · {group.items.length}
+                </h3>
+                <div className="action-list" role="list" aria-label={group.label}>
+                  {group.items.map((item) => (
+                    <div key={item.id} role="listitem">
+                      <button
+                        className={`action-item ${active?.id === item.id ? 'active' : ''}`}
+                        aria-pressed={active?.id === item.id}
+                        onClick={() => select(item.id)}
+                      >
+                        <strong>{item.name}</strong>
+                        <span>{item.detail}</span>
+                      </button>
+                    </div>
+                  ))}
+                  {!group.items.length && (
+                    <p className="muted">No actions yet. Choose a verb below to add one.</p>
+                  )}
+                </div>
+              </section>
+            ))}
         </div>
         <div className="new-action">
           <label htmlFor="new-action-verb">Verb for new action</label>
@@ -84,28 +128,34 @@ export default function Actions({
         {active ? (
           <>
             <div className="action-toolbar">
-              <div className="active-action-verb">
-                <label htmlFor="active-action-verb">Action verb</label>
-                <select
-                  id="active-action-verb"
-                  value={active.verb}
-                  onChange={(event) =>
-                    edit((project) => {
-                      const target = flow(project, active.id);
-                      if (target && 'verb' in target) target.verb = event.target.value;
-                    })
-                  }
-                >
-                  {!p.vocabulary.some((verb) => verb.id === active.verb) && (
-                    <option value={active.verb}>Missing verb</option>
-                  )}
-                  {p.vocabulary.map((verb) => (
-                    <option key={verb.id} value={verb.id}>
-                      {verb.canonical}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {'verb' in active ? (
+                <div className="active-action-verb">
+                  <label htmlFor="active-action-verb">
+                    {'destination' in active ? 'Route verb' : 'Action verb'}
+                  </label>
+                  <select
+                    id="active-action-verb"
+                    value={active.verb}
+                    onChange={(event) =>
+                      edit((project) => {
+                        const target = flow(project, active.id);
+                        if (target && 'verb' in target) target.verb = event.target.value;
+                      })
+                    }
+                  >
+                    {!p.vocabulary.some((verb) => verb.id === active.verb) && (
+                      <option value={active.verb}>Missing verb</option>
+                    )}
+                    {p.vocabulary.map((verb) => (
+                      <option key={verb.id} value={verb.id}>
+                        {verb.canonical}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <span className="muted">Trigger · On {active.event.replaceAll('_', ' ')}</span>
+              )}
               <button
                 title="Put all current effects into the THEN branch of an IF / ELSE block"
                 onClick={() =>
@@ -133,7 +183,7 @@ export default function Actions({
                 flowId={active.id}
                 effects={active.effects}
                 saved={p.editor.blocks[active.id]}
-                title={`WHEN ${p.vocabulary.find((verb) => verb.id === active.verb)?.canonical ?? 'MISSING VERB'} · ${name}`}
+                title={title}
                 onChange={(effects, workspace, conditions) =>
                   edit((project) => {
                     Object.assign(flow(project, active.id)!, conditions, { effects });

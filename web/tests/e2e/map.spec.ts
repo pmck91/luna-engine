@@ -142,7 +142,7 @@ test('parallel, return, and self-loop exits remain visible and individually sele
   await expect(east).toBeVisible();
   await expect(east).toHaveAttribute('style', savedLabelStyle);
   expect(JSON.parse(readFileSync(layoutFile, 'utf8'))).toEqual(savedLayout);
-  await page.getByRole('button', { name: 'Logic', exact: true }).click();
+  await page.getByRole('button', { name: 'Actions', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Exit tool', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'World map', exact: true }).click();
   for (const name of names) {
