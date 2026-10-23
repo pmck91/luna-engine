@@ -59,7 +59,15 @@ export type BorderAnchor = { side: BorderSide, offset: number, };
 
 export type RouteLayout = { source: BorderAnchor | null, target: BorderAnchor | null, label_offset: Point | null, };
 
-export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, };
+export type TemplateEntityKind = "location" | "object" | "character";
+
+export type TemplateEntity = { id: string, name: string, kind: TemplateEntityKind, properties: Array<string>, };
+
+export type TemplateContent = { "type": "action", action: Action, } | { "type": "effects", effects: Array<Effect>, };
+
+export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, content: TemplateContent, };
+
+export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, };
 
 export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, editor: EditorLayout, };
 

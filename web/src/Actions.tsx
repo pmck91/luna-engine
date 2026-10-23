@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, type Ref } from 'react';
 import type { Action, Project } from './contracts';
 import { action, flow, owner } from './model';
-import Blocks from './Blocks';
+import Blocks, { type BlocksHandle } from './Blocks';
 
 export default function Actions({
   project: p,
@@ -10,6 +10,7 @@ export default function Actions({
   edit,
   select,
   error,
+  blocksRef,
 }: {
   project: Project;
   ownerId: string;
@@ -17,6 +18,7 @@ export default function Actions({
   edit: (change: (project: Project) => void) => void;
   select: (id: string) => void;
   error: (message: string) => void;
+  blocksRef: Ref<BlocksHandle>;
 }) {
   const entity = owner(p, ownerId)!;
   const name = 'title' in entity ? entity.title : entity.name;
@@ -126,6 +128,7 @@ export default function Actions({
             </div>
             <div className="action-blocks">
               <Blocks
+                ref={blocksRef}
                 project={p}
                 flowId={active.id}
                 effects={active.effects}

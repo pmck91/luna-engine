@@ -512,6 +512,66 @@ mod tests {
     fn legacy_editor_layout_remains_readable() {
         let layout: EditorLayout = serde_json::from_str(r#"{"positions":{},"blocks":{}}"#).unwrap();
         assert!(layout.routes.is_empty());
+        assert!(layout.templates.is_empty());
+    }
+    #[test]
+    fn templates_persist_as_editor_metadata_and_do_not_block_or_enter_exports() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut p = Project::blank("Template metadata");
+        p.editor.templates = vec![
+            BlockTemplate {
+                id: "template-action".into(),
+                name: "Stored action".into(),
+                source_owner: Some("deleted-source".into()),
+                entities: vec![TemplateEntity {
+                    id: "deleted-source".into(),
+                    name: "Old key".into(),
+                    kind: TemplateEntityKind::Object,
+                    properties: vec!["polish".into()],
+                }],
+                text_variables: vec!["score".into()],
+                content: TemplateContent::Action {
+                    action: Box::new(Action {
+                        id: "stored-action".into(),
+                        verb: "use".into(),
+                        pattern: vec![PatternPart::Entity {
+                            entity: "deleted-source".into(),
+                        }],
+                        effects: vec![Effect::Say {
+                            text: "%deleted-source.polish% / %score%".into(),
+                        }],
+                        ..Default::default()
+                    }),
+                },
+            },
+            BlockTemplate {
+                id: "template-effects".into(),
+                name: "Stored blocks".into(),
+                source_owner: None,
+                entities: vec![],
+                text_variables: vec![],
+                content: TemplateContent::Effects {
+                    effects: vec![Effect::Stop],
+                },
+            },
+        ];
+        let revision = save_project(temp.path(), &p, None).unwrap();
+        let restored = load_project(temp.path()).unwrap();
+        assert_eq!(restored, p);
+        assert_eq!(
+            save_project(temp.path(), &restored, Some(&revision)).unwrap(),
+            revision
+        );
+        assert!(
+            !has_errors(&validate(&restored)),
+            "Unused templates can outlive their source entities/variables"
+        );
+        let bundle = export_bundle(temp.path(), &restored).unwrap();
+        let stage = tempfile::tempdir().unwrap();
+        let exported = extract_bundle(&bundle, stage.path()).unwrap();
+        assert!(exported.editor.templates.is_empty());
+        assert_eq!(exported.game, p.game);
+        assert!(!stage.path().join("editor").exists());
     }
     #[test]
     fn export_roundtrip() {

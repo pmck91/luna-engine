@@ -1,6 +1,6 @@
 # Project todo
 
-Suggested priority: saved block templates next, followed by UI organisation. Prioritise the first-game tutorial over the deeper architecture documents.
+Suggested priority: UI organisation next. Prioritise the first-game tutorial over the deeper architecture documents.
 
 ## Characters
 
@@ -17,7 +17,6 @@ Suggested priority: saved block templates next, followed by UI organisation. Pri
 - [ ] Add assets/logo to readme, and to editors main page.
 - [ ] Move command vocabulary alongside variables in the project hierarchy.
 - [ ] Give endings their own hierarchy item and editor alongside variables and vocabulary, using the existing ending model.
-- [ ] Add saved block templates for reusable command snippets. Initially insert independent copies, with a way to replace entity references during insertion. Copied actions and response sequences need fresh IDs so sequence progress remains independent. Templates can stay in editor metadata; inserted blocks become ordinary game logic in exported content.
 - [ ] Add project-wide undo/redo for inspector edits, entity creation/deletion, and map changes, alongside the existing Blockly undo.
 - [ ] Add reference management with a "used by" view before changing or deleting entities, variables, properties, or templates. Support safe variable/property renames, including references in message placeholders, and show affected content before destructive changes.
 
@@ -36,6 +35,7 @@ Suggested priority: saved block templates next, followed by UI organisation. Pri
 
 ## Completed
 
+- [x] Add saved block templates for whole command actions, all effects in a flow, or a selected block chain. Insert independent actions or append blocks with entity replacements, including property placeholders and typed references. Give actions and nested response sequences fresh IDs and remap their internal reset references. Preserve existing Blockly positions and undo/redo metadata; persist, rename, and delete project-local templates independently of inserted copies. Keep the library in editor metadata and export inserted logic as ordinary effects. Covered by storage/legacy compatibility, nested-reference and copy tests, Chromium/Firefox authoring/reopen/undo checks, and exported runner save/load with independent response progress.
 - [x] Add follow-up effect blocks to fallback response sequences. Run on the next interaction after the final reply, once or on every later interaction; repeat-last and looping sequences keep follow-ups inactive. Support IF / ELSE and ordinary effects, plus RESET RESPONSE SEQUENCE by stable ID. Preserve pending/completed progress across saves, roll back failed follow-ups, and propagate STOP/END. Covered by core, editor/runner parity, export, CLI/autosave/named saves, legacy compatibility, and Chromium/Firefox authoring/reopen checks.
 - [x] Add Off / Basic / Full help modes. Basic defaults to verbs and syntax without revealing other targets or requirement readiness; Full lists complete currently available commands. Support a playtest-only override, aliases, scope, and read-only help. Covered by core, export, editor/runner parity, CLI/autosave, and Chromium/Firefox checks.
 - [x] Add authored puzzle hints on objects, characters, and locations, with availability/solved conditions, ordered conditional stages and clues, and optional explicitly requested solutions. Save clue/solution history per stage, expose HINT USED for authored score/ending logic, and support legacy saves with new writes in format 2. Covered by authoring/reopen, export, runner parity, CLI saves, compatibility, and both browsers.

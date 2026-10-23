@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import * as Blockly from 'blockly/core';
 import * as English from 'blockly/msg/en';
 import type { Condition, Effect, NumericOperand, Project, Value } from './contracts';
@@ -261,6 +261,32 @@ export function loadEffectBlocks(
   makeEffects(workspace, effects, root.getInput('DO')!.connection!);
   return root;
 }
+export function appendEffectBlocks(workspace: Blockly.Workspace, effects: Effect[]) {
+  const root = workspace.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+  if (!root) throw new Error('Select an action or trigger before inserting blocks.');
+  let tail = root.getInputTargetBlock('DO');
+  while (tail?.getNextBlock()) tail = tail.getNextBlock();
+  const connection = tail?.nextConnection ?? root.getInput('DO')!.connection!;
+  const eventsEnabled = Blockly.Events.isEnabled();
+  const previousGroup = Blockly.Events.getGroup();
+  Blockly.Events.setGroup(true);
+  try {
+    // Capture one complete creation event, including response metadata. Capturing
+    // newBlock's initial empty state would lose authored replies on redo.
+    let first: Blockly.Block | null;
+    Blockly.Events.disable();
+    try {
+      first = makeEffects(workspace, effects, null);
+    } finally {
+      Blockly.Events.enable();
+    }
+    if (!first) return;
+    if (eventsEnabled) Blockly.Events.fire(new Blockly.Events.BlockCreate(first));
+    connection.connect(first.previousConnection!);
+  } finally {
+    Blockly.Events.setGroup(previousGroup);
+  }
+}
 function register() {
   if (Blockly.Blocks.luna_flow) return;
   Blockly.Blocks.luna_flow = {
@@ -424,13 +450,15 @@ function makeCondition(workspace: Blockly.Workspace, c: Condition): Blockly.Bloc
 function makeEffects(
   workspace: Blockly.Workspace,
   effects: Effect[],
-  connection: Blockly.Connection,
+  connection: Blockly.Connection | null,
 ) {
   let next = connection;
+  let first: Blockly.Block | null = null;
   for (const e of effects) {
     const block = workspace.newBlock(`luna_${e.type}`);
     setFields(block, e as unknown as Record<string, unknown>);
-    next.connect(block.previousConnection!);
+    next?.connect(block.previousConnection!);
+    first ??= block;
     next = block.nextConnection!;
     if (e.type === 'update_variable' || e.type === 'update_property') {
       const input = block.getInput('OPERAND')!.connection!;
@@ -452,6 +480,7 @@ function makeEffects(
     if (e.type === 'respond')
       makeEffects(workspace, e.on_exhausted, block.getInput('ON_EXHAUSTED')!.connection!);
   }
+  return first;
 }
 function schema(block: Blockly.Block): Value | undefined {
   const type = block.type;
@@ -600,6 +629,10 @@ const toolbox = {
     },
   ],
 };
+export type BlocksHandle = {
+  selectedEffects: () => Effect[] | null;
+  appendEffects: (effects: Effect[]) => void;
+};
 export default function Blocks({
   project: p,
   flowId,
@@ -608,6 +641,7 @@ export default function Blocks({
   onChange,
   onError,
   title = 'WHEN THIS ACTION RUNS',
+  ref,
 }: {
   project: Project;
   flowId: string;
@@ -616,6 +650,7 @@ export default function Blocks({
   onChange: (effects: Effect[], workspace: unknown, conditions: FlowConditions) => void;
   onError: (e: string) => void;
   title?: string;
+  ref?: Ref<BlocksHandle>;
 }) {
   project = p;
   register();
@@ -634,6 +669,40 @@ export default function Blocks({
   });
   const host = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
+  const selectedBlock = useRef<string | null>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      selectedEffects: () => {
+        const focused = Blockly.common.getSelected();
+        const selected =
+          focused instanceof Blockly.Block && focused.workspace === workspace.current
+            ? focused
+            : workspace.current?.getBlockById(selectedBlock.current ?? '');
+        return selected instanceof Blockly.Block &&
+          selected.workspace === workspace.current &&
+          selected.previousConnection &&
+          selected.type.startsWith('luna_')
+          ? structuredClone(readEffects(selected))
+          : null;
+      },
+      appendEffects: (effects) => {
+        const ws = workspace.current;
+        if (!ws) throw new Error('Open an action or trigger before inserting blocks.');
+        const previousGroup = Blockly.Events.getGroup();
+        Blockly.Events.setGroup(true);
+        try {
+          appendEffectBlocks(ws, effects);
+          for (const block of ws.getAllBlocks(false)) block.initSvg();
+          ws.render();
+          refreshChainEnds(ws);
+        } finally {
+          Blockly.Events.setGroup(previousGroup);
+        }
+      },
+    }),
+    [flowId],
+  );
   const current = useRef({ effects, conditions, saved, onChange, onError, title });
   current.current = { effects, conditions, saved, onChange, onError, title };
   const last = useRef('');
@@ -642,6 +711,7 @@ export default function Blocks({
     Blockly.Events.disable();
     try {
       ws.clear();
+      selectedBlock.current = null;
       let loaded = false;
       if (current.current.saved) {
         try {
@@ -702,6 +772,10 @@ export default function Blocks({
     workspace.current = ws;
     load();
     const listener = (event: Blockly.Events.Abstract) => {
+      if (event instanceof Blockly.Events.Selected && event.newElementId) {
+        const block = ws.getBlockById(event.newElementId);
+        selectedBlock.current = block?.previousConnection ? block.id : null;
+      }
       if (event.isUiEvent) return;
       try {
         if (

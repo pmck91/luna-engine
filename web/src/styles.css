@@ -992,8 +992,9 @@ summary {
 }
 .welcome {
   flex: 1;
+  min-height: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background:
     radial-gradient(ellipse at 65% 45%, #4b3d7040, transparent 60%),
@@ -1005,6 +1006,7 @@ summary {
 }
 .welcome-card {
   width: 530px;
+  margin-block: auto;
   padding: 45px 25px;
 }
 .welcome-card h1 {
@@ -1091,7 +1093,8 @@ summary {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 40;
+  /* Blockly's editor widgets use layers up to 100000. */
+  z-index: 100001;
   padding: 30px;
 }
 .modal {
@@ -1109,6 +1112,39 @@ summary {
 }
 .modal.compare {
   width: 1100px;
+}
+.modal.template-library {
+  width: 820px;
+}
+.template-save {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 18px;
+  margin: 18px 0;
+}
+.template-columns {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr);
+  gap: 22px;
+}
+.template-list {
+  list-style: none;
+  padding: 0;
+  max-height: 45vh;
+  overflow: auto;
+}
+.template-bindings {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 14px 0;
+  min-width: 0;
+}
+.template-bindings button {
+  margin: 5px 6px 5px 0;
+}
+.template-errors {
+  color: #f0a4b3;
+  padding-left: 18px;
 }
 .comparison {
   display: grid;

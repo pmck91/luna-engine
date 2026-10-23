@@ -53,7 +53,7 @@ const base: Project = {
   ],
   objects: [],
   characters: [],
-  editor: { positions: {}, blocks: {}, routes: {} },
+  editor: { positions: {}, blocks: {}, routes: {}, templates: [] },
 };
 describe('semantic block round trips', () => {
   it('preserves nested follow-ups, reset targets, stable IDs, and repeat choices through saved blocks', () => {

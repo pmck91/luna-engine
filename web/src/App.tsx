@@ -24,9 +24,10 @@ import { lockedStudy } from './example';
 import { Check, Field, StateInspector, Text } from './Forms';
 import Inspector from './Inspector';
 import WorldMap from './WorldMap';
-import Blocks from './Blocks';
+import Blocks, { type BlocksHandle } from './Blocks';
 import Actions from './Actions';
 import Hints from './Hints';
+import Templates, { type TemplateContext } from './Templates';
 type Log = { command?: string; spans?: Span[] };
 export default function App() {
   const [config, setConfig] = useState<ConfigView | null>(null);
@@ -38,6 +39,8 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('map');
   const [actionSelections, setActionSelections] = useState<Record<string, string>>({});
+  const [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
+  const blocks = useRef<BlocksHandle>(null);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [playtestCollapsed, setPlaytestCollapsed] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -104,6 +107,7 @@ export default function App() {
     setLogs([]);
     setMode('map');
     setActionSelections({});
+    setTemplateContext(null);
   };
   const edit = useCallback((f: (p: Project) => void) => {
     const old = current.current.doc;
@@ -706,6 +710,19 @@ export default function App() {
                     Logic
                   </button>
                 </div>
+                <button
+                  onClick={() => {
+                    const source =
+                      mode === 'actions' ? activeAction : mode === 'logic' ? activeFlow : undefined;
+                    setTemplateContext({
+                      ownerId: actionOwner?.id ?? doc.game.id,
+                      flowId: source?.id ?? null,
+                      selectedEffects: source ? (blocks.current?.selectedEffects() ?? null) : null,
+                    });
+                  }}
+                >
+                  Block templates
+                </button>
                 {mode === 'map' && (
                   <button
                     className={`exit-tool ${connecting ? 'active' : ''}`}
@@ -751,9 +768,11 @@ export default function App() {
                     edit={edit}
                     select={select}
                     error={error}
+                    blocksRef={blocks}
                   />
                 ) : activeFlow ? (
                   <Blocks
+                    ref={blocks}
                     project={doc}
                     flowId={activeFlow.id}
                     effects={activeFlow.effects}
@@ -958,6 +977,20 @@ export default function App() {
             </div>
           </aside>
         </main>
+      )}
+      {templateContext && doc && (
+        <Templates
+          project={doc}
+          context={templateContext}
+          edit={edit}
+          select={select}
+          append={(effects) => {
+            if (!blocks.current)
+              throw new Error('Open an action or trigger before inserting blocks.');
+            blocks.current.appendEffects(effects);
+          }}
+          close={() => setTemplateContext(null)}
+        />
       )}
       {showDiagnostics && (
         <div className="diagnostics">

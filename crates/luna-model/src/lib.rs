@@ -507,6 +507,40 @@ pub struct EditorLayout {
     pub positions: BTreeMap<String, Point>,
     pub blocks: BTreeMap<String, serde_json::Value>,
     pub routes: BTreeMap<String, RouteLayout>,
+    pub templates: Vec<BlockTemplate>,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TemplateEntityKind {
+    Location,
+    Object,
+    Character,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TemplateEntity {
+    pub id: String,
+    pub name: String,
+    pub kind: TemplateEntityKind,
+    pub properties: Vec<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum TemplateContent {
+    Action { action: Box<Action> },
+    Effects { effects: Vec<Effect> },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BlockTemplate {
+    pub id: String,
+    pub name: String,
+    pub source_owner: Option<String>,
+    pub entities: Vec<TemplateEntity>,
+    // Exact global names take precedence over entity-property placeholders.
+    pub text_variables: Vec<String>,
+    pub content: TemplateContent,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(deny_unknown_fields)]
