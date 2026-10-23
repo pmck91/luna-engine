@@ -60,6 +60,91 @@
           "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
         }
       ]
+    },
+    {
+      "id": "faccc883-6f48-449e-9f3a-7175bb0d5c30",
+      "name": "play with tom",
+      "verb": "43f6b825-b0f4-42c7-8c3e-2f1c4587e2ee",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "carrying",
+        "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+      },
+      "failure_text": "You don't have anything for Tom to play with.",
+      "effects": [
+        {
+          "type": "say",
+          "text": "you drag the yellow fish to and fro as he pounces and bats at it excitedly. Tom is purring."
+        }
+      ]
+    },
+    {
+      "id": "adf59c99-12d6-4da4-bf45-4e28b44de0c6",
+      "name": "Give tom his toy",
+      "verb": "e31a08c8-77fb-479b-84ff-a69b05d4c344",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+        },
+        {
+          "type": "literal",
+          "text": "to"
+        },
+        {
+          "type": "entity",
+          "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "carrying",
+            "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+          },
+          {
+            "type": "at",
+            "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6"
+          },
+          {
+            "type": "visible",
+            "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+          }
+        ]
+      },
+      "failure_text": "You don't have anything to give tom.",
+      "effects": [
+        {
+          "type": "say",
+          "text": "Tom meows <green>happily</green>, and takes the toy in his mouth. Content, he hops onto the garden wall and disappears home for his <yellow>third</yellow> dinner."
+        },
+        {
+          "type": "give_character",
+          "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198",
+          "character": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+        },
+        {
+          "type": "hide",
+          "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+        },
+        {
+          "type": "hide",
+          "entity": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+        },
+        {
+          "type": "set_variable",
+          "name": "tom_has_toy",
+          "value": true
+        }
+      ]
     }
   ],
   "triggers": []

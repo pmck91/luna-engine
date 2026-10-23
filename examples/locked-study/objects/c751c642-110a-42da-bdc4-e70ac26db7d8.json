@@ -31,8 +31,25 @@
       "failure_text": "You cannot do that yet.",
       "effects": [
         {
-          "type": "end",
-          "ending": "290b8b0f-8996-4ce8-a2f3-1aacbfea5d25"
+          "type": "if",
+          "condition": {
+            "type": "variable",
+            "name": "tom_has_toy",
+            "op": "eq",
+            "value": true
+          },
+          "then": [
+            {
+              "type": "end",
+              "ending": "9aca4ca4-3107-46c0-a13f-3988b0d8b7c3"
+            }
+          ],
+          "otherwise": [
+            {
+              "type": "end",
+              "ending": "290b8b0f-8996-4ce8-a2f3-1aacbfea5d25"
+            }
+          ]
         }
       ]
     },

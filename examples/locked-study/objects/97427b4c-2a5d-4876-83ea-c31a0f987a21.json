@@ -10,7 +10,7 @@
     "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca"
   },
   "portable": true,
-  "hidden": false,
+  "hidden": true,
   "open": false,
   "state": {},
   "actions": [
@@ -62,7 +62,7 @@
       "effects": [
         {
           "type": "say",
-          "text": "An old <yellow>brass</yellow> key, probably unlocks something nearby!"
+          "text": "An old <yellow>brass key</yellow>, probably unlocks something nearby!"
         }
       ]
     },
@@ -89,7 +89,7 @@
         },
         {
           "type": "say",
-          "text": "You drop the key, it <bright-yellow>clatters</bright-yellow> on the floor."
+          "text": "You drop the <yellow>key</yellow>, it clatters to the floor."
         }
       ]
     }

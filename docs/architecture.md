@@ -1,4 +1,4 @@
-# Architecture and format v1
+# Architecture, content format v1, and save format v2
 
 | Crate | Responsibility |
 | --- | --- |
@@ -24,6 +24,20 @@ The `print_description` effect stores an `entity` reference and reads that locat
 
 Drafts can have semantic validation errors and remain saveable. Export and new playtests require valid content. Runtime restores additionally validate every saved entity, property, visit counter, ending, and response cursor against the immutable game definition.
 
+### Character inventories
+
+Every object has one canonical placement: `{"type":"inventory"}` for the player, `{"type":"location","location":"room-id"}` for a room, `{"type":"character","character":"keeper-id"}` for a character, or `{"type":"absent"}`. Character inventory lists are derived from object placements in the editor and runtime; there is no second list to synchronize. Character references must resolve to characters. An existing object must have a non-absent placement, and consumed objects must be absent. Saves and playtest state edits validate these invariants.
+
+`give_character` has `object` and `character` references. Like existing `give` and `place`, it assigns the destination, makes the object exist, and clears consumption. `give` targets the player; `place` targets a room or `@current`. These effects transfer an item from any previous placement and can introduce an absent item. Use requirements to constrain a transfer to a particular source owner. `remove` makes the object absent without consuming it; `consume` makes it absent and consumed. Neither implicitly places an item in its former holder's room.
+
+`character_carrying` has `character` and `object` references. It checks live ownership, existence, and non-consumption independently of the holder's visibility or location. Existing `carrying` continues to mean the player. Held objects are outside player command scope, including examine/take and the `visible` condition, and do not appear in look/inventory listings. An authored action on the character (for example, `talk Keeper`) can check its inventory and transfer an item. Avoid binding a still-held object as a command-pattern entity; reference it from the action's conditions and effects instead.
+
+Moving into player inventory emits Take when ownership changes. Moving from player inventory to a character or room emits Drop after the new placement is set. Reassigning the same character owner or transferring between non-player owners emits neither. Existing remove/consume event behavior is unchanged. All transfers and resulting triggers share command rollback. Character placement references follow the holder's current location without rewriting item placements; character movement effects and their events remain a separate feature.
+
+The object inspector's initial placement menu and character inspector's initial inventory edit the same object field. Removing an initial inventory entry with **Place in room** selects the holder's initial location explicitly. The playtest state inspector derives current inventory from saved placements and keeps existence/consumption consistent when changing placement.
+
+Character inventories add a placement variant without changing the content format or adding a separate state inventory list. Old projects, player carrying conditions, and Blockly metadata remain readable. Character inventories require an engine supporting the new variants. Older engines reject unknown content/state variants instead of dropping ownership. Invalid owner references or inconsistent saved placements produce compatibility errors; they are not silently reassigned. Existing game/content identity and fingerprint checks remain in force. See the player persistence section for hint history and current save-format compatibility.
+
 ### Integer arithmetic
 
 `update_variable` targets a global variable by `name`; `update_property` targets a custom property by `entity` and `name`. Both include `op` (`add`, `subtract`, `multiply`, or `divide`) and a tagged `operand`: `literal` with an integer `value`, `variable` with a `name`, or `property` with an `entity` and `name`. For example:
@@ -36,7 +50,7 @@ The target and any referenced operand must have integer schemas. Literal zero di
 
 Blockly numeric inputs accept only Number outputs. The Values category supplies literal, variable, and property blocks; update blocks start with a literal shadow of 1, restored when a connected reference is removed. Dropdowns filter to integer schemas while preserving incompatible or missing references for diagnostics. Saved workspaces round trip these inputs through the canonical effects. Existing literal SET effects and Boolean condition inputs retain their behavior. No nested math expressions are supported.
 
-Arithmetic adds no state fields and changes neither content-format v1 nor save-format v1. Existing projects and workspaces load unchanged; arithmetic effects require an engine supporting them. Older engines reject the unknown effect rather than dropping it. Existing game identity, content-version, fingerprint, and state-schema compatibility checks still apply.
+Arithmetic adds no state fields and requires no format migration. Existing projects and workspaces remain readable; arithmetic effects require an engine supporting them. Older engines reject the unknown effect rather than dropping it. Existing game identity, content-version, fingerprint, and state-schema compatibility checks still apply.
 
 ## Parser and execution
 
@@ -50,6 +64,18 @@ Entry increments the visit count, fires first-entry handlers when applicable, th
 
 Structural reachability follows routes and authored movement while excluding statically false conditions and branches. It cannot prove stateful puzzle solvability. The Locked Study walkthrough demonstrates an actual reachable ending.
 
+`help <entity>` resolves a currently available object, character, or location using the ordinary name/alias and ignored-prefix matcher. Unknown or unavailable entities receive the same generic not-found response; ambiguous aliases request a more specific name. `game.help_mode` is `off`, `basic` (the default for new and older content), or `full`. Off retains general help and disables entity listings. Basic lists canonical verbs from authored actions owned by or referencing the requested entity, plus applicable route verbs, and prints generic syntax. It omits other entity names and does not filter verbs by puzzle requirements, priority, or other targets' presence, avoiding readiness signals. Its entity-name lookup still respects visibility and player scope.
+
+Full help shares command candidate matching and ranking with execution. It lists a complete canonical phrase only if it selects one winning handler whose current requirements or route availability pass and which concerns the entity. Current-location listings include its available routes. Hidden, absent, remote, and character-held targets remain outside scope. A blocked higher-priority handler cannot expose a lower-priority fallback; tied winning handlers are omitted. Help runs no effects or triggers and leaves state/response cursors unchanged. After an ending it reports no authored commands available. Bare `help` retains general game help. The `help …` and `hint …` prefixes are reserved vocabulary. The playtest API accepts an optional `help_mode` override on session creation; this modifies only the session's project copy and is excluded from project saving/export.
+
+### Authored puzzle hints
+
+Locations, objects, and characters have `hints: Vec<HintSet>`, defaulting to empty for older content. Each set has a globally unique stable `id`, player-facing `name`, `available` condition, `solved` condition (default false), and ordered `stages`. Each `HintStage` has a globally unique stable `id`, editor `name`, applies-when `condition`, ordered nonempty text `clues`, and optional `solution`. All existing conditions apply; text uses the usual colour/placeholder validation and rendering. Empty stages/clues, broken references, or duplicate IDs are export/playtest errors. `game.hints_enabled` defaults true, independently of help mode; empty hint sets provide no assistance until authored.
+
+`hint` lists only currently available entities with an applicable stage. `hint <entity>` selects the first available, unsolved set with a matching stage, then that set's first matching stage, in authored order. Each request reveals the next clue; exhausted clues repeat the last. A solution is never shown by ordinary hint requests: `hint <entity> solution` explicitly reveals it. Exact entity names/aliases take precedence over parsing a trailing `solution` modifier. An entity whose name ends in that word can request its answer by appending another `solution`. Unknown/ambiguous targets, disabled hints, inactive/solved puzzles, and ended playthroughs do not advance history.
+
+`GameState.hints` is a sparse map from stage ID to `HintProgress { clues_seen, solution_seen }`. Only newly seen clues/solutions change it, causing normal autosave; repeating the final clue or an already seen solution leaves state unchanged. Stage changes preserve independent cursors. No gameplay effects, sequence advances, or command/interaction triggers run during hints. The `hint_used` condition references a hint-set ID and is true when any of its stages has seen a clue or solution; authors can use this in their own score/ending logic. The editor Hints tab edits the same canonical fields, and the test-state inspector displays/resets progress.
+
 ## Files and bundles
 
 Saving compares a hash of managed project files and assets with the caller's disk revision. A mismatch returns HTTP 409 and leaves canonical files unchanged. Recovery drafts live under `.luna-recovery/`. Multi-file updates use a write-ahead journal and atomic per-file replacement; reopening completes an interrupted transaction only when current files still match its before/after contents. Conflicting external recovery edits are reported rather than overwritten. Project-local recovery and lock files are ignored by the generated Git ignore file.
@@ -62,7 +88,9 @@ Validated installation content is immutable. An atomic per-version JSON pointer 
 
 ## Player persistence and rendering
 
-Save-format v1 wraps the complete `GameState`, exact game identity/content version, a content fingerprint, UTC timestamps, and a label. Each slot uses atomic replacement. Named paths are derived from label hashes, and labels are never interpreted as paths. Loading restores state directly without start/entry events. Inspection-only output does not autosave unless a response cursor or other state changes.
+Save-format v2 wraps the complete `GameState` including hint history, exact game identity/content version, a content fingerprint, UTC timestamps, and a label. The runner reads formats 1 and 2 and always writes 2; missing legacy hint history defaults to empty. A format-1 file carrying nonempty hint history is rejected as inconsistent. Older runners reject format 2 explicitly, preventing silent loss of progress. Saved hint stage IDs must exist, cursors must fit their clue lists, and seen solutions must still exist; incompatible edits produce a preserved-save error. Keep IDs stable and publish a new content version when changing released puzzle structure. Existing identity/fingerprint/schema checks remain in place.
+
+Each slot uses atomic replacement. Named paths are derived from label hashes, and labels are never interpreted as paths. Loading restores state directly without start/entry events. Help and hint listing do not autosave; revealing a new clue or solution does. No hint effects are replayed on load.
 
 The text parser produces plain spans with optional palette names. It rejects unknown, nested, mismatched, and unclosed tags and decodes literal escapes once. Browser rendering uses text nodes and CSS; terminal rendering alone introduces ANSI foreground sequences and resets each message. Plain rendering preserves text without tags. Assets and UI media are served locally.
 

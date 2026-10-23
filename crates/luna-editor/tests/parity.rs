@@ -27,6 +27,417 @@ async fn post(app: axum::Router, path: &str, body: Value) -> Value {
 }
 
 #[tokio::test]
+async fn authored_hints_match_runner_exports_and_resume_saved_progress() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("Puzzle assistance parity");
+    p.game
+        .variables
+        .insert("solved".into(), luna_model::Value::Bool(false));
+    p.objects.push(Object {
+        id: "door".into(),
+        name: "door".into(),
+        placement: Placement::Location {
+            location: p.game.starting_location.clone(),
+        },
+        hints: vec![HintSet {
+            id: "door-puzzle".into(),
+            name: "Locked door".into(),
+            solved: Condition::Variable {
+                name: "solved".into(),
+                op: Comparison::Eq,
+                value: luna_model::Value::Bool(true),
+            },
+            stages: vec![HintStage {
+                id: "door-stage".into(),
+                name: "Unlocking".into(),
+                clues: vec![
+                    "Inspect the lock.".into(),
+                    "Something you carry might fit.".into(),
+                ],
+                solution: Some("Try use door.".into()),
+                ..Default::default()
+            }],
+            ..Default::default()
+        }],
+        actions: vec![
+            description_action("door"),
+            Action {
+                id: "solve-door".into(),
+                verb: "use".into(),
+                pattern: vec![PatternPart::Entity {
+                    entity: "door".into(),
+                }],
+                requirements: Condition::Not {
+                    condition: Box::new(Condition::Variable {
+                        name: "solved".into(),
+                        op: Comparison::Eq,
+                        value: luna_model::Value::Bool(true),
+                    }),
+                },
+                effects: vec![Effect::SetVariable {
+                    name: "solved".into(),
+                    value: luna_model::Value::Bool(true),
+                }],
+                ..Default::default()
+            },
+        ],
+        ..Default::default()
+    });
+    let bundle = temp.path().join("hints.luna");
+    std::fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let loaded = storage.load_game(&installed).unwrap();
+    assert_eq!(loaded.game.help_mode, HelpMode::Basic);
+    let (mut runner, _) = Session::start(loaded, None).unwrap();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let mut editor = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"location":null}),
+    )
+    .await;
+    let full = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"location":null,"help_mode":"full"}),
+    )
+    .await;
+    let full_help = post(
+        app.clone(),
+        &format!(
+            "/api/v1/playtests/{}/commands",
+            full["session"].as_str().unwrap()
+        ),
+        json!({"command":"help door"}),
+    )
+    .await;
+    assert!(
+        full_help["result"]["messages"]
+            .to_string()
+            .contains("Available commands for door")
+    );
+    for command in [
+        "help door",
+        "hint",
+        "hint door",
+        "hint door",
+        "hint door",
+        "hint door solution",
+        "use door",
+        "hint door",
+        "help door",
+    ] {
+        let result = runner.command(command).unwrap();
+        let id = editor["session"].as_str().unwrap();
+        editor = post(
+            app.clone(),
+            &format!("/api/v1/playtests/{id}/commands"),
+            json!({"command":command}),
+        )
+        .await;
+        assert_eq!(
+            editor["result"]["messages"],
+            serde_json::to_value(&result.messages).unwrap(),
+            "{command}"
+        );
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(&runner.state).unwrap(),
+            "{command}"
+        );
+        assert_eq!(
+            editor["result"]["state_changed"], result.state_changed,
+            "{command}"
+        );
+        for slot in [None, Some("hint checkpoint")] {
+            storage
+                .write_save(&installed, &runner.project, &runner.state, slot)
+                .unwrap();
+            let saved = storage
+                .load_save(&installed, &runner.project, slot)
+                .unwrap();
+            assert_eq!(saved.save_format, 2);
+            runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();
+        }
+    }
+    assert!(runner.state.hints["door-stage"].solution_seen);
+    assert_eq!(runner.state.hints["door-stage"].clues_seen, 2);
+    assert_eq!(p.game.help_mode, HelpMode::Basic);
+}
+
+#[tokio::test]
+async fn entity_help_matches_exported_runner_without_changing_state() {
+    use luna_model::{
+        Action, Character, Condition, Effect, Object, PatternPart, Placement, Project, Verb,
+        description_action, starter_actions,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("Help parity");
+    p.game.help_mode = luna_model::HelpMode::Full;
+    let mut key = Object {
+        id: "key".into(),
+        name: "brass key".into(),
+        aliases: vec!["key".into()],
+        portable: true,
+        placement: Placement::Location {
+            location: p.game.starting_location.clone(),
+        },
+        ..Default::default()
+    };
+    key.actions = starter_actions(&key);
+    p.vocabulary.push(Verb {
+        id: "give".into(),
+        canonical: "give".into(),
+        ..Default::default()
+    });
+    key.actions.push(Action {
+        id: "give-key".into(),
+        verb: "give".into(),
+        pattern: vec![
+            PatternPart::Entity {
+                entity: "key".into(),
+            },
+            PatternPart::Literal { text: "to".into() },
+            PatternPart::Entity {
+                entity: "keeper".into(),
+            },
+        ],
+        requirements: Condition::Carrying {
+            object: "key".into(),
+        },
+        effects: vec![Effect::GiveCharacter {
+            object: "key".into(),
+            character: "keeper".into(),
+        }],
+        ..Default::default()
+    });
+    p.objects.push(key);
+    p.characters.push(Character {
+        id: "keeper".into(),
+        name: "Keeper".into(),
+        aliases: vec!["guard".into()],
+        location: p.game.starting_location.clone(),
+        actions: vec![description_action("keeper")],
+        ..Default::default()
+    });
+    let bundle = temp.path().join("help.luna");
+    std::fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let (mut runner, _) = Session::start(storage.load_game(&installed).unwrap(), None).unwrap();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let mut editor = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"location":null}),
+    )
+    .await;
+    for command in [
+        "help",
+        "help the key",
+        "help guard",
+        "take key",
+        "help key",
+        "help the keeper",
+        "give key to keeper",
+        "help key",
+        "help Keeper",
+        "help missing",
+    ] {
+        let before = runner.state.clone();
+        let result = runner.command(command).unwrap();
+        if command.starts_with("help") {
+            assert_eq!(runner.state, before);
+            assert!(!result.state_changed);
+        }
+        let id = editor["session"].as_str().unwrap();
+        editor = post(
+            app.clone(),
+            &format!("/api/v1/playtests/{id}/commands"),
+            json!({"command":command}),
+        )
+        .await;
+        assert_eq!(
+            editor["result"]["messages"],
+            serde_json::to_value(&result.messages).unwrap(),
+            "{command}"
+        );
+        assert_eq!(editor["result"]["status"], result.status, "{command}");
+        assert_eq!(
+            editor["result"]["state_changed"], result.state_changed,
+            "{command}"
+        );
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(&runner.state).unwrap(),
+            "{command}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn character_inventory_transfers_export_and_restore_with_editor_runner_parity() {
+    use luna_model::{
+        Action, Character, Condition, Effect, Object, PatternPart, Placement, Project,
+        starter_actions,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("Inventory parity");
+    let mut key = Object {
+        id: "key".into(),
+        name: "key".into(),
+        portable: true,
+        description: "A brass key.".into(),
+        placement: Placement::Character {
+            character: "keeper".into(),
+        },
+        ..Default::default()
+    };
+    key.actions = starter_actions(&key);
+    p.objects.push(key);
+    for id in ["keeper", "gardener"] {
+        p.characters.push(Character {
+            id: id.into(),
+            name: id.into(),
+            location: p.game.starting_location.clone(),
+            actions: vec![
+                Action {
+                    id: format!("ask-{id}"),
+                    verb: "talk".into(),
+                    pattern: vec![PatternPart::Entity { entity: id.into() }],
+                    requirements: Condition::CharacterCarrying {
+                        character: id.into(),
+                        object: "key".into(),
+                    },
+                    failure_text: "I have no key.".into(),
+                    effects: vec![
+                        Effect::Give {
+                            object: "key".into(),
+                        },
+                        Effect::Say {
+                            text: "Here is the key.".into(),
+                        },
+                    ],
+                    ..Default::default()
+                },
+                Action {
+                    id: format!("give-{id}"),
+                    verb: "use".into(),
+                    pattern: vec![PatternPart::Entity { entity: id.into() }],
+                    effects: vec![Effect::GiveCharacter {
+                        object: "key".into(),
+                        character: id.into(),
+                    }],
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        });
+    }
+    let bundle = temp.path().join("inventories.luna");
+    std::fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let (mut runner, initial) =
+        Session::start(storage.load_game(&installed).unwrap(), None).unwrap();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let mut editor = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"location":null}),
+    )
+    .await;
+    assert_eq!(
+        editor["result"]["messages"],
+        serde_json::to_value(initial.messages).unwrap()
+    );
+    for command in [
+        "examine key",
+        "inventory",
+        "talk keeper",
+        "drop key",
+        "take key",
+        "use gardener",
+        "talk keeper",
+        "talk gardener",
+        "use keeper",
+        "use gardener",
+        "talk gardener",
+    ] {
+        let result = runner.command(command).unwrap();
+        let id = editor["session"].as_str().unwrap();
+        editor = post(
+            app.clone(),
+            &format!("/api/v1/playtests/{id}/commands"),
+            json!({"command":command}),
+        )
+        .await;
+        assert_eq!(
+            editor["result"]["messages"],
+            serde_json::to_value(result.messages).unwrap(),
+            "{command}"
+        );
+        assert_eq!(editor["result"]["status"], result.status, "{command}");
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(&runner.state).unwrap(),
+            "{command}"
+        );
+        for slot in [None, Some("ownership")] {
+            storage
+                .write_save(&installed, &runner.project, &runner.state, slot)
+                .unwrap();
+            let saved = storage
+                .load_save(&installed, &runner.project, slot)
+                .unwrap();
+            assert_eq!(saved.state, runner.state);
+            runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();
+        }
+    }
+}
+
+#[tokio::test]
 async fn arithmetic_exports_and_resumes_identically_in_editor_and_runner() {
     use luna_model::{
         Action, ArithmeticOperation as Op, Effect, NumericOperand as Operand, PatternPart, Project,
@@ -147,7 +558,7 @@ async fn editor_http_and_installed_runner_have_identical_gameplay() {
     let temp = tempfile::tempdir().unwrap();
     let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
     let fixture =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/locked-study.luna");
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.fixtures/locked-study.luna");
     let installed = storage
         .install(storage.prepare(&fixture).unwrap(), ExistingPolicy::Replace)
         .unwrap();

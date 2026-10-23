@@ -1248,3 +1248,35 @@ summary {
     max-width: 90px;
   }
 }
+.inventory-list {
+  padding: 0;
+  list-style: none;
+}
+.inventory-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+.inventory-list li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.hint-editor {
+  height: 100%;
+  overflow: auto;
+  padding: 20px;
+}
+.hint-editor > .card {
+  max-width: 850px;
+}
+.hint-editor .card {
+  min-width: 0;
+  margin-block: 16px;
+}
+.hint-editor .hint-clue {
+  border-top: 1px solid var(--border);
+  margin-block: 12px;
+  padding-top: 12px;
+}

@@ -9,6 +9,8 @@ import type {
   Project,
   Trigger,
   Value,
+  HintSet,
+  HintStage,
 } from './contracts';
 export const id = () => crypto.randomUUID();
 export const yes: Condition = { type: 'true' };
@@ -23,6 +25,7 @@ export const location = (name = 'New location'): Location => {
     triggers: [],
     exits: [],
     state: {},
+    hints: [],
   };
 };
 export const object = (at: string): GameObject => {
@@ -37,6 +40,7 @@ export const object = (at: string): GameObject => {
     hidden: false,
     open: false,
     state: {},
+    hints: [],
     actions: [descriptionAction(key)],
     triggers: [],
   };
@@ -51,6 +55,7 @@ export const character = (at: string): Character => {
     location: at,
     hidden: false,
     state: {},
+    hints: [],
     actions: [descriptionAction(key)],
     triggers: [],
   };
@@ -105,6 +110,29 @@ export const exit = (destination: string): Exit => ({
 });
 export function entity(p: Project, key: string) {
   return [...p.locations, ...p.objects, ...p.characters].find((e) => e.id === key);
+}
+export function hintStage(): HintStage {
+  return {
+    id: id(),
+    name: 'New stage',
+    condition: { type: 'true' },
+    clues: ['Write a gentle clue here.'],
+    solution: null,
+  };
+}
+export function hintSet(): HintSet {
+  return {
+    id: id(),
+    name: 'New puzzle',
+    available: { type: 'true' },
+    solved: { type: 'false' },
+    stages: [hintStage()],
+  };
+}
+export function hintChoices(p: Project) {
+  return [...p.locations, ...p.objects, ...p.characters].flatMap((owner) =>
+    owner.hints.map((hint) => ({ id: hint.id, name: `${owner.name} · ${hint.name}` })),
+  );
 }
 export function owner(p: Project, key: string) {
   return key === p.game.id ? p.game : entity(p, key);

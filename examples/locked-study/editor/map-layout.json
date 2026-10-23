@@ -10,6 +10,72 @@
     }
   },
   "blocks": {
+    "2ef07a95-2fd6-43ce-8a38-5f34394f3240": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "%[GC-s43*_GWOn%oV;CU",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "id": "r(33rI^kZUu5xb%8^|vI",
+                  "inputs": {
+                    "ELSE": {
+                      "block": {
+                        "fields": {
+                          "ending": "290b8b0f-8996-4ce8-a2f3-1aacbfea5d25"
+                        },
+                        "id": "sQRRRL^`9J(|pKG{B+fm",
+                        "type": "luna_end"
+                      }
+                    },
+                    "TEST": {
+                      "block": {
+                        "fields": {
+                          "name": "tom_has_toy",
+                          "op": "eq",
+                          "value": "true"
+                        },
+                        "id": "/kSS8HgKaej7en[^%`Yh",
+                        "type": "condition_variable"
+                      }
+                    },
+                    "THEN": {
+                      "block": {
+                        "data": "{\"type\":\"end\",\"ending\":\"290b8b0f-8996-4ce8-a2f3-1aacbfea5d25\"}",
+                        "fields": {
+                          "ending": "9aca4ca4-3107-46c0-a13f-3988b0d8b7c3"
+                        },
+                        "id": "fuPS7YZ68oNFYMGepFPE",
+                        "type": "luna_end"
+                      }
+                    }
+                  },
+                  "type": "luna_if"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "id": "F1TvA`rU2BZ!@N*1@OA{",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
     "46b8d142-882a-4455-8269-fcf04fe57dfd": {
       "blocks": {
         "blocks": [
@@ -136,12 +202,64 @@
         "languageVersion": 0
       }
     },
-    "68d2b3c4-8227-4b93-ad9b-bae9b4fe6da3": {
+    "5758f47d-3004-4398-b33e-d01d19bc6f2f": {
       "blocks": {
         "blocks": [
           {
             "deletable": false,
-            "id": "g`*]19ahXtJlCaJskq|~",
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "-:3u?Ql:Gaadd302/al5",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"if\",\"condition\":{\"type\":\"property\",\"entity\":\"a98e97aa-3c36-43a3-9428-a14cba0f2ba3\",\"name\":\"uneven\",\"op\":\"eq\",\"value\":true},\"then\":[{\"type\":\"respond\",\"id\":\"6ffb4082-41ab-408f-8348-c32c627a718f\",\"responses\":[\"A painting of an old man. The painting hangs <red>unevenly</red>.\",\"Still an old man. Still <red>crooked</red>. \"],\"mode\":\"loop\",\"fallback\":\"\"}],\"otherwise\":[{\"type\":\"respond\",\"id\":\"2487b16b-3f75-447a-bb1e-0c6a221deff9\",\"responses\":[\"\"],\"mode\":\"repeat_last\",\"fallback\":\"\"}]}",
+                  "id": "kK!;:1D[vLd`f#^wfVH;",
+                  "inputs": {
+                    "ELSE": {
+                      "block": {
+                        "fields": {
+                          "text": ""
+                        },
+                        "id": "X^`z=$kMId*lB5PTfY%]",
+                        "type": "luna_say"
+                      }
+                    },
+                    "TEST": {
+                      "block": {
+                        "data": "{\"type\":\"property\",\"entity\":\"a98e97aa-3c36-43a3-9428-a14cba0f2ba3\",\"name\":\"uneven\",\"op\":\"eq\",\"value\":true}",
+                        "fields": {
+                          "entity": "a98e97aa-3c36-43a3-9428-a14cba0f2ba3",
+                          "name": "uneven",
+                          "op": "eq",
+                          "value": "true"
+                        },
+                        "id": "Co(B3fc.lHAlP!F=jnP)",
+                        "type": "condition_property"
+                      }
+                    },
+                    "THEN": {
+                      "block": {
+                        "data": "{\"type\":\"respond\",\"id\":\"6ffb4082-41ab-408f-8348-c32c627a718f\",\"responses\":[\"A painting of an old man. The painting hangs <red>unevenly</red>.\",\"Still an old man. Still <red>crooked</red>. \"],\"mode\":\"loop\",\"fallback\":\"\"}",
+                        "id": "BqYIR2-#asNu{#lKhYh@",
+                        "type": "luna_respond"
+                      }
+                    }
+                  },
+                  "type": "luna_if"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "1_pU5sb?~[j)s0#2)lE/",
+                  "type": "condition_true"
+                }
+              }
+            },
             "movable": false,
             "type": "luna_flow",
             "x": 24,
@@ -156,15 +274,28 @@
         "blocks": [
           {
             "deletable": false,
-            "id": "(ck;YoXhC.un;6jM(NmU",
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "$aVoL`AhC_|9]6fJK7PP",
             "inputs": {
               "DO": {
                 "block": {
+                  "data": "{\"type\":\"say\",\"text\":\"An old <yellow>brass</yellow> key, probably unlocks something nearby!\"}",
                   "fields": {
-                    "text": "An old brass key, probably unlocks something nearby!"
+                    "text": "An old <yellow>brass</yellow> key, probably unlocks something nearby!"
                   },
-                  "id": "=nmn|EH]dM@g(3=G689N",
+                  "id": "W0N?/Ou)+l|EDw@:-MJ/",
                   "type": "luna_say"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "jT;{U3oo$5?vQ+u2R7_0",
+                  "type": "condition_true"
                 }
               }
             },
@@ -346,6 +477,181 @@
         "languageVersion": 0
       }
     },
+    "ad99a928-adc9-47a5-bd02-14a326c7e9e3": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "NqL6V5mlA1ZO0Y~r6Y:s",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"say\",\"text\":\"You adjust the painting on the wall so its straight again. An old <yellow>brass key</yellow> falls from behind it and rattles on the floor. You could swear the old man seems <green>happier</green>.\"}",
+                  "fields": {
+                    "text": "You adjust the painting on the wall so its straight again. An old <yellow>brass key</yellow> falls from behind it and rattles on the floor. You could swear the old man seems <green>happier</green>."
+                  },
+                  "id": "WYitLphPJU-zMuF+/joJ",
+                  "next": {
+                    "block": {
+                      "fields": {
+                        "entity": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+                      },
+                      "id": "$^d.uQ/G]t^=Pfn%_Vln",
+                      "next": {
+                        "block": {
+                          "fields": {
+                            "entity": "a98e97aa-3c36-43a3-9428-a14cba0f2ba3",
+                            "name": "uneven",
+                            "value": "false"
+                          },
+                          "id": "Y89~1bkI1=UdW?jqo6kf",
+                          "type": "luna_set_property"
+                        }
+                      },
+                      "type": "luna_reveal"
+                    }
+                  },
+                  "type": "luna_say"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"property\",\"entity\":\"a98e97aa-3c36-43a3-9428-a14cba0f2ba3\",\"name\":\"uneven\",\"op\":\"eq\",\"value\":true}",
+                  "fields": {
+                    "entity": "a98e97aa-3c36-43a3-9428-a14cba0f2ba3",
+                    "name": "uneven",
+                    "op": "eq",
+                    "value": "true"
+                  },
+                  "id": "S0_P1GwYI}Ks?w_j[kf?",
+                  "type": "condition_property"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "adf59c99-12d6-4da4-bf45-4e28b44de0c6": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "cPt@4.N|nu|u=;C_$_h0",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"say\",\"text\":\"Tom meows <green>happily</green>, and takes the toy in his mouth. Content, he hops onto the garden wall and disappears home for his <yellow>third</yellow> dinner.\"}",
+                  "fields": {
+                    "text": "Tom meows <green>happily</green>, and takes the toy in his mouth. Content, he hops onto the garden wall and disappears home for his <yellow>third</yellow> dinner."
+                  },
+                  "id": "h7CgRuQ^]RKBY_SVvhq8",
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"give_character\",\"object\":\"27a10baa-e8bc-4cc2-bf51-44c1870a6198\",\"character\":\"e6259d7c-f192-455d-a151-0e4ab3c9c14b\"}",
+                      "fields": {
+                        "character": "e6259d7c-f192-455d-a151-0e4ab3c9c14b",
+                        "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                      },
+                      "id": "imNMhM9Ll!Qn4_:j8V@^",
+                      "next": {
+                        "block": {
+                          "fields": {
+                            "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+                          },
+                          "id": "FfS)zuY?XW(/m;c/H?Zo",
+                          "next": {
+                            "block": {
+                              "fields": {
+                                "entity": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                              },
+                              "id": "EbDvMhX8AxYu!{^#tyHX",
+                              "next": {
+                                "block": {
+                                  "fields": {
+                                    "name": "tom_has_toy",
+                                    "value": "true"
+                                  },
+                                  "id": ";k~q5G~,~;JV)[fM6srP",
+                                  "type": "luna_set_variable"
+                                }
+                              },
+                              "type": "luna_hide"
+                            }
+                          },
+                          "type": "luna_hide"
+                        }
+                      },
+                      "type": "luna_give_character"
+                    }
+                  },
+                  "type": "luna_say"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "extraState": {
+                    "count": 3
+                  },
+                  "id": "s3$a6eEy7ixb5n5W(oGY",
+                  "inputs": {
+                    "A": {
+                      "block": {
+                        "data": "{\"type\":\"carrying\",\"object\":\"27a10baa-e8bc-4cc2-bf51-44c1870a6198\"}",
+                        "fields": {
+                          "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                        },
+                        "id": "cG3%C@QE[l$qx,K7rAL*",
+                        "type": "condition_carrying"
+                      }
+                    },
+                    "B": {
+                      "block": {
+                        "fields": {
+                          "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6"
+                        },
+                        "id": "WAWZI:r]pg$L/g%IdVGW",
+                        "type": "condition_at"
+                      }
+                    },
+                    "C2": {
+                      "block": {
+                        "fields": {
+                          "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+                        },
+                        "id": "1SK|Yj40,Mp7vF;Z4WLd",
+                        "type": "condition_visible"
+                      }
+                    }
+                  },
+                  "type": "condition_all"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
     "b2b38562-5afb-43e3-8fa3-a525576b2dc9": {
       "blocks": {
         "blocks": [
@@ -409,6 +715,63 @@
         "languageVersion": 0
       }
     },
+    "f6eb63ae-6fc9-4246-ac5f-6431ab1e1546": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "0#b~+=`DeqjwCfJb8K?m",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "fields": {
+                    "text": "You pick up the mouse, ragged and old, but clearly important to someone"
+                  },
+                  "id": "m6+R+kC.hk=z5l^Vef#z",
+                  "next": {
+                    "block": {
+                      "fields": {
+                        "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                      },
+                      "id": "z=qLrmoaSlH12/)6IIUU",
+                      "type": "luna_give"
+                    }
+                  },
+                  "type": "luna_say"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "id": "Q=w6D;T$3sF7Ii#sj}fi",
+                  "inputs": {
+                    "TEST": {
+                      "block": {
+                        "fields": {
+                          "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                        },
+                        "id": "8+8hvG|Ov/LE3QV!+)5U",
+                        "type": "condition_carrying"
+                      }
+                    }
+                  },
+                  "type": "condition_not"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
     "f829562d-873c-4867-9aeb-b4f3b71d0536": {
       "blocks": {
         "blocks": [
@@ -445,6 +808,46 @@
                   "data": "{\"type\":\"true\"}",
                   "id": "j6z3+%p1@Fi,/(vF+ver",
                   "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "faccc883-6f48-449e-9f3a-7175bb0d5c30": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "}bnz#@Nms=ddH.[}sP%M",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "fields": {
+                    "text": "Tom drops his favorite toy, you drag it to and fro as he pounces and bats at the fish."
+                  },
+                  "id": "c7bm%f/X%},{v+EeS!|`",
+                  "type": "luna_say"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "fields": {
+                    "object": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                  },
+                  "id": "w?%kf$B@x#KwNn`dX+2k",
+                  "type": "condition_carrying"
                 }
               }
             },

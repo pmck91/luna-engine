@@ -7,7 +7,7 @@
   "content_version": "0.1.0",
   "starting_location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca",
   "opening_text": "Find a way to the garden.",
-  "help_text": "Try examine the room, and interacting with what you see! type <green>help</green> for a list of commands.",
+  "help_text": "Try examine the room, and interacting with what you see! ",
   "ignored_words": [
     "a",
     "an",
@@ -16,7 +16,8 @@
   "require_ending": true,
   "variables": {
     "door_unlocked": false,
-    "study_entries": 0
+    "study_entries": 0,
+    "tom_has_toy": false
   },
   "endings": [
     {
@@ -27,25 +28,18 @@
     },
     {
       "id": "cce1a92e-e33c-4ad7-bb03-c240b2383c1f",
-      "name": "A gift for a loved one",
-      "text": "You stop to admire the rose. Avoiding the thorns carefully, you pick it. It will make a perfect gift for someone very special.",
-      "outcome": "neutral"
-    }
-  ],
-  "actions": [
+      "name": "Stolen",
+      "text": "You stop to admire the rose. Avoiding the thorns carefully, you pick it. A thought crosses your mind. You wont be able to enjoy the same moment of serenity tomorrow, and that maybe the rose was best left alone, to be admired for the weeks to come. ",
+      "outcome": "loss"
+    },
     {
-      "id": "68d2b3c4-8227-4b93-ad9b-bae9b4fe6da3",
-      "name": "New action",
-      "verb": "examine",
-      "pattern": [],
-      "priority": 0,
-      "requirements": {
-        "type": "true"
-      },
-      "failure_text": "You cannot do that yet.",
-      "effects": []
+      "id": "9aca4ca4-3107-46c0-a13f-3988b0d8b7c3",
+      "name": "A wonderful afternoon!",
+      "text": "The sun is shining in the garden, you reunited Tom with his favorite toy, you admire the rose, beautiful and vibrant red.",
+      "outcome": "victory"
     }
   ],
+  "actions": [],
   "triggers": [],
   "assets": []
 }

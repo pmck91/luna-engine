@@ -46,6 +46,12 @@ Use **UPDATE VARIABLE** and **UPDATE PROPERTY** in **World & state** for integer
 
 Calculations read the current state in block order, so a later block sees earlier updates. Values range from −2,147,483,648 to 2,147,483,647, and negative results are allowed. Division discards the fractional part toward zero (`7 ÷ 2 = 3`, `−7 ÷ 2 = −3`). Division by zero or a result outside that range fails the whole command and rolls back its state and messages. Validation catches a fixed zero divisor; a variable or property divisor is checked when the block runs. Save/load preserves calculated values normally.
 
+Characters have an **Initial inventory** in their inspector. Select an object to move it into that inventory, or use the object's **Initial placement** menu to choose **Keeper · inventory**. **Place in room** moves it to the character's initial room. Each object has one placement, so moving it between characters automatically removes it from its previous owner. The playtest world-state inspector shows current ownership separately from these initial settings.
+
+Use **GIVE TO CHARACTER** from **World & state** to assign an object to a selected character. **ADD ITEM** transfers it to the player, **PLACE OBJECT** transfers it to a room, and **REMOVE ITEM** makes it absent; removal never drops an item into a room implicitly. **CHARACTER CARRYING** in **Logic**, or **character carrying** in an inspector condition, checks a character's current inventory. Player **CARRYING** checks remain separate. For example, a `talk Keeper` action can require that Keeper carries the key and use **ADD ITEM key** to hand it to the player.
+
+Character-held objects are omitted from the room listing and player inventory, and player commands cannot target them until an authored action transfers them to the player or a room. Transferring into player inventory fires the object's take event; transferring from the player to a character or room fires its drop event. Transfers between characters do not fire player take/drop events. Inventory ownership is preserved in exported games and player saves.
+
 ## Play a game
 
 ```sh
@@ -58,7 +64,23 @@ Use the game ID printed by `import` or `list`. Try `examine painting` twice, `ta
 
 In the editor's **Command vocabulary**, **Ignored words before entity names** controls optional prefixes. The defaults are `a, an, the`, so `inspect painting` and `inspect the painting` match the same action, as do `place book on table` and `place the book on the table` when that action is authored. Prefixes work before object, character, location, and route names and their aliases. Words within names and authored connecting words such as `on` retain their meaning. Clear the list to require exact names. The list is saved in `game.json` and included in exported games.
 
-Reserved controls are `look`, `inventory`, `help`, `save [name]`, `load [name]`, `saves`, and `quit`. `look` does not fire entry triggers. After an ending, inspection and session controls remain available.
+Reserved controls are `look`, `inventory`, `help [entity]`, `hint [entity]`, `save [name]`, `load [name]`, `saves`, and `quit`. `look` does not fire entry triggers. After an ending, inspection and session controls remain available.
+
+Choose **Entity help** in **Game settings** to control `help key`, `help the Keeper`, or `help Study`. Bare `help` always prints the game's general help. Names, aliases, and optional words such as `the` work as in other commands.
+
+| Mode | Player help |
+| --- | --- |
+| Off | General help only; entity command listings are disabled. |
+| Basic (default) | Authored verbs and general command syntax, without other target names. Verbs remain listed regardless of puzzle requirements or other targets' presence. |
+| Full | Complete currently usable phrases, such as `give brass key to Keeper`, filtered by visibility, requirements, priority, and ambiguity. |
+
+The **Playtest help** menu can override the mode for a test session after restarting that session. This keeps full command listings available for debugging while exported games retain their authored setting. Help never executes effects, advances responses, or changes saves.
+
+Select an object, character, or location and open **Hints** to author puzzle assistance. Add a puzzle name, **Available when** and **Solved when** conditions, and one or more ordered stages. Each stage has an applies-when condition, an ordered list of clues, and an optional final solution. The first available, unsolved puzzle with a matching stage applies; put specific stages (for example, carrying the key) above a general fallback. Use the move buttons to change priority. Clues and solutions support colours and variable/property placeholders.
+
+Players type `hint` to list nearby entities with applicable hints, then `hint door` for the next clue. Once the clues are exhausted, the last clue repeats. A final answer is shown only on an explicit request such as `hint door solution`. Hidden entities and inactive or solved puzzles do not appear in the hint list. **Enable puzzle hints** in Game settings controls the system separately from help mode. The **HINT USED** condition checks whether any clue or solution in a chosen puzzle has been seen, so authored ending/score logic can react to assistance. Asking for a hint itself changes only hint history and fires no gameplay triggers.
+
+Seen clues and solutions are saved per stage in autosaves and named saves. Changing stages preserves each stage's history; returning to a previous stage resumes it. Loading a save restores exactly the hint history in that slot. The playtest world-state inspector shows the history and can reset it for testing.
 
 ```sh
 luna import game.luna --on-existing keep
@@ -91,7 +113,7 @@ saves_dir = "/home/you/Saves/luna"
 
 One rolling autosave is updated after each completed state-changing command. Named slots are independent and have no small fixed limit. Names are case-sensitive trimmed labels, 1–80 characters long; path separators and control characters are rejected. `autosave` is reserved. Names never become storage paths.
 
-Saves require the exact game ID and content version. Replacing content under the same version preserves saves and warns about compatibility. Loading checks all saved references and types; valid states from changed content produce a warning. There is no automatic migration. Corrupt saves are retained; overwriting a detected corrupt slot first preserves a separate recovery copy.
+Saves require the exact game ID and content version. Replacing content under the same version preserves saves and warns about compatibility. Loading checks all saved references and types; valid states from changed content produce a warning. Content revisions are not automatically migrated. Format 1 saves load with empty hint history; new writes use format 2 to preserve hint progress and let older runners report incompatibility. Corrupt saves are retained; overwriting a detected corrupt slot first preserves a separate recovery copy.
 
 `--color auto|always|never` controls terminal colours. Automatic mode requires a terminal and respects a non-empty `NO_COLOR`. Piped output is plain by default. The sixteen supported foreground colours are semantic markup; no terminal escapes are stored in project output or player state.
 

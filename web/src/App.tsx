@@ -4,6 +4,7 @@ import type {
   Diagnostic,
   DiskView,
   GameState,
+  HelpMode,
   PlaytestView,
   Project,
   ProjectListItem,
@@ -25,6 +26,7 @@ import Inspector from './Inspector';
 import WorldMap from './WorldMap';
 import Blocks from './Blocks';
 import Actions from './Actions';
+import Hints from './Hints';
 type Log = { command?: string; spans?: Span[] };
 export default function App() {
   const [config, setConfig] = useState<ConfigView | null>(null);
@@ -58,6 +60,7 @@ export default function App() {
   const [history, setHistory] = useState<string[]>([]);
   const [historyAt, setHistoryAt] = useState(0);
   const [playSource, setPlaySource] = useState('');
+  const [playHelpMode, setPlayHelpMode] = useState<HelpMode | ''>('');
   const [playProject, setPlayProject] = useState<Project | null>(null);
   const current = useRef({ doc, view, conflict });
   current.current = { doc, view, conflict };
@@ -65,6 +68,7 @@ export default function App() {
   const queue = useRef(Promise.resolve());
   const transcript = useRef<HTMLDivElement>(null);
   const editingVersion = doc ? JSON.stringify(doc) : '';
+  const playVersion = `${playHelpMode}:${editingVersion}`;
   const error = useCallback((e: unknown) => {
     const text = e instanceof Error ? e.message : String(e);
     setMessage(text);
@@ -200,10 +204,11 @@ export default function App() {
       const result = await request<PlaytestView>('/playtests', 'POST', {
         project: doc,
         location: at ?? null,
+        help_mode: playHelpMode || null,
       });
       setPlay(result);
       setPlayProject(structuredClone(doc));
-      setPlaySource(JSON.stringify(doc));
+      setPlaySource(playVersion);
       setLogs(result.result.messages.map((spans) => ({ spans })));
       setShowState(false);
       setHistory([]);
@@ -353,6 +358,7 @@ export default function App() {
   };
   const activeFlow = doc && flow(doc, selected);
   const actionOwner = doc && (owner(doc, selected) ?? flowOwner(doc, selected));
+  const hintOwner = actionOwner && 'hints' in actionOwner ? actionOwner : null;
   const activeAction =
     actionOwner?.actions.find((action) => action.id === selected) ??
     actionOwner?.actions.find((action) => action.id === actionSelections[actionOwner.id]) ??
@@ -679,6 +685,17 @@ export default function App() {
                     Actions
                   </button>
                   <button
+                    className={mode === 'hints' ? 'active' : ''}
+                    disabled={!hintOwner}
+                    onClick={() => {
+                      setConnecting(false);
+                      if (hintOwner) setSelected(hintOwner.id);
+                      setMode('hints');
+                    }}
+                  >
+                    Hints
+                  </button>
+                  <button
                     className={mode === 'logic' ? 'active' : ''}
                     onClick={() => {
                       setConnecting(false);
@@ -703,13 +720,15 @@ export default function App() {
                     ? connecting
                       ? 'Click a source room, then a target room · Esc cancels'
                       : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
-                    : mode === 'actions'
-                      ? actionOwner
-                        ? 'Choose an action, then build its logic'
-                        : 'Select an object, location, or character'
-                      : activeFlow
-                        ? 'Drag blocks from the palette into the flow'
-                        : 'Select a command action or trigger'}
+                    : mode === 'hints'
+                      ? 'Author progressive clues and optional solutions'
+                      : mode === 'actions'
+                        ? actionOwner
+                          ? 'Choose an action, then build its logic'
+                          : 'Select an object, location, or character'
+                        : activeFlow
+                          ? 'Drag blocks from the palette into the flow'
+                          : 'Select a command action or trigger'}
                 </span>
               </div>
               <div className="canvas">
@@ -721,6 +740,8 @@ export default function App() {
                     edit={edit}
                     connecting={connecting}
                   />
+                ) : mode === 'hints' && hintOwner ? (
+                  <Hints project={doc} ownerId={hintOwner.id} edit={edit} />
                 ) : mode === 'actions' && actionOwner ? (
                   <Actions
                     key={actionOwner.id}
@@ -762,7 +783,7 @@ export default function App() {
                 <h2>Playtest</h2>
                 <span className="session-status">
                   {play
-                    ? `● ${play.state.ending ? 'Ended' : playSource !== editingVersion ? 'Restart to apply edits' : 'Running'}`
+                    ? `● ${play.state.ending ? 'Ended' : playSource !== playVersion ? 'Restart to apply edits' : 'Running'}`
                     : 'Ready to start'}
                 </span>
                 <div className="playtest-controls" hidden={playtestCollapsed}>
@@ -789,6 +810,16 @@ export default function App() {
                     ))}
                   </select>
                   <Check label="Plain text" value={plain} onChange={setPlain} />
+                  <select
+                    aria-label="Playtest help"
+                    value={playHelpMode}
+                    onChange={(e) => setPlayHelpMode(e.target.value as HelpMode | '')}
+                  >
+                    <option value="">Help: game setting</option>
+                    <option value="off">Help: off</option>
+                    <option value="basic">Help: basic</option>
+                    <option value="full">Help: full</option>
+                  </select>
                 </div>
                 <button
                   className="panel-toggle"

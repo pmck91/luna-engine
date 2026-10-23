@@ -12,7 +12,9 @@
   "portable": false,
   "hidden": false,
   "open": false,
-  "state": {},
+  "state": {
+    "uneven": true
+  },
   "actions": [
     {
       "id": "5758f47d-3004-4398-b33e-d01d19bc6f2f",
@@ -31,14 +33,68 @@
       "failure_text": "You cannot do that yet.",
       "effects": [
         {
-          "type": "respond",
-          "id": "6ffb4082-41ab-408f-8348-c32c627a718f",
-          "responses": [
-            "A painting of an old man.",
-            "Still an old man."
+          "type": "if",
+          "condition": {
+            "type": "property",
+            "entity": "a98e97aa-3c36-43a3-9428-a14cba0f2ba3",
+            "name": "uneven",
+            "op": "eq",
+            "value": true
+          },
+          "then": [
+            {
+              "type": "respond",
+              "id": "6ffb4082-41ab-408f-8348-c32c627a718f",
+              "responses": [
+                "A painting of an old man. The painting hangs <red>unevenly</red>.",
+                "Still an old man. Still <red>crooked</red>. "
+              ],
+              "mode": "loop",
+              "fallback": ""
+            }
           ],
-          "mode": "repeat_last",
-          "fallback": ""
+          "otherwise": [
+            {
+              "type": "say",
+              "text": "The painting now straight, you see the old man in a new light, he looks <green>happier</green>."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ad99a928-adc9-47a5-bd02-14a326c7e9e3",
+      "name": "Adjust the painting",
+      "verb": "d6d8088a-0b48-4bef-b276-530ad1cad732",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "a98e97aa-3c36-43a3-9428-a14cba0f2ba3"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "property",
+        "entity": "a98e97aa-3c36-43a3-9428-a14cba0f2ba3",
+        "name": "uneven",
+        "op": "eq",
+        "value": true
+      },
+      "failure_text": "Its already straight. ",
+      "effects": [
+        {
+          "type": "say",
+          "text": "You adjust the painting on the wall so its straight again. An old <yellow>brass key</yellow> falls from behind it and rattles on the floor. You could swear the old man seems <green>happier</green>."
+        },
+        {
+          "type": "reveal",
+          "entity": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+        },
+        {
+          "type": "set_property",
+          "entity": "a98e97aa-3c36-43a3-9428-a14cba0f2ba3",
+          "name": "uneven",
+          "value": false
         }
       ]
     }

@@ -21,7 +21,291 @@ fn command(temp: &Path, args: &[&str], input: &[u8]) -> Output {
     child.wait_with_output().unwrap()
 }
 fn fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/locked-study.luna")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.fixtures/locked-study.luna")
+}
+#[test]
+fn puzzle_hints_autosave_and_named_loads_resume_clues_without_revealing_solutions() {
+    use luna_model::{HintSet, HintStage, Project};
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("Hint CLI");
+    p.locations[0].hints.push(HintSet {
+        id: "room-puzzle".into(),
+        name: "Room puzzle".into(),
+        stages: vec![HintStage {
+            id: "room-stage".into(),
+            name: "Exploration".into(),
+            clues: vec!["First gentle clue.".into(), "Second direct clue.".into()],
+            solution: Some("The final answer.".into()),
+            ..Default::default()
+        }],
+        ..Default::default()
+    });
+    let bundle = temp.path().join("hints.luna");
+    fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        command(temp.path(), &["import", bundle.to_str().unwrap()], b"")
+            .status
+            .success()
+    );
+    let first = command(temp.path(), &["run", &p.game.id, "--new"], b"hint starting location\nsave first clue\nhint starting location\nhint starting location\nquit\n");
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let text = String::from_utf8(first.stdout).unwrap();
+    assert_eq!(text.matches("First gentle clue.").count(), 1);
+    assert_eq!(text.matches("Second direct clue.").count(), 2);
+    assert!(!text.contains("The final answer."));
+    let restored = command(
+        temp.path(),
+        &["run", &p.game.id, "--load", "first clue"],
+        b"hint starting location\nhint starting location solution\nquit\n",
+    );
+    assert!(restored.status.success());
+    let text = String::from_utf8(restored.stdout).unwrap();
+    assert!(text.contains("Second direct clue."));
+    assert!(!text.contains("First gentle clue."));
+    assert!(text.contains("The final answer."));
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage.records().unwrap().pop().unwrap();
+    let auto = storage.load_save(&installed, &p, None).unwrap();
+    assert_eq!(auto.save_format, 2);
+    assert!(auto.state.hints["room-stage"].solution_seen);
+    let named = storage
+        .load_save(&installed, &p, Some("first clue"))
+        .unwrap();
+    assert_eq!(named.state.hints["room-stage"].clues_seen, 1);
+    assert!(!named.state.hints["room-stage"].solution_seen);
+}
+#[test]
+fn entity_help_prints_full_commands_and_preserves_autosaves() {
+    use luna_model::{
+        Action, Character, Condition, Effect, Object, PatternPart, Placement, Project, Verb,
+        description_action, starter_actions,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("CLI help");
+    p.game.help_mode = luna_model::HelpMode::Full;
+    let mut key = Object {
+        id: "key".into(),
+        name: "brass key".into(),
+        aliases: vec!["key".into()],
+        portable: true,
+        placement: Placement::Inventory,
+        ..Default::default()
+    };
+    key.actions = starter_actions(&key);
+    p.vocabulary.push(Verb {
+        id: "give".into(),
+        canonical: "give".into(),
+        ..Default::default()
+    });
+    key.actions.push(Action {
+        id: "give-key".into(),
+        verb: "give".into(),
+        pattern: vec![
+            PatternPart::Entity {
+                entity: "key".into(),
+            },
+            PatternPart::Literal { text: "to".into() },
+            PatternPart::Entity {
+                entity: "keeper".into(),
+            },
+        ],
+        requirements: Condition::Carrying {
+            object: "key".into(),
+        },
+        effects: vec![Effect::GiveCharacter {
+            object: "key".into(),
+            character: "keeper".into(),
+        }],
+        ..Default::default()
+    });
+    p.objects.push(key);
+    p.characters.push(Character {
+        id: "keeper".into(),
+        name: "Keeper".into(),
+        location: p.game.starting_location.clone(),
+        actions: vec![description_action("keeper")],
+        ..Default::default()
+    });
+    let bundle = temp.path().join("help.luna");
+    fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    let imported = command(temp.path(), &["import", bundle.to_str().unwrap()], b"");
+    assert!(imported.status.success());
+    assert!(
+        command(temp.path(), &["run", &p.game.id, "--new"], b"quit\n")
+            .status
+            .success()
+    );
+    let slot = temp
+        .path()
+        .join("saves")
+        .join(&p.game.id)
+        .join(&p.game.content_version)
+        .join("autosave.json");
+    let before = fs::read(&slot).unwrap();
+    let output = command(
+        temp.path(),
+        &["--color", "never", "run", &p.game.id, "--load", "autosave"],
+        b"help the key\nhelp Keeper\nhelp missing\nquit\n",
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("Available commands for brass key:\n  drop brass key\n  examine brass key\n  give brass key to Keeper"));
+    assert!(
+        text.contains(
+            "Available commands for Keeper:\n  examine Keeper\n  give brass key to Keeper"
+        )
+    );
+    assert!(!text.contains("  take brass key"));
+    assert!(text.contains("I can't find that entity here."));
+    assert!(!text.contains('\x1b'));
+    assert_eq!(fs::read(slot).unwrap(), before);
+}
+#[test]
+fn character_inventory_cli_keeps_ownership_through_autosave_and_named_loads() {
+    use luna_model::{
+        Action, Character, Condition, Effect, Object, PatternPart, Placement, Project,
+        starter_actions,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("Inventory CLI");
+    let mut key = Object {
+        id: "key".into(),
+        name: "brass key".into(),
+        aliases: vec!["key".into()],
+        portable: true,
+        placement: Placement::Character {
+            character: "keeper".into(),
+        },
+        ..Default::default()
+    };
+    key.actions = starter_actions(&key);
+    p.objects.push(key);
+    p.characters.push(Character {
+        id: "keeper".into(),
+        name: "Keeper".into(),
+        location: p.game.starting_location.clone(),
+        actions: vec![
+            Action {
+                id: "ask".into(),
+                verb: "talk".into(),
+                pattern: vec![PatternPart::Entity {
+                    entity: "keeper".into(),
+                }],
+                requirements: Condition::CharacterCarrying {
+                    character: "keeper".into(),
+                    object: "key".into(),
+                },
+                failure_text: "I have no key.".into(),
+                effects: vec![
+                    Effect::Give {
+                        object: "key".into(),
+                    },
+                    Effect::Say {
+                        text: "Here is the key.".into(),
+                    },
+                ],
+                ..Default::default()
+            },
+            Action {
+                id: "return".into(),
+                verb: "use".into(),
+                pattern: vec![PatternPart::Entity {
+                    entity: "keeper".into(),
+                }],
+                requirements: Condition::Carrying {
+                    object: "key".into(),
+                },
+                effects: vec![
+                    Effect::GiveCharacter {
+                        object: "key".into(),
+                        character: "keeper".into(),
+                    },
+                    Effect::Say {
+                        text: "Keeper takes the key.".into(),
+                    },
+                ],
+                ..Default::default()
+            },
+        ],
+        ..Default::default()
+    });
+    let bundle = temp.path().join("inventory.luna");
+    fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        command(temp.path(), &["import", bundle.to_str().unwrap()], b"")
+            .status
+            .success()
+    );
+    let output = command(temp.path(), &["run", &p.game.id, "--new"], b"save keeper\ninventory\ntalk keeper\nsave player\ndrop key\nsave room\nload keeper\ninventory\ntalk keeper\nuse keeper\nquit\n");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(text.matches("You are carrying nothing.").count(), 2);
+    assert_eq!(text.matches("Here is the key.").count(), 2);
+    assert!(text.contains("Keeper takes the key."));
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage.records().unwrap().pop().unwrap();
+    for (slot, expected) in [
+        (
+            Some("keeper"),
+            Placement::Character {
+                character: "keeper".into(),
+            },
+        ),
+        (Some("player"), Placement::Inventory),
+        (
+            Some("room"),
+            Placement::Location {
+                location: p.game.starting_location.clone(),
+            },
+        ),
+        (
+            None,
+            Placement::Character {
+                character: "keeper".into(),
+            },
+        ),
+    ] {
+        assert_eq!(
+            storage
+                .load_save(&installed, &p, slot)
+                .unwrap()
+                .state
+                .objects["key"]
+                .placement,
+            expected
+        );
+    }
+    let resumed = command(
+        temp.path(),
+        &["run", &p.game.id, "--load", "keeper"],
+        b"talk keeper\ninventory\nquit\n",
+    );
+    assert!(resumed.status.success());
+    assert!(String::from_utf8_lossy(&resumed.stdout).contains("You are carrying: brass key."));
 }
 #[test]
 fn arithmetic_cli_exports_saves_restores_and_recovers_from_failed_commands() {

@@ -1,6 +1,6 @@
-import { cloneElement, useId, useRef, useState } from 'react';
-import type { Condition, Project, Value, Comparison, GameState } from './contracts';
-import { colourNames, literal, messageValues, preview } from './model';
+import { cloneElement, useId, useLayoutEffect, useRef, useState } from 'react';
+import type { Condition, Project, Value, Comparison, GameState, Placement } from './contracts';
+import { colourNames, literal, messageValues, preview, hintChoices } from './model';
 export function Field({
   label,
   children,
@@ -84,6 +84,48 @@ export function Select({
     </Field>
   );
 }
+export function PlacementSelect({
+  label,
+  value,
+  project,
+  onChange,
+}: {
+  label: string;
+  value: Placement;
+  project: Project;
+  onChange: (value: Placement) => void;
+}) {
+  const key =
+    value.type === 'character'
+      ? `character:${value.character}`
+      : value.type === 'location'
+        ? `location:${value.location}`
+        : value.type;
+  const items = [
+    { id: 'inventory', name: 'Player inventory' },
+    { id: 'absent', name: 'Not yet present' },
+    ...project.locations.map((l) => ({ id: `location:${l.id}`, name: l.name })),
+    ...project.characters.map((c) => ({ id: `character:${c.id}`, name: `${c.name} · inventory` })),
+  ];
+  if (!items.some((item) => item.id === key))
+    items.push({ id: key, name: `Missing ${value.type}: ${key.slice(key.indexOf(':') + 1)}` });
+  return (
+    <Select
+      label={label}
+      value={key}
+      items={items}
+      onChange={(v) =>
+        onChange(
+          v.startsWith('character:')
+            ? { type: 'character', character: v.slice(10) }
+            : v.startsWith('location:')
+              ? { type: 'location', location: v.slice(9) }
+              : { type: v as 'inventory' | 'absent' },
+        )
+      }
+    />
+  );
+}
 function activeColour(text: string) {
   let active: string | null = null;
   for (const m of text.matchAll(/<(\/?)([a-z-]+)>/gi))
@@ -127,17 +169,21 @@ export function RichText({
   project?: Project;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const insertionCursor = useRef<number | null>(null);
   const [plain, setPlain] = useState(false);
   const inserts = project ? messageValues(project) : [];
   const insert = (text: string) => {
     const area = ref.current!;
-    const end = area.selectionStart + text.length;
+    insertionCursor.current = area.selectionStart + text.length;
     onChange(value.slice(0, area.selectionStart) + text + value.slice(area.selectionEnd));
-    requestAnimationFrame(() => {
-      area.focus();
-      area.setSelectionRange(end, end);
-    });
   };
+  useLayoutEffect(() => {
+    const end = insertionCursor.current;
+    if (end === null) return;
+    insertionCursor.current = null;
+    ref.current!.focus();
+    ref.current!.setSelectionRange(end, end);
+  });
   const apply = (colour: string) => {
     const area = ref.current!;
     onChange(
@@ -330,6 +376,8 @@ const kinds: Array<Condition['type']> = [
   'variable',
   'property',
   'carrying',
+  'character_carrying',
+  'hint_used',
   'exists',
   'at',
   'visited',
@@ -359,6 +407,10 @@ function defaultCondition(type: Condition['type'], p: Project): Condition {
     case 'exists':
     case 'opened':
       return { type, object };
+    case 'character_carrying':
+      return { type, object, character: p.characters[0]?.id ?? '' };
+    case 'hint_used':
+      return { type, hint: hintChoices(p)[0]?.id ?? '' };
     case 'at':
       return { type, location };
     case 'visited':
@@ -440,6 +492,22 @@ export function ConditionEditor({
           value={c.object}
           items={p.objects}
           onChange={(object) => patch({ object })}
+        />
+      )}
+      {c.type === 'character_carrying' && (
+        <Select
+          label="Character"
+          value={c.character}
+          items={p.characters}
+          onChange={(character) => patch({ character })}
+        />
+      )}
+      {c.type === 'hint_used' && (
+        <Select
+          label="Hint set"
+          value={c.hint}
+          items={hintChoices(p)}
+          onChange={(hint) => patch({ hint })}
         />
       )}
       {'location' in c && (
@@ -542,6 +610,31 @@ export function StateInspector({
         }
       />
       <h4>Variables</h4>
+      <details>
+        <summary>Hint progress · {Object.keys(draft.hints).length} stages</summary>
+        {Object.entries(draft.hints).map(([id, seen]) => {
+          if (!seen) return null;
+          const puzzle = [...project.locations, ...project.objects, ...project.characters]
+            .flatMap((e) => e.hints)
+            .find((h) => h.stages.some((s) => s.id === id));
+          const stage = puzzle?.stages.find((s) => s.id === id);
+          return (
+            <p key={id}>
+              {puzzle?.name} · {stage?.name}: {seen.clues_seen} clues
+              {seen.solution_seen ? ', solution seen' : ''}
+            </p>
+          );
+        })}
+        <button
+          onClick={() =>
+            edit((s) => {
+              s.hints = {};
+            })
+          }
+        >
+          Reset hint progress
+        </button>
+      </details>
       <Values
         fixed
         values={draft.variables}
@@ -558,24 +651,16 @@ export function StateInspector({
           current && (
             <details key={o.id}>
               <summary>{o.name}</summary>
-              <Select
+              <PlacementSelect
                 label="Placement"
-                value={
-                  current.placement.type === 'location'
-                    ? current.placement.location
-                    : current.placement.type
-                }
-                items={[
-                  { id: 'inventory', name: 'Inventory' },
-                  { id: 'absent', name: 'Absent' },
-                  ...project.locations,
-                ]}
-                onChange={(v) =>
+                value={current.placement}
+                project={project}
+                onChange={(placement) =>
                   edit((s) => {
-                    s.objects[o.id]!.placement =
-                      v === 'inventory' || v === 'absent'
-                        ? { type: v }
-                        : { type: 'location', location: v };
+                    const object = s.objects[o.id]!;
+                    object.placement = placement;
+                    object.exists = placement.type !== 'absent';
+                    if (object.exists) object.consumed = false;
                   })
                 }
               />
@@ -586,7 +671,16 @@ export function StateInspector({
                   value={current[key]}
                   onChange={(v) =>
                     edit((s) => {
-                      s.objects[o.id]![key] = v;
+                      const object = s.objects[o.id]!;
+                      object[key] = v;
+                      if ((key === 'exists' && !v) || (key === 'consumed' && v)) {
+                        object.placement = { type: 'absent' };
+                        object.exists = false;
+                      } else if (key === 'exists' && v) {
+                        if (object.placement.type === 'absent')
+                          object.placement = { type: 'location', location: s.location };
+                        object.consumed = false;
+                      }
                     })
                   }
                 />
@@ -608,6 +702,21 @@ export function StateInspector({
       {project.characters.map((c) => (
         <details key={c.id}>
           <summary>{c.name}</summary>
+          <p>
+            Carrying:{' '}
+            {project.objects
+              .filter((o) => {
+                const item = draft.objects[o.id];
+                return (
+                  item?.exists &&
+                  !item.consumed &&
+                  item.placement.type === 'character' &&
+                  item.placement.character === c.id
+                );
+              })
+              .map((o) => o.name)
+              .join(', ') || 'nothing'}
+          </p>
           <Select
             label="Character location"
             value={draft.characters[c.id]!.location}

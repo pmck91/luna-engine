@@ -1,10 +1,9 @@
 # Project todo
 
-Suggested priority: character inventories and sequence exhaustion next, followed by templates and UI organisation. Prioritise the first-game tutorial over the deeper architecture documents.
+Suggested priority: sequence exhaustion next, followed by templates and UI organisation. Prioritise the first-game tutorial over the deeper architecture documents.
 
 ## Characters
 
-- [ ] Add character inventories, including initial inventory in the editor, transfers between player/character/room, and conditions such as "Keeper is carrying key." Each object must have one owner or location. Define the destination when removing an item and whether character-held items are visible or targetable by player commands.
 - [ ] Add a MOVE CHARACTER effect. Items held by a character follow their owner; define which movement events fire.
 - [ ] Add CHARACTER SAYS alongside ordinary SAY. Select the speaker by entity reference and print their current name followed by "says:" and the message. Support the existing colours and variable/property placeholders.
 
@@ -18,6 +17,7 @@ Suggested priority: character inventories and sequence exhaustion next, followed
 
 ## UI
 
+- [ ] Add Blockly authoring for entity puzzle hints: puzzle and stage blocks, availability/solved/stage conditions, ordered clues, and optional solutions. Support the existing HINT USED condition in these flows. Keep blocks and the current hint forms synchronised through the same content model, preserving stable puzzle/stage IDs, saved hint progress, and editor layout when switching views or reopening a project.
 - [ ] Add assets/logo to readme, and to editors main page.
 - [ ] Move command vocabulary alongside variables in the project hierarchy.
 - [ ] Give endings their own hierarchy item and editor alongside variables and vocabulary, using the existing ending model.
@@ -40,6 +40,9 @@ Suggested priority: character inventories and sequence exhaustion next, followed
 
 ## Completed
 
+- [x] Add Off / Basic / Full help modes. Basic defaults to verbs and syntax without revealing other targets or requirement readiness; Full lists complete currently available commands. Support a playtest-only override, aliases, scope, and read-only help. Covered by core, export, editor/runner parity, CLI/autosave, and Chromium/Firefox checks.
+- [x] Add authored puzzle hints on objects, characters, and locations, with availability/solved conditions, ordered conditional stages and clues, and optional explicitly requested solutions. Save clue/solution history per stage, expose HINT USED for authored score/ending logic, and support legacy saves with new writes in format 2. Covered by authoring/reopen, export, runner parity, CLI saves, compatibility, and both browsers.
+- [x] Add character inventories with one canonical object placement, initial inventory editing, transfers between player/character/room, and CHARACTER CARRYING conditions. Character-held objects require an explicit transfer before player commands can target them. REMOVE ITEM makes an object absent; Place in room explicitly selects a room. Covered by editor authoring, export, editor/runner parity, CLI, rollback, and autosave/named-save restoration tests.
 - [x] Add arithmetic blocks for integer variables and properties: addition, subtraction, multiplication, and division with literal or live variable/property operands. Validate integer references; truncate division toward zero; roll back the entire command on zero division or overflow. Covered by editor authoring, export, runner, and save/load tests.
 - [x] Add Print description response blocks and default examine actions for new entities.
 - [x] Print variables and entity properties in messages with `%variable_name%` and `%entity_id.property_name%`, with an insertion menu in the editor.

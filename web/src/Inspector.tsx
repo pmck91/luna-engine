@@ -1,6 +1,15 @@
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
 import { action, trigger, owner, flow, id, allEffects, replaceEffect, entity } from './model';
-import { Check, ConditionEditor, Field, RichText, Select, Text, Values } from './Forms';
+import {
+  Check,
+  ConditionEditor,
+  Field,
+  PlacementSelect,
+  RichText,
+  Select,
+  Text,
+  Values,
+} from './Forms';
 import { request } from './api';
 type Edit = (change: (p: Project) => void) => void;
 const events: Event[] = [
@@ -63,7 +72,7 @@ export default function Inspector({
     return (
       <>
         <h2>Command vocabulary</h2>
-        <p className="muted">Reserved: look, inventory, help, save, load, saves, quit.</p>
+        <p className="muted">Reserved: look, inventory, help [entity], save, load, saves, quit.</p>
         <Text
           label="Ignored words before entity names (comma separated)"
           value={p.game.ignored_words.join(', ')}
@@ -206,6 +215,24 @@ export default function Inspector({
             value={p.game.help_text}
             onChange={(help_text) => update({ help_text })}
           />
+          <Select
+            label="Entity help"
+            value={p.game.help_mode}
+            items={[
+              { id: 'off', name: 'Off · general help only' },
+              { id: 'basic', name: 'Basic · verbs and syntax' },
+              { id: 'full', name: 'Full · available command phrases' },
+            ]}
+            onChange={(help_mode) => update({ help_mode })}
+          />
+          <p className="muted">
+            Basic shows verbs without checking puzzle requirements or revealing other targets.
+          </p>
+          <Check
+            label="Enable puzzle hints"
+            value={p.game.hints_enabled}
+            onChange={(hints_enabled) => update({ hints_enabled })}
+          />
           <Check
             label="Require a reachable ending"
             value={p.game.require_ending}
@@ -296,22 +323,11 @@ export default function Inspector({
           />
           {'placement' in o && (
             <>
-              <Select
+              <PlacementSelect
                 label="Initial placement"
-                value={o.placement.type === 'location' ? o.placement.location : o.placement.type}
-                items={[
-                  { id: 'inventory', name: 'Inventory' },
-                  { id: 'absent', name: 'Not yet present' },
-                  ...p.locations,
-                ]}
-                onChange={(v) =>
-                  update({
-                    placement:
-                      v === 'inventory' || v === 'absent'
-                        ? { type: v }
-                        : { type: 'location', location: v },
-                  })
-                }
+                value={o.placement}
+                project={p}
+                onChange={(placement) => update({ placement })}
               />
               <Check
                 label="Can be taken"
@@ -363,6 +379,55 @@ export default function Inspector({
                 value={o.hidden}
                 onChange={(hidden) => update({ hidden })}
               />
+              <details open>
+                <summary>Initial inventory</summary>
+                <p className="muted">Adding an item moves it from its current initial placement.</p>
+                <ul className="inventory-list">
+                  {p.objects
+                    .filter(
+                      (item) =>
+                        item.placement.type === 'character' && item.placement.character === o.id,
+                    )
+                    .map((item) => (
+                      <li key={item.id}>
+                        <span>{item.name}</span>
+                        <button
+                          aria-label={`Place ${item.name} in ${p.locations.find((l) => l.id === o.location)?.name ?? 'room'}`}
+                          onClick={() =>
+                            edit((n) => {
+                              n.objects.find((v) => v.id === item.id)!.placement = {
+                                type: 'location',
+                                location: o.location,
+                              };
+                            })
+                          }
+                        >
+                          Place in room
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+                {!p.objects.some(
+                  (item) =>
+                    item.placement.type === 'character' && item.placement.character === o.id,
+                ) && <p className="muted">Carrying nothing.</p>}
+                <Select
+                  label="Add to initial inventory"
+                  value=""
+                  items={p.objects.filter(
+                    (item) =>
+                      item.placement.type !== 'character' || item.placement.character !== o.id,
+                  )}
+                  onChange={(object) =>
+                    edit((n) => {
+                      n.objects.find((item) => item.id === object)!.placement = {
+                        type: 'character',
+                        character: o.id,
+                      };
+                    })
+                  }
+                />
+              </details>
             </>
           )}
           {'state' in o && (

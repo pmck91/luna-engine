@@ -100,5 +100,29 @@
       "rub"
     ],
     "event": null
+  },
+  {
+    "id": "43f6b825-b0f4-42c7-8c3e-2f1c4587e2ee",
+    "canonical": "play",
+    "synonyms": [
+      "play with"
+    ],
+    "event": null
+  },
+  {
+    "id": "e31a08c8-77fb-479b-84ff-a69b05d4c344",
+    "canonical": "give",
+    "synonyms": [],
+    "event": null
+  },
+  {
+    "id": "d6d8088a-0b48-4bef-b276-530ad1cad732",
+    "canonical": "adjust",
+    "synonyms": [
+      "fix",
+      "straighten",
+      "level"
+    ],
+    "event": "use"
   }
 ]

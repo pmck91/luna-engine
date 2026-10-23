@@ -26,7 +26,11 @@ pub fn normalize(input: &str) -> String {
 }
 pub fn reserved(input: &str) -> bool {
     let n = normalize(input);
-    RESERVED.contains(&n.as_str()) || n.starts_with("save ") || n.starts_with("load ")
+    RESERVED.contains(&n.as_str())
+        || n.starts_with("save ")
+        || n.starts_with("load ")
+        || n.starts_with("help ")
+        || n.starts_with("hint ")
 }
 pub fn safe_id(id: &str) -> bool {
     !id.is_empty()
@@ -105,6 +109,11 @@ impl Check<'_> {
             self.error(s, f, format!("Missing object: {id}"))
         }
     }
+    fn character(&mut self, s: &str, f: &str, id: &str) {
+        if !self.p.characters.iter().any(|e| e.id == id) {
+            self.error(s, f, format!("Missing character: {id}"))
+        }
+    }
     fn location(&mut self, s: &str, f: &str, id: &str) {
         if !self.p.locations.iter().any(|e| e.id == id) {
             self.error(s, f, format!("Missing location: {id}"))
@@ -154,6 +163,16 @@ impl Check<'_> {
     fn condition(&mut self, s: &str, f: &str, c: &Condition) {
         match c {
             Condition::True | Condition::False => {}
+            Condition::HintUsed { hint } => {
+                if !self
+                    .p
+                    .hint_owners()
+                    .iter()
+                    .any(|(_, hints)| hints.iter().any(|h| h.id == *hint))
+                {
+                    self.error(s, f, format!("Missing hint set: {hint}"));
+                }
+            }
             Condition::All { conditions } | Condition::Any { conditions } => {
                 for c in conditions {
                     self.condition(s, f, c)
@@ -175,6 +194,10 @@ impl Check<'_> {
                 value,
                 Some(*op),
             ),
+            Condition::CharacterCarrying { character, object } => {
+                self.character(s, f, character);
+                self.object(s, f, object);
+            }
             Condition::Carrying { object }
             | Condition::Exists { object }
             | Condition::Opened { object } => self.object(s, f, object),
@@ -241,6 +264,10 @@ impl Check<'_> {
                         self.p.state_schema(entity).and_then(|m| m.get(name)),
                     );
                     self.operand(s, &f, *op, operand);
+                }
+                Effect::GiveCharacter { object, character } => {
+                    self.object(s, &f, object);
+                    self.character(s, &f, character);
                 }
                 Effect::Give { object }
                 | Effect::Remove { object }
@@ -447,6 +474,46 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         ids: BTreeSet::new(),
     };
     let game = &p.game;
+    for (owner, hints) in p.hint_owners() {
+        for hint in hints {
+            c.id(&hint.id, "hints.id");
+            if hint.name.trim().is_empty() {
+                c.error(owner, "hints.name", "A puzzle name is required");
+            }
+            c.condition(&hint.id, "available", &hint.available);
+            c.condition(&hint.id, "solved", &hint.solved);
+            if hint.stages.is_empty() {
+                c.error(&hint.id, "stages", "A hint set requires at least one stage");
+            }
+            for stage in &hint.stages {
+                c.id(&stage.id, "hints.stages.id");
+                c.condition(&stage.id, "condition", &stage.condition);
+                if stage.clues.is_empty() {
+                    c.error(
+                        &stage.id,
+                        "clues",
+                        "A hint stage requires at least one clue",
+                    );
+                }
+                for (index, clue) in stage.clues.iter().enumerate() {
+                    if clue.trim().is_empty() {
+                        c.error(
+                            &stage.id,
+                            &format!("clues.{index}"),
+                            "A clue cannot be empty",
+                        );
+                    }
+                    c.text(&stage.id, &format!("clues.{index}"), clue);
+                }
+                if let Some(solution) = &stage.solution {
+                    if solution.trim().is_empty() {
+                        c.error(&stage.id, "solution", "A solution cannot be empty");
+                    }
+                    c.text(&stage.id, "solution", solution);
+                }
+            }
+        }
+    }
     let mut ignored_words = BTreeSet::new();
     for word in &game.ignored_words {
         let normalized = normalize(word);
@@ -557,8 +624,10 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     for o in &p.objects {
         c.id(&o.id, "id");
         c.text(&o.id, "description", &o.description);
-        if let Placement::Location { location } = &o.placement {
-            c.location(&o.id, "placement", location)
+        match &o.placement {
+            Placement::Location { location } => c.location(&o.id, "placement", location),
+            Placement::Character { character } => c.character(&o.id, "placement", character),
+            Placement::Inventory | Placement::Absent => {}
         }
     }
     for ch in &p.characters {
@@ -945,6 +1014,8 @@ mod tests {
     #[test]
     fn reserved_prefixes() {
         assert!(reserved("SAVE before garden"));
+        assert!(reserved("Help the painting"));
+        assert!(!reserved("helpful"));
         assert!(!reserved("look at"));
         assert!(!reserved("look painting"));
     }

@@ -9,7 +9,16 @@ use ts_rs::TS;
 pub use validation::*;
 
 pub const FORMAT_VERSION: u32 = 1;
-pub const RESERVED: &[&str] = &["look", "inventory", "help", "save", "load", "saves", "quit"];
+pub const RESERVED: &[&str] = &[
+    "look",
+    "inventory",
+    "help",
+    "hint",
+    "save",
+    "load",
+    "saves",
+    "quit",
+];
 pub fn default_ignored_words() -> Vec<String> {
     ["a", "an", "the"].into_iter().map(str::to_owned).collect()
 }
@@ -107,6 +116,13 @@ pub enum Condition {
     Carrying {
         object: String,
     },
+    CharacterCarrying {
+        character: String,
+        object: String,
+    },
+    HintUsed {
+        hint: String,
+    },
     Exists {
         object: String,
     },
@@ -187,6 +203,10 @@ pub enum Effect {
     },
     Give {
         object: String,
+    },
+    GiveCharacter {
+        object: String,
+        character: String,
     },
     Remove {
         object: String,
@@ -288,6 +308,43 @@ pub struct Verb {
     pub synonyms: Vec<String>,
     pub event: Option<Event>,
 }
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum HelpMode {
+    Off,
+    #[default]
+    Basic,
+    Full,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct HintStage {
+    pub id: String,
+    pub name: String,
+    pub condition: Condition,
+    pub clues: Vec<String>,
+    pub solution: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct HintSet {
+    pub id: String,
+    pub name: String,
+    pub available: Condition,
+    pub solved: Condition,
+    pub stages: Vec<HintStage>,
+}
+impl Default for HintSet {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            name: String::new(),
+            available: Condition::True,
+            solved: Condition::False,
+            stages: vec![],
+        }
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct Exit {
@@ -315,6 +372,7 @@ pub struct Location {
     pub triggers: Vec<Trigger>,
     pub exits: Vec<Exit>,
     pub state: BTreeMap<String, Value>,
+    pub hints: Vec<HintSet>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -322,6 +380,9 @@ pub struct Location {
 pub enum Placement {
     Location {
         location: String,
+    },
+    Character {
+        character: String,
     },
     Inventory,
     #[default]
@@ -341,6 +402,7 @@ pub struct Object {
     pub state: BTreeMap<String, Value>,
     pub actions: Vec<Action>,
     pub triggers: Vec<Trigger>,
+    pub hints: Vec<HintSet>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
@@ -354,6 +416,7 @@ pub struct Character {
     pub state: BTreeMap<String, Value>,
     pub actions: Vec<Action>,
     pub triggers: Vec<Trigger>,
+    pub hints: Vec<HintSet>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -383,6 +446,10 @@ pub struct Game {
     pub starting_location: String,
     pub opening_text: String,
     pub help_text: String,
+    #[serde(default)]
+    pub help_mode: HelpMode,
+    #[serde(default = "hints_enabled_default")]
+    pub hints_enabled: bool,
     #[serde(default = "default_ignored_words")]
     pub ignored_words: Vec<String>,
     pub require_ending: bool,
@@ -438,6 +505,9 @@ pub struct Project {
     #[serde(default)]
     pub editor: EditorLayout,
 }
+fn hints_enabled_default() -> bool {
+    true
+}
 impl Project {
     pub fn blank(title: &str) -> Self {
         let mut location = Location {
@@ -458,6 +528,8 @@ impl Project {
                 starting_location: location.id.clone(),
                 opening_text: "Welcome to your adventure.".into(),
                 help_text: "Type commands to interact with the world.".into(),
+                help_mode: HelpMode::Basic,
+                hints_enabled: true,
                 ignored_words: default_ignored_words(),
                 require_ending: false,
                 variables: BTreeMap::new(),
@@ -562,6 +634,22 @@ impl Project {
                     .find(|e| e.id == id)
                     .map(|e| &e.state)
             })
+    }
+    pub fn hint_owners(&self) -> Vec<(&str, &[HintSet])> {
+        self.locations
+            .iter()
+            .map(|e| (e.id.as_str(), e.hints.as_slice()))
+            .chain(
+                self.objects
+                    .iter()
+                    .map(|e| (e.id.as_str(), e.hints.as_slice())),
+            )
+            .chain(
+                self.characters
+                    .iter()
+                    .map(|e| (e.id.as_str(), e.hints.as_slice())),
+            )
+            .collect()
     }
     pub fn owners(&self) -> Vec<(&str, &[Action], &[Trigger])> {
         let mut v = vec![(

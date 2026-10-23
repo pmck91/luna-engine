@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as Blockly from 'blockly/core';
 import { registerBlocks, loadEffectBlocks, readEffects, readFlowConditions } from './Blocks';
 import { recolour } from './Forms';
-import { character, location, object, literal, messageValues, preview } from './model';
+import { character, location, object, literal, messageValues, preview, hintSet } from './model';
 import { lockedStudy } from './example';
 import type { Project, Effect, Condition, ArithmeticOperation, NumericOperand } from './contracts';
 const base: Project = {
@@ -16,6 +16,8 @@ const base: Project = {
     starting_location: 'study',
     opening_text: '',
     help_text: '',
+    help_mode: 'basic',
+    hints_enabled: true,
     ignored_words: ['a', 'an', 'the'],
     require_ending: false,
     variables: {},
@@ -32,6 +34,7 @@ const base: Project = {
       aliases: [],
       description: '',
       state: {},
+      hints: [],
       actions: [],
       triggers: [],
       exits: [],
@@ -64,10 +67,17 @@ describe('semantic block round trips', () => {
     registerBlocks(p);
     const object = p.objects[1].id;
     const location = p.locations[0].id;
+    const keeper = character(location);
+    keeper.name = 'Keeper';
+    p.characters.push(keeper);
+    const puzzle = hintSet();
+    p.locations[0].hints.push(puzzle);
     const conditions: Condition[] = [
       { type: 'true' },
       { type: 'false' },
       { type: 'carrying', object },
+      { type: 'character_carrying', character: keeper.id, object },
+      { type: 'hint_used', hint: puzzle.id },
       { type: 'exists', object },
       { type: 'opened', object },
       { type: 'visible', entity: object },
@@ -116,6 +126,7 @@ describe('semantic block round trips', () => {
     registerBlocks(p);
     const effects: Effect[] = [
       { type: 'give', object: 'deleted-object' },
+      { type: 'give_character', object: 'deleted-object', character: 'deleted-character' },
       { type: 'set_variable', name: 'deleted-variable', value: true },
     ];
     const workspace = new Blockly.Workspace();
@@ -158,6 +169,38 @@ describe('semantic block round trips', () => {
     const root = loadEffectBlocks(workspace, effects);
     expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
     workspace.dispose();
+  });
+});
+describe('character inventory blocks', () => {
+  it('round trips character transfers and carrying conditions through saved nested flows', () => {
+    const p = structuredClone(base);
+    const key = object('study');
+    const keeper = character('study');
+    keeper.name = 'Keeper';
+    p.objects.push(key);
+    p.characters.push(keeper);
+    registerBlocks(p);
+    const effects: Effect[] = [
+      {
+        type: 'if',
+        condition: { type: 'character_carrying', character: keeper.id, object: key.id },
+        then: [{ type: 'give', object: key.id }],
+        otherwise: [{ type: 'give_character', object: key.id, character: keeper.id }],
+      },
+    ];
+    const ws = new Blockly.Workspace();
+    const root = loadEffectBlocks(ws, effects);
+    const transfer = ws.getAllBlocks(false).find((b) => b.type === 'luna_give_character')!;
+    expect((transfer.getField('character') as Blockly.FieldDropdown).getOptions(false)).toEqual([
+      ['Keeper', keeper.id],
+    ]);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
+    const restored = new Blockly.Workspace();
+    Blockly.serialization.workspaces.load(Blockly.serialization.workspaces.save(ws), restored);
+    const loaded = restored.getTopBlocks(false).find((b) => b.type === 'luna_flow')!;
+    expect(readEffects(loaded.getInputTargetBlock('DO'))).toEqual(effects);
+    ws.dispose();
+    restored.dispose();
   });
 });
 describe('arithmetic blocks', () => {

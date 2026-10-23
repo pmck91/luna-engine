@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as Blockly from 'blockly/core';
 import * as English from 'blockly/msg/en';
 import type { Condition, Effect, NumericOperand, Project, Value } from './contracts';
-import { flow, flowConditions, id, valueFrom, type FlowConditions } from './model';
+import { flow, flowConditions, id, valueFrom, hintChoices, type FlowConditions } from './model';
 import { refreshChainEnds } from './blockRenderer';
 Blockly.setLocale(
   Object.fromEntries(
@@ -19,6 +19,7 @@ const effectFields: Record<string, string[]> = {
   update_variable: ['name', 'op'],
   update_property: ['entity', 'name', 'op'],
   give: ['object'],
+  give_character: ['object', 'character'],
   remove: ['object'],
   consume: ['object'],
   place: ['object', 'location'],
@@ -37,6 +38,8 @@ const conditionFields: Record<string, string[]> = {
   variable: ['name', 'op', 'value'],
   property: ['entity', 'name', 'op', 'value'],
   carrying: ['object'],
+  character_carrying: ['character', 'object'],
+  hint_used: ['hint'],
   exists: ['object'],
   at: ['location'],
   visited: ['location', 'op', 'count'],
@@ -52,6 +55,7 @@ const labels: Record<string, string> = {
   update_variable: 'UPDATE VARIABLE',
   update_property: 'UPDATE PROPERTY',
   give: 'ADD ITEM',
+  give_character: 'GIVE TO CHARACTER',
   remove: 'REMOVE ITEM',
   consume: 'CONSUME',
   place: 'PLACE OBJECT',
@@ -94,6 +98,8 @@ function field(name: string, type: string): Blockly.Field {
     });
   if (['object', 'first', 'second', 'result'].includes(name))
     return dropdown(() => project.objects);
+  if (name === 'character') return dropdown(() => project.characters);
+  if (name === 'hint') return dropdown(() => hintChoices(project));
   if (name === 'entity')
     return dropdown(() => [...project.locations, ...project.objects, ...project.characters]);
   if (name === 'location')
@@ -323,7 +329,7 @@ function register() {
   for (const [type, fields] of Object.entries(conditionFields))
     Blockly.Blocks[`condition_${type}`] = {
       init(this: Blockly.Block) {
-        const input = this.appendDummyInput().appendField(type.toUpperCase());
+        const input = this.appendDummyInput().appendField(type.replaceAll('_', ' ').toUpperCase());
         for (const key of fields) input.appendField(key).appendField(field(key, type), key);
         this.setOutput(true, 'Boolean');
         this.setColour('#916b31');
@@ -588,6 +594,7 @@ export default function Blocks({
     ]),
     variables: Object.entries(p.game.variables).map(([name, value]) => [name, typeof value]),
     endings: p.game.endings.map((ending) => [ending.id, ending.name]),
+    hints: hintChoices(p),
   });
   const host = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);

@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const SAVE_FORMAT: u32 = 1;
+pub const SAVE_FORMAT: u32 = 2;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Installed {
     pub game_id: String,
@@ -345,12 +345,23 @@ impl Storage {
             fs::metadata(path)?.len() <= storage::MAX_FILE,
             "Save exceeds 64 MiB"
         );
-        let save: SaveEnvelope = serde_json::from_slice(&fs::read(path)?)
+        #[derive(Deserialize)]
+        struct Header {
+            save_format: u32,
+        }
+        let bytes = fs::read(path)?;
+        let header: Header = serde_json::from_slice(&bytes)
             .with_context(|| format!("Corrupt save {}; it has been preserved", path.display()))?;
         ensure!(
-            save.save_format == SAVE_FORMAT,
-            "Unsupported save format {}; supported: {SAVE_FORMAT}",
-            save.save_format
+            matches!(header.save_format, 1 | SAVE_FORMAT),
+            "Unsupported save format {}; supported: 1 and {SAVE_FORMAT}",
+            header.save_format
+        );
+        let save: SaveEnvelope = serde_json::from_slice(&bytes)
+            .with_context(|| format!("Corrupt save {}; it has been preserved", path.display()))?;
+        ensure!(
+            save.save_format != 1 || save.state.hints.is_empty(),
+            "Hint progress requires save format 2"
         );
         Ok(save)
     }
@@ -443,11 +454,88 @@ pub fn validate_label(label: &str) -> Result<&str> {
 mod tests {
     use super::*;
     use luna_core::Session;
+    #[test]
+    fn old_saves_load_and_hint_progress_is_preserved_in_format_two() {
+        use luna_model::{HintSet, HintStage};
+        let temp = tempfile::tempdir().unwrap();
+        let mut p = Project::blank("Hint save compatibility");
+        p.locations[0].hints.push(HintSet {
+            id: "puzzle".into(),
+            name: "Room puzzle".into(),
+            stages: vec![HintStage {
+                id: "stage".into(),
+                name: "First stage".into(),
+                clues: vec!["First clue".into(), "Second clue".into()],
+                solution: Some("Solution".into()),
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        let bundle = temp.path().join("hints.luna");
+        fs::write(&bundle, storage::export_bundle(temp.path(), &p).unwrap()).unwrap();
+        let store = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+        let record = store
+            .install(store.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+            .unwrap();
+        let (session, _) = Session::start(p.clone(), None).unwrap();
+        store.write_save(&record, &p, &session.state, None).unwrap();
+        let path = store
+            .slot_path(&p.game.id, &p.game.content_version, None)
+            .unwrap();
+        let mut old: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        old["save_format"] = 1.into();
+        old["state"].as_object_mut().unwrap().remove("hints");
+        fs::write(&path, serde_json::to_vec(&old).unwrap()).unwrap();
+        let saved = store.load_save(&record, &p, None).unwrap();
+        assert!(saved.state.hints.is_empty());
+        let mut session = Session::restore(p.clone(), saved.state).unwrap();
+        session.command("hint starting location").unwrap();
+        store.write_save(&record, &p, &session.state, None).unwrap();
+        let saved = store.load_save(&record, &p, None).unwrap();
+        assert_eq!(saved.save_format, 2);
+        assert_eq!(saved.state.hints["stage"].clues_seen, 1);
+        let mut session = Session::restore(p.clone(), saved.state).unwrap();
+        assert!(
+            session
+                .command("hint starting location")
+                .unwrap()
+                .messages
+                .iter()
+                .any(|m| luna_model::text::plain(m) == "Second clue")
+        );
+        session.command("hint starting location solution").unwrap();
+        store
+            .write_save(&record, &p, &session.state, Some("solution"))
+            .unwrap();
+        let saved = store.load_save(&record, &p, Some("solution")).unwrap();
+        assert!(saved.state.hints["stage"].solution_seen);
+        let mut mislabeled: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        mislabeled["save_format"] = 1.into();
+        fs::write(&path, serde_json::to_vec(&mislabeled).unwrap()).unwrap();
+        assert!(
+            store
+                .load_save(&record, &p, None)
+                .unwrap_err()
+                .to_string()
+                .contains("requires save format 2")
+        );
+        let future = br#"{"save_format":99,"state":{"future_shape":true}}"#;
+        fs::write(&path, future).unwrap();
+        assert!(
+            store
+                .load_save(&record, &p, None)
+                .unwrap_err()
+                .to_string()
+                .contains("Unsupported save format 99")
+        );
+        assert_eq!(fs::read(&path).unwrap(), future);
+    }
     fn setup() -> (tempfile::TempDir, Storage, Installed, Project) {
         let temp = tempfile::tempdir().unwrap();
         let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
         let fixture =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/locked-study.luna");
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.fixtures/locked-study.luna");
         let prepared = storage.prepare(&fixture).unwrap();
         let p = prepared.project.clone();
         let record = storage.install(prepared, ExistingPolicy::Replace).unwrap();

@@ -94,6 +94,8 @@ pub struct DiskView {
 pub struct StartPlaytest {
     pub project: Project,
     pub location: Option<String>,
+    #[serde(default)]
+    pub help_mode: Option<HelpMode>,
 }
 #[derive(Deserialize, TS)]
 pub struct CommandRequest {
@@ -499,7 +501,11 @@ async fn start_playtest(
     State(app): State<App>,
     Json(request): Json<StartPlaytest>,
 ) -> Api<Json<PlaytestView>> {
-    let (session, result) = Session::start(request.project, request.location.as_deref())?;
+    let mut project = request.project;
+    if let Some(mode) = request.help_mode {
+        project.game.help_mode = mode;
+    }
+    let (session, result) = Session::start(project, request.location.as_deref())?;
     let id = new_id();
     let view = PlaytestView {
         session: id.clone(),

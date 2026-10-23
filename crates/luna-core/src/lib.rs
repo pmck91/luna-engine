@@ -18,6 +18,12 @@ pub struct CharacterState {
     pub location: String,
     pub hidden: bool,
 }
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
+#[serde(deny_unknown_fields)]
+pub struct HintProgress {
+    pub clues_seen: usize,
+    pub solution_seen: bool,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 pub struct GameState {
     pub game_id: String,
@@ -30,6 +36,8 @@ pub struct GameState {
     pub properties: BTreeMap<String, BTreeMap<String, Value>>,
     pub visits: BTreeMap<String, u32>,
     pub sequences: BTreeMap<String, usize>,
+    #[serde(default)]
+    pub hints: BTreeMap<String, HintProgress>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -142,6 +150,7 @@ impl Session {
                     }
                 })
                 .collect(),
+            hints: BTreeMap::new(),
         };
         let mut session = Self { project, state };
         let mut run = Run::new(&session.project, session.state.clone());
@@ -210,12 +219,21 @@ pub fn validate_state(p: &Project, s: &GameState) -> Result<()> {
     );
     for o in &p.objects {
         let state = s.objects.get(&o.id).context("Missing saved object")?;
-        if let Placement::Location { location } = &state.placement {
-            ensure!(
+        match &state.placement {
+            Placement::Location { location } => ensure!(
                 p.locations.iter().any(|l| l.id == *location),
                 "Saved object has an invalid location"
-            )
-        };
+            ),
+            Placement::Character { character } => ensure!(
+                s.characters.contains_key(character),
+                "Saved object has an invalid character owner"
+            ),
+            Placement::Inventory | Placement::Absent => {}
+        }
+        ensure!(
+            state.exists == (state.placement != Placement::Absent),
+            "Saved object existence does not match its placement"
+        );
         ensure!(
             !state.consumed || !state.exists,
             "Consumed object cannot exist"
@@ -274,6 +292,23 @@ pub fn validate_state(p: &Project, s: &GameState) -> Result<()> {
                 || (*mode == SequenceMode::Fallback && cursor == responses.len()),
             "Invalid response cursor for {id}"
         )
+    }
+    for (id, progress) in &s.hints {
+        let stage = p
+            .hint_owners()
+            .iter()
+            .flat_map(|(_, hints)| hints.iter())
+            .flat_map(|h| h.stages.iter())
+            .find(|stage| stage.id == *id)
+            .context("Saved hint progress references a missing stage")?;
+        ensure!(
+            progress.clues_seen <= stage.clues.len(),
+            "Saved hint cursor is incompatible with this stage"
+        );
+        ensure!(
+            !progress.solution_seen || stage.solution.is_some(),
+            "Saved hint solution no longer exists"
+        );
     }
     Ok(())
 }
@@ -363,7 +398,7 @@ impl<'a> Run<'a> {
                 && match &o.placement {
                     Placement::Inventory => true,
                     Placement::Location { location } => *location == self.state.location,
-                    Placement::Absent => false,
+                    Placement::Character { .. } | Placement::Absent => false,
                 };
         }
         self.state
@@ -374,6 +409,8 @@ impl<'a> Run<'a> {
     fn condition(&self, c: &Condition) -> bool {
         match c {
             Condition::True => true,
+            Condition::HintUsed { hint } => self.p.hint_owners().iter().flat_map(|(_, hints)| hints.iter())
+                .find(|h| h.id == *hint).is_some_and(|h| h.stages.iter().any(|stage| self.state.hints.get(&stage.id).is_some_and(|seen| seen.clues_seen > 0 || seen.solution_seen))),
             Condition::False => false,
             Condition::All { conditions } => conditions.iter().all(|c| self.condition(c)),
             Condition::Any { conditions } => conditions.iter().any(|c| self.condition(c)),
@@ -399,6 +436,13 @@ impl<'a> Run<'a> {
                 .objects
                 .get(object)
                 .is_some_and(|o| o.exists && !o.consumed && o.placement == Placement::Inventory),
+            Condition::CharacterCarrying { character, object } => {
+                self.state.objects.get(object).is_some_and(|o| {
+                    o.exists
+                        && !o.consumed
+                        && matches!(&o.placement, Placement::Character { character: owner } if owner == character)
+                })
+            }
             Condition::Exists { object } => self
                 .state
                 .objects
@@ -666,6 +710,26 @@ impl<'a> Run<'a> {
                         self.fire(Event::Take, object)?
                     }
                 }
+                Effect::GiveCharacter { object, character } => {
+                    ensure!(
+                        self.state.characters.contains_key(character),
+                        "Unknown character inventory"
+                    );
+                    let o = self
+                        .state
+                        .objects
+                        .get_mut(object)
+                        .context("Unknown object")?;
+                    let dropping = o.exists && o.placement == Placement::Inventory;
+                    o.exists = true;
+                    o.consumed = false;
+                    o.placement = Placement::Character {
+                        character: character.clone(),
+                    };
+                    if dropping {
+                        self.fire(Event::Drop, object)?;
+                    }
+                }
                 Effect::Remove { object } | Effect::Consume { object } => {
                     let o = self
                         .state
@@ -875,54 +939,280 @@ impl<'a> Run<'a> {
                     })
             })
     }
-    fn command(&mut self, input: &str) -> Result<()> {
-        let normalized = normalize(input);
-        if normalized.is_empty() {
-            return Ok(());
+    fn command_phrase(&self, verb: &str, pattern: &[PatternPart]) -> Option<String> {
+        let mut words = vec![
+            self.p
+                .vocabulary
+                .iter()
+                .find(|v| v.id == verb)?
+                .canonical
+                .trim(),
+        ];
+        for part in pattern {
+            words.push(match part {
+                PatternPart::Literal { text } => text.trim(),
+                PatternPart::Entity { entity } => self.p.entity_name(entity)?.trim(),
+            });
         }
-        if let Some(control) = host_control(input) {
-            self.result.control = Some(control);
-            self.result.status = "control".into();
-            return Ok(());
-        }
-        match normalized.as_str() {
-            "look" => return self.look(),
-            "inventory" => {
-                let mut items = self
-                    .p
-                    .objects
+        Some(words.join(" "))
+    }
+    fn concerns_entity(owner: &str, pattern: &[PatternPart], entity: &str) -> bool {
+        owner == entity
+            || pattern.iter().any(
+                |part| matches!(part, PatternPart::Entity { entity: target } if target == entity),
+            )
+    }
+    fn matching_entities(&self, query: &str) -> Vec<(String, String)> {
+        let tokens = query.split_whitespace().collect::<Vec<_>>();
+        self.p
+            .owners()
+            .into_iter()
+            .filter_map(|(id, _, _)| {
+                let name = self.p.entity_name(id)?;
+                self.pattern_matches(
+                    &tokens,
+                    &[PatternPart::Entity { entity: id.into() }],
+                    None,
+                    false,
+                )
+                .then(|| (id.to_owned(), name.to_owned()))
+            })
+            .collect()
+    }
+    fn resolve_entity(&mut self, query: &str) -> Option<(String, String)> {
+        let entities = self.matching_entities(query);
+        let [(entity, name)] = entities.as_slice() else {
+            if entities.is_empty() {
+                self.result.status = "unmatched".into();
+                self.literal("I can't find that entity here. Try a visible object, character, or the current location.");
+            } else {
+                let mut names = entities
                     .iter()
-                    .filter(|o| {
-                        self.state
-                            .objects
-                            .get(&o.id)
-                            .is_some_and(|s| s.exists && s.placement == Placement::Inventory)
-                    })
-                    .map(|o| o.name.as_str())
+                    .map(|(_, name)| name.as_str())
                     .collect::<Vec<_>>();
-                items.sort_unstable();
-                self.literal(&if items.is_empty() {
-                    "You are carrying nothing.".into()
-                } else {
-                    format!("You are carrying: {}.", items.join(", "))
-                });
-                return Ok(());
+                names.sort_unstable();
+                self.result.status = "ambiguous".into();
+                self.literal(&format!(
+                    "Which entity do you mean? {}. Use a more specific name or alias.",
+                    names.join(", ")
+                ));
             }
-            "help" => {
-                self.say(&self.p.game.help_text)?;
-                self.literal(
-                    "Controls: look, inventory, help, save [name], load [name], saves, quit.",
-                );
-                return Ok(());
+            return None;
+        };
+        Some((entity.clone(), name.clone()))
+    }
+    fn entity_help(&mut self, query: &str) -> Result<()> {
+        if self.p.game.help_mode == HelpMode::Off {
+            self.literal("Entity command help is disabled for this game.");
+            return Ok(());
+        }
+        let Some((entity, name)) = self.resolve_entity(query) else {
+            return Ok(());
+        };
+        if self.p.game.help_mode == HelpMode::Basic && self.state.ending.is_none() {
+            let mut verbs = BTreeMap::new();
+            // Basic help describes authored possibilities, independent of puzzle requirements
+            // and the presence of other targets. It never exposes a command's other entities.
+            for (owner, actions, _) in self.p.owners() {
+                for action in actions {
+                    if Self::concerns_entity(owner, &action.pattern, &entity)
+                        && let Some(verb) = self.p.vocabulary.iter().find(|v| v.id == action.verb)
+                    {
+                        verbs
+                            .entry(normalize(&verb.canonical))
+                            .or_insert(verb.canonical.as_str());
+                    }
+                }
             }
-            _ => {}
+            for location in &self.p.locations {
+                for exit in &location.exits {
+                    if Self::concerns_entity(&location.id, &exit.pattern, &entity)
+                        && let Some(verb) = self.p.vocabulary.iter().find(|v| v.id == exit.verb)
+                    {
+                        verbs
+                            .entry(normalize(&verb.canonical))
+                            .or_insert(verb.canonical.as_str());
+                    }
+                }
+            }
+            if verbs.is_empty() {
+                self.literal(&format!("No verbs are defined for {name}."));
+            } else {
+                self.literal(&format!(
+                    "Verbs for {name}: {}.",
+                    verbs.values().copied().collect::<Vec<_>>().join(", ")
+                ));
+            }
+            self.literal("Syntax: <verb> <entity> [to/on/in/with <target>].");
+            return Ok(());
+        }
+        let mut phrases = std::collections::BTreeSet::new();
+        if self.state.ending.is_none() {
+            for (owner, actions, _) in self.p.owners() {
+                if !self.available(owner) {
+                    continue;
+                }
+                for action in actions {
+                    if Self::concerns_entity(owner, &action.pattern, &entity)
+                        && let Some(phrase) = self.command_phrase(&action.verb, &action.pattern)
+                    {
+                        phrases.insert(phrase);
+                    }
+                }
+            }
+            if let Some(location) = self
+                .p
+                .locations
+                .iter()
+                .find(|l| l.id == self.state.location)
+            {
+                for exit in &location.exits {
+                    if Self::concerns_entity(&location.id, &exit.pattern, &entity)
+                        && self.condition(&exit.visible)
+                    {
+                        let pattern = if exit.pattern.is_empty() {
+                            vec![PatternPart::Literal {
+                                text: exit.name.clone(),
+                            }]
+                        } else {
+                            exit.pattern.clone()
+                        };
+                        if let Some(phrase) = self.command_phrase(&exit.verb, &pattern) {
+                            phrases.insert(phrase);
+                        }
+                    }
+                }
+            }
+        }
+        let mut commands = BTreeMap::new();
+        for phrase in phrases {
+            let normalized = normalize(&phrase);
+            let candidates = self.candidates(&normalized)?;
+            let Some(best) = candidates.first() else {
+                continue;
+            };
+            if candidates.get(1).is_some_and(|next| next.rank == best.rank) {
+                continue;
+            }
+            let usable = match &best.handler {
+                Handler::Action(action) => {
+                    Self::concerns_entity(&best.owner, &action.pattern, &entity)
+                        && self.condition(&action.requirements)
+                }
+                Handler::Exit(exit) => {
+                    Self::concerns_entity(&best.owner, &exit.pattern, &entity)
+                        && self.condition(&exit.available)
+                }
+            };
+            if usable {
+                commands.entry(normalized).or_insert(phrase);
+            }
+        }
+        if commands.is_empty() {
+            self.literal(&format!("No commands are available for {name} right now."));
+        } else {
+            self.literal(&format!("Available commands for {name}:"));
+            for phrase in commands.values() {
+                self.literal(&format!("  {phrase}"));
+            }
+        }
+        Ok(())
+    }
+    fn active_hint(&self, entity: &str) -> Option<(&'a HintSet, &'a HintStage)> {
+        self.p
+            .hint_owners()
+            .into_iter()
+            .find(|(id, _)| *id == entity)?
+            .1
+            .iter()
+            .filter(|h| self.condition(&h.available) && !self.condition(&h.solved))
+            .find_map(|h| {
+                h.stages
+                    .iter()
+                    .find(|stage| self.condition(&stage.condition))
+                    .map(|stage| (h, stage))
+            })
+    }
+    fn entity_hint(&mut self, query: Option<&str>) -> Result<()> {
+        if !self.p.game.hints_enabled {
+            self.literal("Puzzle hints are disabled for this game.");
+            return Ok(());
         }
         if self.state.ending.is_some() {
-            self.literal("This playthrough has ended. You can look, inspect your inventory, save, load, or quit.");
-            self.result.status = "ended".into();
+            self.literal("This playthrough has ended. No puzzle hints are available.");
             return Ok(());
         }
-        ensure!(input.len() <= 4096, "Command is too long");
+        let Some(query) = query else {
+            let mut names = self
+                .p
+                .hint_owners()
+                .into_iter()
+                .filter(|(id, _)| self.available(id) && self.active_hint(id).is_some())
+                .filter_map(|(id, _)| self.p.entity_name(id))
+                .collect::<Vec<_>>();
+            names.sort_unstable();
+            names.dedup();
+            if names.is_empty() {
+                self.literal("No puzzle hints are available here right now.");
+            } else {
+                self.literal(&format!(
+                    "Hints are available for: {}. Type hint <entity> for a clue.",
+                    names.join(", ")
+                ));
+            }
+            return Ok(());
+        };
+        let (query, solution) = if self.matching_entities(query).is_empty()
+            && let Some(entity) = query.strip_suffix(" solution")
+        {
+            (entity, true)
+        } else {
+            (query, false)
+        };
+        let Some((entity, name)) = self.resolve_entity(query) else {
+            return Ok(());
+        };
+        let Some((hint, stage)) = self.active_hint(&entity) else {
+            self.literal(&format!(
+                "No puzzle hints are available for {name} right now."
+            ));
+            return Ok(());
+        };
+        let previous = self.state.hints.get(&stage.id).cloned().unwrap_or_default();
+        let mut next = previous.clone();
+        if solution {
+            if let Some(text) = &stage.solution {
+                self.literal(&format!("Solution for {}:", hint.name));
+                self.say(text)?;
+                next.solution_seen = true;
+            } else {
+                self.literal("The author has not provided a solution for this stage.");
+            }
+        } else {
+            let index = previous.clues_seen.min(stage.clues.len().saturating_sub(1));
+            let text = stage.clues.get(index).context("Hint stage has no clues")?;
+            self.literal(&format!(
+                "Hint {} of {} for {}:",
+                index + 1,
+                stage.clues.len(),
+                hint.name
+            ));
+            self.say(text)?;
+            next.clues_seen = (index + 1).max(previous.clues_seen);
+            if next.clues_seen == stage.clues.len() {
+                if stage.solution.is_some() {
+                    self.literal(&format!("For the solution, type hint {name} solution."));
+                } else {
+                    self.literal("That is the last clue for this stage.");
+                }
+            }
+        }
+        if next != previous {
+            self.state.hints.insert(stage.id.clone(), next);
+        }
+        Ok(())
+    }
+    fn candidates(&self, input: &str) -> Result<Vec<Candidate>> {
         let mut matches = vec![];
         for (owner, actions, _) in self.p.owners() {
             if !self.available(owner) {
@@ -936,7 +1226,7 @@ impl<'a> Run<'a> {
                 2
             };
             for a in actions {
-                if self.matches(&normalized, &a.verb, &a.pattern, None, false) {
+                if self.matches(input, &a.verb, &a.pattern, None, false) {
                     let (literals, entities) = specificity(&a.pattern);
                     matches.push(Candidate {
                         id: a.id.clone(),
@@ -968,7 +1258,7 @@ impl<'a> Run<'a> {
             };
             for pattern in patterns {
                 if self.matches(
-                    &normalized,
+                    input,
                     &exit.verb,
                     &pattern,
                     Some(&exit.destination),
@@ -994,6 +1284,66 @@ impl<'a> Run<'a> {
             }
         }
         matches.sort_by(|a, b| b.rank.cmp(&a.rank).then_with(|| a.id.cmp(&b.id)));
+        Ok(matches)
+    }
+    fn command(&mut self, input: &str) -> Result<()> {
+        let normalized = normalize(input);
+        if normalized.is_empty() {
+            return Ok(());
+        }
+        if let Some(control) = host_control(input) {
+            self.result.control = Some(control);
+            self.result.status = "control".into();
+            return Ok(());
+        }
+        if let Some(query) = normalized.strip_prefix("help ") {
+            ensure!(input.len() <= 4096, "Command is too long");
+            return self.entity_help(query);
+        }
+        if let Some(query) = normalized.strip_prefix("hint ") {
+            ensure!(input.len() <= 4096, "Command is too long");
+            return self.entity_hint(Some(query));
+        }
+        match normalized.as_str() {
+            "hint" => return self.entity_hint(None),
+            "look" => return self.look(),
+            "inventory" => {
+                let mut items = self
+                    .p
+                    .objects
+                    .iter()
+                    .filter(|o| {
+                        self.state
+                            .objects
+                            .get(&o.id)
+                            .is_some_and(|s| s.exists && s.placement == Placement::Inventory)
+                    })
+                    .map(|o| o.name.as_str())
+                    .collect::<Vec<_>>();
+                items.sort_unstable();
+                self.literal(&if items.is_empty() {
+                    "You are carrying nothing.".into()
+                } else {
+                    format!("You are carrying: {}.", items.join(", "))
+                });
+                return Ok(());
+            }
+            "help" => {
+                self.say(&self.p.game.help_text)?;
+                self.literal(
+                    "Controls: look, inventory, help [entity], hint [entity], save [name], load [name], saves, quit.",
+                );
+                return Ok(());
+            }
+            _ => {}
+        }
+        if self.state.ending.is_some() {
+            self.literal("This playthrough has ended. You can look, inspect your inventory, save, load, or quit.");
+            self.result.status = "ended".into();
+            return Ok(());
+        }
+        ensure!(input.len() <= 4096, "Command is too long");
+        let matches = self.candidates(&normalized)?;
         for m in &matches {
             self.result
                 .trace
