@@ -129,6 +129,28 @@ impl Check<'_> {
             self.error(s, f, "Ordered comparisons require integers")
         }
     }
+    fn integer(&mut self, s: &str, f: &str, schema: Option<&Value>) {
+        match schema {
+            None => self.error(s, f, "Unknown variable/property"),
+            Some(Value::Integer(_)) => {}
+            Some(_) => self.error(s, f, "Arithmetic requires integers"),
+        }
+    }
+    fn operand(&mut self, s: &str, f: &str, op: ArithmeticOperation, operand: &NumericOperand) {
+        let f = format!("{f}.operand");
+        match operand {
+            NumericOperand::Literal { value: 0 } if op == ArithmeticOperation::Divide => {
+                self.error(s, &f, "Cannot divide by zero")
+            }
+            NumericOperand::Literal { .. } => {}
+            NumericOperand::Variable { name } => {
+                self.integer(s, &f, self.p.game.variables.get(name))
+            }
+            NumericOperand::Property { entity, name } => {
+                self.integer(s, &f, self.p.state_schema(entity).and_then(|m| m.get(name)))
+            }
+        }
+    }
     fn condition(&mut self, s: &str, f: &str, c: &Condition) {
         match c {
             Condition::True | Condition::False => {}
@@ -203,6 +225,23 @@ impl Check<'_> {
                     value,
                     None,
                 ),
+                Effect::UpdateVariable { name, op, operand } => {
+                    self.integer(s, &format!("{f}.name"), self.p.game.variables.get(name));
+                    self.operand(s, &f, *op, operand);
+                }
+                Effect::UpdateProperty {
+                    entity,
+                    name,
+                    op,
+                    operand,
+                } => {
+                    self.integer(
+                        s,
+                        &format!("{f}.name"),
+                        self.p.state_schema(entity).and_then(|m| m.get(name)),
+                    );
+                    self.operand(s, &f, *op, operand);
+                }
                 Effect::Give { object }
                 | Effect::Remove { object }
                 | Effect::Consume { object }

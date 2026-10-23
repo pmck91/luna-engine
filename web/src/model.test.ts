@@ -4,7 +4,7 @@ import { registerBlocks, loadEffectBlocks, readEffects, readFlowConditions } fro
 import { recolour } from './Forms';
 import { character, location, object, literal, messageValues, preview } from './model';
 import { lockedStudy } from './example';
-import type { Project, Effect, Condition } from './contracts';
+import type { Project, Effect, Condition, ArithmeticOperation, NumericOperand } from './contracts';
 const base: Project = {
   game: {
     id: 'game',
@@ -158,6 +158,126 @@ describe('semantic block round trips', () => {
     const root = loadEffectBlocks(workspace, effects);
     expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
     workspace.dispose();
+  });
+});
+describe('arithmetic blocks', () => {
+  function numericProject() {
+    const p = structuredClone(base);
+    p.game.variables = { chances: 7, divisor: 2, flag: true, message: 'text' };
+    p.locations[0].state = { charges: 3, visible: true };
+    return p;
+  }
+  it('round trips every operation and operand through canonical effects and saved workspaces', () => {
+    registerBlocks(numericProject());
+    const effects: Effect[] = [];
+    for (const op of ['add', 'subtract', 'multiply', 'divide'] as ArithmeticOperation[])
+      for (const operand of [
+        { type: 'literal', value: -2147483648 },
+        { type: 'variable', name: 'chances' },
+        { type: 'property', entity: 'study', name: 'charges' },
+      ] as NumericOperand[])
+        effects.push(
+          { type: 'update_variable', name: 'chances', op, operand },
+          { type: 'update_property', entity: 'study', name: 'charges', op, operand },
+        );
+    const ws = new Blockly.Workspace();
+    const root = loadEffectBlocks(ws, effects);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
+    const restored = new Blockly.Workspace();
+    Blockly.serialization.workspaces.load(Blockly.serialization.workspaces.save(ws), restored);
+    const loaded = restored.getTopBlocks(false).find((b) => b.type === 'luna_flow')!;
+    expect(readEffects(loaded.getInputTargetBlock('DO'))).toEqual(effects);
+    ws.dispose();
+    restored.dispose();
+  });
+  it('provides an editable integer shadow and restores it after a reference is detached', () => {
+    registerBlocks(numericProject());
+    const ws = new Blockly.Workspace();
+    const block = ws.newBlock('luna_update_variable');
+    expect(readEffects(block)[0]).toMatchObject({ operand: { type: 'literal', value: 1 } });
+    const input = block.getInput('OPERAND')!.connection!;
+    expect(input.targetBlock()!.isShadow()).toBe(true);
+    input.targetBlock()!.setFieldValue(-3, 'value');
+    const source = ws.newBlock('number_variable');
+    source.setFieldValue('divisor', 'name');
+    input.connect(source.outputConnection!);
+    expect(readEffects(block)[0]).toMatchObject({ operand: { type: 'variable', name: 'divisor' } });
+    source.unplug();
+    expect(input.targetBlock()!.isShadow()).toBe(true);
+    expect(readEffects(block)[0]).toMatchObject({ operand: { type: 'literal', value: -3 } });
+    ws.dispose();
+  });
+  it('rejects boolean connections and filters target and source choices to integers', () => {
+    registerBlocks(numericProject());
+    const ws = new Blockly.Workspace();
+    const update = ws.newBlock('luna_update_variable');
+    const condition = ws.newBlock('condition_true');
+    const number = ws.newBlock('number_variable');
+    const branch = ws.newBlock('luna_if');
+    expect(
+      ws.connectionChecker.canConnect(
+        update.getInput('OPERAND')!.connection!,
+        condition.outputConnection!,
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      ws.connectionChecker.canConnect(
+        branch.getInput('TEST')!.connection!,
+        number.outputConnection!,
+        false,
+      ),
+    ).toBe(false);
+    for (const type of ['luna_update_variable', 'number_variable']) {
+      const block = ws.newBlock(type);
+      expect((block.getField('name') as Blockly.FieldDropdown).getOptions(false)).toEqual([
+        ['chances', 'chances'],
+        ['divisor', 'divisor'],
+      ]);
+    }
+    for (const type of ['luna_update_property', 'number_property']) {
+      const block = ws.newBlock(type);
+      block.setFieldValue('study', 'entity');
+      expect((block.getField('name') as Blockly.FieldDropdown).getOptions(false)).toEqual([
+        ['charges', 'charges'],
+      ]);
+    }
+    ws.dispose();
+  });
+  it('preserves deleted and incompatible references for validation without retargeting', () => {
+    const p = numericProject();
+    registerBlocks(p);
+    const effects: Effect[] = [
+      {
+        type: 'update_variable',
+        name: 'removed',
+        op: 'add',
+        operand: { type: 'variable', name: 'flag' },
+      },
+      {
+        type: 'update_property',
+        entity: 'missing',
+        name: 'charges',
+        op: 'divide',
+        operand: { type: 'property', entity: 'study', name: 'visible' },
+      },
+    ];
+    const ws = new Blockly.Workspace();
+    const root = loadEffectBlocks(ws, effects);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
+    const variable = ws.getAllBlocks(false).find((b) => b.type === 'number_variable')!;
+    expect((variable.getField('name') as Blockly.FieldDropdown).getOptions(false)).toContainEqual([
+      'Missing: flag',
+      'flag',
+    ]);
+    p.game.variables.flag = 8;
+    registerBlocks(p);
+    expect((variable.getField('name') as Blockly.FieldDropdown).getOptions(false)).toContainEqual([
+      'flag',
+      'flag',
+    ]);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
+    ws.dispose();
   });
 });
 describe('colour authoring', () => {

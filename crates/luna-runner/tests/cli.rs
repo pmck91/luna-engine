@@ -24,6 +24,119 @@ fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/locked-study.luna")
 }
 #[test]
+fn arithmetic_cli_exports_saves_restores_and_recovers_from_failed_commands() {
+    use luna_model::{
+        Action, ArithmeticOperation as Op, Effect, NumericOperand as Operand, PatternPart, Project,
+        Value,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mut project = Project::blank("Arithmetic CLI");
+    project.game.variables = [
+        ("chances".into(), Value::Integer(7)),
+        ("divisor".into(), Value::Integer(2)),
+    ]
+    .into();
+    let room = project.game.starting_location.clone();
+    project.locations[0]
+        .state
+        .insert("charges".into(), Value::Integer(3));
+    project.game.actions.push(Action {
+        id: "calculate".into(),
+        verb: "use".into(),
+        pattern: vec![PatternPart::Literal {
+            text: "math".into(),
+        }],
+        effects: vec![
+            Effect::UpdateVariable {
+                name: "chances".into(),
+                op: Op::Subtract,
+                operand: Operand::Literal { value: 1 },
+            },
+            Effect::UpdateProperty {
+                entity: room.clone(),
+                name: "charges".into(),
+                op: Op::Add,
+                operand: Operand::Variable {
+                    name: "chances".into(),
+                },
+            },
+            Effect::UpdateVariable {
+                name: "chances".into(),
+                op: Op::Multiply,
+                operand: Operand::Property {
+                    entity: room.clone(),
+                    name: "charges".into(),
+                },
+            },
+            Effect::UpdateVariable {
+                name: "chances".into(),
+                op: Op::Divide,
+                operand: Operand::Variable {
+                    name: "divisor".into(),
+                },
+            },
+            Effect::Say {
+                text: format!("%chances% chances; %{room}.charges% charges."),
+            },
+        ],
+        ..Default::default()
+    });
+    project.game.actions.push(Action {
+        id: "zero".into(),
+        verb: "use".into(),
+        pattern: vec![PatternPart::Literal {
+            text: "zero".into(),
+        }],
+        effects: vec![
+            Effect::Say {
+                text: "Discard this output".into(),
+            },
+            Effect::SetVariable {
+                name: "divisor".into(),
+                value: Value::Integer(0),
+            },
+            Effect::UpdateVariable {
+                name: "chances".into(),
+                op: Op::Divide,
+                operand: Operand::Variable {
+                    name: "divisor".into(),
+                },
+            },
+        ],
+        ..Default::default()
+    });
+    let bundle = temp.path().join("arithmetic.luna");
+    fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &project).unwrap(),
+    )
+    .unwrap();
+    let imported = command(temp.path(), &["import", bundle.to_str().unwrap()], b"");
+    assert!(
+        imported.status.success(),
+        "{}",
+        String::from_utf8_lossy(&imported.stderr)
+    );
+    let output = command(
+        temp.path(),
+        &["run", &project.game.id, "--new"],
+        b"use math\nsave calculated\nuse math\nload calculated\nuse zero\nuse math\nquit\n",
+    );
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("27 chances; 9 charges."));
+    assert_eq!(text.matches("455 chances; 35 charges.").count(), 2);
+    assert!(text.contains("Loaded calculated."));
+    assert!(!text.contains("Discard this output"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("rolled back: Cannot divide by zero"));
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage.records().unwrap().pop().unwrap();
+    let saved = storage.load_save(&installed, &project, None).unwrap();
+    assert_eq!(saved.state.variables["chances"], Value::Integer(455));
+    assert_eq!(saved.state.variables["divisor"], Value::Integer(2));
+    assert_eq!(saved.state.properties[&room]["charges"], Value::Integer(35));
+}
+#[test]
 fn cli_walkthrough_restores_named_saves_and_prints_plain_transcripts() {
     let temp = tempfile::tempdir().unwrap();
     let imported = command(temp.path(), &["import", fixture().to_str().unwrap()], b"");

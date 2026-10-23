@@ -25,6 +25,123 @@ async fn post(app: axum::Router, path: &str, body: Value) -> Value {
     assert_eq!(response.status(), StatusCode::OK);
     serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap()
 }
+
+#[tokio::test]
+async fn arithmetic_exports_and_resumes_identically_in_editor_and_runner() {
+    use luna_model::{
+        Action, ArithmeticOperation as Op, Effect, NumericOperand as Operand, PatternPart, Project,
+        Value as Number,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mut project = Project::blank("Arithmetic parity");
+    project.game.variables = [
+        ("chances".into(), Number::Integer(7)),
+        ("divisor".into(), Number::Integer(2)),
+    ]
+    .into();
+    let room = project.game.starting_location.clone();
+    project.locations[0]
+        .state
+        .insert("charges".into(), Number::Integer(3));
+    project.game.actions.push(Action {
+        id: "calculate".into(),
+        verb: "use".into(),
+        pattern: vec![PatternPart::Literal {
+            text: "math".into(),
+        }],
+        effects: vec![
+            Effect::UpdateVariable {
+                name: "chances".into(),
+                op: Op::Subtract,
+                operand: Operand::Literal { value: 1 },
+            },
+            Effect::UpdateProperty {
+                entity: room.clone(),
+                name: "charges".into(),
+                op: Op::Add,
+                operand: Operand::Variable {
+                    name: "chances".into(),
+                },
+            },
+            Effect::UpdateVariable {
+                name: "chances".into(),
+                op: Op::Multiply,
+                operand: Operand::Property {
+                    entity: room.clone(),
+                    name: "charges".into(),
+                },
+            },
+            Effect::UpdateVariable {
+                name: "chances".into(),
+                op: Op::Divide,
+                operand: Operand::Variable {
+                    name: "divisor".into(),
+                },
+            },
+            Effect::Say {
+                text: format!("%chances% chances; %{room}.charges% charges."),
+            },
+        ],
+        ..Default::default()
+    });
+    let bundle = temp.path().join("arithmetic.luna");
+    std::fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &project).unwrap(),
+    )
+    .unwrap();
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let (mut runner, _) = Session::start(storage.load_game(&installed).unwrap(), None).unwrap();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let mut editor = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":project,"location":null}),
+    )
+    .await;
+    for expected in ["27 chances; 9 charges.", "455 chances; 35 charges."] {
+        let result = runner.command("use math").unwrap();
+        assert_eq!(luna_model::text::plain(&result.messages[0]), expected);
+        let id = editor["session"].as_str().unwrap();
+        editor = post(
+            app.clone(),
+            &format!("/api/v1/playtests/{id}/commands"),
+            json!({"command":"use math"}),
+        )
+        .await;
+        assert_eq!(
+            editor["result"]["messages"],
+            serde_json::to_value(result.messages).unwrap()
+        );
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(&runner.state).unwrap()
+        );
+        storage
+            .write_save(
+                &installed,
+                &runner.project,
+                &runner.state,
+                Some("calculated"),
+            )
+            .unwrap();
+        let saved = storage
+            .load_save(&installed, &runner.project, Some("calculated"))
+            .unwrap();
+        assert_eq!(saved.state, runner.state);
+        runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();
+    }
+}
 #[tokio::test]
 async fn editor_http_and_installed_runner_have_identical_gameplay() {
     let temp = tempfile::tempdir().unwrap();

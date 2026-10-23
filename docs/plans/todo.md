@@ -1,6 +1,6 @@
 # Project todo
 
-Suggested priority: arithmetic, character inventories, and sequence exhaustion first, followed by templates and UI organisation. Prioritise the first-game tutorial over the deeper architecture documents.
+Suggested priority: character inventories and sequence exhaustion next, followed by templates and UI organisation. Prioritise the first-game tutorial over the deeper architecture documents.
 
 ## Characters
 
@@ -14,7 +14,6 @@ Suggested priority: arithmetic, character inventories, and sequence exhaustion f
 
 ## Engine behaviour
 
-- [ ] Add arithmetic blocks for integer variables and properties, such as "change chances by -1" and "increase friendliness by 2." Include type checking and defined overflow handling.
 - [ ] Make the outcome optional on game completions. Allow an ending without selecting victory, loss, or neutral. Support an unset outcome in the editor, content format, validation, and runner display while still completing the playthrough and preserving the ending in saves.
 
 ## UI
@@ -41,5 +40,6 @@ Suggested priority: arithmetic, character inventories, and sequence exhaustion f
 
 ## Completed
 
+- [x] Add arithmetic blocks for integer variables and properties: addition, subtraction, multiplication, and division with literal or live variable/property operands. Validate integer references; truncate division toward zero; roll back the entire command on zero division or overflow. Covered by editor authoring, export, runner, and save/load tests.
 - [x] Add Print description response blocks and default examine actions for new entities.
 - [x] Print variables and entity properties in messages with `%variable_name%` and `%entity_id.property_name%`, with an insertion menu in the editor.

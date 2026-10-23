@@ -133,6 +133,22 @@ pub enum SequenceMode {
     Loop,
     Fallback,
 }
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ArithmeticOperation {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum NumericOperand {
+    Literal { value: i32 },
+    Variable { name: String },
+    Property { entity: String, name: String },
+}
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
@@ -157,6 +173,17 @@ pub enum Effect {
         entity: String,
         name: String,
         value: Value,
+    },
+    UpdateVariable {
+        name: String,
+        op: ArithmeticOperation,
+        operand: NumericOperand,
+    },
+    UpdateProperty {
+        entity: String,
+        name: String,
+        op: ArithmeticOperation,
+        operand: NumericOperand,
     },
     Give {
         object: String,

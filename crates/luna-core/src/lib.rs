@@ -537,6 +537,37 @@ impl<'a> Run<'a> {
         }
         Ok(())
     }
+    fn numeric_operand(&self, operand: &NumericOperand) -> Result<i32> {
+        let value = match operand {
+            NumericOperand::Literal { value } => return Ok(*value),
+            NumericOperand::Variable { name } => self.state.variables.get(name),
+            NumericOperand::Property { entity, name } => {
+                self.state.properties.get(entity).and_then(|m| m.get(name))
+            }
+        };
+        match value {
+            Some(Value::Integer(value)) => Ok(*value),
+            _ => bail!("Arithmetic operand must reference an integer"),
+        }
+    }
+    fn update_integer(target: &mut Value, op: ArithmeticOperation, operand: i32) -> Result<()> {
+        let Value::Integer(current) = target else {
+            bail!("Arithmetic target must be an integer");
+        };
+        ensure!(
+            op != ArithmeticOperation::Divide || operand != 0,
+            "Cannot divide by zero"
+        );
+        let result = match op {
+            ArithmeticOperation::Add => current.checked_add(operand),
+            ArithmeticOperation::Subtract => current.checked_sub(operand),
+            ArithmeticOperation::Multiply => current.checked_mul(operand),
+            ArithmeticOperation::Divide => current.checked_div(operand),
+        }
+        .context("Integer arithmetic overflow")?;
+        *current = result;
+        Ok(())
+    }
     fn effects(&mut self, effects: &[Effect]) -> Result<Flow> {
         for effect in effects {
             self.step()?;
@@ -596,6 +627,30 @@ impl<'a> Run<'a> {
                         .context("Unknown property")?;
                     ensure!(current.same_type(value), "Property type mismatch");
                     *current = value.clone();
+                }
+                Effect::UpdateVariable { name, op, operand } => {
+                    let operand = self.numeric_operand(operand)?;
+                    let target = self
+                        .state
+                        .variables
+                        .get_mut(name)
+                        .context("Unknown variable")?;
+                    Self::update_integer(target, *op, operand)?;
+                }
+                Effect::UpdateProperty {
+                    entity,
+                    name,
+                    op,
+                    operand,
+                } => {
+                    let operand = self.numeric_operand(operand)?;
+                    let target = self
+                        .state
+                        .properties
+                        .get_mut(entity)
+                        .and_then(|m| m.get_mut(name))
+                        .context("Unknown property")?;
+                    Self::update_integer(target, *op, operand)?;
                 }
                 Effect::Give { object } => {
                     let o = self

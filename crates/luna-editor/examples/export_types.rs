@@ -14,6 +14,8 @@ fn main() -> Result<()> {
         Comparison,
         Condition,
         SequenceMode,
+        ArithmeticOperation,
+        NumericOperand,
         Effect,
         PatternPart,
         Action,

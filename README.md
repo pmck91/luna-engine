@@ -42,6 +42,10 @@ Messages can include game variables as `%variable_name%`, for example `You have 
 
 On the World map toolbar, enable **Exit tool**, then click a source room and a target room. Each click creates an exit point at the nearest free position on that room's border. Click the tool again to return to moving rooms; Escape cancels an unfinished connection. Drag an exit point around any of the four borders to adjust its route, or drag its label independently. Detached labels have a faint dashed guide to the closest point on their arrow. Double-click a label to restore automatic placement. Anchor positions and label offsets are saved with the project.
 
+Use **UPDATE VARIABLE** and **UPDATE PROPERTY** in **World & state** for integer arithmetic. Choose **+**, **−**, **×**, or **÷**; the block updates its selected value using the number in its input. The input starts with an editable **1**. Drag **Variable value** or **Property value** from **Values** into it to read another current value, or use a **Number** block for a fixed integer. For example, subtract `1` from `chances`, or add a character's `friendliness` property to a score. Numeric dropdowns offer integer values; **SET VARIABLE** and **SET PROPERTY** still assign fixed values of any supported type.
+
+Calculations read the current state in block order, so a later block sees earlier updates. Values range from −2,147,483,648 to 2,147,483,647, and negative results are allowed. Division discards the fractional part toward zero (`7 ÷ 2 = 3`, `−7 ÷ 2 = −3`). Division by zero or a result outside that range fails the whole command and rolls back its state and messages. Validation catches a fixed zero divisor; a variable or property divisor is checked when the block runs. Save/load preserves calculated values normally.
+
 ## Play a game
 
 ```sh

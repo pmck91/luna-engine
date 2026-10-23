@@ -24,6 +24,20 @@ The `print_description` effect stores an `entity` reference and reads that locat
 
 Drafts can have semantic validation errors and remain saveable. Export and new playtests require valid content. Runtime restores additionally validate every saved entity, property, visit counter, ending, and response cursor against the immutable game definition.
 
+### Integer arithmetic
+
+`update_variable` targets a global variable by `name`; `update_property` targets a custom property by `entity` and `name`. Both include `op` (`add`, `subtract`, `multiply`, or `divide`) and a tagged `operand`: `literal` with an integer `value`, `variable` with a `name`, or `property` with an `entity` and `name`. For example:
+
+```json
+{"type":"update_variable","name":"chances","op":"subtract","operand":{"type":"literal","value":1}}
+```
+
+The target and any referenced operand must have integer schemas. Literal zero divisors are validation errors; referenced divisors may start at zero and are checked against live state at execution. Each effect computes `target = current target OP current operand`, reading both before writing. Earlier effects are visible, including when an operand references the target itself. Calculations use checked signed 32-bit operations; division truncates toward zero. Zero division and overflow (including −2,147,483,648 divided by −1) fail the transaction and discard all its state and output.
+
+Blockly numeric inputs accept only Number outputs. The Values category supplies literal, variable, and property blocks; update blocks start with a literal shadow of 1, restored when a connected reference is removed. Dropdowns filter to integer schemas while preserving incompatible or missing references for diagnostics. Saved workspaces round trip these inputs through the canonical effects. Existing literal SET effects and Boolean condition inputs retain their behavior. No nested math expressions are supported.
+
+Arithmetic adds no state fields and changes neither content-format v1 nor save-format v1. Existing projects and workspaces load unchanged; arithmetic effects require an engine supporting them. Older engines reject the unknown effect rather than dropping it. Existing game identity, content-version, fingerprint, and state-schema compatibility checks still apply.
+
 ## Parser and execution
 
 Normalization lowercases Unicode characters, treats punctuation as word separators, and collapses whitespace. Multiword vocabulary and aliases match complete token sequences. `game.ignored_words` lists optional single-word prefixes before entity references and implicit route names; omitted lists default to `a`, `an`, `the`, while an explicit empty list disables this behavior. The matcher may skip leading prefix words at each entity boundary and strips them from the start of authored names/aliases, while preserving nonempty names made entirely of prefix words. It preserves words inside names, literal pattern parts, verbs, and host-control arguments. Overlap validation applies the same entity-name normalization and considers optional prefixed forms. Matching considers only current-location entities and carried, existing, visible objects. Hidden routes are excluded; visible blocked routes return their authored failure text.

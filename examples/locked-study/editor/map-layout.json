@@ -75,6 +75,67 @@
         "languageVersion": 0
       }
     },
+    "5728efaf-e88c-4157-aa1c-6e32ba63452b": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "j/QtdxXTbFHr-E7uwxCP",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"give\",\"object\":\"97427b4c-2a5d-4876-83ea-c31a0f987a21\"}",
+                  "fields": {
+                    "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+                  },
+                  "id": "TU$SacUn?IYP?$8L;oE_",
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"say\",\"text\":\"Taken.\"}",
+                      "fields": {
+                        "text": "Taken."
+                      },
+                      "id": "PGURNh9IG4zMD08$:fRK",
+                      "type": "luna_say"
+                    }
+                  },
+                  "type": "luna_give"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"not\",\"condition\":{\"type\":\"carrying\",\"object\":\"97427b4c-2a5d-4876-83ea-c31a0f987a21\"}}",
+                  "id": "}[AKObB/:*?sfA(yNM3O",
+                  "inputs": {
+                    "TEST": {
+                      "block": {
+                        "data": "{\"type\":\"carrying\",\"object\":\"97427b4c-2a5d-4876-83ea-c31a0f987a21\"}",
+                        "fields": {
+                          "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+                        },
+                        "id": "[}};k`6YSigFx;cQ/4ou",
+                        "type": "condition_carrying"
+                      }
+                    }
+                  },
+                  "type": "condition_not"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
     "68d2b3c4-8227-4b93-ad9b-bae9b4fe6da3": {
       "blocks": {
         "blocks": [

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Blockly from 'blockly/core';
 import * as English from 'blockly/msg/en';
-import type { Condition, Effect, Project, Value } from './contracts';
+import type { Condition, Effect, NumericOperand, Project, Value } from './contracts';
 import { flow, flowConditions, id, valueFrom, type FlowConditions } from './model';
 import { refreshChainEnds } from './blockRenderer';
 Blockly.setLocale(
@@ -16,6 +16,8 @@ const effectFields: Record<string, string[]> = {
   respond: [],
   set_variable: ['name', 'value'],
   set_property: ['entity', 'name', 'value'],
+  update_variable: ['name', 'op'],
+  update_property: ['entity', 'name', 'op'],
   give: ['object'],
   remove: ['object'],
   consume: ['object'],
@@ -47,6 +49,8 @@ const labels: Record<string, string> = {
   respond: 'RESPONSE SEQUENCE',
   set_variable: 'SET VARIABLE',
   set_property: 'SET PROPERTY',
+  update_variable: 'UPDATE VARIABLE',
+  update_property: 'UPDATE PROPERTY',
   give: 'ADD ITEM',
   remove: 'REMOVE ITEM',
   consume: 'CONSUME',
@@ -103,20 +107,32 @@ function field(name: string, type: string): Blockly.Field {
       const owner = [...project.locations, ...project.objects, ...project.characters].find(
         (e) => e.id === b?.getFieldValue('entity'),
       );
-      const keys = Object.keys(
-        type.includes('property') ? (owner?.state ?? {}) : project.game.variables,
+      const values = type.includes('property') ? (owner?.state ?? {}) : project.game.variables;
+      const keys = Object.keys(values).filter((key) =>
+        type.startsWith('update_') || type.startsWith('number_')
+          ? typeof values[key] === 'number'
+          : true,
       );
       return keys.map((id) => ({ id, name: id }));
     });
   if (name === 'op')
-    return new Blockly.FieldDropdown([
-      ['=', 'eq'],
-      ['≠', 'ne'],
-      ['>', 'gt'],
-      ['≥', 'ge'],
-      ['<', 'lt'],
-      ['≤', 'le'],
-    ]);
+    return new Blockly.FieldDropdown(
+      type.startsWith('update_')
+        ? [
+            ['+', 'add'],
+            ['−', 'subtract'],
+            ['×', 'multiply'],
+            ['÷', 'divide'],
+          ]
+        : [
+            ['=', 'eq'],
+            ['≠', 'ne'],
+            ['>', 'gt'],
+            ['≥', 'ge'],
+            ['<', 'lt'],
+            ['≤', 'le'],
+          ],
+    );
   if (name.startsWith('consume_')) return new Blockly.FieldCheckbox('TRUE');
   if (name === 'count') return new Blockly.FieldNumber(0, 0, 2147483647, 1);
   if (name === 'value') {
@@ -255,6 +271,13 @@ function register() {
         for (const key of fields)
           input.appendField(key.replaceAll('_', ' ')).appendField(field(key, type), key);
         if (type === 'respond') input.appendField('Edit replies in the inspector');
+        if (type.startsWith('update_')) {
+          this.appendValueInput('OPERAND').setCheck('Number').appendField('by');
+          this.getInput('OPERAND')!.connection!.setShadowState({
+            type: 'number_literal',
+            fields: { value: 1 },
+          });
+        }
         this.setPreviousStatement(true);
         this.setNextStatement(true);
         this.setColour(
@@ -264,6 +287,27 @@ function register() {
               ? '#9c4a63'
               : '#555f7f',
         );
+      },
+    };
+  for (const [type, keys] of Object.entries({
+    literal: ['value'],
+    variable: ['name'],
+    property: ['entity', 'name'],
+  }))
+    Blockly.Blocks[`number_${type}`] = {
+      init(this: Blockly.Block) {
+        const input = this.appendDummyInput().appendField(
+          type === 'literal' ? 'NUMBER' : type === 'variable' ? 'VARIABLE VALUE' : 'PROPERTY VALUE',
+        );
+        for (const key of keys)
+          input.appendField(
+            key === 'value'
+              ? new Blockly.FieldNumber(1, -2147483648, 2147483647, 1)
+              : field(key, `number_${type}`),
+            key,
+          );
+        this.setOutput(true, 'Number');
+        this.setColour('#426e85');
       },
     };
   Blockly.Blocks.luna_if = {
@@ -357,6 +401,16 @@ function makeEffects(
     setFields(block, e as unknown as Record<string, unknown>);
     next.connect(block.previousConnection!);
     next = block.nextConnection!;
+    if (e.type === 'update_variable' || e.type === 'update_property') {
+      const input = block.getInput('OPERAND')!.connection!;
+      if (e.operand.type === 'literal') {
+        input.setShadowState({ type: 'number_literal', fields: { value: e.operand.value } });
+      } else {
+        const operand = workspace.newBlock(`number_${e.operand.type}`);
+        setFields(operand, e.operand);
+        input.connect(operand.outputConnection!);
+      }
+    }
     if (e.type === 'if') {
       block
         .getInput('TEST')!
@@ -410,6 +464,20 @@ export function readCondition(block: Blockly.Block | null): Condition {
     };
   return { type, ...fields(block, conditionFields[type] ?? []) } as Condition;
 }
+function readOperand(block: Blockly.Block | null): NumericOperand {
+  if (!block) return { type: 'literal', value: 1 };
+  if (block.type === 'number_literal')
+    return { type: 'literal', value: Number(block.getFieldValue('value')) };
+  if (block.type === 'number_variable')
+    return { type: 'variable', name: block.getFieldValue('name') };
+  if (block.type === 'number_property')
+    return {
+      type: 'property',
+      entity: block.getFieldValue('entity'),
+      name: block.getFieldValue('name'),
+    };
+  throw new Error('Arithmetic requires a numeric value block');
+}
 export function readEffects(first: Blockly.Block | null): Effect[] {
   const effects: Effect[] = [];
   let block = first;
@@ -436,7 +504,13 @@ export function readEffects(first: Blockly.Block | null): Effect[] {
             };
       block.data = JSON.stringify(e);
       effects.push(e);
-    } else if (type in effectFields)
+    } else if (type === 'update_variable' || type === 'update_property')
+      effects.push({
+        type,
+        ...fields(block, effectFields[type]),
+        operand: readOperand(block.getInputTargetBlock('OPERAND')),
+      } as Effect);
+    else if (type in effectFields)
       effects.push({ type, ...fields(block, effectFields[type]) } as Effect);
     block = block.getNextBlock();
   }
@@ -465,6 +539,15 @@ const toolbox = {
           type: `condition_${t}`,
         })),
       ],
+    },
+    {
+      kind: 'category',
+      name: 'Values',
+      colour: '#426e85',
+      contents: ['literal', 'variable', 'property'].map((type) => ({
+        kind: 'block',
+        type: `number_${type}`,
+      })),
     },
     {
       kind: 'category',
@@ -501,9 +584,9 @@ export default function Blocks({
     entities: [...p.locations, ...p.objects, ...p.characters].map((entity) => [
       entity.id,
       entity.name,
-      Object.keys(entity.state),
+      Object.entries(entity.state).map(([name, value]) => [name, typeof value]),
     ]),
-    variables: Object.keys(p.game.variables),
+    variables: Object.entries(p.game.variables).map(([name, value]) => [name, typeof value]),
     endings: p.game.endings.map((ending) => [ending.id, ending.name]),
   });
   const host = useRef<HTMLDivElement>(null);
@@ -583,6 +666,8 @@ export default function Blocks({
           (event.name === 'name' || event.name === 'entity')
         ) {
           const changed = event.blockId ? ws.getBlockById(event.blockId) : null;
+          if (event.name === 'entity' && changed?.getField('name') instanceof LiveDropdown)
+            (changed.getField('name') as LiveDropdown).refresh();
           if (changed?.getField('value')) {
             try {
               valueFrom(String(changed.getFieldValue('value')), schema(changed));
