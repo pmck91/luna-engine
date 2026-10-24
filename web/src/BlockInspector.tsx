@@ -11,11 +11,13 @@ export default function BlockInspector({
   selection,
   change,
   settings,
+  help,
 }: {
   project: Project;
   selection: BlockSelection;
   change: (selection: BlockSelection, value: BlockValue) => void;
   settings: () => void;
+  help?: () => void;
 }) {
   const value = selection.value!;
   const update = (value: BlockValue) => change(selection, value);
@@ -30,6 +32,7 @@ export default function BlockInspector({
         <h2>{selection.label}</h2>
         <button onClick={settings}>Flow settings</button>
       </div>
+      {help && <button onClick={help}>Block help</button>}
       <p
         className={`block-context ${selection.connected ? '' : 'draft-notice'}`}
         aria-live="polite"

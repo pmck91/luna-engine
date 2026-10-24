@@ -198,6 +198,7 @@ test('central triggers author command, lifecycle, and value rules with exported 
   await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
   await expect(browser.getByLabel('Filter triggers by owner')).toHaveValue(goblin.id);
   await expect(browser.locator('optgroup[label="Value triggers"] option')).toHaveCount(1);
+  await flowSettings(page);
   await expect(inspector.getByLabel('Name', { exact: true })).toHaveValue('Goblin defeated');
   await expect(canvas.locator('.condition_property')).toContainText('Goblin');
   await expect(canvas.locator('.luna_hide')).toContainText('Goblin');

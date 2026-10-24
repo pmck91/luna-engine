@@ -119,6 +119,8 @@ test('arithmetic blocks author live values and survive save, export, and reopen'
   await (await download).saveAs(join(process.env.LUNA_TEST_DIR!, `${folder}.luna`));
   await page.reload();
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
+  // Personal collapse state now survives reopening the editor.
+  await page.getByRole('button', { name: 'Expand inspector', exact: true }).click();
   await hierarchy.getByRole('button', { name: /coin/ }).click();
   await inspector.getByRole('button', { name: /use coin/ }).click();
   await expect(canvas.locator('.number_property')).toContainText('polish');

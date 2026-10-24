@@ -140,6 +140,7 @@ test('character speech and movement author, reopen, export, and restore with the
 
   await page.reload();
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
+  await page.getByRole('button', { name: 'Expand playtest', exact: true }).click();
   await hierarchy.getByRole('button', { name: /Guide/ }).click();
   await expect(inspector.getByLabel('Name colour', { exact: true })).toHaveValue('yellow');
   await inspector.getByRole('button', { name: /Speak and leave/ }).click();

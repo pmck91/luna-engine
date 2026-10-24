@@ -4,6 +4,8 @@ import { allEffects, flow, owner } from './model';
 import { Field, Select, Text } from './Forms';
 import { request } from './api';
 import { ReferenceButton, useReferenceActions } from './ReferenceManager';
+import Recipes, { recipeNames } from './Recipes';
+import type { RecipeKind } from './recipes';
 import {
   defaultTemplateMapping,
   instantiateTemplate,
@@ -52,6 +54,7 @@ export default function Templates({
   const [selected, setSelected] = useState(initialTemplate ?? p.editor.templates[0]?.id ?? '');
   const [targetOwner, setTargetOwner] = useState(context.ownerId);
   const [message, setMessage] = useState('');
+  const [recipe, setRecipe] = useState<RecipeKind | null>(null);
   const dialog = useRef<HTMLElement>(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -115,6 +118,15 @@ export default function Templates({
           Save reusable actions and effect blocks in this project. Each insertion creates an
           independent copy.
         </p>
+        <details className="starter-recipes">
+          <summary>Starter recipes</summary>
+          <p>Ready-to-edit interactions with explicit references and independent copies.</p>
+          {(Object.keys(recipeNames) as RecipeKind[]).map((kind) => (
+            <button key={kind} onClick={() => setRecipe(kind)}>
+              {recipeNames[kind]}
+            </button>
+          ))}
+        </details>
         {source && (
           <section aria-label="Save a template" className="template-save">
             <h3>Save a template</h3>
@@ -243,6 +255,18 @@ export default function Templates({
             </section>
           )}
         </div>
+        {recipe && (
+          <Recipes
+            project={p}
+            kind={recipe}
+            edit={edit}
+            select={(id) => {
+              select(id);
+              close();
+            }}
+            close={() => setRecipe(null)}
+          />
+        )}
       </section>
     </div>
   );

@@ -97,7 +97,13 @@ export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>
 
 export type Draft = { revision: string, project: Project, };
 
-export type ProjectView = { handle: string, folder: string, project: Project, revision: string, recovery: Draft | null, };
+export type PanelLayout = { hierarchy_width: number, inspector_width: number, playtest_height: number, hierarchy_collapsed: boolean, inspector_collapsed: boolean, playtest_collapsed: boolean, };
+
+export type CanvasPreference = { x: number, y: number, scale: number, };
+
+export type EditorPreferences = { layout: PanelLayout, navigation: JsonValue | null, block_views: { [key in string]?: CanvasPreference }, map_view: CanvasPreference | null, hint_views: { [key in string]?: string }, inspector_scroll: { [key in string]?: number }, expanded_sections: { [key in string]?: Array<string> }, project_search: string, tutorial_visible: boolean, tutorial_steps: Array<string>, };
+
+export type ProjectView = { handle: string, folder: string, project: Project, revision: string, recovery: Draft | null, preferences: EditorPreferences, };
 
 export type ConfigView = { projects_root: string | null, reserved: Array<string>, };
 

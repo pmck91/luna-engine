@@ -72,6 +72,9 @@ test('requirements, entity navigation, and collapsible panels stay in sync', asy
   await expect(page.getByRole('log')).toContainText('Take the key first.');
   await command.fill('take key');
   const initialCanvas = (await page.locator('.canvas').boundingBox())!;
+  const initialPlaytest = (await page
+    .getByRole('region', { name: 'Playtest', exact: true })
+    .boundingBox())!;
   await page.getByRole('button', { name: 'Collapse inspector', exact: true }).click();
   await page.getByRole('button', { name: 'Collapse playtest', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Expand inspector', exact: true })).toHaveAttribute(
@@ -86,7 +89,7 @@ test('requirements, entity navigation, and collapsible panels stay in sync', asy
   await expect(command).toBeHidden();
   const expandedCanvas = (await page.locator('.canvas').boundingBox())!;
   expect(expandedCanvas.width).toBeGreaterThan(initialCanvas.width + 250);
-  expect(expandedCanvas.height).toBeGreaterThan(initialCanvas.height + 250);
+  expect(expandedCanvas.height).toBeGreaterThan(initialCanvas.height + initialPlaytest.height - 36);
   await expect(canvas.locator('.luna_flow .condition_carrying')).toContainText('brass key');
   await page.getByRole('button', { name: 'Expand inspector', exact: true }).click();
   await page.getByRole('button', { name: 'Expand playtest', exact: true }).click();

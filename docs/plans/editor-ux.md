@@ -1,6 +1,6 @@
 # Editor UX implementation plan
 
-Status: **Implementation in progress on `feature/editor-ux`; M3 accepted and M4 findings/reference review available.** The accepted block-preservation requirement remains in force. See the [current working review](../design/editor-ux/findings-and-references.md).
+Status: **Implementation in progress on `feature/editor-ux`; M5 layout, search, and guidance review available.** The accepted block-preservation requirement remains in force. See the [current working review](../design/editor-ux/layout-search-and-guidance.md).
 
 Branch: `feature/editor-ux`, created from main at `92b3ab6` on 24 October 2026. This document covers every Editor UX TODO and records the accepted design direction; merging remains subject to the agreed testing and owner acceptance. See the [design review guide](../design/editor-ux/README.md), [interaction specification](../design/editor-ux/interaction-design.md), and [wireframes](../design/editor-ux/wireframes.html).
 
@@ -35,7 +35,7 @@ The design covers all P1–P3 points. The owner accepted the surrounding design 
 
 Dependency order: M0 → M1 → M2 → M3/M4 → M5 → M6 → M7/M8 → M9. M3 and M4 can be developed in either order after shared identity/history foundations; M7 depends on reliable source mapping and playtest revisions. Accessibility checks apply to each milestone, rather than being delayed until M5.
 
-## Implementation progress — 24 October 2026
+## Implementation progress — 24–25 October 2026
 
 - M0: selection of effects/conditions/numbers/drafts, stable occurrence reconciliation, grouped project history, and typed middle-chain insertion have working proofs on Blockly 12.5.1. Accessible selection uses an application outline; the insertion picker remains M3 work.
 - M1: compact action/trigger/puzzle selectors, selected-block inspection, breadcrumbs/back/forward, and session restoration of selections, filters, canvas view and inspector focus/scroll are implemented. The owner approved the working direction; matching add-button styles and trigger-selector spacing have been applied and checked at desktop/compact widths.
@@ -43,13 +43,16 @@ Dependency order: M0 → M1 → M2 → M3/M4 → M5 → M6 → M7/M8 → M9. M3 
 - Small foundations for later milestones are included: stale validation replies are discarded (M4), and editor-only changes no longer invalidate a playtest source snapshot (M6). The remainder of those milestones is still open.
 - M3: consistent initial-room creation, command-pattern presets/previews, contextual verbs/variables/properties/endings, and searchable typed action/trigger insertion are implemented and accepted. The DOM outline exposes insertion points; the picker preserves following chains and displaced input drafts using the current Blockly renderer. Creation and assignment publish as one project transaction. See the [working walkthrough](../design/editor-ux/contextual-authoring.md).
 - M4: precise Rust diagnostic paths, current-revision findings, exact block/field navigation, nonblocking draft findings, and a typed reference index are implemented. Used by groups logic, placements, messages, drafts, and templates. Checked variable/property renames and explicit compatible replacement before deletion publish as one history transaction. The accepted D5 default is implemented; detailed review of the [working preview](../design/editor-ux/findings-and-references.md) remains pending.
-- M5–M9: remain planned. The full TODO items are not marked complete before the remaining work, feedback, and acceptance gates.
+- M5: resizable keyboard-operated panels, compact drawers, playtest focus, and per-project personal preferences are implemented. Preferences live in user configuration and survive a new loopback port without modifying game files. Project search reveals exact messages/blocks/fields and preserves return context. A resumable tutorial, bundled authoring/shortcut help, explicit starter recipes, an Add exit form, and effect reorder/draft controls support authoring without dragging. Review default proportions and tutorial tone in the [working checkpoint](../design/editor-ux/layout-search-and-guidance.md). Owner/new-author and assistive-technology review remain acceptance gates.
+- M6–M9: remain planned. The full TODO items are not marked complete before the remaining work, feedback, and acceptance gates.
 
 The foundation checkpoint passed its 43 frontend tests, 44-test Chromium/Firefox suite, Rust workspace tests, Rust formatting/Clippy and generated-contract checks. Its follow-up navigation checks covered native text undo, layout-only playtest edits, and returning to a surviving room when undo removes the selected entity.
 
 M3 verification: 46 frontend tests, all 50 Chromium/Firefox authoring checks, and frontend build/format checks pass. Eight final browser checks also verify the creation popup above canvas controls, keyboard insertion, atomic reference undo/redo, target-command playback, saved draft/occurrence identity, and compact picker layouts at 1100 and 900 px. Runtime contracts and save formats are unchanged. Actual captures and the working walkthrough are in the [authoring review guide](../design/editor-ux/contextual-authoring.md). Owner feedback accepted this milestone; release packaging and the full owner/new-author acceptance walkthrough remain M9 gates.
 
 M4 verification: all 53 frontend tests and the full 56-check Chromium/Firefox suite pass, followed by eight passing findings/reference checks on the final implementation. The latter cover nested-condition repair, individual response/clue focus, action/hint drafts, atomic rename/replacement undo, stale replies, and compact reference controls. Rust workspace tests, formatting, Clippy, and generated-contract checks pass. See the [working review and captures](../design/editor-ux/findings-and-references.md); detailed owner feedback remains pending.
+
+M5 verification: all 57 frontend tests, the full 66-check Chromium/Firefox suite, and 16 follow-up checks on the final drawer/focus implementation pass. Coverage includes actual compact field access, both dock toggles, profile restoration across ports, occurrence/field navigation and return, tutorial authoring/export/resume, typed recipes and gameplay, and branch-local effect reordering. Rust workspace tests, formatting, Clippy, generated-contract checks, and frontend build/format checks pass. See the [working walkthrough and screenshots](../design/editor-ux/layout-search-and-guidance.md). Default proportions, tutorial tone, and manual accessibility/author testing remain review gates.
 
 ## M0 — Review design and prove the risky foundations
 

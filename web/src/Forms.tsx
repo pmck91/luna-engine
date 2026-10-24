@@ -307,7 +307,18 @@ export function Values({
   return (
     <div className="values">
       {Object.entries(values).map(([key, value]) => (
-        <div className="value-row" key={key}>
+        <div
+          className="value-row"
+          key={key}
+          data-field-path={
+            referenceOwner
+              ? `${referenceOwner === '@variables' ? 'variables' : 'state'}.${key}`
+              : undefined
+          }
+          data-field-subject={
+            referenceOwner === '@variables' ? 'project:variables' : referenceOwner
+          }
+        >
           <span title={key}>{key}</span>
           {!fixed && (
             <select

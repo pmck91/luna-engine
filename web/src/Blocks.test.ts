@@ -4,6 +4,8 @@ import type { Effect, Project } from './contracts';
 import { lockedStudy } from './example';
 import {
   blockAddresses,
+  canMoveEffect,
+  moveEffectBlock,
   describeBlock,
   loadEffectBlocks,
   insertEffectBlocks,
@@ -62,6 +64,41 @@ function workspace(effects: Effect[]) {
   return { ws, root: loadEffectBlocks(ws, effects, { requirements: { type: 'true' } }) };
 }
 describe('action and trigger occurrences', () => {
+  it('reorders siblings within their branch while preserving nested content and block IDs', () => {
+    const { ws, root } = workspace([
+      {
+        type: 'if',
+        condition: { type: 'true' },
+        then: [
+          { type: 'say', text: 'First' },
+          { type: 'say', text: 'Second' },
+          { type: 'say', text: 'Third' },
+        ],
+        otherwise: [{ type: 'say', text: 'Else' }],
+      },
+      { type: 'say', text: 'After' },
+    ]);
+    const branch = root.getInputTargetBlock('DO')!;
+    const first = branch.getInputTargetBlock('THEN')!;
+    const second = first.getNextBlock()!;
+    const third = second.getNextBlock()!;
+    expect(canMoveEffect(first, -1)).toBe(false);
+    expect(canMoveEffect(third, 1)).toBe(false);
+    expect(moveEffectBlock(second, -1)).toBe(true);
+    expect(branch.getInputTargetBlock('THEN')?.id).toBe(second.id);
+    expect(second.getNextBlock()?.id).toBe(first.id);
+    expect(first.getNextBlock()?.id).toBe(third.id);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toMatchObject([
+      {
+        then: [{ text: 'Second' }, { text: 'First' }, { text: 'Third' }],
+        otherwise: [{ text: 'Else' }],
+      },
+      { text: 'After' },
+    ]);
+    expect(moveEffectBlock(second, 1)).toBe(true);
+    expect(branch.getInputTargetBlock('THEN')?.id).toBe(first.id);
+    ws.dispose();
+  });
   it('distinguishes identical nested effects, conditions, operands and detached drafts by editor ID', () => {
     const { ws, root } = workspace([
       { type: 'say', text: 'Same' },

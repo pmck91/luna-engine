@@ -90,9 +90,15 @@ export function referenceContext(p: Project, use: ReferenceSite): string {
   const workspace = p.editor.blocks[use.puzzleId ? `hints:${use.puzzleId}` : (use.flowId ?? '')] as
     RecordValue | undefined;
   const draft = use.scope === 'draft' && workspace?.blocks?.blocks?.map(draftType).find(Boolean);
+  const namedContent =
+    !owner && !source
+      ? (p.game.endings.find((ending) => ending.id === use.subject)?.name ??
+        p.vocabulary.find((verb) => verb.id === use.subject)?.canonical)
+      : undefined;
   return [
     title,
     source,
+    namedContent,
     puzzle?.name,
     puzzle?.stages.find((stage) => stage.id === use.stageId)?.name,
     draft ? `Draft ${draft}` : undefined,
@@ -124,7 +130,12 @@ export function resolveMessageReference(
 }
 
 /** One typed walk serves impact previews and transformations. Literal text values are never references. */
-function scan(p: Project, resolve: Project = p, transform?: Transform): ReferenceUse[] {
+function scan(
+  p: Project,
+  resolve: Project = p,
+  transform?: Transform,
+  visitMessage?: (site: ReferenceSite, text: string) => void,
+): ReferenceUse[] {
   const uses: ReferenceUse[] = [];
   const emit = (
     target: ReferenceTarget,
@@ -162,6 +173,7 @@ function scan(p: Project, resolve: Project = p, transform?: Transform): Referenc
   ) => {
     const record = v as RecordValue;
     if (typeof record[key] !== 'string') return;
+    visitMessage?.(child(site, String(key)), record[key]);
     let index = 0;
     record[key] = mapMessage(record[key], (raw) => {
       const target = resolveMessageReference(resolve, raw, template);
@@ -425,6 +437,13 @@ function scan(p: Project, resolve: Project = p, transform?: Transform): Referenc
 }
 export function projectReferences(p: Project): ReferenceUse[] {
   return scan(structuredClone(p)).filter((use) => use.scope !== 'metadata');
+}
+export function messageOccurrences(p: Project): Array<ReferenceSite & { text: string }> {
+  const messages: Array<ReferenceSite & { text: string }> = [];
+  scan(structuredClone(p), p, undefined, (site, text) => {
+    if (site.scope !== 'metadata' && text.trim()) messages.push({ ...site, text });
+  });
+  return messages;
 }
 function matches(use: ReferenceUse, target: ReferenceTarget): boolean {
   return (

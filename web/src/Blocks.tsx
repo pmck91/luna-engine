@@ -1197,6 +1197,26 @@ export type BlocksHandle = {
   selectBlock: (id: string | null) => void;
   updateBlock: (selection: BlockSelection, value: BlockValue, references?: Project) => void;
 };
+export function canMoveEffect(block: Blockly.Block, direction: number): boolean {
+  if (!block.type.startsWith('luna_') || block.type === 'luna_flow') return false;
+  if (direction > 0) return !!block.getNextBlock();
+  const previous = block.previousConnection?.targetBlock();
+  return !!previous && previous.nextConnection === block.previousConnection?.targetConnection;
+}
+export function moveEffectBlock(block: Blockly.Block, direction: number): boolean {
+  if (!canMoveEffect(block, direction)) return false;
+  const first = direction > 0 ? block : block.previousConnection!.targetBlock()!;
+  const second = first.getNextBlock()!;
+  const socket = first.previousConnection!.targetConnection!;
+  const following = second.getNextBlock();
+  first.previousConnection!.disconnect();
+  first.nextConnection!.disconnect();
+  if (following) second.nextConnection!.disconnect();
+  socket.connect(second.previousConnection!);
+  second.nextConnection!.connect(first.previousConnection!);
+  if (following) first.nextConnection!.connect(following.previousConnection!);
+  return true;
+}
 export default function Blocks({
   project: p,
   flowId,
@@ -1645,6 +1665,60 @@ export default function Blocks({
                         finding.path.startsWith(`${block.address}.`))),
                 ) && <small className="finding-badge"> · ⚠ Finding</small>}
               </button>
+              {block.kind === 'effect' &&
+                block.connected &&
+                [-1, 1].map((direction) => (
+                  <button
+                    key={direction}
+                    aria-label={`Move ${block.label} ${direction < 0 ? 'up' : 'down'} · ${blockLocation(block.address)}`}
+                    disabled={
+                      !workspace.current?.getBlockById(block.blockId) ||
+                      !canMoveEffect(workspace.current.getBlockById(block.blockId)!, direction)
+                    }
+                    onClick={() => {
+                      const ws = workspace.current!;
+                      Blockly.Events.disable();
+                      try {
+                        if (moveEffectBlock(ws.getBlockById(block.blockId)!, direction)) {
+                          ws.render();
+                          commit({ label: 'Reorder effect' });
+                          notifySelection(true);
+                        }
+                      } finally {
+                        Blockly.Events.enable();
+                      }
+                    }}
+                  >
+                    {direction < 0 ? '↑ Up' : '↓ Down'}
+                  </button>
+                ))}
+              {block.kind !== 'root' && (
+                <button
+                  aria-label={`${block.connected ? 'Disconnect' : 'Delete draft'} ${block.label} · ${blockLocation(block.address)}`}
+                  onClick={() => {
+                    const ws = workspace.current!;
+                    const selected = ws.getBlockById(block.blockId);
+                    if (!selected) return;
+                    Blockly.Events.disable();
+                    try {
+                      if (block.connected) {
+                        if (selected.isShadow()) selected.setShadow(false);
+                        selected.unplug(true);
+                        parkDraft(selected);
+                      } else selected.dispose(true);
+                      ws.render();
+                      commit({
+                        label: block.connected ? 'Disconnect draft block' : 'Delete draft block',
+                      });
+                      notifySelection(true);
+                    } finally {
+                      Blockly.Events.enable();
+                    }
+                  }}
+                >
+                  {block.connected ? 'Keep as draft' : 'Delete draft'}
+                </button>
+              )}
               {availablePoints
                 .filter((point) => point.blockId === block.blockId)
                 .map((point) => (

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import type {
   ConfigView,
   Diagnostic,
@@ -15,6 +22,7 @@ import { ApiError, bundle, request } from './api';
 import logoUrl from '../../assets/logo-transparent.png';
 import {
   character,
+  action as makeAction,
   flow,
   flowOwner,
   gameDataPages,
@@ -43,6 +51,13 @@ import { projectTriggers, triggerPage } from './triggerModel';
 import HintInspector from './HintInspector';
 import type { HintSelection } from './HintBlocks';
 import Templates, { type TemplateContext } from './Templates';
+import { defaultLayout, restoredNavigation, usePreferenceWriter } from './preferences';
+import ResizeHandle from './ResizeHandle';
+import ProjectSearch from './ProjectSearch';
+import Modal from './Modal';
+import ExitCreation from './ExitCreation';
+import Tutorial from './Tutorial';
+import AuthoringHelp from './AuthoringHelp';
 type Log = { command?: string; spans?: Span[] };
 export default function App() {
   const [config, setConfig] = useState<ConfigView | null>(null);
@@ -52,6 +67,17 @@ export default function App() {
   const [doc, setDoc] = useState<Project | null>(null);
   const [selected, setSelected] = useState('');
   const [search, setSearch] = useState('');
+  const [layout, setLayout] = useState(defaultLayout);
+  const [projectSearch, setProjectSearch] = useState('');
+  const [fieldSelection, setFieldSelection] = useState<ReferenceSite | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [tutorialVisible, setTutorialVisible] = useState(false);
+  const [tutorialSteps, setTutorialSteps] = useState<string[]>([]);
+  const [showExitCreation, setShowExitCreation] = useState(false);
+  const [helpTopic, setHelpTopic] = useState<string | null>(null);
+  const [newTutorial, setNewTutorial] = useState(false);
+  const [playtestFocused, setPlaytestFocused] = useState(false);
+  const flushPreferences = useRef<(() => void) | null>(null);
   const [mode, setMode] = useState<'map' | 'actions' | 'hints' | 'triggers'>('map');
   const [triggerFilter, setTriggerFilter] = useState('');
   const [flowSelections, setFlowSelections] = useState<Record<string, string>>({});
@@ -147,15 +173,49 @@ export default function App() {
       .catch(error);
   }, [error, refreshProjects]);
   const apply = (v: ProjectView) => {
+    flushPreferences.current?.();
+    const preferences = v.preferences;
+    const navigation = restoredNavigation(v.project, preferences?.navigation);
     projectHistory.current.reset();
     refreshHistory((n) => n + 1);
-    blockViews.current = {};
-    hintViews.current = {};
-    mapView.current = undefined;
+    blockViews.current = Object.fromEntries(
+      Object.entries(preferences?.block_views ?? {}).filter(
+        (entry): entry is [string, BlockView] => !!entry[1],
+      ),
+    );
+    hintViews.current = Object.fromEntries(
+      Object.entries(preferences?.hint_views ?? {}).filter(
+        (entry): entry is [string, 'blocks' | 'forms'] =>
+          typeof entry[1] === 'string' && ['blocks', 'forms'].includes(entry[1]),
+      ),
+    );
+    mapView.current = preferences?.map_view
+      ? { ...preferences.map_view, zoom: preferences.map_view.scale }
+      : undefined;
+    inspectorPositions.current = Object.fromEntries(
+      Object.entries(preferences?.inspector_scroll ?? {}).filter(
+        (entry): entry is [string, number] => typeof entry[1] === 'number',
+      ),
+    );
+    inspectorFocus.current = {};
+    inspectorSections.current = Object.fromEntries(
+      Object.entries(preferences?.expanded_sections ?? {}).filter(
+        (entry): entry is [string, string[]] => !!entry[1],
+      ),
+    );
+    setLayout(preferences?.layout ?? defaultLayout);
+    setInspectorCollapsed(preferences?.layout.inspector_collapsed ?? false);
+    setPlaytestCollapsed(preferences?.layout.playtest_collapsed ?? false);
+    setProjectSearch(preferences?.project_search ?? '');
+    setTutorialVisible(preferences?.tutorial_visible ?? false);
+    setTutorialSteps(preferences?.tutorial_steps ?? []);
+    setShowSearch(false);
+    setPlaytestFocused(false);
     saved.current = JSON.stringify(v.project);
     setView(v);
     setDoc(v.project);
-    setSelected(v.project.game.id);
+    setSelected(navigation.selected);
+    setSearch(navigation.search);
     setConflict(false);
     setComparison(null);
     setMessage('');
@@ -163,15 +223,32 @@ export default function App() {
     setPlay(null);
     setPlayProject(null);
     setLogs([]);
-    setMode('map');
-    setFlowSelections({});
-    setFlowBreadcrumb('');
-    setTriggerFilter('');
-    setHintSelection(null);
-    setBlockSelections({});
+    setMode(navigation.mode);
+    setFlowSelections(navigation.flowSelections);
+    setFlowBreadcrumb(navigation.flowBreadcrumb);
+    setTriggerFilter(navigation.triggerFilter);
+    setHintSelection(navigation.hintSelection);
+    setBlockSelections(
+      Object.fromEntries(
+        Object.entries(navigation.selectedBlocks).map(([flowId, blockId]) => [
+          flowId,
+          {
+            flowId,
+            blockId,
+            kind: 'root',
+            label: 'Flow',
+            connected: true,
+            address: '',
+            value: null,
+            fields: [],
+          },
+        ]),
+      ),
+    );
     setTemplateContext(null);
     setReferenceRequest(null);
-    setRevealTarget(null);
+    setRevealTarget(navigation.fieldSelection);
+    setFieldSelection(navigation.fieldSelection);
     setValidation({ version: '', findings: [] });
     setFindingFilter('all');
   };
@@ -270,6 +347,8 @@ export default function App() {
     return () => document.removeEventListener('keydown', shortcut, true);
   }, [replayProject]);
   const select = (key: string, includeFlow = true) => {
+    setFieldSelection(null);
+    setPlaytestFocused(false);
     const project = current.current.doc;
     setFlowBreadcrumb('');
     if (key === gameDataPages.triggers || key.startsWith(triggerPage())) {
@@ -313,6 +392,7 @@ export default function App() {
       inspectorContent.current?.scrollTo({ top: 0 });
   }, [selected]);
   const save = useCallback((): Promise<void> => {
+    flushPreferences.current?.();
     const operation = queue.current.then(async () => {
       const { doc, view, conflict } = current.current;
       if (!doc || !view) return;
@@ -454,6 +534,7 @@ export default function App() {
         });
         apply(updated);
       } else apply(v);
+      if (newTutorial) setTutorialVisible(true);
       setProjectModal(false);
       void refreshProjects();
     } catch (e) {
@@ -519,8 +600,10 @@ export default function App() {
   };
   const reveal = (site: ReferenceSite) => {
     if (!doc) return;
+    navigation.beginTransition();
     setShowDiagnostics(false);
     setInspectorCollapsed(false);
+    setPlaytestFocused(false);
     setRevealTarget({ ...site });
     if (site.templateId) {
       setTemplateSelection(site.templateId);
@@ -551,6 +634,13 @@ export default function App() {
     } else if (doc.vocabulary.some((verb) => verb.id === site.subject))
       select(gameDataPages.vocabulary);
     else select(site.subject);
+    if (!site.flowId && !site.puzzleId && !site.templateId)
+      setFieldSelection({
+        subject: site.subject,
+        path: site.path,
+        scope: site.scope,
+        ownerId: site.ownerId,
+      });
   };
   const upload = async (file: File) => {
     if (!view) return;
@@ -637,6 +727,7 @@ export default function App() {
     hintSelection,
     flowBreadcrumb,
     inspectedBlock?.blockId,
+    fieldSelection ? [fieldSelection.subject, fieldSelection.path] : null,
   ]);
   useEffect(() => {
     if (!revealTarget) return;
@@ -670,20 +761,36 @@ export default function App() {
           if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
         target.classList.add('finding-focus');
         target.scrollIntoView({ block: 'nearest' });
-        field
-          ?.querySelector<HTMLElement>('input, textarea, select')
-          ?.focus({ preventScroll: true });
+        (
+          field?.querySelector<HTMLElement>('[aria-label$=" value"]') ??
+          field?.querySelector<HTMLElement>('input, textarea, select')
+        )?.focus({ preventScroll: true });
       }
     });
     return () => cancelAnimationFrame(frame);
   }, [revealTarget, selected, mode, inspectedBlock?.blockId]);
   const inspectorPositions = useRef<Record<string, number>>({});
+  const inspectorSections = useRef<Record<string, string[]>>({});
   const inspectorFocus = useRef<
     Record<string, { label: string; start: number | null; end: number | null }>
   >({});
   useLayoutEffect(() => {
     const pane = inspectorContent.current;
     if (!pane) return;
+    const scope = view?.handle;
+    const rememberSections = () => {
+      if (current.current.view?.handle !== scope) return;
+      inspectorSections.current[navigationKey] = [...pane.querySelectorAll('details[open]')].map(
+        (details) => details.querySelector('summary')?.textContent?.trim() ?? '',
+      );
+    };
+    pane.addEventListener('toggle', rememberSections, true);
+    const expanded = inspectorSections.current[navigationKey];
+    if (expanded)
+      for (const details of pane.querySelectorAll('details'))
+        details.open = expanded.includes(
+          details.querySelector('summary')?.textContent?.trim() ?? '',
+        );
     pane.scrollTop = inspectorPositions.current[navigationKey] ?? 0;
     const remembered = inspectorFocus.current[navigationKey];
     if (remembered) {
@@ -711,9 +818,11 @@ export default function App() {
       }
     }
     return () => {
-      inspectorPositions.current[navigationKey] = pane.scrollTop;
+      pane.removeEventListener('toggle', rememberSections, true);
+      if (current.current.view?.handle === scope)
+        inspectorPositions.current[navigationKey] = pane.scrollTop;
     };
-  }, [navigationKey]);
+  }, [navigationKey, view?.handle]);
   const navigation = useNavigation(
     view?.handle ?? '',
     navigationKey,
@@ -726,6 +835,7 @@ export default function App() {
       flowSelections,
       flowBreadcrumb,
       blockSelections,
+      fieldSelection,
     },
     (entry) => {
       setSelected(entry.selected);
@@ -736,6 +846,8 @@ export default function App() {
       setFlowSelections(entry.flowSelections);
       setFlowBreadcrumb(entry.flowBreadcrumb);
       setBlockSelections(entry.blockSelections);
+      setFieldSelection(entry.fieldSelection);
+      setRevealTarget(entry.fieldSelection);
       setConnecting(false);
     },
   );
@@ -744,6 +856,64 @@ export default function App() {
     redoLabel: projectHistory.current.redoLabel,
     replay: replayProject,
   };
+  flushPreferences.current = usePreferenceWriter(
+    view?.handle,
+    () => ({
+      layout: {
+        ...layout,
+        inspector_collapsed: inspectorCollapsed,
+        playtest_collapsed: playtestCollapsed,
+      },
+      navigation: JSON.parse(
+        JSON.stringify({
+          selected,
+          mode,
+          search,
+          triggerFilter,
+          flowSelections,
+          flowBreadcrumb,
+          selectedBlocks: Object.fromEntries(
+            Object.entries(blockSelections).map(([id, selection]) => [id, selection.blockId]),
+          ),
+          hintSelection,
+          fieldSelection,
+        }),
+      ),
+      block_views: blockViews.current,
+      map_view: mapView.current
+        ? { x: mapView.current.x, y: mapView.current.y, scale: mapView.current.zoom }
+        : null,
+      hint_views: hintViews.current,
+      inspector_scroll: Object.fromEntries(Object.entries(inspectorPositions.current).slice(-100)),
+      expanded_sections: Object.fromEntries(Object.entries(inspectorSections.current).slice(-100)),
+      project_search: projectSearch,
+      tutorial_visible: tutorialVisible,
+      tutorial_steps: tutorialSteps,
+    }),
+    error,
+  );
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      if (
+        !doc ||
+        !(event.ctrlKey || event.metaKey) ||
+        event.altKey ||
+        event.key.toLowerCase() !== 'k'
+      )
+        return;
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest(
+          'input,textarea,select,[contenteditable="true"],dialog[open],[role="dialog"]',
+        )
+      )
+        return;
+      event.preventDefault();
+      setShowSearch(true);
+    };
+    document.addEventListener('keydown', shortcut);
+    return () => document.removeEventListener('keydown', shortcut);
+  }, [!!doc]);
   const diagnostics = validation.version === editingVersion ? validation.findings : [];
   const countErrors = diagnostics.filter(
     (d) => d.scope !== 'draft' && d.severity === 'error',
@@ -751,6 +921,8 @@ export default function App() {
   const countWarnings = diagnostics.filter(
     (d) => d.scope !== 'draft' && d.severity === 'warning',
   ).length;
+  const inspectorHidden = inspectorCollapsed || playtestFocused;
+  const hierarchyHidden = layout.hierarchy_collapsed || playtestFocused;
   const editor = (
     <div className="app">
       <header>
@@ -765,6 +937,9 @@ export default function App() {
           </span>
           {doc && (
             <>
+              <button onClick={() => setShowSearch(true)} title="Search project (Ctrl/Cmd K)">
+                Search project
+              </button>
               <button
                 aria-label="Undo project change"
                 title={
@@ -982,158 +1157,271 @@ export default function App() {
           </div>
         </main>
       ) : (
-        <main className={`workspace ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}>
+        <main
+          className={`workspace ${inspectorHidden ? 'inspector-collapsed' : ''} ${hierarchyHidden ? 'hierarchy-collapsed' : ''} ${playtestFocused ? 'playtest-focused' : ''} ${playtestCollapsed ? 'playtest-collapsed' : ''}`}
+          style={
+            {
+              '--hierarchy-size': `${layout.hierarchy_width}px`,
+              '--inspector-size': `${layout.inspector_width}px`,
+              '--playtest-size': `${layout.playtest_height}px`,
+            } as CSSProperties
+          }
+        >
           <nav className="hierarchy" aria-label="Project hierarchy">
-            <h3>Project</h3>
-            <input
-              aria-label="Search project"
-              placeholder="Search the world…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <p className="creation-context" id="creation-room-context">
-              New objects and characters go in <strong>{creationRoomName}</strong>.
-            </p>
-            {[
-              {
-                title: 'Locations',
-                items: doc.locations,
-                add: () =>
-                  edit((p) => {
-                    const l = makeLocation();
-                    p.locations.push(l);
-                    select(l.id);
-                    setInspectorCollapsed(false);
-                    setMode('map');
-                  }),
-              },
-              {
-                title: 'Objects',
-                items: doc.objects,
-                add: () =>
-                  edit((p) => {
-                    const o = makeObject(creationRoom);
-                    p.objects.push(o);
-                    select(o.id);
-                    setInspectorCollapsed(false);
-                  }),
-              },
-              {
-                title: 'Characters',
-                items: doc.characters,
-                add: () =>
-                  edit((p) => {
-                    const c = character(creationRoom);
-                    p.characters.push(c);
-                    select(c.id);
-                    setInspectorCollapsed(false);
-                  }),
-              },
-            ].map((section) => (
-              <section key={section.title}>
-                <div className="section-heading">
-                  <h4>{section.title}</h4>
-                  <button
-                    aria-label={`Add ${section.title.toLowerCase().replace(/s$/, '')}`}
-                    title={`Add ${section.title.toLowerCase().replace(/s$/, '')}${section.title === 'Locations' ? '' : ` to ${creationRoomName}`}`}
-                    aria-describedby={
-                      section.title === 'Locations' ? undefined : 'creation-room-context'
-                    }
-                    onClick={section.add}
-                  >
-                    +
-                  </button>
-                </div>
-                {section.items
-                  .filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
-                  .map((e) => (
-                    <button
-                      key={e.id}
-                      className={`tree-item ${e.id === selected || (mode === 'actions' && actionOwner?.id === e.id) ? 'active' : ''}`}
-                      onClick={() => select(e.id)}
-                    >
-                      <span>◇</span>
-                      {e.name}
-                    </button>
-                  ))}
-              </section>
-            ))}
-            <hr />
-            <section aria-label="Game data">
-              <div className="section-heading">
-                <h4>Game data</h4>
-              </div>
-              {[
-                { id: gameDataPages.variables, name: 'Variables', icon: '◈' },
-                { id: gameDataPages.vocabulary, name: 'Command vocabulary', icon: '⌘' },
-                { id: gameDataPages.triggers, name: 'Triggers', icon: '⚡' },
-                { id: gameDataPages.endings, name: 'Endings', icon: '⚑' },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  className={`tree-item ${selected === item.id || (item.id === gameDataPages.triggers && mode === 'triggers') ? 'active' : ''}`}
-                  aria-current={
-                    selected === item.id ||
-                    (item.id === gameDataPages.triggers && mode === 'triggers')
-                      ? 'page'
-                      : undefined
-                  }
-                  onClick={() => select(item.id)}
-                >
-                  <span aria-hidden="true">{item.icon}</span>
-                  {item.name}
-                </button>
-              ))}
-            </section>
-            <section aria-label="Tools">
-              <h3>Tools</h3>
-              <button className="tree-item" onClick={() => select(doc.game.id)}>
-                ⚙ Game settings
-              </button>
+            <div className="hierarchy-heading">
+              <h3>Project</h3>
               <button
-                className="tree-item"
+                className="panel-toggle"
+                aria-label={hierarchyHidden ? 'Expand hierarchy' : 'Collapse hierarchy'}
+                aria-expanded={!hierarchyHidden}
+                aria-controls="hierarchy-content"
                 onClick={() => {
-                  void request(`/projects/${view!.handle}/folder`, 'POST').catch(error);
+                  if (playtestFocused) {
+                    setPlaytestFocused(false);
+                    setLayout((layout) => ({ ...layout, hierarchy_collapsed: false }));
+                  } else
+                    setLayout((layout) => ({
+                      ...layout,
+                      hierarchy_collapsed: !layout.hierarchy_collapsed,
+                    }));
                 }}
               >
-                ▣ Open project folder
+                {hierarchyHidden ? '›' : '‹'}
               </button>
-              <details className="assets">
-                <summary>Assets · {doc.game.assets.length}</summary>
-                {doc.game.assets.map((a) => (
-                  <small key={a}>{a}</small>
+            </div>
+            <div id="hierarchy-content" hidden={hierarchyHidden}>
+              <input
+                aria-label="Filter entities"
+                placeholder="Filter entities…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <p className="creation-context" id="creation-room-context">
+                New objects and characters go in <strong>{creationRoomName}</strong>.
+              </p>
+              {[
+                {
+                  title: 'Locations',
+                  items: doc.locations,
+                  add: () =>
+                    edit((p) => {
+                      const l = makeLocation();
+                      p.locations.push(l);
+                      select(l.id);
+                      setInspectorCollapsed(false);
+                      setMode('map');
+                    }),
+                },
+                {
+                  title: 'Objects',
+                  items: doc.objects,
+                  add: () =>
+                    edit((p) => {
+                      const o = makeObject(creationRoom);
+                      p.objects.push(o);
+                      select(o.id);
+                      setInspectorCollapsed(false);
+                    }),
+                },
+                {
+                  title: 'Characters',
+                  items: doc.characters,
+                  add: () =>
+                    edit((p) => {
+                      const c = character(creationRoom);
+                      p.characters.push(c);
+                      select(c.id);
+                      setInspectorCollapsed(false);
+                    }),
+                },
+              ].map((section) => (
+                <section key={section.title}>
+                  <div className="section-heading">
+                    <h4>{section.title}</h4>
+                    <button
+                      aria-label={`Add ${section.title.toLowerCase().replace(/s$/, '')}`}
+                      title={`Add ${section.title.toLowerCase().replace(/s$/, '')}${section.title === 'Locations' ? '' : ` to ${creationRoomName}`}`}
+                      aria-describedby={
+                        section.title === 'Locations' ? undefined : 'creation-room-context'
+                      }
+                      onClick={section.add}
+                    >
+                      +
+                    </button>
+                  </div>
+                  {section.items
+                    .filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
+                    .map((e) => (
+                      <button
+                        key={e.id}
+                        className={`tree-item ${e.id === selected || (mode === 'actions' && actionOwner?.id === e.id) ? 'active' : ''}`}
+                        onClick={() => select(e.id)}
+                      >
+                        <span>◇</span>
+                        {e.name}
+                      </button>
+                    ))}
+                </section>
+              ))}
+              <hr />
+              <section aria-label="Game data">
+                <div className="section-heading">
+                  <h4>Game data</h4>
+                </div>
+                {[
+                  { id: gameDataPages.variables, name: 'Variables', icon: '◈' },
+                  { id: gameDataPages.vocabulary, name: 'Command vocabulary', icon: '⌘' },
+                  { id: gameDataPages.triggers, name: 'Triggers', icon: '⚡' },
+                  { id: gameDataPages.endings, name: 'Endings', icon: '⚑' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    className={`tree-item ${selected === item.id || (item.id === gameDataPages.triggers && mode === 'triggers') ? 'active' : ''}`}
+                    aria-current={
+                      selected === item.id ||
+                      (item.id === gameDataPages.triggers && mode === 'triggers')
+                        ? 'page'
+                        : undefined
+                    }
+                    onClick={() => select(item.id)}
+                  >
+                    <span aria-hidden="true">{item.icon}</span>
+                    {item.name}
+                  </button>
                 ))}
-                <label className="file-button">
-                  Add asset
-                  <input
-                    type="file"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) void upload(e.target.files[0]);
-                    }}
-                  />
-                </label>
-              </details>
-            </section>
-            <small className="local-note">
-              ● Local project
-              <br />
-              {view?.folder}
-            </small>
+              </section>
+              <section aria-label="Tools">
+                <h3>Tools</h3>
+                <button className="tree-item" onClick={() => select(doc.game.id)}>
+                  ⚙ Game settings
+                </button>
+                <button className="tree-item" onClick={() => setHelpTopic('start')}>
+                  Authoring guide
+                </button>
+                <button
+                  className="tree-item"
+                  onClick={() => setTutorialVisible((visible) => !visible)}
+                >
+                  {tutorialVisible
+                    ? 'Hide first-adventure tutorial'
+                    : 'Show first-adventure tutorial'}
+                </button>
+                <button className="tree-item" onClick={() => setHelpTopic('keyboard')}>
+                  Keyboard shortcuts
+                </button>
+                <button
+                  className="tree-item"
+                  onClick={() => {
+                    void request(`/projects/${view!.handle}/folder`, 'POST').catch(error);
+                  }}
+                >
+                  ▣ Open project folder
+                </button>
+                <details className="assets">
+                  <summary>Assets · {doc.game.assets.length}</summary>
+                  {doc.game.assets.map((a) => (
+                    <small key={a}>{a}</small>
+                  ))}
+                  <label className="file-button">
+                    Add asset
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) void upload(e.target.files[0]);
+                      }}
+                    />
+                  </label>
+                </details>
+              </section>
+              <small className="local-note">
+                ● Local project
+                <br />
+                {view?.folder}
+              </small>
+            </div>
           </nav>
+          {!hierarchyHidden && (
+            <ResizeHandle
+              label="Resize hierarchy"
+              value={layout.hierarchy_width}
+              min={160}
+              max={360}
+              change={(hierarchy_width) => setLayout((layout) => ({ ...layout, hierarchy_width }))}
+              reset={() =>
+                setLayout((layout) => ({
+                  ...layout,
+                  hierarchy_width: defaultLayout.hierarchy_width,
+                }))
+              }
+            />
+          )}
           <div className="center">
             <section className="canvas-section">
+              {tutorialVisible && (
+                <Tutorial
+                  project={doc}
+                  completed={tutorialSteps}
+                  setCompleted={setTutorialSteps}
+                  dismiss={() => setTutorialVisible(false)}
+                  go={(step) => {
+                    setInspectorCollapsed(false);
+                    setPlaytestFocused(false);
+                    if (step === 'room')
+                      select(
+                        doc.locations.find((room) => room.id === creationRoom)?.id ??
+                          doc.locations[0]?.id ??
+                          doc.game.id,
+                      );
+                    else if (step === 'ending') select(gameDataPages.endings);
+                    else if (step === 'playtest') setPlaytestCollapsed(false);
+                    else if (step === 'export') setShowDiagnostics(true);
+                    else if (step === 'object' && !doc.objects.length)
+                      edit((p) => {
+                        const item = makeObject(creationRoom);
+                        p.objects.push(item);
+                        select(item.id);
+                        setMode('map');
+                      });
+                    else {
+                      const target = doc.objects[0] ?? doc.locations[0];
+                      if (!target) return;
+                      if (step === 'object') {
+                        select(target.id);
+                        setMode('map');
+                      } else {
+                        const rule = target.actions.at(-1);
+                        if (rule) select(rule.id);
+                        else {
+                          edit((p) => {
+                            const created = makeAction(target.id, 'pull');
+                            owner(p, target.id)!.actions.push(created);
+                            select(created.id);
+                          });
+                        }
+                        setMode('actions');
+                      }
+                    }
+                  }}
+                />
+              )}
               <nav className="breadcrumbs" aria-label="Editor navigation">
                 <button
                   aria-label="Navigate back"
                   disabled={!navigation.canBack}
-                  onClick={navigation.back}
+                  onClick={() => {
+                    setRevealTarget(null);
+                    navigation.back();
+                  }}
                 >
                   ←
                 </button>
                 <button
                   aria-label="Navigate forward"
                   disabled={!navigation.canForward}
-                  onClick={navigation.forward}
+                  onClick={() => {
+                    setRevealTarget(null);
+                    navigation.forward();
+                  }}
                 >
                   →
                 </button>
@@ -1238,6 +1526,9 @@ export default function App() {
                   Block templates
                 </button>
                 {mode === 'map' && (
+                  <button onClick={() => setShowExitCreation(true)}>Add exit…</button>
+                )}
+                {mode === 'map' && (
                   <button
                     className={`exit-tool ${connecting ? 'active' : ''}`}
                     aria-pressed={connecting}
@@ -1334,12 +1625,36 @@ export default function App() {
                 )}
               </div>
             </section>
+            {!playtestCollapsed && !playtestFocused && (
+              <ResizeHandle
+                label="Resize playtest"
+                orientation="horizontal"
+                reverse
+                value={layout.playtest_height}
+                min={180}
+                max={640}
+                change={(playtest_height) =>
+                  setLayout((layout) => ({ ...layout, playtest_height }))
+                }
+                reset={() =>
+                  setLayout((layout) => ({
+                    ...layout,
+                    playtest_height: defaultLayout.playtest_height,
+                  }))
+                }
+              />
+            )}
             <section
               className={`playtest ${playtestCollapsed ? 'is-collapsed' : ''}`}
               aria-label="Playtest"
             >
               <div className="playtest-toolbar">
                 <h2>Playtest</h2>
+                {!playtestCollapsed && (
+                  <button onClick={() => setPlaytestFocused((focused) => !focused)}>
+                    {playtestFocused ? 'Return to editor' : 'Focus playtest'}
+                  </button>
+                )}
                 <span className="session-status">
                   {play
                     ? `● ${play.state.ending ? 'Ended' : playSource !== playVersion ? 'Restart to apply edits' : 'Running'}`
@@ -1386,7 +1701,10 @@ export default function App() {
                   aria-expanded={!playtestCollapsed}
                   aria-controls="playtest-content"
                   title={playtestCollapsed ? 'Expand playtest' : 'Collapse playtest'}
-                  onClick={() => setPlaytestCollapsed((collapsed) => !collapsed)}
+                  onClick={() => {
+                    setPlaytestFocused(false);
+                    setPlaytestCollapsed((collapsed) => !collapsed);
+                  }}
                 >
                   <span aria-hidden="true">{playtestCollapsed ? '▴' : '▾'}</span>
                 </button>
@@ -1476,12 +1794,28 @@ export default function App() {
               </div>
             </section>
           </div>
+          {!inspectorHidden && (
+            <ResizeHandle
+              label="Resize inspector"
+              reverse
+              value={layout.inspector_width}
+              min={280}
+              max={560}
+              change={(inspector_width) => setLayout((layout) => ({ ...layout, inspector_width }))}
+              reset={() =>
+                setLayout((layout) => ({
+                  ...layout,
+                  inspector_width: defaultLayout.inspector_width,
+                }))
+              }
+            />
+          )}
           <aside
-            className={`inspector-panel ${inspectorCollapsed ? 'is-collapsed' : ''}`}
+            className={`inspector-panel ${inspectorHidden ? 'is-collapsed' : ''}`}
             aria-label="Inspector"
           >
             <div className="inspector-toolbar">
-              {!inspectorCollapsed &&
+              {!inspectorHidden &&
                 (mode === 'hints' && hintOwner ? (
                   <button
                     className="inspector-back"
@@ -1506,14 +1840,19 @@ export default function App() {
                 ))}
               <button
                 className="panel-toggle"
-                aria-label={inspectorCollapsed ? 'Expand inspector' : 'Collapse inspector'}
-                aria-expanded={!inspectorCollapsed}
+                aria-label={inspectorHidden ? 'Expand inspector' : 'Collapse inspector'}
+                aria-expanded={!inspectorHidden}
                 aria-controls="inspector-content"
-                title={inspectorCollapsed ? 'Expand inspector' : 'Collapse inspector'}
-                onClick={() => setInspectorCollapsed((collapsed) => !collapsed)}
+                title={inspectorHidden ? 'Expand inspector' : 'Collapse inspector'}
+                onClick={() => {
+                  if (playtestFocused) {
+                    setPlaytestFocused(false);
+                    setInspectorCollapsed(false);
+                  } else setInspectorCollapsed((collapsed) => !collapsed);
+                }}
               >
-                <span aria-hidden="true">{inspectorCollapsed ? '‹' : '›'}</span>
-                {inspectorCollapsed && <span>Inspector</span>}
+                <span aria-hidden="true">{inspectorHidden ? '‹' : '›'}</span>
+                {inspectorHidden && <span>Inspector</span>}
               </button>
             </div>
             <div
@@ -1539,7 +1878,7 @@ export default function App() {
                 inspectorPositions.current[navigationKey] = event.currentTarget.scrollTop;
               }}
               className="inspector"
-              hidden={inspectorCollapsed}
+              hidden={inspectorHidden}
             >
               <FindingSubject.Provider
                 value={
@@ -1582,6 +1921,7 @@ export default function App() {
                   <BlockInspector
                     project={doc}
                     selection={inspectedBlock}
+                    help={() => setHelpTopic('blocks')}
                     change={(selection, value) =>
                       blocks.current?.updateBlock(
                         selection,
@@ -1613,6 +1953,32 @@ export default function App() {
           </aside>
         </main>
       )}
+      {showSearch && doc && (
+        <ProjectSearch
+          project={doc}
+          query={projectSearch}
+          setQuery={setProjectSearch}
+          close={() => setShowSearch(false)}
+          reveal={reveal}
+        />
+      )}
+      {showExitCreation && doc && (
+        <ExitCreation
+          project={doc}
+          source={creationRoom}
+          edit={edit}
+          select={select}
+          close={() => setShowExitCreation(false)}
+        />
+      )}
+      {helpTopic && (
+        <AuthoringHelp
+          initial={helpTopic}
+          block={helpTopic === 'blocks' ? inspectedBlock?.label : undefined}
+          close={() => setHelpTopic(null)}
+          tutorial={() => setTutorialVisible(true)}
+        />
+      )}
       {templateContext && doc && (
         <Templates
           project={doc}
@@ -1640,32 +2006,47 @@ export default function App() {
         />
       )}
       {projectModal && (
-        <div className="modal-backdrop">
-          <section className="modal" role="dialog" aria-modal="true" aria-label="New project">
-            <div className="section-heading">
-              <h2>Create a project</h2>
-              <button onClick={() => setProjectModal(false)}>×</button>
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void create();
+        <Modal title="New project" close={() => setProjectModal(false)}>
+          <div className="section-heading">
+            <h2>Create a project</h2>
+            <button aria-label="Close new project" onClick={() => setProjectModal(false)}>
+              ×
+            </button>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void create();
+            }}
+          >
+            <Text label="Project title" value={newTitle} onChange={setNewTitle} />
+            <Text label="Folder name" value={newFolder} onChange={setNewFolder} />
+            <Check
+              label="Start with The Locked Study example"
+              value={example}
+              onChange={(value) => {
+                setExample(value);
+                if (value) setNewTutorial(false);
               }}
-            >
-              <Text label="Project title" value={newTitle} onChange={setNewTitle} />
-              <Text label="Folder name" value={newFolder} onChange={setNewFolder} />
-              <Check
-                label="Start with The Locked Study example"
-                value={example}
-                onChange={setExample}
-              />
-              <p className="muted">
-                {config?.projects_root}/{newFolder}
-              </p>
-              <button className="primary">Create project</button>
-            </form>
-          </section>
-        </div>
+            />
+            <Check
+              label="Follow the first-adventure tutorial"
+              value={newTutorial}
+              onChange={(value) => {
+                setNewTutorial(value);
+                if (value) setExample(false);
+              }}
+            />
+            <p className="muted">
+              Leave both unchecked to start blank. Guidance can be opened later from Authoring
+              guide.
+            </p>
+            <p className="muted">
+              {config?.projects_root}/{newFolder}
+            </p>
+            <button className="primary">Create project</button>
+          </form>
+        </Modal>
       )}
       {showState && play && playProject && (
         <div className="modal-backdrop">

@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { join } from 'node:path';
+import type { Project, ProjectView } from '../src/contracts';
 
 export async function openEditor(page: Page) {
   // The directory form can appear briefly while existing configuration loads.
@@ -14,6 +15,37 @@ export async function openEditor(page: Page) {
     await page.getByRole('button', { name: 'Use this directory' }).click();
   }
   await expect(page.getByRole('button', { name: 'Create a project' })).toBeVisible();
+}
+export async function seedProject(page: Page, folder: string, update: (project: Project) => void) {
+  await openEditor(page);
+  const created: ProjectView = await page.evaluate(
+    async (folder) =>
+      fetch('/api/v1/projects', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-luna-token': sessionStorage.getItem('luna-token')!,
+        },
+        body: JSON.stringify({ folder, title: 'Authoring review' }),
+      }).then((response) => response.json()),
+    folder,
+  );
+  update(created.project);
+  await page.evaluate(async (raw) => {
+    const v = JSON.parse(raw);
+    const response = await fetch(`/api/v1/projects/${v.handle}`, {
+      method: 'PUT',
+      headers: {
+        'content-type': 'application/json',
+        'x-luna-token': sessionStorage.getItem('luna-token')!,
+      },
+      body: JSON.stringify({ project: v.project, revision: v.revision }),
+    });
+    if (!response.ok) throw new Error(await response.text());
+  }, JSON.stringify(created));
+  await page.reload();
+  await page.getByLabel('Open project', { exact: true }).selectOption(folder);
+  return created.project;
 }
 
 export async function openNewAction(page: Page) {

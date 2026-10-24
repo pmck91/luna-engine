@@ -20,6 +20,7 @@ import {
 } from './references';
 import { Field, Select } from './Forms';
 import { entity } from './model';
+import { restoreFocus } from './Modal';
 
 export type ReferenceRequest = { target: ReferenceTarget; action: 'used' | 'rename' | 'delete' };
 export const ReferenceActions = createContext<((request: ReferenceRequest) => void) | null>(null);
@@ -89,8 +90,7 @@ export default function ReferenceManager({
     surface.querySelector('input')?.focus();
     return () => {
       surface.close();
-      if (opener instanceof HTMLElement && opener.isConnected)
-        opener.focus({ preventScroll: true });
+      restoreFocus(opener);
     };
   }, []);
   return (
