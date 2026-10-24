@@ -6,7 +6,7 @@ Prepared 24 October 2026 against `main` at `92b3ab6`. Design work and subsequent
 
 ## Review the working checkpoint
 
-Implementation has begun on the UX branch. Use the [first working checkpoint guide](first-checkpoint.md) for the actual editor, screenshots, undo/navigation walkthrough, technical evidence and remaining scope. Owner feedback on this working slice has been requested and is pending. The mockups below remain the reference for later milestones.
+Implementation has begun on the UX branch. Use the [first working checkpoint guide](first-checkpoint.md) for the actual editor, screenshots, undo/navigation walkthrough, technical evidence and remaining scope. The owner approved this working direction and requested consistent add-button styling and trigger-selector spacing; those corrections are applied. The mockups below remain the reference for later milestones.
 
 ## Review the proposal
 
@@ -45,11 +45,11 @@ Accepted feedback should be recorded below and reflected in the wireframes and p
 
 ## Feedback log
 
-| Date       | Screen / decision        | Feedback                                                                                              | Design change / status                                                                                                                   |
-| ---------- | ------------------------ | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-24 | D1, D2                   | Initial layout and inspector questions sent to the project owner.                                     | Resolved by the feedback below.                                                                                                          |
-| 2026-10-24 | D0; overall design       | Owner wants the blocks to keep their current appearance and content; everything else looks good.      | Preserve the existing renderer and inline fields. Record acceptance of the surrounding design and keep the planned feedback checkpoints. |
-| 2026-10-24 | First working checkpoint | Compact selectors, selected-block inspection, navigation and initial unified history are implemented. | Working screenshot and feedback request sent; owner response pending.                                                                    |
+| Date       | Screen / decision        | Feedback                                                                                                                                     | Design change / status                                                                                                                            |
+| ---------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-24 | D1, D2                   | Initial layout and inspector questions sent to the project owner.                                                                            | Resolved by the feedback below.                                                                                                                   |
+| 2026-10-24 | D0; overall design       | Owner wants the blocks to keep their current appearance and content; everything else looks good.                                             | Preserve the existing renderer and inline fields. Record acceptance of the surrounding design and keep the planned feedback checkpoints.          |
+| 2026-10-24 | First working checkpoint | Owner says the direction looks good; Add action/trigger should match the hint button, and the trigger dropdown should match the owner field. | Applied shared button styling and matching trigger form-field layout; verified creation in both browsers and alignment at desktop/compact widths. |
 
 ## Design references
 

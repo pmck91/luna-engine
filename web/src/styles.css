@@ -32,7 +32,8 @@ textarea {
 }
 button,
 select,
-.file-button {
+.file-button,
+.new-flow > summary {
   border: 1px solid #3a404e;
   background: #292e39;
   border-radius: 6px;
@@ -40,7 +41,8 @@ select,
   cursor: pointer;
 }
 button:hover,
-.file-button:hover {
+.file-button:hover,
+.new-flow > summary:hover {
   background: #363b49;
   border-color: #64607e;
 }
@@ -1520,15 +1522,19 @@ summary {
   padding: 0;
 }
 .new-flow > summary {
-  cursor: pointer;
-  padding: 8px 10px;
-  font-size: 11px;
+  list-style: none;
+  padding: 6px 8px;
+  font-size: 10px;
+  color: inherit;
+}
+.new-flow > summary::-webkit-details-marker {
+  display: none;
 }
 .new-flow[open] .new-action {
   position: absolute;
   z-index: 20;
   right: 0;
-  top: 32px;
+  top: calc(100% + 6px);
   width: 240px;
   padding: 16px;
   background: var(--panel);
@@ -1537,6 +1543,7 @@ summary {
   border-radius: 6px;
 }
 .trigger-workspace .action-browser > .field {
+  flex: 1;
   margin: 0;
   min-width: 150px;
 }

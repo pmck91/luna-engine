@@ -4,7 +4,7 @@ import { useState, type Ref } from 'react';
 import type { Project, Trigger } from './contracts';
 import { entity, flow, flowOwner, owner, trigger as makeTrigger } from './model';
 import Blocks, { type BlockSelection, type BlockView, type BlocksHandle } from './Blocks';
-import { Select } from './Forms';
+import { Field, Select } from './Forms';
 import {
   commandEvents,
   projectTriggers,
@@ -70,8 +70,7 @@ export default function Triggers({
           items={[{ id: '', name: 'All owners' }, ...triggerOwners(project)]}
           onChange={filterOwner}
         />
-        <label className="flow-selector">
-          Trigger
+        <Field label="Trigger">
           <select
             aria-label="Choose trigger"
             value={active?.id ?? ''}
@@ -90,7 +89,7 @@ export default function Triggers({
               </optgroup>
             ))}
           </select>
-        </label>
+        </Field>
         <details className="new-flow">
           <summary>Add trigger</summary>
           <div className="new-action">

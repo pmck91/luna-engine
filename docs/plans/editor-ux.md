@@ -1,6 +1,6 @@
 # Editor UX implementation plan
 
-Status: **Implementation in progress on `feature/editor-ux`; first working checkpoint under review.** The accepted block-preservation requirement remains in force. See the [working review guide](../design/editor-ux/first-checkpoint.md).
+Status: **Implementation in progress on `feature/editor-ux`; first working checkpoint feedback applied.** The accepted block-preservation requirement remains in force. See the [working review guide](../design/editor-ux/first-checkpoint.md).
 
 Branch: `feature/editor-ux`, created from main at `92b3ab6` on 24 October 2026. This document covers every Editor UX TODO and records the accepted design direction; merging remains subject to the agreed testing and owner acceptance. See the [design review guide](../design/editor-ux/README.md), [interaction specification](../design/editor-ux/interaction-design.md), and [wireframes](../design/editor-ux/wireframes.html).
 
@@ -38,7 +38,7 @@ Dependency order: M0 → M1 → M2 → M3/M4 → M5 → M6 → M7/M8 → M9. M3 
 ## Implementation progress — 24 October 2026
 
 - M0: selection of effects/conditions/numbers/drafts, stable occurrence reconciliation, grouped project history, and typed middle-chain insertion have working proofs on Blockly 12.5.1. Accessible selection uses an application outline; the insertion picker remains M3 work.
-- M1: compact action/trigger/puzzle selectors, selected-block inspection, breadcrumbs/back/forward, and session restoration of selections, filters, canvas view and inspector focus/scroll are implemented. Owner feedback on the working slice has been requested and remains pending.
+- M1: compact action/trigger/puzzle selectors, selected-block inspection, breadcrumbs/back/forward, and session restoration of selections, filters, canvas view and inspector focus/scroll are implemented. The owner approved the working direction; matching add-button styles and trigger-selector spacing have been applied and checked at desktop/compact widths.
 - M2: initial shared project history is implemented, including form sessions, grouped Blockly edits, templates and room/route layout. Mixed-operation undo/redo across saves and workspace occurrence/draft restoration are covered. The timeline retains at most 100 transactions or approximately 20 MiB of serialized snapshots, preserving the newest complete transaction.
 - Small foundations for later milestones are included: stale validation replies are discarded (M4), and editor-only changes no longer invalidate a playtest source snapshot (M6). The remainder of those milestones is still open.
 - M3–M9: remain planned. The full TODO items are not marked complete before the remaining work, feedback, and acceptance gates.

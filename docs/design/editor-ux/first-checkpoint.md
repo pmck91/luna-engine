@@ -1,6 +1,6 @@
 # First implementation checkpoint
 
-24 October 2026 · `feature/editor-ux` · owner feedback requested; not merged to main.
+24 October 2026 · `feature/editor-ux` · owner feedback applied; not merged to main.
 
 This is the first working review of the approved design. It implements selection and navigation foundations plus the initial shared project history. The later milestones in the [implementation plan](../../plans/editor-ux.md) remain open.
 
@@ -32,6 +32,6 @@ The automated checkpoint covers frontend selection/reconciliation/history tests,
 
 ## Feedback for this checkpoint
 
-Review the compact action/puzzle selectors, the selected-block inspector and its route back to flow/entity settings, navigation restoration, and whether Undo/Redo behaves as expected. Record changes before building dependent authoring workflows. The request for owner feedback is pending; silence is not acceptance.
+The owner approved the working direction and requested two corrections: style Add action and Add trigger like the hint button, and match the trigger dropdown's layout and spacing to its owner filter. Both are applied. Button styles and dropdown alignment were checked at 1512, 1100 and 900 px; six action/trigger authoring checks pass across Chromium and Firefox. Continue recording feedback before building dependent authoring workflows.
 
 The searchable insertion UI, contextual creation, precise findings and reference management, persisted/resizable panels, onboarding/search, playtest setups/checks, structured command explanations, portable template files and final walkthrough/merge remain in the implementation plan. No completion of those milestones is implied by this checkpoint.
