@@ -6,7 +6,7 @@ Prepared 24 October 2026 against `main` at `92b3ab6`. Design work and subsequent
 
 ## Review the working checkpoint
 
-Implementation has begun on the UX branch. The [first working checkpoint](first-checkpoint.md) and [contextual authoring checkpoint](contextual-authoring.md) are accepted. [Findings and references](findings-and-references.md) covers error navigation and checked reference changes. The current [layout, search, and guidance checkpoint](layout-search-and-guidance.md) adds remembered panels, occurrence search, optional onboarding, and starter recipes. The mockups below remain the reference for later milestones.
+Implementation has begun on the UX branch. The [first working checkpoint](first-checkpoint.md) and [contextual authoring checkpoint](contextual-authoring.md) are accepted. [Findings and references](findings-and-references.md) covers error navigation and checked reference changes. The accepted [layout, search, and guidance checkpoint](layout-search-and-guidance.md) adds remembered panels, occurrence search, optional onboarding, and starter recipes. M6 playtest setups and checks are next. The mockups below remain the reference for later milestones.
 
 ## Review the proposal
 
@@ -30,16 +30,16 @@ The owner accepted the surrounding layout and interaction direction on 24 Octobe
 
 ## Design decisions
 
-| ID  | Decision                    | Proposed starting point                                                                                              | Status                                 |
-| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| D0  | Existing block UI           | Preserve current Blockly shapes, colours, connectors, inline fields/content, and terminal-block rendering.           | Explicit owner requirement             |
-| D1  | Overall layout              | Refine the existing four regions; offer a larger playtest view without requiring a separate Build/Playtest mode.     | Design direction accepted              |
-| D2  | Inspector selection         | Show one selected block's settings, with a persistent route to its flow and entity.                                  | Design direction accepted              |
-| D3  | Navigation within an entity | Use an action/puzzle selector above the workspace; remove the additional permanent action-list column.               | Design direction accepted              |
-| D4  | Undo model                  | One ordered project history, including grouped block edits; preserve native text undo while a field is being edited. | Accepted direction; technical proof M0 |
-| D5  | Used references             | Default to replace/reassign or cancel before deleting referenced content; do not silently remove dependants.         | Accepted direction; detailed review M4 |
-| D6  | Coordinated merge           | Keep the UX milestones on the feature branch and merge the completed, tested scope together.                         | Retained owner instruction             |
-| D7  | Density                     | A comfortable desktop default, with explicit collapse/focus controls and a compact layout.                           | Accepted direction; width review M5    |
+| ID  | Decision                    | Proposed starting point                                                                                              | Status                                  |
+| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| D0  | Existing block UI           | Preserve current Blockly shapes, colours, connectors, inline fields/content, and terminal-block rendering.           | Explicit owner requirement              |
+| D1  | Overall layout              | Refine the existing four regions; offer a larger playtest view without requiring a separate Build/Playtest mode.     | Design direction accepted               |
+| D2  | Inspector selection         | Show one selected block's settings, with a persistent route to its flow and entity.                                  | Design direction accepted               |
+| D3  | Navigation within an entity | Use an action/puzzle selector above the workspace; remove the additional permanent action-list column.               | Design direction accepted               |
+| D4  | Undo model                  | One ordered project history, including grouped block edits; preserve native text undo while a field is being edited. | Accepted direction; technical proof M0  |
+| D5  | Used references             | Default to replace/reassign or cancel before deleting referenced content; do not silently remove dependants.         | Accepted direction; detailed review M4  |
+| D6  | Coordinated merge           | Keep the UX milestones on the feature branch and merge the completed, tested scope together.                         | Retained owner instruction              |
+| D7  | Density                     | A comfortable desktop default, with explicit collapse/focus controls and a compact layout.                           | Working layout accepted; final audit M9 |
 
 Accepted feedback should be recorded below and reflected in the wireframes and plan before implementation. Silence does not mark a design decision approved.
 
@@ -56,6 +56,7 @@ Accepted feedback should be recorded below and reflected in the wireframes and p
 | 2026-10-24 | M3 accepted               | Owner says it looks great and asks for the next item.                                                                                        | Proceed with M4 findings and references, preserving the current blocks.                                                                                                                      |
 | 2026-10-24 | M4 working review; D5     | Working error navigation and reference impact review are available.                                                                          | Implement the accepted replace/reassign-or-cancel default. Request feedback on the concrete preview, wording, and replacement behaviour; detailed review remains pending.                    |
 | 2026-10-25 | M5 working review; D7     | Owner asked to continue after the M4 summary. Desktop/compact captures and a choice of default panel proportions have been sent for review.  | Default proportions and tutorial/recipe presentation remain pending; retain the accepted starting direction. Manual authoring and assistive-technology review remain final acceptance gates. |
+| 2026-10-25 | M5 accepted               | Owner reports “looks amazing works well” and asks what is next.                                                                              | Accept the working layout, search, and guidance checkpoint. M6 is next; manual accessibility, new-author testing, and final merge acceptance remain open.                                    |
 
 ## Design references
 

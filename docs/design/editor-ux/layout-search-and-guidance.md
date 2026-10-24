@@ -1,6 +1,6 @@
 # Layout, search, and guidance checkpoint
 
-25 October 2026 · `feature/editor-ux` · M5 working review; owner feedback pending.
+25 October 2026 · `feature/editor-ux` · M5 working checkpoint accepted by the owner.
 
 This follows [findings and references](findings-and-references.md). It uses the approved desktop/compact wireframes and keeps the existing Blockly renderer, connections, and inline content. The [implementation plan](../../plans/editor-ux.md) still governs the remaining work and coordinated merge.
 
@@ -29,7 +29,7 @@ Compact captures: [1100 px](previews/implemented-layout-1100.png), [900 px](prev
 
 ## Review focus
 
-Try the default proportions and compact drawer behaviour, then resize them for your own workflow. Review whether the tutorial's tone and recipe previews are clear to a new author. Default proportions were sent for feedback; lack of a reply does not mark them accepted.
+The owner reviewed the working checkpoint and reports that it looks amazing and works well. The current layout and presentation are accepted. Tutorial clarity and recipe previews still benefit from a new-author walkthrough as part of final acceptance.
 
 The application now has labelled keyboard splitters, native dialog focus/Escape handling for the new flows and project creation, visible focus outlines, reduced-motion styling, and button alternatives to precision dragging. Blockly 12.5.1 and the current renderer remain the baseline. Automated role/focus checks and a narrow CSS viewport are evidence for these interactions, not a claim of complete screen-reader support. Real 200% browser zoom, assistive-technology use, and the full owner/new-author walkthrough remain explicit manual acceptance checks.
 
