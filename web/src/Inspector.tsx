@@ -1,15 +1,5 @@
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
-import {
-  action,
-  owner,
-  flow,
-  id,
-  allEffects,
-  replaceEffect,
-  entity,
-  gameDataPages,
-  colourNames,
-} from './model';
+import { action, owner, flow, id, entity, gameDataPages, colourNames } from './model';
 import {
   Check,
   ConditionEditor,
@@ -446,10 +436,6 @@ function FlowInspector({
   edit: Edit;
   remove: (id: string) => void;
 }) {
-  const patchEffect = (path: number[], replacement: Effect) =>
-    edit((n) => {
-      replaceEffect(flow(n, f.id)!.effects, path, replacement);
-    });
   const setPattern = (pattern: PatternPart[]) => update({ pattern });
   return (
     <>
@@ -621,179 +607,178 @@ function FlowInspector({
           </button>
         </>
       )}
-      <h3>Text and responses</h3>
-      <p className="muted">Drag blocks into the action flow. Edit their text and sequences here.</p>
-      {allEffects(f.effects)
-        .filter(({ effect }) =>
-          ['say', 'character_says', 'move_character', 'respond', 'print_description'].includes(
-            effect.type,
-          ),
-        )
-        .map(({ effect, path }) => (
-          <div className="card" key={path.join('.')}>
-            {effect.type === 'say' ? (
+      <p className="stable-id">Stable ID: {f.id}</p>
+    </>
+  );
+}
+
+export function EffectText({
+  project: p,
+  effect,
+  onChange,
+}: {
+  project: Project;
+  effect: Effect;
+  onChange: (effect: Effect) => void;
+}) {
+  return (
+    <>
+      {effect.type === 'say' ? (
+        <RichText
+          project={p}
+          label="SAY text"
+          value={effect.text}
+          onChange={(text) => onChange({ ...effect, text })}
+        />
+      ) : effect.type === 'character_says' ? (
+        <>
+          <Select
+            label="Speaker"
+            value={effect.character}
+            items={p.characters}
+            onChange={(character) => onChange({ ...effect, character })}
+          />
+          <RichText
+            project={p}
+            label="CHARACTER SAYS text"
+            value={effect.text}
+            onChange={(text) => onChange({ ...effect, text })}
+          />
+        </>
+      ) : effect.type === 'move_character' ? (
+        <>
+          <h4>Move character</h4>
+          <Select
+            label="Moving character"
+            value={effect.character}
+            items={p.characters}
+            onChange={(character) => onChange({ ...effect, character })}
+          />
+          <Select
+            label="Character destination"
+            value={effect.location}
+            items={[{ id: '@current', name: 'Current location' }, ...p.locations]}
+            onChange={(location) => onChange({ ...effect, location })}
+          />
+          <p className="muted">
+            Held items follow their owner. This does not move the player or fire player entry or
+            exit triggers.
+          </p>
+        </>
+      ) : effect.type === 'respond' ? (
+        <>
+          <h4>Response sequence · {effect.responses.length} replies</h4>
+          {effect.responses.map((reply, i) => (
+            <div className="response" key={i}>
               <RichText
                 project={p}
-                label="SAY text"
-                value={effect.text}
-                onChange={(text) => patchEffect(path, { ...effect, text })}
+                label={`Response ${i + 1}`}
+                value={reply}
+                onChange={(text) =>
+                  onChange({
+                    ...effect,
+                    responses: effect.responses.map((v, j) => (i === j ? text : v)),
+                  })
+                }
               />
-            ) : effect.type === 'character_says' ? (
-              <>
-                <Select
-                  label="Speaker"
-                  value={effect.character}
-                  items={p.characters}
-                  onChange={(character) => patchEffect(path, { ...effect, character })}
-                />
-                <RichText
-                  project={p}
-                  label="CHARACTER SAYS text"
-                  value={effect.text}
-                  onChange={(text) => patchEffect(path, { ...effect, text })}
-                />
-              </>
-            ) : effect.type === 'move_character' ? (
-              <>
-                <h4>Move character</h4>
-                <Select
-                  label="Moving character"
-                  value={effect.character}
-                  items={p.characters}
-                  onChange={(character) => patchEffect(path, { ...effect, character })}
-                />
-                <Select
-                  label="Character destination"
-                  value={effect.location}
-                  items={[{ id: '@current', name: 'Current location' }, ...p.locations]}
-                  onChange={(location) => patchEffect(path, { ...effect, location })}
-                />
-                <p className="muted">
-                  Held items follow their owner. This does not move the player or fire player entry
-                  or exit triggers.
-                </p>
-              </>
-            ) : effect.type === 'respond' ? (
-              <>
-                <h4>Response sequence · {effect.responses.length} replies</h4>
-                {effect.responses.map((reply, i) => (
-                  <div className="response" key={i}>
-                    <RichText
-                      project={p}
-                      label={`Response ${i + 1}`}
-                      value={reply}
-                      onChange={(text) =>
-                        patchEffect(path, {
-                          ...effect,
-                          responses: effect.responses.map((v, j) => (i === j ? text : v)),
-                        })
-                      }
-                    />
-                    <div className="inline">
-                      <button
-                        disabled={i === 0}
-                        onClick={() => {
-                          const replies = [...effect.responses];
-                          [replies[i - 1], replies[i]] = [replies[i], replies[i - 1]];
-                          patchEffect(path, { ...effect, responses: replies });
-                        }}
-                      >
-                        Move up
-                      </button>
-                      <button
-                        disabled={i === effect.responses.length - 1}
-                        onClick={() => {
-                          const replies = [...effect.responses];
-                          [replies[i], replies[i + 1]] = [replies[i + 1], replies[i]];
-                          patchEffect(path, { ...effect, responses: replies });
-                        }}
-                      >
-                        Move down
-                      </button>
-                      <button
-                        onClick={() =>
-                          patchEffect(path, {
-                            ...effect,
-                            responses: effect.responses.filter((_, j) => j !== i),
-                          })
-                        }
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="inline">
+                <button
+                  disabled={i === 0}
+                  onClick={() => {
+                    const replies = [...effect.responses];
+                    [replies[i - 1], replies[i]] = [replies[i], replies[i - 1]];
+                    onChange({ ...effect, responses: replies });
+                  }}
+                >
+                  Move up
+                </button>
+                <button
+                  disabled={i === effect.responses.length - 1}
+                  onClick={() => {
+                    const replies = [...effect.responses];
+                    [replies[i], replies[i + 1]] = [replies[i + 1], replies[i]];
+                    onChange({ ...effect, responses: replies });
+                  }}
+                >
+                  Move down
+                </button>
                 <button
                   onClick={() =>
-                    patchEffect(path, {
+                    onChange({
                       ...effect,
-                      responses: [...effect.responses, 'New response'],
+                      responses: effect.responses.filter((_, j) => j !== i),
                     })
                   }
                 >
-                  Add response
+                  Remove
                 </button>
-                <Select
-                  label="After last response"
-                  value={effect.mode}
-                  items={[
-                    { id: 'repeat_last', name: 'Repeat last' },
-                    { id: 'loop', name: 'Loop to first' },
-                    { id: 'fallback', name: 'Separate fallback' },
-                  ]}
-                  onChange={(mode) =>
-                    patchEffect(path, { ...effect, mode: mode as typeof effect.mode })
-                  }
-                />
-                {effect.mode === 'fallback' && (
-                  <>
-                    <RichText
-                      project={p}
-                      label="Fallback response"
-                      value={effect.fallback}
-                      onChange={(fallback) => patchEffect(path, { ...effect, fallback })}
-                    />
-                    <Select
-                      label="Follow-up effects"
-                      value={effect.exhaustion}
-                      items={[
-                        { id: 'once', name: 'Once' },
-                        { id: 'repeat', name: 'Every later interaction' },
-                      ]}
-                      onChange={(exhaustion) =>
-                        patchEffect(path, {
-                          ...effect,
-                          exhaustion: exhaustion as typeof effect.exhaustion,
-                        })
-                      }
-                    />
-                  </>
-                )}
-                <p className="muted">
-                  Add effects to AFTER LAST REPLY on the response block. In Separate fallback mode,
-                  they start on the next interaction after the final reply, after the fallback text.
-                  Repeat last and Loop to first leave them inactive. RESET RESPONSE SEQUENCE starts
-                  the replies and once-only follow-ups again.
-                </p>
-                <p className="stable-id">Sequence ID: {effect.id}</p>
-              </>
-            ) : effect.type === 'print_description' ? (
-              <>
-                <h4>Print description</h4>
-                <Select
-                  label="Description entity"
-                  value={effect.entity}
-                  items={[...p.locations, ...p.objects, ...p.characters]}
-                  onChange={(entity) => patchEffect(path, { ...effect, entity })}
-                />
-                <p className="muted">
-                  Prints the entity's current description when the action runs.
-                </p>
-              </>
-            ) : null}
-          </div>
-        ))}
-      <p className="stable-id">Stable ID: {f.id}</p>
+              </div>
+            </div>
+          ))}
+          <button
+            onClick={() =>
+              onChange({
+                ...effect,
+                responses: [...effect.responses, 'New response'],
+              })
+            }
+          >
+            Add response
+          </button>
+          <Select
+            label="After last response"
+            value={effect.mode}
+            items={[
+              { id: 'repeat_last', name: 'Repeat last' },
+              { id: 'loop', name: 'Loop to first' },
+              { id: 'fallback', name: 'Separate fallback' },
+            ]}
+            onChange={(mode) => onChange({ ...effect, mode: mode as typeof effect.mode })}
+          />
+          {effect.mode === 'fallback' && (
+            <>
+              <RichText
+                project={p}
+                label="Fallback response"
+                value={effect.fallback}
+                onChange={(fallback) => onChange({ ...effect, fallback })}
+              />
+              <Select
+                label="Follow-up effects"
+                value={effect.exhaustion}
+                items={[
+                  { id: 'once', name: 'Once' },
+                  { id: 'repeat', name: 'Every later interaction' },
+                ]}
+                onChange={(exhaustion) =>
+                  onChange({
+                    ...effect,
+                    exhaustion: exhaustion as typeof effect.exhaustion,
+                  })
+                }
+              />
+            </>
+          )}
+          <p className="muted">
+            Add effects to AFTER LAST REPLY on the response block. In Separate fallback mode, they
+            start on the next interaction after the final reply, after the fallback text. Repeat
+            last and Loop to first leave them inactive. RESET RESPONSE SEQUENCE starts the replies
+            and once-only follow-ups again.
+          </p>
+          <p className="stable-id">Sequence ID: {effect.id}</p>
+        </>
+      ) : effect.type === 'print_description' ? (
+        <>
+          <h4>Print description</h4>
+          <Select
+            label="Description entity"
+            value={effect.entity}
+            items={[...p.locations, ...p.objects, ...p.characters]}
+            onChange={(entity) => onChange({ ...effect, entity })}
+          />
+          <p className="muted">Prints the entity's current description when the action runs.</p>
+        </>
+      ) : null}
     </>
   );
 }

@@ -1482,3 +1482,176 @@ summary {
   margin-block: 12px;
   padding-top: 12px;
 }
+
+/* A flow selector keeps the block workspace wide; add controls open on demand. */
+.entity-actions {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.entity-actions .action-browser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 10px 12px;
+  overflow: visible;
+  border-right: 0;
+  border-bottom: 1px solid var(--border);
+}
+.action-browser h2 {
+  display: none;
+}
+.flow-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  font-size: 11px;
+  color: var(--muted);
+}
+.flow-selector select {
+  min-width: 0;
+  width: 100%;
+  max-width: 460px;
+}
+.new-flow {
+  position: relative;
+  padding: 0;
+}
+.new-flow > summary {
+  cursor: pointer;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+.new-flow[open] .new-action {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: 32px;
+  width: 240px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px #0008;
+  border-radius: 6px;
+}
+.trigger-workspace .action-browser > .field {
+  margin: 0;
+  min-width: 150px;
+}
+.block-context {
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.draft-notice {
+  padding: 10px;
+  border: 1px dashed #b8a272;
+  border-radius: 4px;
+  color: #e6d3a6;
+}
+.flow-surface {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.flow-surface > .block-workspace {
+  flex: 1;
+  min-height: 0;
+}
+.flow-outline {
+  flex: none;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.flow-outline summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.flow-outline[open] {
+  max-height: 180px;
+  overflow: auto;
+}
+.flow-outline ol {
+  padding-left: 22px;
+}
+.flow-outline li {
+  margin: 4px 0;
+}
+.flow-outline button {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  font-size: 11px;
+  min-height: 38px;
+}
+.breadcrumbs button {
+  padding: 3px 6px;
+  font-size: inherit;
+}
+.breadcrumbs [aria-current] {
+  color: #c9bdf9;
+}
+.entity-actions .action-browser {
+  flex-direction: row;
+}
+.flow-surface > .block-workspace {
+  position: relative;
+  height: 0;
+  inset: auto;
+}
+.entity-hints {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.entity-hints .hint-browser {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 10px 12px;
+  border-right: 0;
+  border-bottom: 1px solid var(--border);
+  max-height: none;
+}
+.hint-browser .flow-selector {
+  flex-basis: 220px;
+}
+.hint-browser .hint-list-controls {
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.hint-browser .hint-list-controls button,
+.hint-browser > button {
+  padding: 6px 8px;
+  font-size: 10px;
+}
+@media (max-width: 1100px) {
+  header {
+    height: auto;
+    min-height: 68px;
+    padding: 10px 16px;
+    gap: 8px 16px;
+    flex-wrap: wrap;
+  }
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
+    gap: 6px;
+  }
+  .project-title {
+    max-width: 240px;
+  }
+}

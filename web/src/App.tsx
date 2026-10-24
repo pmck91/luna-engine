@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type {
   ConfigView,
   Diagnostic,
@@ -26,7 +26,10 @@ import { lockedStudy } from './example';
 import { Check, Field, StateInspector, Text } from './Forms';
 import Inspector from './Inspector';
 import WorldMap from './WorldMap';
-import type { BlocksHandle } from './Blocks';
+import type { BlockSelection, BlockView, BlocksHandle } from './Blocks';
+import BlockInspector from './BlockInspector';
+import { useNavigation } from './navigation';
+import { ProjectHistory, type EditContext } from './projectHistory';
 import Actions from './Actions';
 import Hints from './Hints';
 import Triggers from './Triggers';
@@ -49,6 +52,15 @@ export default function App() {
   const [hintSelection, setHintSelection] = useState<HintSelection | null>(null);
   const [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
   const blocks = useRef<BlocksHandle>(null);
+  const blockViews = useRef<Record<string, BlockView>>({});
+  const hintViews = useRef<Record<string, 'blocks' | 'forms'>>({});
+  const mapView = useRef<{ x: number; y: number; zoom: number } | undefined>(undefined);
+  const [blockSelections, setBlockSelections] = useState<Record<string, BlockSelection>>({});
+  const selectBlock = useCallback((selection: BlockSelection | null, activate = false) => {
+    if (!selection) return;
+    setBlockSelections((old) => ({ ...old, [selection.flowId]: selection }));
+    if (activate) setSelected(selection.flowId);
+  }, []);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [playtestCollapsed, setPlaytestCollapsed] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -73,14 +85,28 @@ export default function App() {
   const [playSource, setPlaySource] = useState('');
   const [playHelpMode, setPlayHelpMode] = useState<HelpMode | ''>('');
   const [playProject, setPlayProject] = useState<Project | null>(null);
-  const current = useRef({ doc, view, conflict });
-  current.current = { doc, view, conflict };
+  const current = useRef({ doc, view, conflict, selected });
+  current.current = { doc, view, conflict, selected };
   const saved = useRef('');
+  const projectHistory = useRef(new ProjectHistory());
+  const [, refreshHistory] = useState(0);
+  const fieldSession = useRef(0);
+  useEffect(() => {
+    const nextSession = () => {
+      fieldSession.current++;
+    };
+    document.addEventListener('focusin', nextSession);
+    document.addEventListener('pointerdown', nextSession);
+    return () => {
+      document.removeEventListener('focusin', nextSession);
+      document.removeEventListener('pointerdown', nextSession);
+    };
+  }, []);
   const queue = useRef(Promise.resolve());
   const transcript = useRef<HTMLDivElement>(null);
   const inspectorContent = useRef<HTMLDivElement>(null);
   const editingVersion = doc ? JSON.stringify(doc) : '';
-  const playVersion = `${playHelpMode}:${editingVersion}`;
+  const playVersion = `${playHelpMode}:${doc ? JSON.stringify({ ...doc, editor: undefined }) : ''}`;
   const error = useCallback((e: unknown) => {
     const text = e instanceof Error ? e.message : String(e);
     setMessage(text);
@@ -103,6 +129,11 @@ export default function App() {
       .catch(error);
   }, [error, refreshProjects]);
   const apply = (v: ProjectView) => {
+    projectHistory.current.reset();
+    refreshHistory((n) => n + 1);
+    blockViews.current = {};
+    hintViews.current = {};
+    mapView.current = undefined;
     saved.current = JSON.stringify(v.project);
     setView(v);
     setDoc(v.project);
@@ -118,13 +149,30 @@ export default function App() {
     setFlowSelections({});
     setTriggerFilter('');
     setHintSelection(null);
+    setBlockSelections({});
     setTemplateContext(null);
   };
-  const edit = useCallback((f: (p: Project) => void) => {
+  const edit = useCallback((f: (p: Project) => void, context: EditContext = {}) => {
     const old = current.current.doc;
     if (!old) return;
     const next = structuredClone(old);
     f(next);
+    const active = document.activeElement;
+    const textField = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+    const fieldLabel = textField
+      ? active.labels?.[0]?.textContent?.trim() || active.getAttribute('aria-label')
+      : null;
+    const options = {
+      ...(textField
+        ? {
+            group: `field-${fieldSession.current}`,
+            label: fieldLabel ? `Edit ${fieldLabel}` : 'Edit text',
+          }
+        : {}),
+      ...context,
+    };
+    if (!projectHistory.current.record(old, next, options)) return;
+    refreshHistory((n) => n + 1);
     current.current.doc = next;
     setDoc(next);
     setStatus(
@@ -135,6 +183,64 @@ export default function App() {
           : 'Unsaved changes',
     );
   }, []);
+  const replayProject = useCallback((redo: boolean) => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    fieldSession.current++;
+    const next = redo ? projectHistory.current.redo() : projectHistory.current.undo();
+    if (!next) return;
+    const previous = current.current.doc;
+    const key = current.current.selected;
+    current.current.doc = next;
+    if (
+      !owner(next, key) &&
+      !flow(next, key) &&
+      !Object.values(gameDataPages).some((page) => page === key)
+    ) {
+      const parent = previous && flowOwner(previous, key);
+      const entity = previous && owner(previous, key);
+      const room =
+        entity && 'placement' in entity && entity.placement.type === 'location'
+          ? entity.placement.location
+          : entity && 'location' in entity
+            ? entity.location
+            : undefined;
+      setSelected(
+        parent && owner(next, parent.id)
+          ? parent.id
+          : room && owner(next, room)
+            ? room
+            : next.game.id,
+      );
+      setMode('map');
+    }
+    setDoc(next);
+    setStatus(
+      current.current.conflict
+        ? 'External changes'
+        : JSON.stringify(next) === saved.current
+          ? 'Saved'
+          : 'Unsaved changes',
+    );
+    refreshHistory((n) => n + 1);
+  }, []);
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest('input, textarea, [contenteditable="true"]')
+      )
+        return;
+      const key = event.key.toLowerCase();
+      if (key !== 'z' && key !== 'y') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      replayProject(key === 'y' || event.shiftKey);
+    };
+    document.addEventListener('keydown', shortcut, true);
+    return () => document.removeEventListener('keydown', shortcut, true);
+  }, [replayProject]);
   const select = (key: string) => {
     const project = current.current.doc;
     if (key === gameDataPages.triggers || key.startsWith(triggerPage())) {
@@ -209,10 +315,21 @@ export default function App() {
   }, [editingVersion, conflict, save, error]);
   useEffect(() => {
     if (!doc) return;
+    let active = true;
     const timer = setTimeout(() => {
-      void request<Diagnostic[]>('/validate', 'POST', doc).then(setDiagnostics).catch(error);
+      void request<Diagnostic[]>('/validate', 'POST', doc)
+        .then((findings) => {
+          if (active && JSON.stringify(current.current.doc) === editingVersion)
+            setDiagnostics(findings);
+        })
+        .catch((problem) => {
+          if (active) error(problem);
+        });
     }, 600);
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [editingVersion, error]);
   useEffect(() => {
     if (!view) return;
@@ -416,6 +533,12 @@ export default function App() {
         : undefined;
   const inspectedFlow = mode === 'triggers' ? activeTrigger : activeFlow;
   const inspectedOwner = doc && inspectedFlow ? flowOwner(doc, inspectedFlow.id) : actionOwner;
+  const inspectedBlock =
+    (mode === 'actions' || mode === 'triggers') &&
+    inspectedFlow &&
+    blockSelections[inspectedFlow.id]?.kind !== 'root'
+      ? blockSelections[inspectedFlow.id]
+      : undefined;
   useEffect(() => {
     if (mode === 'triggers') inspectorContent.current?.scrollTo({ top: 0 });
   }, [mode, activeTrigger?.id]);
@@ -430,6 +553,70 @@ export default function App() {
     )
       setTriggerFilter(actionOwner.id);
   }, [mode, activeFlow, actionOwner, triggerFilter]);
+  const navigationKey = JSON.stringify([
+    selected,
+    mode,
+    triggerFilter,
+    hintSelection,
+    inspectedBlock?.blockId,
+  ]);
+  const inspectorPositions = useRef<Record<string, number>>({});
+  const inspectorFocus = useRef<
+    Record<string, { label: string; start: number | null; end: number | null }>
+  >({});
+  useLayoutEffect(() => {
+    const pane = inspectorContent.current;
+    if (!pane) return;
+    pane.scrollTop = inspectorPositions.current[navigationKey] ?? 0;
+    const remembered = inspectorFocus.current[navigationKey];
+    if (remembered) {
+      const label = [...pane.querySelectorAll('label')].find(
+        (label) => label.textContent?.trim() === remembered.label,
+      );
+      const control = label?.control;
+      if (
+        control instanceof HTMLInputElement ||
+        control instanceof HTMLTextAreaElement ||
+        control instanceof HTMLSelectElement
+      ) {
+        control.focus({ preventScroll: true });
+        if (
+          !(control instanceof HTMLSelectElement) &&
+          remembered.start !== null &&
+          remembered.end !== null
+        ) {
+          try {
+            control.setSelectionRange(remembered.start, remembered.end);
+          } catch {
+            /* number and checkbox fields have no caret */
+          }
+        }
+      }
+    }
+    return () => {
+      inspectorPositions.current[navigationKey] = pane.scrollTop;
+    };
+  }, [navigationKey]);
+  const navigation = useNavigation(
+    view?.handle ?? '',
+    navigationKey,
+    { selected, mode, triggerFilter, hintSelection, search, flowSelections, blockSelections },
+    (entry) => {
+      setSelected(entry.selected);
+      setMode(entry.mode);
+      setTriggerFilter(entry.triggerFilter);
+      setHintSelection(entry.hintSelection);
+      setSearch(entry.search);
+      setFlowSelections(entry.flowSelections);
+      setBlockSelections(entry.blockSelections);
+      setConnecting(false);
+    },
+  );
+  const historyControls = {
+    undoLabel: projectHistory.current.undoLabel,
+    redoLabel: projectHistory.current.redoLabel,
+    replay: replayProject,
+  };
   const countErrors = diagnostics.filter((d) => d.severity === 'error').length;
   return (
     <div className="app">
@@ -443,6 +630,34 @@ export default function App() {
           <span className={`save-status ${conflict ? 'warning' : ''}`} role="status">
             {doc && status}
           </span>
+          {doc && (
+            <>
+              <button
+                aria-label="Undo project change"
+                title={
+                  projectHistory.current.undoLabel
+                    ? `Undo: ${projectHistory.current.undoLabel} (Ctrl/Cmd Z)`
+                    : 'Nothing to undo'
+                }
+                disabled={!projectHistory.current.undoLabel}
+                onClick={() => replayProject(false)}
+              >
+                Undo
+              </button>
+              <button
+                aria-label="Redo project change"
+                title={
+                  projectHistory.current.redoLabel
+                    ? `Redo: ${projectHistory.current.redoLabel} (Ctrl/Cmd Shift Z)`
+                    : 'Nothing to redo'
+                }
+                disabled={!projectHistory.current.redoLabel}
+                onClick={() => replayProject(true)}
+              >
+                Redo
+              </button>
+            </>
+          )}
           <button onClick={() => setProjectModal(true)} disabled={!config?.projects_root}>
             New
           </button>
@@ -768,6 +983,70 @@ export default function App() {
           </nav>
           <div className="center">
             <section className="canvas-section">
+              <nav className="breadcrumbs" aria-label="Editor navigation">
+                <button
+                  aria-label="Navigate back"
+                  disabled={!navigation.canBack}
+                  onClick={navigation.back}
+                >
+                  ←
+                </button>
+                <button
+                  aria-label="Navigate forward"
+                  disabled={!navigation.canForward}
+                  onClick={navigation.forward}
+                >
+                  →
+                </button>
+                <button onClick={() => select(doc.game.id)}>{doc.game.title}</button>
+                {actionOwner && actionOwner.id !== doc.game.id && (
+                  <>
+                    <span aria-hidden="true">›</span>
+                    <button onClick={() => select(actionOwner.id)}>
+                      {'title' in actionOwner ? actionOwner.title : actionOwner.name}
+                    </button>
+                  </>
+                )}
+                <span aria-hidden="true">›</span>
+                <span>
+                  {mode === 'map'
+                    ? 'World map'
+                    : mode === 'hints'
+                      ? 'Hints'
+                      : mode === 'triggers'
+                        ? 'Triggers'
+                        : 'Actions'}
+                </span>
+                {inspectedFlow && (
+                  <>
+                    <span aria-hidden="true">›</span>
+                    <button
+                      onClick={() => {
+                        blocks.current?.selectBlock(null);
+                        setBlockSelections((old) => {
+                          const next = { ...old };
+                          delete next[inspectedFlow.id];
+                          return next;
+                        });
+                      }}
+                    >
+                      {inspectedFlow.name ||
+                        ('event' in inspectedFlow
+                          ? inspectedFlow.event.replaceAll('_', ' ')
+                          : 'Action')}
+                    </button>
+                  </>
+                )}
+                {inspectedBlock && (
+                  <>
+                    <span aria-hidden="true">›</span>
+                    <span aria-current="location">
+                      {inspectedBlock.label}
+                      {!inspectedBlock.connected && ' (draft)'}
+                    </span>
+                  </>
+                )}
+              </nav>
               <div className="canvas-toolbar">
                 <div className="tabs">
                   <button className={mode === 'map' ? 'active' : ''} onClick={() => setMode('map')}>
@@ -841,14 +1120,23 @@ export default function App() {
                 {mode === 'map' ? (
                   <WorldMap
                     project={doc}
+                    view={mapView.current}
+                    onViewChange={(viewport) => {
+                      mapView.current = viewport;
+                    }}
                     selected={selected}
-                    select={setSelected}
+                    select={(key) => {
+                      setSelected(key);
+                      const parent = flowOwner(doc, key);
+                      if (parent) setFlowSelections((old) => ({ ...old, [parent.id]: key }));
+                    }}
                     edit={edit}
                     connecting={connecting}
                   />
                 ) : mode === 'triggers' ? (
                   <Triggers
                     project={doc}
+                    history={historyControls}
                     active={activeTrigger}
                     ownerFilter={triggerFilter}
                     filterOwner={(id) => {
@@ -859,16 +1147,21 @@ export default function App() {
                     select={select}
                     error={error}
                     blocksRef={blocks}
+                    blockViews={blockViews}
+                    onBlockSelect={selectBlock}
+                    selectedBlock={activeTrigger && blockSelections[activeTrigger.id]?.blockId}
                   />
                 ) : mode === 'hints' && hintOwner ? (
                   <Hints
                     key={hintOwner.id}
                     project={doc}
+                    history={historyControls}
+                    views={hintViews}
+                    blockViews={blockViews}
                     ownerId={hintOwner.id}
                     selection={hintSelection}
                     select={(selection) => {
                       setHintSelection(selection);
-                      setInspectorCollapsed(false);
                     }}
                     edit={edit}
                     error={error}
@@ -877,12 +1170,16 @@ export default function App() {
                   <Actions
                     key={actionOwner.id}
                     project={doc}
+                    history={historyControls}
                     ownerId={actionOwner.id}
                     active={actionFlow ?? undefined}
                     edit={edit}
                     select={select}
                     error={error}
                     blocksRef={blocks}
+                    blockViews={blockViews}
+                    onBlockSelect={selectBlock}
+                    selectedBlock={actionFlow && blockSelections[actionFlow.id]?.blockId}
                   />
                 ) : (
                   <div className="canvas-empty">
@@ -1077,6 +1374,25 @@ export default function App() {
             <div
               id="inspector-content"
               ref={inspectorContent}
+              onBlurCapture={(event) => {
+                const input = event.target;
+                if (
+                  input instanceof HTMLInputElement ||
+                  input instanceof HTMLTextAreaElement ||
+                  input instanceof HTMLSelectElement
+                ) {
+                  const label = input.labels?.[0]?.textContent?.trim();
+                  if (label)
+                    inspectorFocus.current[navigationKey] = {
+                      label,
+                      start: input instanceof HTMLSelectElement ? null : input.selectionStart,
+                      end: input instanceof HTMLSelectElement ? null : input.selectionEnd,
+                    };
+                }
+              }}
+              onScroll={(event) => {
+                inspectorPositions.current[navigationKey] = event.currentTarget.scrollTop;
+              }}
               className="inspector"
               hidden={inspectorCollapsed}
             >
@@ -1093,6 +1409,20 @@ export default function App() {
                   <h2>Triggers</h2>
                   <p className="muted">Add a trigger to build its conditions and effects.</p>
                 </>
+              ) : inspectedBlock ? (
+                <BlockInspector
+                  project={doc}
+                  selection={inspectedBlock}
+                  change={(selection, value) => blocks.current?.updateBlock(selection, value)}
+                  settings={() => {
+                    blocks.current?.selectBlock(null);
+                    setBlockSelections((old) => {
+                      const next = { ...old };
+                      delete next[inspectedBlock.flowId];
+                      return next;
+                    });
+                  }}
+                />
               ) : (
                 <Inspector
                   project={doc}

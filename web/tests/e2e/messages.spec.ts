@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, selectBlock } from '../editor';
 import { join } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
 
@@ -44,9 +44,9 @@ test('new entities print live descriptions with variable and property messages',
   );
   await inspector.getByRole('button', { name: /Examine/ }).click();
   await expect(page.locator('.blocklyBlockCanvas .luna_print_description')).toContainText('coin');
-  await expect(inspector.getByLabel('Description entity')).toHaveValue(
-    await inspector.getByLabel('Target', { exact: true }).inputValue(),
-  );
+  const target = await inspector.getByLabel('Target', { exact: true }).inputValue();
+  await selectBlock(page, 'PRINT DESCRIPTION');
+  await expect(inspector.getByLabel('Description entity')).toHaveValue(target);
   await page.getByRole('treeitem', { name: 'Responses', exact: true }).click();
   await expect(page.locator('.blocklyFlyout .luna_print_description')).toContainText(
     'PRINT DESCRIPTION',

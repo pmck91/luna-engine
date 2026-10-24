@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, openNewAction, selectBlock, chooseFlow } from '../editor';
 import { join } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
 
@@ -19,6 +19,7 @@ test('response follow-up blocks run after the last reply, reset, and survive reo
   const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
   await hierarchy.getByRole('button', { name: /old painting/ }).click();
   await page.getByRole('button', { name: 'Actions', exact: true }).click();
+  await selectBlock(page, 'RESPONSE SEQUENCE');
   await inspector.getByRole('button', { name: 'Add response', exact: true }).click();
   for (const [index, reply] of ['First warning.', 'Second warning.', 'Last warning.'].entries())
     await inspector.getByLabel(`Response ${index + 1}`, { exact: true }).fill(reply);
@@ -66,6 +67,7 @@ test('response follow-up blocks run after the last reply, reset, and survive reo
   await expect(log.locator('p').last()).toHaveText('Enough!');
   await expect(log.getByText('The painting falls.', { exact: true })).toHaveCount(1);
   // Both the form and block dropdown update the same repeat setting.
+  await selectBlock(page, 'RESPONSE SEQUENCE');
   await inspector.getByLabel('Follow-up effects', { exact: true }).selectOption('repeat');
   await expect(sequence).toContainText('each time');
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
@@ -75,6 +77,7 @@ test('response follow-up blocks run after the last reply, reset, and survive reo
   await page.locator('.blocklyDropDownDiv').getByText('once', { exact: true }).click();
   await expect(inspector.getByLabel('Follow-up effects', { exact: true })).toHaveValue('once');
   // Add a separate action that resets the selected response sequence.
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('use');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   const resetCanvas = page
@@ -115,10 +118,7 @@ test('response follow-up blocks run after the last reply, reset, and survive reo
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
   await hierarchy.getByRole('button', { name: /old painting/ }).click();
   await page.getByRole('button', { name: 'Actions', exact: true }).click();
-  await page
-    .getByRole('list', { name: 'Entity actions' })
-    .getByRole('button', { name: /^Examine painting/ })
-    .click();
+  await chooseFlow(page, /^Examine painting/, false);
   await expect(sequence.locator('.luna_say')).toContainText('The painting falls.');
   await page.getByRole('button', { name: 'Start playtest', exact: true }).click();
   for (let i = 0; i < 4; i++) await command('examine painting');

@@ -1,7 +1,9 @@
+import type { HistoryControls } from './workspaceHistory';
+import type { ProjectEdit } from './projectHistory';
 import { useState, type Ref } from 'react';
 import type { Project, Trigger } from './contracts';
 import { entity, flow, flowOwner, owner, trigger as makeTrigger } from './model';
-import Blocks, { type BlocksHandle } from './Blocks';
+import Blocks, { type BlockSelection, type BlockView, type BlocksHandle } from './Blocks';
 import { Select } from './Forms';
 import {
   commandEvents,
@@ -22,16 +24,24 @@ export default function Triggers({
   edit,
   select,
   error,
+  history,
   blocksRef,
+  onBlockSelect,
+  selectedBlock,
+  blockViews,
 }: {
+  history: HistoryControls;
   project: Project;
   active: Trigger | undefined;
   ownerFilter: string;
   filterOwner: (id: string) => void;
-  edit: (change: (p: Project) => void) => void;
+  edit: ProjectEdit;
   select: (id: string) => void;
   error: (message: string) => void;
   blocksRef: Ref<BlocksHandle>;
+  onBlockSelect: (selection: BlockSelection | null) => void;
+  selectedBlock?: string;
+  blockViews: { current: Record<string, BlockView> };
 }) {
   const [kind, setKind] = useState('command');
   const [newEvent, setNewEvent] = useState('command');
@@ -60,77 +70,76 @@ export default function Triggers({
           items={[{ id: '', name: 'All owners' }, ...triggerOwners(project)]}
           onChange={filterOwner}
         />
-        <div className="action-flows">
-          {triggerKinds.map((group) => {
-            const items = triggers.filter((item) => item.kind === group.id);
-            return (
-              <section className="action-group" key={group.id}>
-                <h3>
-                  {group.name} · {items.length}
-                </h3>
-                <div className="action-list" role="list" aria-label={group.name}>
-                  {items.map((item) => (
-                    <div role="listitem" key={item.trigger.id}>
-                      <button
-                        className={`action-item ${active?.id === item.trigger.id ? 'active' : ''}`}
-                        aria-pressed={active?.id === item.trigger.id}
-                        onClick={() => select(item.trigger.id)}
-                      >
-                        <strong>{item.name}</strong>
-                        <span>{item.ownerName}</span>
-                      </button>
-                    </div>
-                  ))}
-                  {!items.length && <small className="muted">No triggers</small>}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-        <div className="new-action">
-          <Select label="New trigger type" value={kind} items={triggerKinds} onChange={setKind} />
-          {kind === 'value' ? (
-            <Select
-              label="Value for new trigger"
-              value={target?.id ?? ''}
-              items={
-                targets.length ? targets : [{ id: '', name: 'Add a variable or property first' }]
-              }
-              onChange={setNewValue}
-            />
-          ) : (
-            <Select
-              label="Event for new trigger"
-              value={event}
-              items={events.map((id) => ({ id, name: id.replaceAll('_', ' ') }))}
-              onChange={setNewEvent}
-            />
-          )}
-          <button
-            disabled={kind === 'value' && !target}
-            onClick={() => {
-              const created = makeTrigger();
-              created.event = event;
-              created.name =
-                kind === 'value'
-                  ? `When ${target.name} changes`
-                  : `On ${event.replaceAll('_', ' ')}`;
-              if (kind === 'value') {
-                created.watch = { target: target.target, mode: 'becomes_true' };
-                created.condition = watchCondition(target.target, target.value);
-              }
-              const ownerId =
-                ownerFilter ||
-                (kind === 'value' && target.target.type === 'property'
-                  ? target.target.entity
-                  : project.game.id);
-              edit((p) => owner(p, ownerId)!.triggers.push(created));
-              select(created.id);
-            }}
+        <label className="flow-selector">
+          Trigger
+          <select
+            aria-label="Choose trigger"
+            value={active?.id ?? ''}
+            onChange={(event) => select(event.target.value)}
           >
-            Add trigger
-          </button>
-        </div>
+            {!active && <option value="">Choose a trigger</option>}
+            {triggerKinds.map((group) => (
+              <optgroup key={group.id} label={group.name}>
+                {triggers
+                  .filter((item) => item.kind === group.id)
+                  .map((item) => (
+                    <option key={item.trigger.id} value={item.trigger.id}>
+                      {item.name} · {item.ownerName}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        <details className="new-flow">
+          <summary>Add trigger</summary>
+          <div className="new-action">
+            <Select label="New trigger type" value={kind} items={triggerKinds} onChange={setKind} />
+            {kind === 'value' ? (
+              <Select
+                label="Value for new trigger"
+                value={target?.id ?? ''}
+                items={
+                  targets.length ? targets : [{ id: '', name: 'Add a variable or property first' }]
+                }
+                onChange={setNewValue}
+              />
+            ) : (
+              <Select
+                label="Event for new trigger"
+                value={event}
+                items={events.map((id) => ({ id, name: id.replaceAll('_', ' ') }))}
+                onChange={setNewEvent}
+              />
+            )}
+            <button
+              disabled={kind === 'value' && !target}
+              onClick={(click) => {
+                const created = makeTrigger();
+                created.event = event;
+                created.name =
+                  kind === 'value'
+                    ? `When ${target.name} changes`
+                    : `On ${event.replaceAll('_', ' ')}`;
+                if (kind === 'value') {
+                  created.watch = { target: target.target, mode: 'becomes_true' };
+                  created.condition = watchCondition(target.target, target.value);
+                }
+                const ownerId =
+                  ownerFilter ||
+                  (kind === 'value' && target.target.type === 'property'
+                    ? target.target.entity
+                    : project.game.id);
+                edit((p) => owner(p, ownerId)!.triggers.push(created));
+                select(created.id);
+                const menu = click.currentTarget.closest('details');
+                if (menu) menu.open = false;
+              }}
+            >
+              Add trigger
+            </button>
+          </div>
+        </details>
       </section>
       <section className="action-editor" aria-label="Trigger logic">
         {active ? (
@@ -142,6 +151,13 @@ export default function Triggers({
             <div className="action-blocks">
               <Blocks
                 ref={blocksRef}
+                onSelect={onBlockSelect}
+                selectedId={selectedBlock}
+                view={blockViews.current[active.id]}
+                onViewChange={(view) => {
+                  blockViews.current[active.id] = view;
+                }}
+                history={history}
                 project={project}
                 flowId={active.id}
                 effects={active.effects}
@@ -151,11 +167,11 @@ export default function Triggers({
                     ? `WHEN ${active.watch.target.type === 'property' ? `${entity(project, active.watch.target.entity)?.name ?? 'Missing entity'}.` : ''}${active.watch.target.name} CHANGES`
                     : `WHEN ${active.event.replaceAll('_', ' ').toUpperCase()} · ${scope}`
                 }
-                onChange={(effects, workspace, conditions) =>
+                onChange={(effects, workspace, conditions, context) =>
                   edit((p) => {
                     Object.assign(flow(p, active.id)!, conditions, { effects });
                     p.editor.blocks[active.id] = workspace as (typeof p.editor.blocks)[string];
-                  })
+                  }, context)
                 }
                 onError={error}
               />

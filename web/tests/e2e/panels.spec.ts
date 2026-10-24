@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, chooseFlow } from '../editor';
 import { join } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
 
@@ -21,16 +21,13 @@ test('requirements, entity navigation, and collapsible panels stay in sync', asy
   await inspector.getByRole('button', { name: /Unlock door/ }).click();
   const canvas = page.locator('.blocklyBlockCanvas').filter({ hasText: 'WHEN use · locked door' });
   await expect(canvas).toContainText('REQUIRES');
-  await expect(canvas.locator('.condition_carrying')).toContainText('brass key');
+  await expect(canvas.locator('.luna_flow .condition_carrying')).toContainText('brass key');
   await expect(inspector.getByLabel('Condition', { exact: true })).toHaveValue('carrying');
 
   await inspector.getByRole('button', { name: /Back to locked door/ }).click();
   await expect(inspector.getByLabel('Name', { exact: true })).toHaveValue('locked door');
   await expect(inspector.getByLabel('Can be taken', { exact: true })).toBeVisible();
-  await page
-    .getByRole('list', { name: 'Entity actions' })
-    .getByRole('button', { name: /Unlock door/ })
-    .click();
+  await chooseFlow(page, /Unlock door/, false);
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
   await expect(inspector.getByLabel('Name', { exact: true })).toHaveValue('Study');
   await hierarchy.getByRole('button', { name: /locked door/ }).click();
@@ -47,8 +44,8 @@ test('requirements, entity navigation, and collapsible panels stay in sync', asy
 
   // Form edits update the visible blocks; block dropdowns update the form.
   await inspector.getByLabel('Object', { exact: true }).selectOption({ label: 'old painting' });
-  await expect(canvas.locator('.condition_carrying')).toContainText('old painting');
-  await canvas.locator('.condition_carrying .blocklyDropdownField').click();
+  await expect(canvas.locator('.luna_flow .condition_carrying')).toContainText('old painting');
+  await canvas.locator('.luna_flow .condition_carrying .blocklyDropdownField').click();
   await page.locator('.blocklyDropDownDiv').getByText('brass key', { exact: true }).click();
   await expect(
     inspector.getByLabel('Object', { exact: true }).locator('option:checked'),
@@ -90,7 +87,7 @@ test('requirements, entity navigation, and collapsible panels stay in sync', asy
   const expandedCanvas = (await page.locator('.canvas').boundingBox())!;
   expect(expandedCanvas.width).toBeGreaterThan(initialCanvas.width + 250);
   expect(expandedCanvas.height).toBeGreaterThan(initialCanvas.height + 250);
-  await expect(canvas.locator('.condition_carrying')).toContainText('brass key');
+  await expect(canvas.locator('.luna_flow .condition_carrying')).toContainText('brass key');
   await page.getByRole('button', { name: 'Expand inspector', exact: true }).click();
   await page.getByRole('button', { name: 'Expand playtest', exact: true }).click();
   await expect(command).toHaveValue('take key');
@@ -112,7 +109,7 @@ test('requirements, entity navigation, and collapsible panels stay in sync', asy
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
   await hierarchy.getByRole('button', { name: /locked door/ }).click();
   await inspector.getByRole('button', { name: /Unlock door/ }).click();
-  await expect(canvas.locator('.condition_carrying')).toContainText('brass key');
+  await expect(canvas.locator('.luna_flow .condition_carrying')).toContainText('brass key');
   for (const width of [1512, 1100, 900]) {
     await page.setViewportSize({ width, height: 982 });
     await page.getByRole('button', { name: 'Collapse inspector', exact: true }).click();

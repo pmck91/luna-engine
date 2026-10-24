@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, selectBlock } from '../editor';
 import { join } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
 test('create a world through forms, starter actions, and the exit tool', async ({ page }, info) => {
@@ -47,7 +47,13 @@ test('create a world through forms, starter actions, and the exit tool', async (
   await page.mouse.move(body!.x + 20, body!.y + body!.height + 12, { steps: 10 });
   await expect(canvas.locator('.blocklyInsertionMarker')).toBeVisible();
   await page.mouse.up();
-  await expect(page.getByLabel('SAY text', { exact: true })).toHaveCount(2);
+  await expect(
+    page
+      .getByLabel('Logic block workspace')
+      .locator('.blocklyBlockCanvas')
+      .filter({ has: page.locator('.luna_flow') })
+      .locator('.luna_say'),
+  ).toHaveCount(2);
   await page.getByLabel('SAY text', { exact: true }).last().fill('You pocket the coin.');
   await page.getByRole('button', { name: 'Add character', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('Keeper');
@@ -91,6 +97,7 @@ test('author, inspect, play, and export The Locked Study', async ({ page }, info
     .click();
   await page.getByRole('button', { name: /Examine painting/ }).click();
   await expect(page.locator('.blocklySvg')).toBeVisible();
+  await selectBlock(page, 'RESPONSE SEQUENCE');
   await expect(page.getByLabel('Response 1', { exact: true })).toHaveValue(
     'A painting of an old man.',
   );

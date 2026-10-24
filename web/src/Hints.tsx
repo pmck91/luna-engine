@@ -1,4 +1,7 @@
+import type { HistoryControls } from './workspaceHistory';
+import type { ProjectEdit } from './projectHistory';
 import { useState } from 'react';
+import type { BlockView } from './Blocks';
 import type { Project } from './contracts';
 import { entity, hintSet, hintStage } from './model';
 import HintBlocks, { hintWorkspaceKey, type HintSelection } from './HintBlocks';
@@ -11,16 +14,26 @@ export default function Hints({
   select,
   edit,
   error,
+  history,
+  views,
+  blockViews,
 }: {
+  history: HistoryControls;
   project: Project;
   ownerId: string;
   selection: HintSelection | null;
   select: (selection: HintSelection) => void;
-  edit: (change: (project: Project) => void) => void;
+  edit: ProjectEdit;
   error: (message: string) => void;
+  views: { current: Record<string, 'blocks' | 'forms'> };
+  blockViews: { current: Record<string, BlockView> };
 }) {
   const owner = entity(project, ownerId)!;
-  const [view, setView] = useState<'blocks' | 'forms'>('blocks');
+  const [view, updateView] = useState<'blocks' | 'forms'>(views.current[ownerId] ?? 'blocks');
+  const setView = (value: 'blocks' | 'forms') => {
+    views.current[ownerId] = value;
+    updateView(value);
+  };
   const active =
     owner.hints.find((hint) => selection?.ownerId === ownerId && hint.id === selection.puzzleId) ??
     owner.hints[0];
@@ -29,23 +42,21 @@ export default function Hints({
   return (
     <section className="entity-hints" aria-label={`Hints for ${owner.name}`}>
       <div className="hint-browser">
-        <h2>{owner.name}</h2>
-        <p className="muted">Puzzles · first match wins</p>
-        <div className="hint-list" role="list" aria-label="Entity puzzles">
-          {owner.hints.map((hint) => (
-            <div key={hint.id} role="listitem">
-              <button
-                className={`action-item ${active?.id === hint.id ? 'active' : ''}`}
-                aria-pressed={active?.id === hint.id}
-                onClick={() => choose(hint.id)}
-              >
-                <strong>{hint.name || 'Unnamed puzzle'}</strong>
-                <span>{hint.stages.length} stages</span>
-              </button>
-            </div>
-          ))}
-          {!owner.hints.length && <p className="muted">Add a puzzle to start writing clues.</p>}
-        </div>
+        <label className="flow-selector">
+          Puzzle
+          <select
+            aria-label="Choose puzzle"
+            value={active?.id ?? ''}
+            onChange={(event) => choose(event.target.value)}
+          >
+            {!active && <option value="">No puzzles yet</option>}
+            {owner.hints.map((hint) => (
+              <option key={hint.id} value={hint.id}>
+                {hint.name || 'Unnamed puzzle'} · {hint.stages.length} stages
+              </option>
+            ))}
+          </select>
+        </label>
         {active && (
           <div className="hint-list-controls">
             <button
@@ -149,17 +160,23 @@ export default function Hints({
                 <HintForms project={project} ownerId={ownerId} puzzleId={active.id} edit={edit} />
               ) : (
                 <HintBlocks
+                  history={history}
                   project={project}
+                  selectedPart={selection?.puzzleId === active.id ? selection.part : undefined}
+                  view={blockViews.current[hintWorkspaceKey(active.id)]}
+                  onViewChange={(view) => {
+                    blockViews.current[hintWorkspaceKey(active.id)] = view;
+                  }}
                   hint={active}
                   saved={project.editor.blocks[hintWorkspaceKey(active.id)]}
-                  onChange={(hint, workspace) =>
+                  onChange={(hint, workspace, context) =>
                     edit((p) => {
                       const target = entity(p, ownerId)?.hints.find((item) => item.id === hint.id);
                       if (!target) return;
                       Object.assign(target, hint);
                       p.editor.blocks[hintWorkspaceKey(hint.id)] =
                         workspace as (typeof p.editor.blocks)[string];
-                    })
+                    }, context)
                   }
                   onSelect={(part) => select({ ownerId, puzzleId: active.id, part })}
                   onError={error}

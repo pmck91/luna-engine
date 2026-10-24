@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, openNewAction } from '../editor';
 import { join } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
 
@@ -35,6 +35,7 @@ test('arithmetic blocks author live values and survive save, export, and reopen'
     .selectOption({ label: 'coin · polish' });
   await inspector.getByLabel('Description', { exact: true }).pressSequentially('.');
   await inspector.getByRole('button', { name: /Examine/ }).click();
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('use');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await page.getByRole('button', { name: 'Collapse inspector', exact: true }).click();

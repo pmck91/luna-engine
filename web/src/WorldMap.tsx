@@ -21,6 +21,7 @@ import {
   useNodesInitialized,
   useUpdateNodeInternals,
   type Edge,
+  type Viewport,
   type EdgeProps,
   type Node,
   type NodeProps,
@@ -46,6 +47,8 @@ type Props = {
   select: (id: string) => void;
   edit: Edit;
   connecting: boolean;
+  view?: Viewport;
+  onViewChange?: (viewport: Viewport) => void;
 };
 type Port = { id: string; end: End; name: string; anchor: BorderAnchor; active: boolean };
 type BeginPortDrag = (event: ReactPointerEvent, port: Port) => void;
@@ -187,10 +190,11 @@ type Drag = { id: string; pointerId: number; start: Point; origin: Point; moved:
 );
 type Preview = { id: string; end: End; anchor: BorderAnchor } | { id: string; label: Point };
 
-function MapCanvas({ project: p, selected, select, edit, connecting }: Props) {
+function MapCanvas({ project: p, selected, select, edit, connecting, view, onViewChange }: Props) {
   const { screenToFlowPosition, fitBounds } = useReactFlow();
   const initialized = useNodesInitialized();
   const fitted = useRef(new Set<string>());
+  const restoringView = useRef(!!view);
   const [baseNodes, setBaseNodes] = useState<LocationNode[]>([]);
   const [pending, setPending] = useState<Pending | null>(null);
   const [pointer, setPointer] = useState<Point | null>(null);
@@ -317,7 +321,9 @@ function MapCanvas({ project: p, selected, select, edit, connecting }: Props) {
       baseNodes.length === p.locations.length &&
       baseNodes.every((node) => node.measured?.width && node.measured?.height)
     ) {
-      if (baseNodes.some((node) => !fitted.current.has(node.id))) fitMap();
+      if (!restoringView.current && baseNodes.some((node) => !fitted.current.has(node.id)))
+        fitMap();
+      restoringView.current = false;
       fitted.current = new Set(baseNodes.map((node) => node.id));
     }
   }, [baseNodes, initialized, p.locations.length, fitBounds, geometry]);
@@ -494,6 +500,8 @@ function MapCanvas({ project: p, selected, select, edit, connecting }: Props) {
       )}
       <ReactFlow
         nodes={nodes}
+        defaultViewport={view}
+        onMoveEnd={(_, viewport) => onViewChange?.(viewport)}
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, openNewAction, selectBlock, flowSettings, chooseFlow } from '../editor';
 import { join } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
 
@@ -18,14 +18,11 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
   await hierarchy.getByRole('button', { name: /old painting/ }).click();
   await page.getByRole('button', { name: 'Actions', exact: true }).click();
-  await expect(
-    page
-      .getByRole('list', { name: 'Entity actions' })
-      .getByRole('button', { name: /Examine painting/ }),
-  ).toBeVisible();
+  await expect(page.getByLabel('Choose action or exit')).toContainText('Examine painting');
   await page.getByLabel('Action verb', { exact: true }).selectOption('pull');
   await expect(page.getByLabel('Verb', { exact: true })).toHaveValue('pull');
   await page.getByRole('button', { name: 'Wrap in IF / ELSE', exact: true }).click();
+  await selectBlock(page, 'RESPONSE SEQUENCE');
   await expect(page.getByLabel('Response 1', { exact: true })).toHaveValue(
     'A painting of an old man.',
   );
@@ -35,6 +32,7 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   // Locations have the same Actions view and receive their own entity-bound action.
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
   await expect(page.getByRole('region', { name: 'Actions for Study', exact: true })).toBeVisible();
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('pull');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await expect(page.getByLabel('Target', { exact: true }).locator('option:checked')).toHaveText(
@@ -46,6 +44,7 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   await expect(page.getByRole('region', { name: 'Actions for Keeper', exact: true })).toContainText(
     'Examine',
   );
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('talk');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await expect(page.getByLabel('Action verb', { exact: true })).toHaveValue('talk');
@@ -67,7 +66,13 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   }
   const rootBox = (await root.boundingBox())!;
   await dragBlock('Responses', 'SAY', rootBox.x + 40, rootBox.y + rootBox.height - 16);
-  await expect(page.getByLabel('SAY text', { exact: true })).toHaveCount(1);
+  await expect(
+    page
+      .getByLabel('Logic block workspace')
+      .locator('.blocklyBlockCanvas')
+      .filter({ has: page.locator('.luna_flow') })
+      .locator('.luna_say'),
+  ).toHaveCount(1);
   await page.getByLabel('SAY text', { exact: true }).fill('Hello from Keeper.');
   const first = canvas
     .locator('.blocklyDraggable')
@@ -77,7 +82,13 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   const flatPath = await first.locator(':scope > .blocklyPath').getAttribute('d');
   const firstBox = (await first.boundingBox())!;
   await dragBlock('Responses', 'SAY', firstBox.x + 20, firstBox.y + firstBox.height + 12);
-  await expect(page.getByLabel('SAY text', { exact: true })).toHaveCount(2);
+  await expect(
+    page
+      .getByLabel('Logic block workspace')
+      .locator('.blocklyBlockCanvas')
+      .filter({ has: page.locator('.luna_flow') })
+      .locator('.luna_say'),
+  ).toHaveCount(2);
   await page.getByLabel('SAY text', { exact: true }).last().fill('Another reply.');
   await expect(first).not.toHaveClass(/luna-chain-end/);
   expect(await first.locator(':scope > .blocklyPath').getAttribute('d')).not.toBe(flatPath);
@@ -85,7 +96,13 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   await expect(last).toHaveClass(/luna-chain-end/);
   await last.click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('Delete');
-  await expect(page.getByLabel('SAY text', { exact: true })).toHaveCount(1);
+  await expect(
+    page
+      .getByLabel('Logic block workspace')
+      .locator('.blocklyBlockCanvas')
+      .filter({ has: page.locator('.luna_flow') })
+      .locator('.luna_say'),
+  ).toHaveCount(1);
   await expect(first).toHaveClass(/luna-chain-end/);
   expect(await first.locator(':scope > .blocklyPath').getAttribute('d')).toBe(flatPath);
   await page.getByRole('button', { name: 'Wrap in IF / ELSE', exact: true }).click();
@@ -94,15 +111,23 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   await expect(canvas.locator('.luna_if')).toHaveClass(/luna-chain-end/);
   const elseBox = (await canvas.getByText('ELSE', { exact: true }).boundingBox())!;
   await dragBlock('Responses', 'SAY', elseBox.x + elseBox.width + 36, elseBox.y + 6);
-  await expect(page.getByLabel('SAY text', { exact: true })).toHaveCount(2);
+  await expect(
+    page
+      .getByLabel('Logic block workspace')
+      .locator('.blocklyBlockCanvas')
+      .filter({ has: page.locator('.luna_flow') })
+      .locator('.luna_say'),
+  ).toHaveCount(2);
   await page.getByLabel('SAY text', { exact: true }).last().fill('The Keeper stays silent.');
   await expect(canvas.locator('.luna_say.luna-chain-end')).toHaveCount(2);
   // Switching actions and entities preserves the selected action and its flow.
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('pull');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
-  const actions = page.getByRole('list', { name: 'Entity actions' });
-  await expect(actions.getByRole('listitem')).toHaveCount(3);
-  await actions.getByRole('button', { name: /^talk Keeper/ }).click();
+  await expect(page.getByLabel('Choose action or exit').locator('option')).toHaveCount(3);
+  await chooseFlow(page, /^talk Keeper/);
+  await selectBlock(page, 'SAY', 0);
+  await selectBlock(page, 'SAY', 0);
   await expect(page.getByLabel('SAY text', { exact: true }).first()).toHaveValue(
     'Hello from Keeper.',
   );
@@ -147,13 +172,12 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
   await hierarchy.getByRole('button', { name: /Keeper/ }).click();
   await page.getByRole('button', { name: 'Actions', exact: true }).click();
-  await page
-    .getByRole('list', { name: 'Entity actions' })
-    .getByRole('button', { name: /^talk Keeper/ })
-    .click();
+  await chooseFlow(page, /^talk Keeper/, false);
+  await selectBlock(page, 'SAY', 0);
   await expect(page.getByLabel('SAY text', { exact: true }).first()).toHaveValue(
     'Hello from Keeper.',
   );
+  await selectBlock(page, 'SAY', 1);
   await expect(page.getByLabel('SAY text', { exact: true }).last()).toHaveValue(
     'The Keeper stays silent.',
   );
@@ -187,10 +211,7 @@ test('Triggers and Actions preserve existing flows without a separate Logic tab'
   const original = readStudy();
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
   await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
-  await page
-    .getByRole('list', { name: 'State triggers' })
-    .getByRole('button', { name: /On first enter/ })
-    .click();
+  await chooseFlow(page, /On first enter/, true);
   const actionsTab = page.getByRole('button', { name: 'Actions', exact: true });
   await expect(hierarchy.getByRole('button', { name: 'Triggers', exact: true })).toHaveAttribute(
     'aria-current',
@@ -200,7 +221,9 @@ test('Triggers and Actions preserve existing flows without a separate Logic tab'
     .locator('.blocklyBlockCanvas')
     .filter({ hasText: 'WHEN FIRST ENTER · Study' });
   await expect(triggerCanvas).toContainText('CONDITION');
+  await selectBlock(page, 'SAY');
   await inspector.getByLabel('SAY text', { exact: true }).fill('The study is ready.');
+  await flowSettings(page);
   await expect(triggerCanvas).toContainText('The study is ready.');
   await inspector.getByLabel('Condition', { exact: true }).selectOption('false');
   await expect(triggerCanvas.locator('.condition_false')).toBeVisible();
@@ -211,10 +234,7 @@ test('Triggers and Actions preserve existing flows without a separate Logic tab'
   await library.getByRole('button', { name: 'Close', exact: true }).click();
   await inspector.getByRole('button', { name: /Back to Study/ }).click();
   await actionsTab.click();
-  await page
-    .getByRole('list', { name: 'Entity exits' })
-    .getByRole('button', { name: /^east/ })
-    .click();
+  await chooseFlow(page, /^east/, false);
   const exitCanvas = page
     .locator('.blocklyBlockCanvas')
     .filter({ hasText: 'WHEN go east · Study' });
@@ -233,10 +253,7 @@ test('Triggers and Actions preserve existing flows without a separate Logic tab'
   );
   await inspector.getByRole('button', { name: /Back to Study/ }).click();
   await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
-  await page
-    .getByRole('list', { name: 'State triggers' })
-    .getByRole('button', { name: /On first enter/ })
-    .click();
+  await chooseFlow(page, /On first enter/, true);
   await hierarchy.getByRole('button', { name: /old painting/ }).click();
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
   await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
@@ -258,18 +275,12 @@ test('Triggers and Actions preserve existing flows without a separate Logic tab'
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
   await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
-  await page
-    .getByRole('list', { name: 'State triggers' })
-    .getByRole('button', { name: /On first enter/ })
-    .click();
+  await chooseFlow(page, /On first enter/, true);
   await expect(triggerCanvas).toContainText('The study is ready.');
   await page.setViewportSize({ width: 1100, height: 982 });
   await inspector.getByRole('button', { name: /Back to Study/ }).click();
   await actionsTab.click();
-  await page
-    .getByRole('list', { name: 'Entity exits' })
-    .getByRole('button', { name: /^east/ })
-    .click();
+  await chooseFlow(page, /^east/, false);
   await expect(inspector.getByLabel('Traversal text', { exact: true })).toHaveValue(
     'Through the doorway.',
   );
