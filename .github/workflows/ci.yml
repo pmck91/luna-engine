@@ -27,7 +27,15 @@ jobs:
       - run: npm run test:e2e
         working-directory: web
         env:
-          LUNA_TEST_FIREFOX: '1'
+          LUNA_TEST_FIREFOX: "1"
+      - name: Upload browser test failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-failures
+          path: web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - run: ./scripts/package.sh
       - run: python3 scripts/smoke-package.py
       - uses: actions/upload-artifact@v4
