@@ -85,6 +85,29 @@ export default function BlockInspector({
                   value={field.value}
                   items={field.options}
                   onChange={patch}
+                  create={
+                    field.name === 'ending'
+                      ? { kind: 'ending' }
+                      : field.name === 'name' &&
+                          [
+                            'set_variable',
+                            'set_property',
+                            'update_variable',
+                            'update_property',
+                          ].includes(effect.type)
+                        ? {
+                            kind: 'entity' in effect ? 'property' : 'variable',
+                            ownerId: 'entity' in effect ? effect.entity : undefined,
+                            numberOnly: effect.type.startsWith('update_'),
+                            onCreated: (name, initial) =>
+                              update({
+                                ...effect,
+                                name,
+                                ...('value' in effect ? { value: initial } : {}),
+                              } as Effect),
+                          }
+                        : undefined
+                  }
                 />
               ) : field.checkbox ||
                 (field.name === 'value' &&
@@ -194,6 +217,11 @@ function OperandEditor({
           )}
           <Select
             label={value.type === 'variable' ? 'Variable' : 'Property'}
+            create={{
+              kind: value.type,
+              ownerId: value.type === 'property' ? value.entity : undefined,
+              numberOnly: true,
+            }}
             value={value.name}
             items={value.type === 'variable' ? variables : properties(value.entity)}
             onChange={(name) => onChange({ ...value, name })}

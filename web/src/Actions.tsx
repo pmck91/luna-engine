@@ -4,6 +4,9 @@ import { useState, type Ref } from 'react';
 import type { Action, Exit, Project, Trigger } from './contracts';
 import { action, entity as findEntity, flow, owner } from './model';
 import Blocks, { type BlockSelection, type BlockView, type BlocksHandle } from './Blocks';
+import CommandPreset from './CommandPreset';
+import { commandDraft, commandPattern, commandPreview, validCommandDraft } from './authoring';
+import { CreateReferenceButton } from './ReferenceCreation';
 
 export default function Actions({
   project: p,
@@ -33,6 +36,7 @@ export default function Actions({
   const entity = owner(p, ownerId)!;
   const name = 'title' in entity ? entity.title : entity.name;
   const [newVerb, setNewVerb] = useState('examine');
+  const [draft, setDraft] = useState(() => commandDraft(p, ownerId));
   const verb = p.vocabulary.some((verb) => verb.id === newVerb)
     ? newVerb
     : (p.vocabulary[0]?.id ?? '');
@@ -103,11 +107,18 @@ export default function Actions({
                 </option>
               ))}
             </select>
+            <CreateReferenceButton spec={{ kind: 'verb' }} onCreated={setNewVerb} />
+            <CommandPreset project={p} verb={verb} value={draft} onChange={setDraft} />
+            <p className="muted">
+              Action on {name}. Entities must be in scope when the player uses the command;
+              requirements still apply.
+            </p>
             <button
-              disabled={!verb}
+              disabled={!verb || !validCommandDraft(p, draft)}
               onClick={(click) => {
                 const created = action('title' in entity ? undefined : ownerId, verb);
-                created.name = `${p.vocabulary.find((item) => item.id === verb)!.canonical} ${name}`;
+                created.pattern = commandPattern(draft);
+                created.name = commandPreview(p, verb, created.pattern);
                 edit((project) => {
                   owner(project, ownerId)!.actions.push(created);
                 });

@@ -1,6 +1,6 @@
 # Editor UX implementation plan
 
-Status: **Implementation in progress on `feature/editor-ux`; first working checkpoint feedback applied.** The accepted block-preservation requirement remains in force. See the [working review guide](../design/editor-ux/first-checkpoint.md).
+Status: **Implementation in progress on `feature/editor-ux`; first checkpoint accepted and M3 working authoring review available.** The accepted block-preservation requirement remains in force. See the [contextual authoring review](../design/editor-ux/contextual-authoring.md).
 
 Branch: `feature/editor-ux`, created from main at `92b3ab6` on 24 October 2026. This document covers every Editor UX TODO and records the accepted design direction; merging remains subject to the agreed testing and owner acceptance. See the [design review guide](../design/editor-ux/README.md), [interaction specification](../design/editor-ux/interaction-design.md), and [wireframes](../design/editor-ux/wireframes.html).
 
@@ -41,9 +41,12 @@ Dependency order: M0 → M1 → M2 → M3/M4 → M5 → M6 → M7/M8 → M9. M3 
 - M1: compact action/trigger/puzzle selectors, selected-block inspection, breadcrumbs/back/forward, and session restoration of selections, filters, canvas view and inspector focus/scroll are implemented. The owner approved the working direction; matching add-button styles and trigger-selector spacing have been applied and checked at desktop/compact widths.
 - M2: initial shared project history is implemented, including form sessions, grouped Blockly edits, templates and room/route layout. Mixed-operation undo/redo across saves and workspace occurrence/draft restoration are covered. The timeline retains at most 100 transactions or approximately 20 MiB of serialized snapshots, preserving the newest complete transaction.
 - Small foundations for later milestones are included: stale validation replies are discarded (M4), and editor-only changes no longer invalidate a playtest source snapshot (M6). The remainder of those milestones is still open.
-- M3–M9: remain planned. The full TODO items are not marked complete before the remaining work, feedback, and acceptance gates.
+- M3: consistent initial-room creation, command-pattern presets/previews, contextual verbs/variables/properties/endings, and searchable typed action/trigger insertion are implemented for review. The DOM outline exposes insertion points; the picker preserves following chains and displaced input drafts using the current Blockly renderer. Creation and assignment publish as one project transaction. See the [working walkthrough](../design/editor-ux/contextual-authoring.md) and request owner feedback before dependent authoring work.
+- M4–M9: remain planned. The full TODO items are not marked complete before the remaining work, feedback, and acceptance gates.
 
-Verified checkpoint: all 43 frontend tests, the 44-test Chromium/Firefox authoring suite, frontend build/format checks, Rust workspace tests, Rust formatting/Clippy and generated-contract checks pass. A final four-test Chromium/Firefox run also covers compact widths, native text undo, layout-only playtest edits, and returning to a surviving room when undo removes the selected entity. Actual application captures and the feedback walkthrough are linked from the working review guide. Release packaging and the full owner/new-author acceptance walkthrough remain M9 gates.
+The foundation checkpoint passed its 43 frontend tests, 44-test Chromium/Firefox suite, Rust workspace tests, Rust formatting/Clippy and generated-contract checks. Its follow-up navigation checks covered native text undo, layout-only playtest edits, and returning to a surviving room when undo removes the selected entity.
+
+M3 verification: 46 frontend tests, all 50 Chromium/Firefox authoring checks, and frontend build/format checks pass. Eight final browser checks also verify the creation popup above canvas controls, keyboard insertion, atomic reference undo/redo, target-command playback, saved draft/occurrence identity, and compact picker layouts at 1100 and 900 px. Runtime contracts and save formats are unchanged. Actual captures and the working walkthrough are in the [authoring review guide](../design/editor-ux/contextual-authoring.md). Owner feedback on this milestone remains pending; release packaging and the full owner/new-author acceptance walkthrough remain M9 gates.
 
 ## M0 — Review design and prove the risky foundations
 

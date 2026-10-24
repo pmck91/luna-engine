@@ -4,6 +4,8 @@
 
 This is the first working review of the approved design. It implements selection and navigation foundations plus the initial shared project history. The later milestones in the [implementation plan](../../plans/editor-ux.md) remain open.
 
+The owner has accepted this checkpoint and the subsequent toolbar/breadcrumb corrections. The next working review is [Contextual authoring](contextual-authoring.md).
+
 ## Try the working editor
 
 Build and launch from this branch using the [development instructions](../../../README.md#build-and-launch). No installation is required.

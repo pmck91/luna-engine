@@ -14,6 +14,8 @@ import {
 } from './model';
 import { refreshChainEnds } from './blockRenderer';
 import type { EditContext } from './projectHistory';
+import { defaultCondition } from './Forms';
+import BlockPicker from './BlockPicker';
 Blockly.setLocale(
   Object.fromEntries(
     Object.entries(English).filter(([, value]) => typeof value === 'string'),
@@ -271,6 +273,173 @@ export function loadEffectBlocks(
   return root;
 }
 export type BlockSocket = { blockId: string; input: string };
+export type InsertionPoint = BlockSocket & {
+  key: string;
+  label: string;
+  kind: 'effect' | 'condition' | 'number';
+  occupied: boolean;
+};
+export type CatalogueBlock = {
+  type: string;
+  name: string;
+  category: string;
+  aliases: string;
+  kind: InsertionPoint['kind'];
+};
+export const blockCatalogue: CatalogueBlock[] = [
+  ...[...Object.keys(effectFields), 'if'].map((type): CatalogueBlock => ({
+    type: `luna_${type}`,
+    name: labels[type],
+    kind: 'effect',
+    category: ['say', 'character_says', 'print_description', 'respond', 'reset_responses'].includes(
+      type,
+    )
+      ? 'Responses'
+      : type === 'if'
+        ? 'Logic'
+        : 'World and state',
+    aliases:
+      (
+        {
+          say: 'print message text',
+          character_says: 'speech dialogue dialog',
+          print_description: 'examine inspect',
+          if: 'conditional branch else',
+          give_character: 'hand transfer inventory',
+          end: 'finish ending outcome',
+        } as Record<string, string>
+      )[type] ?? type.replaceAll('_', ' '),
+  })),
+  ...[...Object.keys(conditionFields), 'not', 'all', 'any'].map((type): CatalogueBlock => ({
+    type: `condition_${type}`,
+    name: type.replaceAll('_', ' ').toUpperCase(),
+    kind: 'condition',
+    category: 'Conditions',
+    aliases:
+      (
+        {
+          true: 'always',
+          false: 'never',
+          carrying: 'player has inventory requirement',
+          property: 'entity state health',
+          variable: 'global value state',
+          all: 'and',
+          any: 'or',
+        } as Record<string, string>
+      )[type] ?? type.replaceAll('_', ' '),
+  })),
+  ...['literal', 'variable', 'property'].map((type): CatalogueBlock => ({
+    type: `number_${type}`,
+    name: type === 'literal' ? 'NUMBER' : `${type.toUpperCase()} VALUE`,
+    kind: 'number',
+    category: 'Numbers',
+    aliases: type === 'literal' ? 'integer amount literal' : `numeric ${type}`,
+  })),
+];
+export function createCatalogueBlock(workspace: Blockly.Workspace, type: string) {
+  const entry = blockCatalogue.find((item) => item.type === type);
+  if (!entry) throw new Error('Choose a block from the catalogue.');
+  if (entry.kind === 'condition')
+    return makeCondition(
+      workspace,
+      defaultCondition(type.slice('condition_'.length) as Condition['type'], project),
+    );
+  const block = workspace.newBlock(type);
+  if (type === 'luna_if')
+    block
+      .getInput('TEST')!
+      .connection!.connect(makeCondition(workspace, { type: 'true' }).outputConnection!);
+  if (type === 'luna_set_variable' || type === 'luna_set_property')
+    setFields(block, { value: schema(block) ?? false });
+  return block;
+}
+function socketConnection(workspace: Blockly.Workspace, socket: BlockSocket) {
+  const block = workspace.getBlockById(socket.blockId);
+  return socket.input === 'NEXT'
+    ? block?.nextConnection
+    : block?.getInput(socket.input)?.connection;
+}
+export function insertionPoints(workspace: Blockly.Workspace): InsertionPoint[] {
+  const root = workspace.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+  const addresses = root ? blockAddresses(root) : new Map<string, string>();
+  const points: InsertionPoint[] = [];
+  for (const block of workspace.getAllBlocks(true)) {
+    if (block.isShadow() || block.isInsertionMarker()) continue;
+    const label = block.type === 'luna_flow' ? 'Flow' : describeBlock(block, '', addresses).label;
+    const location = blockLocation(addresses.get(block.id) ?? null);
+    const add = (input: string, connection: Blockly.Connection, label: string) => {
+      const check = connection.getCheck();
+      const kind =
+        connection.type === Blockly.ConnectionType.NEXT_STATEMENT
+          ? 'effect'
+          : check?.includes('Boolean')
+            ? 'condition'
+            : check?.includes('Number')
+              ? 'number'
+              : null;
+      if (kind)
+        points.push({
+          blockId: block.id,
+          input,
+          key: `${block.id}/${input}`,
+          label,
+          kind,
+          occupied: !!connection.targetBlock(),
+        });
+    };
+    for (const input of block.inputList)
+      if (input.connection) {
+        const name =
+          input.name === 'DO'
+            ? 'Start of flow'
+            : input.name === 'TEST'
+              ? 'Condition'
+              : input.name === 'ON_EXHAUSTED'
+                ? 'After last reply'
+                : input.name in conditionLabels
+                  ? blockLocation(input.name)
+                  : input.name.replaceAll('_', ' ');
+        add(
+          input.name,
+          input.connection,
+          `${name} · ${label}${block === root ? '' : ` · ${location}`}`,
+        );
+      }
+    if (block.nextConnection) add('NEXT', block.nextConnection, `After ${label} · ${location}`);
+  }
+  return points;
+}
+export function insertCatalogueBlock(
+  workspace: Blockly.Workspace,
+  socket: BlockSocket,
+  type: string,
+) {
+  const point = insertionPoints(workspace).find(
+    (point) => point.blockId === socket.blockId && point.input === socket.input,
+  );
+  const entry = blockCatalogue.find((item) => item.type === type);
+  const connection = socketConnection(workspace, socket);
+  if (!point || !entry || point.kind !== entry.kind || !connection)
+    throw new Error('This block does not fit the selected insertion point.');
+  const inserted = createCatalogueBlock(workspace, type);
+  const plug = inserted.outputConnection ?? inserted.previousConnection!;
+  if (!workspace.connectionChecker.canConnect(connection, plug, false)) {
+    inserted.dispose(false);
+    throw new Error('This block does not fit the selected insertion point.');
+  }
+  const displaced = connection.targetBlock();
+  if (displaced) {
+    if (displaced.isShadow()) displaced.setShadow(false);
+    connection.setShadowState(null);
+    connection.disconnect();
+  }
+  connection.connect(plug);
+  if (displaced) {
+    if (entry.kind === 'effect') inserted.nextConnection!.connect(displaced.previousConnection!);
+    else parkDraft(displaced);
+  }
+  return inserted;
+}
 export function insertEffectBlocks(
   workspace: Blockly.Workspace,
   effects: Effect[],
@@ -1020,7 +1189,7 @@ export type BlocksHandle = {
   selectedEffects: () => Effect[] | null;
   appendEffects: (effects: Effect[]) => void;
   selectBlock: (id: string | null) => void;
-  updateBlock: (selection: BlockSelection, value: BlockValue) => void;
+  updateBlock: (selection: BlockSelection, value: BlockValue, references?: Project) => void;
 };
 export default function Blocks({
   project: p,
@@ -1075,6 +1244,28 @@ export default function Blocks({
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   const selectedBlock = useRef<string | null>(null);
   const [outline, setOutline] = useState<BlockSelection[]>([]);
+  const [insertion, setInsertion] = useState<{ points: InsertionPoint[]; initial: string } | null>(
+    null,
+  );
+  const [insertionNotice, setInsertionNotice] = useState('');
+  const openPicker = (key?: string) => {
+    const ws = workspace.current;
+    if (!ws) return;
+    const points = insertionPoints(ws);
+    const block = ws.getBlockById(selectedBlock.current ?? '');
+    const selected =
+      points.find((point) => point.blockId === block?.id && point.input === 'NEXT') ??
+      points.find((point) => socketConnection(ws, point)?.targetBlock()?.id === block?.id);
+    setInsertion({
+      points,
+      initial:
+        key ??
+        selected?.key ??
+        points.find((point) => point.input === 'DO')?.key ??
+        points[0]?.key ??
+        '',
+    });
+  };
   const updateOutline = () => {
     const ws = workspace.current;
     if (!ws) return;
@@ -1102,7 +1293,8 @@ export default function Blocks({
         else Blockly.common.getSelected()?.unselect();
         notifySelection();
       },
-      updateBlock: (selection, value) => {
+      updateBlock: (selection, value, references) => {
+        if (references) project = references;
         const ws = workspace.current;
         const block = ws?.getBlockById(selection.blockId);
         if (!ws || !block || selection.flowId !== flowId) return;
@@ -1363,8 +1555,16 @@ export default function Blocks({
     }
     notifySelection();
   }, [selectedId]);
+  const availablePoints = workspace.current ? insertionPoints(workspace.current) : [];
   return (
     <div className="flow-surface">
+      <div className="insertion-toolbar">
+        <button onClick={() => openPicker()}>Add block</button>
+        <span>Search and insert at a chosen connection, or drag from the palette.</span>
+        <span aria-live="polite" className="sr-only">
+          {insertionNotice}
+        </span>
+      </div>
       <details className="flow-outline">
         <summary>
           Flow outline · {outline.filter((block) => block.connected).length} connected blocks ·{' '}
@@ -1388,12 +1588,55 @@ export default function Blocks({
                 <strong>{block.label}</strong> · {blockLocation(block.address)}
                 {block.value && 'text' in block.value ? ` · ${block.value.text}` : ''}
               </button>
+              {availablePoints
+                .filter((point) => point.blockId === block.blockId)
+                .map((point) => (
+                  <button
+                    key={point.key}
+                    className="insert-point"
+                    aria-label={`Insert at ${point.label}`}
+                    onClick={() => openPicker(point.key)}
+                  >
+                    + {point.label}
+                  </button>
+                ))}
             </li>
           ))}
-          {!outline.length && <li>No blocks yet. Drag a block from a category to begin.</li>}
+          {!outline.length && (
+            <li>No blocks yet. Use Add block or drag from a category to begin.</li>
+          )}
         </ol>
       </details>
       <div className="block-workspace" ref={host} aria-label="Logic block workspace" />
+      {insertion && (
+        <BlockPicker
+          project={p}
+          points={insertion.points}
+          initial={insertion.initial}
+          close={() => setInsertion(null)}
+          insert={(socket, type) => {
+            const ws = workspace.current!;
+            Blockly.Events.disable();
+            try {
+              const block = insertCatalogueBlock(ws, socket, type);
+              for (const item of ws.getAllBlocks(false)) item.initSvg();
+              ws.render();
+              selectedBlock.current = block.id;
+              (block as Blockly.BlockSvg).select();
+              commit({
+                label: `Insert ${blockCatalogue.find((entry) => entry.type === type)!.name}`,
+              });
+              notifySelection(true);
+              setInsertionNotice(`Inserted ${describeBlock(block, flowId).label}.`);
+              setInsertion(null);
+            } catch (e) {
+              current.current.onError(String(e));
+            } finally {
+              Blockly.Events.enable();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

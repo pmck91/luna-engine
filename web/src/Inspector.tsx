@@ -13,6 +13,10 @@ import {
 import { request } from './api';
 import Endings from './Endings';
 import TriggerSettings from './TriggerSettings';
+import { useState } from 'react';
+import CommandPreset from './CommandPreset';
+import { commandDraft, commandPattern, commandPreview, validCommandDraft } from './authoring';
+import { flowOwner } from './model';
 import { commandEvents, stateEvents, triggerLabel, triggerPage } from './triggerModel';
 type Edit = (change: (p: Project) => void) => void;
 const events: Event[] = [...stateEvents, ...commandEvents];
@@ -140,6 +144,7 @@ export default function Inspector({
   if (selectedFlow)
     return (
       <FlowInspector
+        key={selectedFlow.id}
         project={p}
         selected={selectedFlow}
         update={update}
@@ -437,6 +442,7 @@ function FlowInspector({
   remove: (id: string) => void;
 }) {
   const setPattern = (pattern: PatternPart[]) => update({ pattern });
+  const [draft, setDraft] = useState(() => commandDraft(p, flowOwner(p, f.id)?.id ?? p.game.id));
   return (
     <>
       <div className="section-heading">
@@ -450,11 +456,36 @@ function FlowInspector({
         <>
           <Select
             label="Verb"
+            create={{ kind: 'verb' }}
             value={f.verb}
             items={p.vocabulary.map((v) => ({ id: v.id, name: v.canonical }))}
             onChange={(verb) => update({ verb })}
           />
           <h3>Command pattern</h3>
+          <p className="command-preview" aria-label="Current command preview">
+            Player types:{' '}
+            <strong>
+              {commandPreview(
+                p,
+                f.verb,
+                f.pattern.length
+                  ? f.pattern
+                  : 'destination' in f
+                    ? [{ type: 'literal', text: f.name }]
+                    : [],
+              )}
+            </strong>
+          </p>
+          <details className="command-presets">
+            <summary>Use a command preset</summary>
+            <CommandPreset project={p} verb={f.verb} value={draft} onChange={setDraft} />
+            <button
+              disabled={!validCommandDraft(p, draft)}
+              onClick={() => setPattern(commandPattern(draft))}
+            >
+              Apply command preset
+            </button>
+          </details>
           {f.pattern.map((part, i) => (
             <div className="pattern-part" key={i}>
               {part.type === 'literal' ? (

@@ -1,6 +1,7 @@
 import { cloneElement, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { Condition, Project, Value, Comparison, GameState, Placement } from './contracts';
 import { colourNames, literal, messageValues, preview, hintChoices } from './model';
+import { CreateReferenceButton, type ReferenceSpec } from './ReferenceCreation';
 export function Field({
   label,
   children,
@@ -65,23 +66,30 @@ export function Select({
   value,
   items,
   onChange,
+  create,
 }: {
   label: string;
   value: string;
   items: Array<{ id: string; name: string }>;
   onChange: (v: string) => void;
+  create?: ReferenceSpec & { onCreated?: (id: string, initial: Value) => void };
 }) {
   return (
-    <Field label={label}>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
-        {!items.some((i) => i.id === value) && <option value={value}>{value || 'Choose…'}</option>}
-        {items.map((i) => (
-          <option key={i.id} value={i.id}>
-            {i.name}
-          </option>
-        ))}
-      </select>
-    </Field>
+    <>
+      <Field label={label}>
+        <select value={value} onChange={(e) => onChange(e.target.value)}>
+          {!items.some((i) => i.id === value) && (
+            <option value={value}>{value || 'Choose…'}</option>
+          )}
+          {items.map((i) => (
+            <option key={i.id} value={i.id}>
+              {i.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {create && <CreateReferenceButton spec={create} onCreated={create.onCreated ?? onChange} />}
+    </>
   );
 }
 export function PlacementSelect({
@@ -385,7 +393,7 @@ const kinds: Array<Condition['type']> = [
   'visible',
 ];
 const comparisons = ['eq', 'ne', 'gt', 'ge', 'lt', 'le'];
-function defaultCondition(type: Condition['type'], p: Project): Condition {
+export function defaultCondition(type: Condition['type'], p: Project): Condition {
   const object = p.objects[0]?.id ?? '';
   const location = p.locations[0]?.id ?? '';
   const entity = object || location;
@@ -529,6 +537,7 @@ export function ConditionEditor({
       {c.type === 'variable' && (
         <Select
           label="Variable"
+          create={{ kind: 'variable', onCreated: (name, value) => onChange({ ...c, name, value }) }}
           value={c.name}
           items={Object.keys(p.game.variables).map((id) => ({ id, name: id }))}
           onChange={(name) => onChange({ ...c, name, value: p.game.variables[name] ?? false })}
@@ -537,6 +546,11 @@ export function ConditionEditor({
       {c.type === 'property' && (
         <Select
           label="Property"
+          create={{
+            kind: 'property',
+            ownerId: c.entity,
+            onCreated: (name, value) => onChange({ ...c, name, value }),
+          }}
           value={c.name}
           items={Object.keys(entities.find((e) => e.id === c.entity)?.state ?? {}).map((id) => ({
             id,

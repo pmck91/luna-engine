@@ -29,6 +29,8 @@ import WorldMap from './WorldMap';
 import type { BlockSelection, BlockView, BlocksHandle } from './Blocks';
 import BlockInspector from './BlockInspector';
 import { useNavigation } from './navigation';
+import { authoringRoom } from './authoring';
+import ReferenceCreation from './ReferenceCreation';
 import { ProjectHistory, type EditContext } from './projectHistory';
 import Actions from './Actions';
 import Hints from './Hints';
@@ -95,6 +97,7 @@ export default function App() {
   const projectHistory = useRef(new ProjectHistory());
   const [, refreshHistory] = useState(0);
   const fieldSession = useRef(0);
+  const creationTransaction = useRef<{ group: string; label: string } | null>(null);
   useEffect(() => {
     const nextSession = () => {
       fieldSession.current++;
@@ -162,6 +165,11 @@ export default function App() {
     if (!old) return;
     const next = structuredClone(old);
     f(next);
+    if (creationTransaction.current) {
+      // Declaration and assignment share a draft and publish only after both succeed.
+      current.current.doc = next;
+      return;
+    }
     const active = document.activeElement;
     const textField = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
     const fieldLabel = textField
@@ -234,7 +242,7 @@ export default function App() {
       const target = event.target;
       if (
         target instanceof HTMLElement &&
-        target.closest('input, textarea, [contenteditable="true"]')
+        target.closest('input, textarea, [contenteditable="true"], dialog[open]')
       )
         return;
       const key = event.key.toLowerCase();
@@ -524,6 +532,9 @@ export default function App() {
     }
   };
   const activeFlow = doc && flow(doc, selected);
+  const creationRoom = doc ? authoringRoom(doc, selected) : '';
+  const creationRoomName =
+    doc?.locations.find((room) => room.id === creationRoom)?.name ?? 'a room';
   const actionOwner = doc && (owner(doc, selected) ?? flowOwner(doc, selected));
   const hintOwner = actionOwner && 'hints' in actionOwner ? actionOwner : null;
   const actionFlow =
@@ -641,7 +652,7 @@ export default function App() {
     replay: replayProject,
   };
   const countErrors = diagnostics.filter((d) => d.severity === 'error').length;
-  return (
+  const editor = (
     <div className="app">
       <header>
         <div className="brand">
@@ -880,6 +891,9 @@ export default function App() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            <p className="creation-context" id="creation-room-context">
+              New objects and characters go in <strong>{creationRoomName}</strong>.
+            </p>
             {[
               {
                 title: 'Locations',
@@ -888,7 +902,8 @@ export default function App() {
                   edit((p) => {
                     const l = makeLocation();
                     p.locations.push(l);
-                    setSelected(l.id);
+                    select(l.id);
+                    setInspectorCollapsed(false);
                     setMode('map');
                   }),
               },
@@ -897,13 +912,10 @@ export default function App() {
                 items: doc.objects,
                 add: () =>
                   edit((p) => {
-                    const o = makeObject(
-                      doc.locations.some((l) => l.id === selected)
-                        ? selected
-                        : doc.game.starting_location,
-                    );
+                    const o = makeObject(creationRoom);
                     p.objects.push(o);
-                    setSelected(o.id);
+                    select(o.id);
+                    setInspectorCollapsed(false);
                   }),
               },
               {
@@ -911,9 +923,10 @@ export default function App() {
                 items: doc.characters,
                 add: () =>
                   edit((p) => {
-                    const c = character(doc.game.starting_location);
+                    const c = character(creationRoom);
                     p.characters.push(c);
-                    setSelected(c.id);
+                    select(c.id);
+                    setInspectorCollapsed(false);
                   }),
               },
             ].map((section) => (
@@ -922,7 +935,10 @@ export default function App() {
                   <h4>{section.title}</h4>
                   <button
                     aria-label={`Add ${section.title.toLowerCase().replace(/s$/, '')}`}
-                    title={`Add ${section.title.toLowerCase().replace(/s$/, '')}`}
+                    title={`Add ${section.title.toLowerCase().replace(/s$/, '')}${section.title === 'Locations' ? '' : ` to ${creationRoomName}`}`}
+                    aria-describedby={
+                      section.title === 'Locations' ? undefined : 'creation-room-context'
+                    }
                     onClick={section.add}
                   >
                     +
@@ -1442,7 +1458,9 @@ export default function App() {
                 <BlockInspector
                   project={doc}
                   selection={inspectedBlock}
-                  change={(selection, value) => blocks.current?.updateBlock(selection, value)}
+                  change={(selection, value) =>
+                    blocks.current?.updateBlock(selection, value, current.current.doc ?? undefined)
+                  }
                   settings={() => {
                     blocks.current?.selectBlock(null);
                     setBlockSelections((old) => {
@@ -1607,5 +1625,32 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+  return (
+    <ReferenceCreation
+      project={doc}
+      edit={edit}
+      reserved={config?.reserved ?? []}
+      transact={(label, change) => {
+        const previous = creationTransaction.current;
+        const before = current.current.doc;
+        const context = { group: crypto.randomUUID(), label };
+        creationTransaction.current = context;
+        try {
+          change();
+          const after = current.current.doc;
+          current.current.doc = before;
+          creationTransaction.current = previous;
+          if (after && after !== before) edit((project) => Object.assign(project, after), context);
+        } catch (error) {
+          current.current.doc = before;
+          throw error;
+        } finally {
+          creationTransaction.current = previous;
+        }
+      }}
+    >
+      {editor}
+    </ReferenceCreation>
   );
 }

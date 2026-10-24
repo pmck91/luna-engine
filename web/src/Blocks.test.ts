@@ -7,6 +7,9 @@ import {
   describeBlock,
   loadEffectBlocks,
   insertEffectBlocks,
+  insertCatalogueBlock,
+  insertionPoints,
+  readFlowConditions,
   readEffects,
   registerBlocks,
   syncEffectWorkspace,
@@ -178,4 +181,48 @@ it('keeps numeric shadow identity when changing a literal from a form', () => {
   expect(operand.isShadow()).toBe(true);
   expect(operand.getFieldValue('value')).toBe(7);
   ws.dispose();
+});
+it('inserts into branches and typed inputs, retaining replaced conditions and number shadows as drafts', () => {
+  const { ws, root } = workspace([
+    { type: 'say', text: 'First' },
+    { type: 'say', text: 'Last' },
+  ]);
+  const first = root.getInputTargetBlock('DO')!;
+  const last = first.getNextBlock()!;
+  const inserted = insertCatalogueBlock(ws, { blockId: first.id, input: 'NEXT' }, 'luna_if');
+  expect(inserted.getNextBlock()?.id).toBe(last.id);
+  expect(inserted.getInputTargetBlock('TEST')?.type).toBe('condition_true');
+  insertCatalogueBlock(ws, { blockId: inserted.id, input: 'ELSE' }, 'luna_character_says');
+  expect(inserted.getInputTargetBlock('ELSE')?.type).toBe('luna_character_says');
+  const original = root.getInputTargetBlock('requirements')!;
+  const count = ws.getAllBlocks(false).length;
+  expect(() =>
+    insertCatalogueBlock(ws, { blockId: root.id, input: 'requirements' }, 'luna_say'),
+  ).toThrow('does not fit');
+  expect(ws.getAllBlocks(false)).toHaveLength(count);
+  insertCatalogueBlock(ws, { blockId: root.id, input: 'requirements' }, 'condition_false');
+  expect(readFlowConditions(root).requirements).toEqual({ type: 'false' });
+  expect(original.getParent()).toBeNull();
+  expect(ws.getBlockById(original.id)).toBe(original);
+  const update = insertCatalogueBlock(
+    ws,
+    { blockId: last.id, input: 'NEXT' },
+    'luna_update_variable',
+  );
+  const shadow = update.getInputTargetBlock('OPERAND')!;
+  insertCatalogueBlock(ws, { blockId: update.id, input: 'OPERAND' }, 'number_variable');
+  expect(shadow.isShadow()).toBe(false);
+  expect(shadow.getParent()).toBeNull();
+  expect(
+    insertionPoints(ws).find((point) => point.blockId === update.id && point.input === 'OPERAND')
+      ?.kind,
+  ).toBe('number');
+  const saved = Blockly.serialization.workspaces.save(ws);
+  const restored = new Blockly.Workspace();
+  Blockly.serialization.workspaces.load(saved, restored);
+  expect(restored.getBlockById(original.id)?.getParent()).toBeNull();
+  expect(restored.getBlockById(shadow.id)?.getParent()).toBeNull();
+  expect(restored.getBlockById(inserted.id)?.getNextBlock()?.id).toBe(last.id);
+  ws.dispose();
+  restored.dispose();
 });

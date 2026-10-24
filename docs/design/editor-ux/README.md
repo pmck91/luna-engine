@@ -6,7 +6,7 @@ Prepared 24 October 2026 against `main` at `92b3ab6`. Design work and subsequent
 
 ## Review the working checkpoint
 
-Implementation has begun on the UX branch. Use the [first working checkpoint guide](first-checkpoint.md) for the actual editor, screenshots, undo/navigation walkthrough, technical evidence and remaining scope. The owner approved this working direction and requested consistent add-button styling and trigger-selector spacing; those corrections are applied. The mockups below remain the reference for later milestones.
+Implementation has begun on the UX branch. The [first working checkpoint guide](first-checkpoint.md) covers selection, navigation and undo; that direction and its subsequent UI corrections are accepted. Continue with the [contextual authoring checkpoint](contextual-authoring.md) for command presets, creation in context and searchable block insertion. The mockups below remain the reference for later milestones.
 
 ## Review the proposal
 
@@ -45,13 +45,14 @@ Accepted feedback should be recorded below and reflected in the wireframes and p
 
 ## Feedback log
 
-| Date       | Screen / decision        | Feedback                                                                                                                                     | Design change / status                                                                                                                            |
-| ---------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-24 | D1, D2                   | Initial layout and inspector questions sent to the project owner.                                                                            | Resolved by the feedback below.                                                                                                                   |
-| 2026-10-24 | D0; overall design       | Owner wants the blocks to keep their current appearance and content; everything else looks good.                                             | Preserve the existing renderer and inline fields. Record acceptance of the surrounding design and keep the planned feedback checkpoints.          |
-| 2026-10-24 | First working checkpoint | Owner says the direction looks good; Add action/trigger should match the hint button, and the trigger dropdown should match the owner field. | Applied shared button styling and matching trigger form-field layout; verified creation in both browsers and alignment at desktop/compact widths. |
-| 2026-10-24 | Trigger toolbar          | Add trigger is still out of line with the dropdown; the other controls look good.                                                            | Center the button within the dropdown row beneath the labels. Verified matching vertical centers at 1512, 1100 and 900 px.                        |
-| 2026-10-24 | Breadcrumb navigation    | Garden → Study → Actions incorrectly adds Garden to the path.                                                                                | Distinguish default workspace flows from explicitly selected actions/exits. Preserve explicit flow/block paths and back/forward context.           |
+| Date       | Screen / decision         | Feedback                                                                                                                                     | Design change / status                                                                                                                            |
+| ---------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-24 | D1, D2                    | Initial layout and inspector questions sent to the project owner.                                                                            | Resolved by the feedback below.                                                                                                                   |
+| 2026-10-24 | D0; overall design        | Owner wants the blocks to keep their current appearance and content; everything else looks good.                                             | Preserve the existing renderer and inline fields. Record acceptance of the surrounding design and keep the planned feedback checkpoints.          |
+| 2026-10-24 | First working checkpoint  | Owner says the direction looks good; Add action/trigger should match the hint button, and the trigger dropdown should match the owner field. | Applied shared button styling and matching trigger form-field layout; verified creation in both browsers and alignment at desktop/compact widths. |
+| 2026-10-24 | Trigger toolbar           | Add trigger is still out of line with the dropdown; the other controls look good.                                                            | Center the button within the dropdown row beneath the labels. Verified matching vertical centers at 1512, 1100 and 900 px.                        |
+| 2026-10-24 | Breadcrumb navigation     | Garden → Study → Actions incorrectly adds Garden to the path.                                                                                | Distinguish default workspace flows from explicitly selected actions/exits. Preserve explicit flow/block paths and back/forward context.          |
+| 2026-10-24 | First checkpoint accepted | Owner says everything looks good and asks to continue the UX work.                                                                           | Proceed with M3 contextual creation and typed insertion; bring the working authoring flow back for feedback.                                      |
 
 ## Design references
 

@@ -1,6 +1,7 @@
-import type { Project, Trigger } from './contracts';
+import type { Project, Trigger, Value, ValueTarget } from './contracts';
 import { flow, flowOwner, owner } from './model';
 import { Select } from './Forms';
+import { CreateReferenceButton } from './ReferenceCreation';
 import {
   commandEvents,
   stateEvents,
@@ -25,6 +26,19 @@ export default function TriggerSettings({
   const source = flowOwner(project, trigger.id)!;
   const update = (change: Partial<Trigger>) =>
     edit((p) => Object.assign(flow(p, trigger.id)!, change));
+  const selectTarget = (target: ValueTarget, value: Value) => {
+    const previous = trigger.watch!.target;
+    const simple =
+      trigger.condition.type === previous.type &&
+      'name' in trigger.condition &&
+      trigger.condition.name === previous.name &&
+      (previous.type !== 'property' ||
+        ('entity' in trigger.condition && trigger.condition.entity === previous.entity));
+    update({
+      watch: { ...trigger.watch!, target },
+      ...(simple ? { condition: watchCondition(target, value) } : {}),
+    });
+  };
   return (
     <>
       <Select
@@ -71,19 +85,21 @@ export default function TriggerSettings({
             items={targets}
             onChange={(id) => {
               const target = targets.find((item) => item.id === id)!;
-              const previous = trigger.watch!.target;
-              const simple =
-                trigger.condition.type === previous.type &&
-                'name' in trigger.condition &&
-                trigger.condition.name === previous.name &&
-                (previous.type !== 'property' ||
-                  ('entity' in trigger.condition && trigger.condition.entity === previous.entity));
-              update({
-                watch: { ...trigger.watch!, target: target.target },
-                ...(simple ? { condition: watchCondition(target.target, target.value) } : {}),
-              });
+              selectTarget(target.target, target.value);
             }}
           />
+          <CreateReferenceButton
+            spec={{ kind: 'variable' }}
+            onCreated={(name, value) => selectTarget({ type: 'variable', name }, value)}
+          />
+          {source.id !== project.game.id && (
+            <CreateReferenceButton
+              spec={{ kind: 'property', ownerId: source.id }}
+              onCreated={(name, value) =>
+                selectTarget({ type: 'property', entity: source.id, name }, value)
+              }
+            />
+          )}
           <Select
             label="Fire value trigger"
             value={trigger.watch.mode}
