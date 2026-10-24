@@ -81,6 +81,7 @@ export default function TriggerSettings({
         <>
           <Select
             label="Watched value"
+            path="watch.target"
             value={JSON.stringify(trigger.watch.target)}
             items={targets}
             onChange={(id) => {

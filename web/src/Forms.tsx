@@ -1,19 +1,25 @@
-import { cloneElement, useId, useLayoutEffect, useRef, useState } from 'react';
+import { cloneElement, useContext, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { Condition, Project, Value, Comparison, GameState, Placement } from './contracts';
 import { colourNames, literal, messageValues, preview, hintChoices } from './model';
 import { CreateReferenceButton, type ReferenceSpec } from './ReferenceCreation';
+import { ReferenceButton, useReferenceActions } from './ReferenceManager';
+import { FindingSubject, InlineFindings } from './FindingContext';
 export function Field({
   label,
   children,
+  path,
 }: {
   label: string;
   children: React.ReactElement<{ id?: string }>;
+  path?: string;
 }) {
   const id = useId();
+  const subject = useContext(FindingSubject);
   return (
-    <div className="field">
+    <div className="field" data-field-path={path} data-field-subject={subject || undefined}>
       <label htmlFor={id}>{label}</label>
       {cloneElement(children, { id })}
+      {subject && path && <InlineFindings subject={subject} path={path} />}
     </div>
   );
 }
@@ -21,15 +27,17 @@ export function Text({
   label,
   value,
   onChange,
+  path,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  path?: string;
 }) {
   const [draft, setDraft] = useState(value);
   const [focused, setFocused] = useState(false);
   return (
-    <Field label={label}>
+    <Field label={label} path={path}>
       <input
         value={focused ? draft : value}
         onFocus={() => {
@@ -67,16 +75,18 @@ export function Select({
   items,
   onChange,
   create,
+  path,
 }: {
   label: string;
   value: string;
   items: Array<{ id: string; name: string }>;
   onChange: (v: string) => void;
   create?: ReferenceSpec & { onCreated?: (id: string, initial: Value) => void };
+  path?: string;
 }) {
   return (
     <>
-      <Field label={label}>
+      <Field label={label} path={path}>
         <select value={value} onChange={(e) => onChange(e.target.value)}>
           {!items.some((i) => i.id === value) && (
             <option value={value}>{value || 'Choose…'}</option>
@@ -120,6 +130,7 @@ export function PlacementSelect({
   return (
     <Select
       label={label}
+      path="placement"
       value={key}
       items={items}
       onChange={(v) =>
@@ -170,11 +181,13 @@ export function RichText({
   value,
   onChange,
   project,
+  path,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   project?: Project;
+  path?: string;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const insertionCursor = useRef<number | null>(null);
@@ -201,7 +214,7 @@ export function RichText({
   };
   return (
     <div className="rich-text">
-      <Field label={label}>
+      <Field label={label} path={path}>
         <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rows={3} />
       </Field>
       <div className="text-toolbar">
@@ -277,11 +290,14 @@ export function Values({
   values: inputValues,
   onChange,
   fixed = false,
+  referenceOwner,
 }: {
   values?: Record<string, Value | undefined>;
   onChange: (v: Record<string, Value>) => void;
   fixed?: boolean;
+  referenceOwner?: string;
 }) {
+  const references = useReferenceActions();
   const values = Object.fromEntries(
     Object.entries(inputValues ?? {}).filter(
       (entry): entry is [string, Value] => entry[1] !== undefined,
@@ -338,16 +354,49 @@ export function Values({
             />
           )}
           {!fixed && (
-            <button
-              aria-label={`Remove ${key}`}
-              onClick={() => {
-                const next = { ...values };
-                delete next[key];
-                onChange(next);
-              }}
-            >
-              ×
-            </button>
+            <span className="value-reference-actions">
+              {referenceOwner && (
+                <>
+                  <ReferenceButton
+                    target={
+                      referenceOwner === '@variables'
+                        ? { kind: 'variable', name: key }
+                        : { kind: 'property', entity: referenceOwner, name: key }
+                    }
+                    label={`Used by ${key}`}
+                  />
+                  <ReferenceButton
+                    target={
+                      referenceOwner === '@variables'
+                        ? { kind: 'variable', name: key }
+                        : { kind: 'property', entity: referenceOwner, name: key }
+                    }
+                    action="rename"
+                    label={`Rename ${key}`}
+                  />
+                </>
+              )}
+              <button
+                aria-label={`Remove ${key}`}
+                onClick={() => {
+                  if (references && referenceOwner) {
+                    references({
+                      target:
+                        referenceOwner === '@variables'
+                          ? { kind: 'variable', name: key }
+                          : { kind: 'property', entity: referenceOwner, name: key },
+                      action: 'delete',
+                    });
+                    return;
+                  }
+                  const next = { ...values };
+                  delete next[key];
+                  onChange(next);
+                }}
+              >
+                ×
+              </button>
+            </span>
           )}
         </div>
       ))}

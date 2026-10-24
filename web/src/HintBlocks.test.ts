@@ -4,6 +4,7 @@ import type { Condition, Project } from './contracts';
 import { character, hintSet, hintStage, location, object } from './model';
 import {
   hintPart,
+  hintFindingBlock,
   hintWorkspaceKey,
   loadHintWorkspace,
   readHintBlocks,
@@ -158,6 +159,15 @@ describe('hint block authoring', () => {
     );
     stage.nextConnection!.connect(copy.previousConnection!);
     const authored = readHintBlocks(root);
+    expect(
+      hintFindingBlock(ws, hint.id, {
+        subject: authored.stages[1].id,
+        puzzleId: hint.id,
+        stageId: authored.stages[1].id,
+        scope: 'content',
+        path: 'clues.0',
+      }),
+    ).toBe(copy.getInputTargetBlock('CLUES'));
     expect(authored.stages[0].id).toBe(hint.stages[0].id);
     expect(authored.stages[1].id).not.toBe(authored.stages[0].id);
     expect(authored.stages[1].id).toMatch(/^[a-zA-Z0-9_.-]{1,120}$/);

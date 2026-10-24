@@ -31,6 +31,10 @@ import BlockInspector from './BlockInspector';
 import { useNavigation } from './navigation';
 import { authoringRoom } from './authoring';
 import ReferenceCreation from './ReferenceCreation';
+import ReferenceManager, { ReferenceActions, type ReferenceRequest } from './ReferenceManager';
+import { referencePlan, usedBy, type ReferenceSite, type ReferenceTarget } from './references';
+import { connectedFindings, prepareDraftValidation, type Finding } from './diagnostics';
+import { FindingContext, FindingsList, FindingSubject, InlineFindings } from './FindingContext';
 import { ProjectHistory, type EditContext } from './projectHistory';
 import Actions from './Actions';
 import Hints from './Hints';
@@ -74,8 +78,15 @@ export default function App() {
   const [status, setStatus] = useState('Saved');
   const [conflict, setConflict] = useState(false);
   const [comparison, setComparison] = useState<DiskView | null>(null);
-  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
+  const [validation, setValidation] = useState<{ version: string; findings: Finding[] }>({
+    version: '',
+    findings: [],
+  });
+  const [referenceRequest, setReferenceRequest] = useState<ReferenceRequest | null>(null);
+  const [revealTarget, setRevealTarget] = useState<ReferenceSite | null>(null);
+  const [templateSelection, setTemplateSelection] = useState<string | undefined>();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [findingFilter, setFindingFilter] = useState('all');
   const [projectModal, setProjectModal] = useState(false);
   const [newTitle, setNewTitle] = useState('My adventure');
   const [newFolder, setNewFolder] = useState('my-adventure');
@@ -159,6 +170,10 @@ export default function App() {
     setHintSelection(null);
     setBlockSelections({});
     setTemplateContext(null);
+    setReferenceRequest(null);
+    setRevealTarget(null);
+    setValidation({ version: '', findings: [] });
+    setFindingFilter('all');
   };
   const edit = useCallback((f: (p: Project) => void, context: EditContext = {}) => {
     const old = current.current.doc;
@@ -332,10 +347,19 @@ export default function App() {
     if (!doc) return;
     let active = true;
     const timer = setTimeout(() => {
-      void request<Diagnostic[]>('/validate', 'POST', doc)
-        .then((findings) => {
+      const drafts = prepareDraftValidation(doc);
+      void Promise.all([
+        request<Diagnostic[]>('/validate', 'POST', doc),
+        drafts.hasDrafts
+          ? request<Diagnostic[]>('/validate', 'POST', drafts.project)
+          : Promise.resolve([]),
+      ])
+        .then(([runtime, draft]) => {
           if (active && JSON.stringify(current.current.doc) === editingVersion)
-            setDiagnostics(findings);
+            setValidation({
+              version: editingVersion,
+              findings: [...connectedFindings(doc, runtime), ...drafts.findings(draft)],
+            });
         })
         .catch((problem) => {
           if (active) error(problem);
@@ -476,27 +500,57 @@ export default function App() {
     }
   };
   const remove = (key: string) => {
-    if (!window.confirm('Delete this content? References will be reported by validation.')) return;
+    if (!doc) return;
+    const target: ReferenceTarget = flow(doc, key)
+      ? { kind: 'flow', id: key }
+      : { kind: 'entity', id: key };
+    if (usedBy(doc, target).length) {
+      setReferenceRequest({ target, action: 'delete' });
+      return;
+    }
+    if (!window.confirm('Delete this unused content? You can undo this change.')) return;
     const parent = doc && flowOwner(doc, key);
     edit((p) => {
-      p.locations = p.locations.filter((l) => l.id !== key);
-      p.objects = p.objects.filter((o) => o.id !== key);
-      p.characters = p.characters.filter((c) => c.id !== key);
-      for (const o of [p.game, ...p.locations, ...p.objects, ...p.characters]) {
-        o.actions = o.actions.filter((a) => a.id !== key);
-        o.triggers = o.triggers.filter((t) => t.id !== key);
-        if ('exits' in o) o.exits = o.exits.filter((e) => e.id !== key);
-      }
-      delete p.editor.positions[key];
-      delete p.editor.blocks[key];
-      delete p.editor.routes[key];
-      const exits = new Set(
-        p.locations.flatMap((location) => location.exits.map((exit) => exit.id)),
-      );
-      for (const route of Object.keys(p.editor.routes))
-        if (!exits.has(route)) delete p.editor.routes[route];
+      const result = referencePlan(p, target);
+      if (result.errors.length) throw new Error(result.errors.join(' '));
+      Object.assign(p, result.project);
     });
     setSelected(parent?.id ?? doc?.game.id ?? '');
+  };
+  const reveal = (site: ReferenceSite) => {
+    if (!doc) return;
+    setShowDiagnostics(false);
+    setInspectorCollapsed(false);
+    setRevealTarget({ ...site });
+    if (site.templateId) {
+      setTemplateSelection(site.templateId);
+      setTemplateContext({ ownerId: doc.game.id, flowId: null, selectedEffects: null });
+    } else if (site.puzzleId && site.ownerId) {
+      setSelected(site.ownerId);
+      setMode('hints');
+      const clue = site.path.match(/^clues\.(\d+)/);
+      setHintSelection({
+        ownerId: site.ownerId,
+        puzzleId: site.puzzleId,
+        part: site.stageId
+          ? clue
+            ? { type: 'clue', stageId: site.stageId, index: Number(clue[1]) }
+            : site.path.startsWith('solution')
+              ? { type: 'solution', stageId: site.stageId }
+              : { type: 'stage', stageId: site.stageId }
+          : { type: 'puzzle' },
+      });
+    } else if (site.flowId) {
+      blocks.current?.selectBlock(null);
+      setBlockSelections((old) => {
+        const next = { ...old };
+        delete next[site.flowId!];
+        return next;
+      });
+      select(site.flowId);
+    } else if (doc.vocabulary.some((verb) => verb.id === site.subject))
+      select(gameDataPages.vocabulary);
+    else select(site.subject);
   };
   const upload = async (file: File) => {
     if (!view) return;
@@ -584,6 +638,45 @@ export default function App() {
     flowBreadcrumb,
     inspectedBlock?.blockId,
   ]);
+  useEffect(() => {
+    if (!revealTarget) return;
+    const frame = requestAnimationFrame(() => {
+      const pane = inspectorContent.current;
+      if (!pane) return;
+      const fields = [...pane.querySelectorAll<HTMLElement>('[data-field-path]')].filter(
+        (field) =>
+          !field.dataset.fieldSubject || field.dataset.fieldSubject === revealTarget.subject,
+      );
+      const field = fields
+        .filter((field) => {
+          const path = field.dataset.fieldPath!;
+          return (
+            revealTarget.path === path ||
+            revealTarget.path.startsWith(`${path}.`) ||
+            path.startsWith(`${revealTarget.path}.`)
+          );
+        })
+        .sort((a, b) => b.dataset.fieldPath!.length - a.dataset.fieldPath!.length)[0];
+      for (const existing of pane.querySelectorAll('.finding-focus'))
+        existing.classList.remove('finding-focus');
+      const target = field ?? pane.querySelector<HTMLElement>('.inline-findings');
+      if (target) {
+        if (target instanceof HTMLDetailsElement) target.open = true;
+        for (
+          let ancestor = target.parentElement;
+          ancestor && ancestor !== pane;
+          ancestor = ancestor.parentElement
+        )
+          if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+        target.classList.add('finding-focus');
+        target.scrollIntoView({ block: 'nearest' });
+        field
+          ?.querySelector<HTMLElement>('input, textarea, select')
+          ?.focus({ preventScroll: true });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [revealTarget, selected, mode, inspectedBlock?.blockId]);
   const inspectorPositions = useRef<Record<string, number>>({});
   const inspectorFocus = useRef<
     Record<string, { label: string; start: number | null; end: number | null }>
@@ -651,7 +744,13 @@ export default function App() {
     redoLabel: projectHistory.current.redoLabel,
     replay: replayProject,
   };
-  const countErrors = diagnostics.filter((d) => d.severity === 'error').length;
+  const diagnostics = validation.version === editingVersion ? validation.findings : [];
+  const countErrors = diagnostics.filter(
+    (d) => d.scope !== 'draft' && d.severity === 'error',
+  ).length;
+  const countWarnings = diagnostics.filter(
+    (d) => d.scope !== 'draft' && d.severity === 'warning',
+  ).length;
   const editor = (
     <div className="app">
       <header>
@@ -727,7 +826,8 @@ export default function App() {
             Save As
           </button>
           <button disabled={!doc} onClick={() => setShowDiagnostics((v) => !v)}>
-            Validate {countErrors > 0 && <span className="error-count">{countErrors}</span>}
+            Validate {countErrors > 0 && <span className="error-count">{countErrors} errors</span>}
+            {countWarnings > 0 && <span className="warning-count">{countWarnings} warnings</span>}
           </button>
           <button
             className="primary"
@@ -1247,7 +1347,7 @@ export default function App() {
                 </span>
                 <div className="playtest-controls" hidden={playtestCollapsed}>
                   <button
-                    disabled={busy}
+                    disabled={busy || countErrors > 0}
                     onClick={() => {
                       void start();
                     }}
@@ -1441,45 +1541,74 @@ export default function App() {
               className="inspector"
               hidden={inspectorCollapsed}
             >
-              {mode === 'hints' && hintOwner ? (
-                <HintInspector
-                  project={doc}
-                  ownerId={hintOwner.id}
-                  selection={hintSelection}
-                  select={(selection) => setHintSelection(selection)}
-                  edit={edit}
-                />
-              ) : mode === 'triggers' && !activeTrigger ? (
-                <>
-                  <h2>Triggers</h2>
-                  <p className="muted">Add a trigger to build its conditions and effects.</p>
-                </>
-              ) : inspectedBlock ? (
-                <BlockInspector
-                  project={doc}
-                  selection={inspectedBlock}
-                  change={(selection, value) =>
-                    blocks.current?.updateBlock(selection, value, current.current.doc ?? undefined)
-                  }
-                  settings={() => {
-                    blocks.current?.selectBlock(null);
-                    setBlockSelections((old) => {
-                      const next = { ...old };
-                      delete next[inspectedBlock.flowId];
-                      return next;
-                    });
-                  }}
-                />
-              ) : (
-                <Inspector
-                  project={doc}
-                  selected={mode === 'triggers' && activeTrigger ? activeTrigger.id : selected}
-                  edit={edit}
-                  select={select}
-                  remove={remove}
-                  error={error}
-                />
-              )}
+              <FindingSubject.Provider
+                value={
+                  mode === 'triggers' && activeTrigger
+                    ? activeTrigger.id
+                    : mode === 'hints' && hintSelection
+                      ? 'stageId' in hintSelection.part
+                        ? hintSelection.part.stageId
+                        : hintSelection.puzzleId
+                      : selected
+                }
+              >
+                {!inspectedBlock && (
+                  <InlineFindings
+                    subject={
+                      mode === 'triggers' && activeTrigger
+                        ? activeTrigger.id
+                        : mode === 'hints' && hintSelection
+                          ? 'stageId' in hintSelection.part
+                            ? hintSelection.part.stageId
+                            : hintSelection.puzzleId
+                          : selected
+                    }
+                  />
+                )}
+                {mode === 'hints' && hintOwner ? (
+                  <HintInspector
+                    project={doc}
+                    ownerId={hintOwner.id}
+                    selection={hintSelection}
+                    select={(selection) => setHintSelection(selection)}
+                    edit={edit}
+                  />
+                ) : mode === 'triggers' && !activeTrigger ? (
+                  <>
+                    <h2>Triggers</h2>
+                    <p className="muted">Add a trigger to build its conditions and effects.</p>
+                  </>
+                ) : inspectedBlock ? (
+                  <BlockInspector
+                    project={doc}
+                    selection={inspectedBlock}
+                    change={(selection, value) =>
+                      blocks.current?.updateBlock(
+                        selection,
+                        value,
+                        current.current.doc ?? undefined,
+                      )
+                    }
+                    settings={() => {
+                      blocks.current?.selectBlock(null);
+                      setBlockSelections((old) => {
+                        const next = { ...old };
+                        delete next[inspectedBlock.flowId];
+                        return next;
+                      });
+                    }}
+                  />
+                ) : (
+                  <Inspector
+                    project={doc}
+                    selected={mode === 'triggers' && activeTrigger ? activeTrigger.id : selected}
+                    edit={edit}
+                    select={select}
+                    remove={remove}
+                    error={error}
+                  />
+                )}
+              </FindingSubject.Provider>
             </div>
           </aside>
         </main>
@@ -1488,6 +1617,7 @@ export default function App() {
         <Templates
           project={doc}
           context={templateContext}
+          initialTemplate={templateSelection}
           edit={edit}
           select={select}
           append={(effects) => {
@@ -1498,35 +1628,16 @@ export default function App() {
           close={() => setTemplateContext(null)}
         />
       )}
-      {showDiagnostics && (
-        <div className="diagnostics">
-          <div className="section-heading">
-            <h2>Validation · {diagnostics.length} findings</h2>
-            <button onClick={() => setShowDiagnostics(false)}>Close</button>
-          </div>
-          <p className="muted">
-            Reachability checks routes and authored movement; playtest to verify puzzle solutions.
-          </p>
-          {diagnostics.length === 0 && <p className="success">No issues found.</p>}
-          {diagnostics.map((d, i) => (
-            <button
-              key={i}
-              className={`diagnostic ${d.severity}`}
-              onClick={() => {
-                select(d.subject);
-                setShowDiagnostics(false);
-              }}
-            >
-              <strong>{d.severity}</strong>
-              <span>
-                {d.message}
-                <small>
-                  {d.subject} · {d.field}
-                </small>
-              </span>
-            </button>
-          ))}
-        </div>
+      {showDiagnostics && doc && (
+        <FindingsList
+          project={doc}
+          findings={diagnostics}
+          filter={findingFilter}
+          setFilter={setFindingFilter}
+          pending={validation.version !== editingVersion}
+          close={() => setShowDiagnostics(false)}
+          reveal={reveal}
+        />
       )}
       {projectModal && (
         <div className="modal-backdrop">
@@ -1627,30 +1738,65 @@ export default function App() {
     </div>
   );
   return (
-    <ReferenceCreation
-      project={doc}
-      edit={edit}
-      reserved={config?.reserved ?? []}
-      transact={(label, change) => {
-        const previous = creationTransaction.current;
-        const before = current.current.doc;
-        const context = { group: crypto.randomUUID(), label };
-        creationTransaction.current = context;
-        try {
-          change();
-          const after = current.current.doc;
-          current.current.doc = before;
-          creationTransaction.current = previous;
-          if (after && after !== before) edit((project) => Object.assign(project, after), context);
-        } catch (error) {
-          current.current.doc = before;
-          throw error;
-        } finally {
-          creationTransaction.current = previous;
-        }
+    <ReferenceActions.Provider
+      value={(reference) => {
+        if (doc && reference.action === 'delete' && !usedBy(doc, reference.target).length) {
+          edit(
+            (p) => {
+              const result = referencePlan(p, reference.target);
+              if (result.errors.length) throw new Error(result.errors.join(' '));
+              Object.assign(p, result.project);
+            },
+            { label: 'Delete unused content' },
+          );
+        } else setReferenceRequest(reference);
       }}
     >
-      {editor}
-    </ReferenceCreation>
+      <FindingContext.Provider value={{ findings: diagnostics, reveal: revealTarget }}>
+        <ReferenceCreation
+          project={doc}
+          edit={edit}
+          reserved={config?.reserved ?? []}
+          transact={(label, change) => {
+            const previous = creationTransaction.current;
+            const before = current.current.doc;
+            const context = { group: crypto.randomUUID(), label };
+            creationTransaction.current = context;
+            try {
+              change();
+              const after = current.current.doc;
+              current.current.doc = before;
+              creationTransaction.current = previous;
+              if (after && after !== before)
+                edit((project) => Object.assign(project, after), context);
+            } catch (error) {
+              current.current.doc = before;
+              throw error;
+            } finally {
+              creationTransaction.current = previous;
+            }
+          }}
+        >
+          {editor}
+          {doc && referenceRequest && (
+            <ReferenceManager
+              key={JSON.stringify(referenceRequest)}
+              project={doc}
+              request={referenceRequest}
+              close={() => setReferenceRequest(null)}
+              edit={edit}
+              reveal={reveal}
+              removed={(target) => {
+                if (
+                  'id' in target &&
+                  (selected === target.id || flowOwner(doc, selected)?.id === target.id)
+                )
+                  select(flowOwner(doc, target.id)?.id ?? doc.game.id);
+              }}
+            />
+          )}
+        </ReferenceCreation>
+      </FindingContext.Provider>
+    </ReferenceActions.Provider>
   );
 }

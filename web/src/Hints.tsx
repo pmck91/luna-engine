@@ -6,6 +6,7 @@ import type { Project } from './contracts';
 import { entity, hintSet, hintStage } from './model';
 import HintBlocks, { hintWorkspaceKey, type HintSelection } from './HintBlocks';
 import HintForms from './HintForms';
+import { ReferenceButton, useReferenceActions } from './ReferenceManager';
 
 export default function Hints({
   project,
@@ -28,6 +29,7 @@ export default function Hints({
   views: { current: Record<string, 'blocks' | 'forms'> };
   blockViews: { current: Record<string, BlockView> };
 }) {
+  const references = useReferenceActions();
   const owner = entity(project, ownerId)!;
   const [view, updateView] = useState<'blocks' | 'forms'>(views.current[ownerId] ?? 'blocks');
   const setView = (value: 'blocks' | 'forms') => {
@@ -83,14 +85,17 @@ export default function Hints({
             </button>
             <button
               onClick={() =>
-                edit((p) => {
-                  entity(p, ownerId)!.hints.splice(index, 1);
-                  delete p.editor.blocks[hintWorkspaceKey(active.id)];
-                })
+                references
+                  ? references({ target: { kind: 'puzzle', id: active.id }, action: 'delete' })
+                  : edit((p) => {
+                      entity(p, ownerId)!.hints.splice(index, 1);
+                      delete p.editor.blocks[hintWorkspaceKey(active.id)];
+                    })
               }
             >
               Remove puzzle
             </button>
+            <ReferenceButton target={{ kind: 'puzzle', id: active.id }} />
           </div>
         )}
         <button

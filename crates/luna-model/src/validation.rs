@@ -174,11 +174,11 @@ impl Check<'_> {
                 }
             }
             Condition::All { conditions } | Condition::Any { conditions } => {
-                for c in conditions {
-                    self.condition(s, f, c)
+                for (index, c) in conditions.iter().enumerate() {
+                    self.condition(s, &format!("{f}.conditions.{index}"), c)
                 }
             }
-            Condition::Not { condition } => self.condition(s, f, condition),
+            Condition::Not { condition } => self.condition(s, &format!("{f}.condition"), condition),
             Condition::Variable { name, op, value } => {
                 self.value(s, f, self.p.game.variables.get(name), value, Some(*op))
             }
@@ -234,10 +234,10 @@ impl Check<'_> {
                     if responses.is_empty() {
                         self.error(s, &f, "A response sequence requires at least one response")
                     }
-                    for t in responses {
-                        self.text(s, &f, t)
+                    for (index, t) in responses.iter().enumerate() {
+                        self.text(s, &format!("{f}.responses.{index}"), t)
                     }
-                    self.text(s, &f, fallback);
+                    self.text(s, &format!("{f}.fallback"), fallback);
                     self.effects(s, &format!("{f}.on_exhausted"), on_exhausted)
                 }
                 Effect::ResetResponses { sequence } => {
@@ -332,7 +332,7 @@ impl Check<'_> {
                     then,
                     otherwise,
                 } => {
-                    self.condition(s, &f, condition);
+                    self.condition(s, &format!("{f}.condition"), condition);
                     self.effects(s, &format!("{f}.then"), then);
                     self.effects(s, &format!("{f}.otherwise"), otherwise)
                 }
@@ -349,14 +349,20 @@ impl Check<'_> {
         if !self.p.vocabulary.iter().any(|v| v.id == verb) {
             self.error(s, "verb", format!("Missing verb: {verb}"))
         }
-        for part in pattern {
+        for (index, part) in pattern.iter().enumerate() {
             match part {
                 PatternPart::Literal { text } => {
                     if normalize(text).is_empty() {
-                        self.error(s, "pattern", "Pattern literals cannot be empty")
+                        self.error(
+                            s,
+                            &format!("pattern.{index}"),
+                            "Pattern literals cannot be empty",
+                        )
                     }
                 }
-                PatternPart::Entity { entity } => self.entity(s, "pattern", entity),
+                PatternPart::Entity { entity } => {
+                    self.entity(s, &format!("pattern.{index}"), entity)
+                }
             }
         }
     }
@@ -943,6 +949,37 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn diagnostics_identify_nested_conditions_and_individual_replies() {
+        let mut p = Project::blank("Precise findings");
+        p.game.actions.push(serde_json::from_value(serde_json::json!({
+            "id": "inspect", "name": "Inspect", "verb": p.vocabulary[0].id,
+            "pattern": [{"type":"literal", "text":""}, {"type":"entity", "entity":"missing"}], "priority": 0, "requirements": {"type":"true"}, "failure_text":"",
+            "effects": [
+                {"type":"if", "condition":{"type":"true"}, "then":[], "otherwise":[
+                    {"type":"if", "condition":{"type":"all", "conditions":[{"type":"true"},{"type":"not", "condition":{"type":"carrying", "object":"missing"}}]}, "then":[], "otherwise":[]}
+                ]},
+                {"type":"respond", "id":"replies", "responses":["Valid", "%missing%"], "mode":"repeat_last", "fallback":"", "exhaustion":"once", "on_exhausted":[]}
+            ]
+        })).unwrap());
+        let diagnostics = validate(&p);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.field == "pattern.0" && d.message.contains("empty"))
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.field == "pattern.1" && d.message.contains("Missing entity"))
+        );
+        assert!(diagnostics.iter().any(|d| d.subject == "inspect"
+            && d.field == "effects.0.otherwise.0.condition.conditions.1.condition"
+            && d.message.contains("Missing object")));
+        assert!(diagnostics.iter().any(|d| d.subject == "inspect"
+            && d.field == "effects.1.responses.1"
+            && d.message.contains("missing")));
+    }
     #[test]
     fn descriptions_and_message_values_validate_references() {
         let mut p = Project::blank("Messages");

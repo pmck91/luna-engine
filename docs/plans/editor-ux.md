@@ -1,6 +1,6 @@
 # Editor UX implementation plan
 
-Status: **Implementation in progress on `feature/editor-ux`; first checkpoint accepted and M3 working authoring review available.** The accepted block-preservation requirement remains in force. See the [contextual authoring review](../design/editor-ux/contextual-authoring.md).
+Status: **Implementation in progress on `feature/editor-ux`; M3 accepted and M4 findings/reference review available.** The accepted block-preservation requirement remains in force. See the [current working review](../design/editor-ux/findings-and-references.md).
 
 Branch: `feature/editor-ux`, created from main at `92b3ab6` on 24 October 2026. This document covers every Editor UX TODO and records the accepted design direction; merging remains subject to the agreed testing and owner acceptance. See the [design review guide](../design/editor-ux/README.md), [interaction specification](../design/editor-ux/interaction-design.md), and [wireframes](../design/editor-ux/wireframes.html).
 
@@ -41,12 +41,15 @@ Dependency order: M0 → M1 → M2 → M3/M4 → M5 → M6 → M7/M8 → M9. M3 
 - M1: compact action/trigger/puzzle selectors, selected-block inspection, breadcrumbs/back/forward, and session restoration of selections, filters, canvas view and inspector focus/scroll are implemented. The owner approved the working direction; matching add-button styles and trigger-selector spacing have been applied and checked at desktop/compact widths.
 - M2: initial shared project history is implemented, including form sessions, grouped Blockly edits, templates and room/route layout. Mixed-operation undo/redo across saves and workspace occurrence/draft restoration are covered. The timeline retains at most 100 transactions or approximately 20 MiB of serialized snapshots, preserving the newest complete transaction.
 - Small foundations for later milestones are included: stale validation replies are discarded (M4), and editor-only changes no longer invalidate a playtest source snapshot (M6). The remainder of those milestones is still open.
-- M3: consistent initial-room creation, command-pattern presets/previews, contextual verbs/variables/properties/endings, and searchable typed action/trigger insertion are implemented for review. The DOM outline exposes insertion points; the picker preserves following chains and displaced input drafts using the current Blockly renderer. Creation and assignment publish as one project transaction. See the [working walkthrough](../design/editor-ux/contextual-authoring.md) and request owner feedback before dependent authoring work.
-- M4–M9: remain planned. The full TODO items are not marked complete before the remaining work, feedback, and acceptance gates.
+- M3: consistent initial-room creation, command-pattern presets/previews, contextual verbs/variables/properties/endings, and searchable typed action/trigger insertion are implemented and accepted. The DOM outline exposes insertion points; the picker preserves following chains and displaced input drafts using the current Blockly renderer. Creation and assignment publish as one project transaction. See the [working walkthrough](../design/editor-ux/contextual-authoring.md).
+- M4: precise Rust diagnostic paths, current-revision findings, exact block/field navigation, nonblocking draft findings, and a typed reference index are implemented. Used by groups logic, placements, messages, drafts, and templates. Checked variable/property renames and explicit compatible replacement before deletion publish as one history transaction. The accepted D5 default is implemented; detailed review of the [working preview](../design/editor-ux/findings-and-references.md) remains pending.
+- M5–M9: remain planned. The full TODO items are not marked complete before the remaining work, feedback, and acceptance gates.
 
 The foundation checkpoint passed its 43 frontend tests, 44-test Chromium/Firefox suite, Rust workspace tests, Rust formatting/Clippy and generated-contract checks. Its follow-up navigation checks covered native text undo, layout-only playtest edits, and returning to a surviving room when undo removes the selected entity.
 
-M3 verification: 46 frontend tests, all 50 Chromium/Firefox authoring checks, and frontend build/format checks pass. Eight final browser checks also verify the creation popup above canvas controls, keyboard insertion, atomic reference undo/redo, target-command playback, saved draft/occurrence identity, and compact picker layouts at 1100 and 900 px. Runtime contracts and save formats are unchanged. Actual captures and the working walkthrough are in the [authoring review guide](../design/editor-ux/contextual-authoring.md). Owner feedback on this milestone remains pending; release packaging and the full owner/new-author acceptance walkthrough remain M9 gates.
+M3 verification: 46 frontend tests, all 50 Chromium/Firefox authoring checks, and frontend build/format checks pass. Eight final browser checks also verify the creation popup above canvas controls, keyboard insertion, atomic reference undo/redo, target-command playback, saved draft/occurrence identity, and compact picker layouts at 1100 and 900 px. Runtime contracts and save formats are unchanged. Actual captures and the working walkthrough are in the [authoring review guide](../design/editor-ux/contextual-authoring.md). Owner feedback accepted this milestone; release packaging and the full owner/new-author acceptance walkthrough remain M9 gates.
+
+M4 verification: all 53 frontend tests and the full 56-check Chromium/Firefox suite pass, followed by eight passing findings/reference checks on the final implementation. The latter cover nested-condition repair, individual response/clue focus, action/hint drafts, atomic rename/replacement undo, stale replies, and compact reference controls. Rust workspace tests, formatting, Clippy, and generated-contract checks pass. See the [working review and captures](../design/editor-ux/findings-and-references.md); detailed owner feedback remains pending.
 
 ## M0 — Review design and prove the risky foundations
 
@@ -120,7 +123,7 @@ Implement previewed variable/property renames and replace-before-delete, includi
 
 Acceptance: follow an error into a nested condition, repair it, and verify the finding disappears for the correct revision. Rename a property used by hints, speech, a watch, arithmetic, a draft, and a saved template. Test dotted IDs, escaped placeholders, and a global name shadowing a property. Undo restores every reference and the prior schema.
 
-Feedback checkpoint: review error wording and the Used by/delete preview using a genuinely interconnected project. Resolve D5 before enabling deletion of referenced content.
+Feedback checkpoint: review error wording and the Used by/delete preview using an interconnected project. The accepted D5 default is replace/reassign or cancel; review its concrete presentation before developing dependent changes.
 
 ## M5 — Discoverability, layout, search, and accessibility
 

@@ -1,6 +1,6 @@
 import { bindWorkspaceHistory, type HistoryControls } from './workspaceHistory';
 import type { EditContext } from './projectHistory';
-import { useEffect, useRef } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 import * as Blockly from 'blockly/core';
 import type { Condition, HintSet, HintStage, Project } from './contracts';
 import {
@@ -15,8 +15,11 @@ import {
 } from './Blocks';
 import { refreshChainEnds } from './blockRenderer';
 import { hintChoices } from './model';
+import { FindingContext } from './FindingContext';
+import type { ReferenceSite } from './references';
 
 export type HintPart =
+  | { type: 'draft'; blockId: string }
   | { type: 'puzzle' }
   | { type: 'stage'; stageId: string }
   | { type: 'clue'; stageId: string; index: number }
@@ -193,6 +196,7 @@ export function readHintBlocks(root: Blockly.Block): HintSet {
 }
 export function hintPart(root: Blockly.Block, block: Blockly.Block | null): HintPart | null {
   if (!block) return null;
+  if (block.getRootBlock() !== root) return { type: 'draft', blockId: block.id };
   if (block === root) return { type: 'puzzle' };
   const stages = chain(root.getInputTargetBlock('STAGES'));
   if (stages.includes(block)) return { type: 'stage', stageId: stageId(block) };
@@ -204,6 +208,41 @@ export function hintPart(root: Blockly.Block, block: Blockly.Block | null): Hint
   }
   // Selecting a condition shows the owning puzzle/stage settings.
   return block.getParent() ? hintPart(root, block.getParent()) : null;
+}
+export function hintFindingBlock(
+  workspace: Blockly.Workspace,
+  puzzleId: string,
+  source: ReferenceSite,
+): Blockly.Block | null {
+  if (source.blockId) return workspace.getBlockById(source.blockId);
+  const root = workspace.getBlockById(puzzleId);
+  const stage = source.stageId
+    ? workspace
+        .getAllBlocks(false)
+        .find((block) => block.type === 'hint_stage' && stageId(block) === source.stageId)
+    : null;
+  const [key, ...rest] = source.path.split('.');
+  let block =
+    key === 'available'
+      ? root?.getInputTargetBlock('AVAILABLE')
+      : key === 'solved'
+        ? root?.getInputTargetBlock('SOLVED')
+        : key === 'condition'
+          ? stage?.getInputTargetBlock('WHEN')
+          : key === 'solution'
+            ? stage?.getInputTargetBlock('SOLUTION')
+            : key === 'clues'
+              ? chain(stage?.getInputTargetBlock('CLUES') ?? null)[Number(rest.shift())]
+              : (stage ?? root);
+  while (block && rest.length) {
+    const key = rest.shift();
+    if (key === 'condition') block = block.getInputTargetBlock('TEST');
+    else if (key === 'conditions') {
+      const index = Number(rest.shift());
+      block = block.getInputTargetBlock(index === 0 ? 'A' : index === 1 ? 'B' : `C${index}`);
+    } else break;
+  }
+  return block ?? stage ?? root;
 }
 const toolbox = {
   kind: 'categoryToolbox',
@@ -253,6 +292,7 @@ export default function HintBlocks({
 }) {
   registerHintBlocks(project);
   const host = useRef<HTMLDivElement>(null);
+  const findingContext = useContext(FindingContext);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   const selected = useRef<string | null>(null);
   const last = useRef('');
@@ -371,13 +411,16 @@ export default function HintBlocks({
     const ws = workspace.current;
     const root = ws?.getBlockById(hint.id);
     if (!ws || !root || !selectedPart) return;
-    const candidate = ws
-      .getAllBlocks(false)
-      .find(
-        (block) =>
-          block.type.startsWith('hint_') &&
-          JSON.stringify(hintPart(root, block)) === JSON.stringify(selectedPart),
-      );
+    const candidate =
+      selectedPart.type === 'draft'
+        ? ws.getBlockById(selectedPart.blockId)
+        : ws
+            .getAllBlocks(false)
+            .find(
+              (block) =>
+                block.type.startsWith('hint_') &&
+                JSON.stringify(hintPart(root, block)) === JSON.stringify(selectedPart),
+            );
     if (candidate && candidate.id !== selected.current) {
       selected.current = candidate.id;
       Blockly.Events.disable();
@@ -388,5 +431,48 @@ export default function HintBlocks({
       }
     }
   }, [hint.id, JSON.stringify(selectedPart)]);
+  useEffect(() => {
+    const ws = workspace.current;
+    const source = findingContext.reveal;
+    if (!ws || source?.puzzleId !== hint.id) return;
+    const block = hintFindingBlock(ws, hint.id, source);
+    if (block) {
+      selected.current = block.id;
+      (block as Blockly.BlockSvg).select();
+      ws.centerOnBlock(block.id);
+      const part = hintPart(ws.getBlockById(hint.id)!, block);
+      if (part) current.current.onSelect(part);
+    }
+  }, [hint.id, findingContext.reveal]);
+  useEffect(() => {
+    const ws = workspace.current;
+    const root = ws?.getBlockById(hint.id);
+    if (!ws || !root) return;
+    const live = new Set(root.getDescendants(false).map((block) => block.id));
+    Blockly.Events.disable();
+    try {
+      for (const block of ws.getAllBlocks(false)) {
+        const draft = !live.has(block.id);
+        block.getSvgRoot()?.classList.toggle('luna-draft', draft);
+        const messages = findingContext.findings
+          .filter(
+            (finding) =>
+              finding.puzzleId === hint.id &&
+              hintFindingBlock(ws, hint.id, finding)?.id === block.id,
+          )
+          .map((finding) => finding.message);
+        block.setWarningText(
+          messages.length
+            ? messages.join('\n')
+            : draft
+              ? 'Draft — saved but disconnected; does not run.'
+              : null,
+          'validation',
+        );
+      }
+    } finally {
+      Blockly.Events.enable();
+    }
+  }, [hint, saved, findingContext.findings]);
   return <div className="block-workspace" ref={host} aria-label="Hint block workspace" />;
 }

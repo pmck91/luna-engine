@@ -4,6 +4,7 @@ import type { BlockSelection, BlockValue } from './Blocks';
 import { Check, ConditionEditor, Field, Select, Text } from './Forms';
 import { EffectText } from './Inspector';
 import { entity, valueFrom } from './model';
+import { InlineFindings } from './FindingContext';
 
 export default function BlockInspector({
   project,
@@ -37,6 +38,11 @@ export default function BlockInspector({
           ? `In flow · ${blockLocation(selection.address)}`
           : 'Draft · disconnected blocks are saved but do not run.'}
       </p>
+      <InlineFindings
+        subject={selection.flowId}
+        path={selection.address}
+        blockId={selection.blockId}
+      />
       {selection.kind === 'condition' ? (
         <ConditionEditor project={project} value={value as Condition} onChange={update} />
       ) : selection.kind === 'operand' ? (
@@ -44,7 +50,12 @@ export default function BlockInspector({
       ) : (
         <>
           {rich ? (
-            <EffectText project={project} effect={value as Effect} onChange={update} />
+            <EffectText
+              project={project}
+              effect={value as Effect}
+              onChange={update}
+              path={selection.address}
+            />
           ) : (
             selection.fields.map((field) => {
               const effect = value as Effect;

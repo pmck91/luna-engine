@@ -3,6 +3,7 @@ import type { BlockTemplate, Diagnostic, Effect, Project, TemplateContent } from
 import { allEffects, flow, owner } from './model';
 import { Field, Select, Text } from './Forms';
 import { request } from './api';
+import { ReferenceButton, useReferenceActions } from './ReferenceManager';
 import {
   defaultTemplateMapping,
   instantiateTemplate,
@@ -28,6 +29,7 @@ export default function Templates({
   select,
   append,
   close,
+  initialTemplate,
 }: {
   project: Project;
   context: TemplateContext;
@@ -35,7 +37,9 @@ export default function Templates({
   select: (id: string) => void;
   append: (effects: Effect[]) => void;
   close: () => void;
+  initialTemplate?: string;
 }) {
+  const references = useReferenceActions();
   const source = context.flowId ? flow(p, context.flowId) : undefined;
   const [name, setName] = useState(source && 'name' in source ? source.name : '');
   const [scope, setScope] = useState(
@@ -45,7 +49,7 @@ export default function Templates({
         ? 'action'
         : 'effects',
   );
-  const [selected, setSelected] = useState(p.editor.templates[0]?.id ?? '');
+  const [selected, setSelected] = useState(initialTemplate ?? p.editor.templates[0]?.id ?? '');
   const [targetOwner, setTargetOwner] = useState(context.ownerId);
   const [message, setMessage] = useState('');
   const dialog = useRef<HTMLElement>(null);
@@ -53,6 +57,7 @@ export default function Templates({
     const previous = document.activeElement;
     dialog.current?.focus();
     const handler = (event: KeyboardEvent) => {
+      if (document.querySelector('dialog[open]')) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         close();
@@ -217,6 +222,12 @@ export default function Templates({
               <button
                 className="danger"
                 onClick={() => {
+                  if (references) {
+                    references({ target: { kind: 'template', id: template.id }, action: 'delete' });
+                    setSelected(p.editor.templates.find((t) => t.id !== template.id)?.id ?? '');
+                    setMessage('Template deleted. Inserted copies are unchanged.');
+                    return;
+                  }
                   edit((next) => {
                     next.editor.templates = next.editor.templates.filter(
                       (t) => t.id !== template.id,
@@ -228,6 +239,7 @@ export default function Templates({
               >
                 Delete template
               </button>
+              <ReferenceButton target={{ kind: 'template', id: template.id }} />
             </section>
           )}
         </div>

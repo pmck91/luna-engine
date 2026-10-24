@@ -1,6 +1,8 @@
 import type { Ending, Project } from './contracts';
 import { id } from './model';
 import { Check, RichText, Select, Text } from './Forms';
+import { ReferenceButton, useReferenceActions } from './ReferenceManager';
+import { FindingSubject } from './FindingContext';
 
 export default function Endings({
   project: p,
@@ -9,6 +11,7 @@ export default function Endings({
   project: Project;
   edit: (change: (project: Project) => void) => void;
 }) {
+  const references = useReferenceActions();
   const update = (id: string, changes: Partial<Ending>) =>
     edit((next) => {
       const ending = next.game.endings.find((ending) => ending.id === id);
@@ -34,47 +37,53 @@ export default function Endings({
         <p className="muted">No endings yet. Add an ending to use it in your action flows.</p>
       )}
       {p.game.endings.map((ending, index) => (
-        <div
-          className="card ending-card"
-          role="group"
-          aria-label={`Ending ${index + 1}`}
-          key={ending.id}
-        >
-          <h3>{ending.name || 'Unnamed ending'}</h3>
-          <Text
-            label="Ending name"
-            value={ending.name}
-            onChange={(name) => update(ending.id, { name })}
-          />
-          <Select
-            label="Outcome"
-            value={ending.outcome ?? ''}
-            items={[
-              { id: '', name: 'No outcome' },
-              ...['victory', 'loss', 'neutral'].map((id) => ({ id, name: id })),
-            ]}
-            onChange={(outcome) =>
-              update(ending.id, { outcome: outcome ? (outcome as Ending['outcome']) : null })
-            }
-          />
-          <RichText
-            project={p}
-            label="Ending text"
-            value={ending.text}
-            onChange={(text) => update(ending.id, { text })}
-          />
-          <button
-            className="danger"
-            onClick={() =>
-              edit((next) => {
-                next.game.endings = next.game.endings.filter((item) => item.id !== ending.id);
-              })
-            }
+        <FindingSubject.Provider value={ending.id} key={ending.id}>
+          <div
+            className="card ending-card"
+            role="group"
+            aria-label={`Ending ${index + 1}`}
+            key={ending.id}
           >
-            Remove ending
-          </button>
-          <p className="stable-id">Stable ID: {ending.id}</p>
-        </div>
+            <h3>{ending.name || 'Unnamed ending'}</h3>
+            <Text
+              label="Ending name"
+              value={ending.name}
+              onChange={(name) => update(ending.id, { name })}
+            />
+            <Select
+              label="Outcome"
+              value={ending.outcome ?? ''}
+              items={[
+                { id: '', name: 'No outcome' },
+                ...['victory', 'loss', 'neutral'].map((id) => ({ id, name: id })),
+              ]}
+              onChange={(outcome) =>
+                update(ending.id, { outcome: outcome ? (outcome as Ending['outcome']) : null })
+              }
+            />
+            <RichText
+              project={p}
+              label="Ending text"
+              path="text"
+              value={ending.text}
+              onChange={(text) => update(ending.id, { text })}
+            />
+            <button
+              className="danger"
+              onClick={() =>
+                references
+                  ? references({ target: { kind: 'ending', id: ending.id }, action: 'delete' })
+                  : edit((next) => {
+                      next.game.endings = next.game.endings.filter((item) => item.id !== ending.id);
+                    })
+              }
+            >
+              Remove ending
+            </button>
+            <ReferenceButton target={{ kind: 'ending', id: ending.id }} />
+            <p className="stable-id">Stable ID: {ending.id}</p>
+          </div>
+        </FindingSubject.Provider>
       ))}
       <button
         onClick={() =>

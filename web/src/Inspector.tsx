@@ -17,6 +17,8 @@ import { useState } from 'react';
 import CommandPreset from './CommandPreset';
 import { commandDraft, commandPattern, commandPreview, validCommandDraft } from './authoring';
 import { flowOwner } from './model';
+import { ReferenceButton, useReferenceActions } from './ReferenceManager';
+import { FindingSubject } from './FindingContext';
 import { commandEvents, stateEvents, triggerLabel, triggerPage } from './triggerModel';
 type Edit = (change: (p: Project) => void) => void;
 const events: Event[] = [...stateEvents, ...commandEvents];
@@ -35,6 +37,7 @@ export default function Inspector({
   remove: (key: string) => void;
   error: (e: string) => void;
 }) {
+  const references = useReferenceActions();
   const selectedFlow = flow(p, selected);
   const selectedOwner = owner(p, selected);
   const update = (changes: Record<string, unknown>) =>
@@ -48,6 +51,7 @@ export default function Inspector({
         <h2>Variables</h2>
         <p className="muted">Typed values used by conditions and effects.</p>
         <Values
+          referenceOwner="@variables"
           values={p.game.variables}
           onChange={(v) =>
             edit((n) => {
@@ -82,53 +86,60 @@ export default function Inspector({
           the key on the door. Clear the list to require exact names.
         </p>
         {p.vocabulary.map((v, i) => (
-          <details key={v.id}>
-            <summary>{v.canonical || 'New verb'}</summary>
-            <Text
-              label="Canonical verb"
-              value={v.canonical}
-              onChange={(value) =>
-                edit((n) => {
-                  n.vocabulary[i].canonical = value;
-                })
-              }
-            />
-            <Text
-              label="Synonyms (comma separated)"
-              value={v.synonyms.join(', ')}
-              onChange={(value) =>
-                edit((n) => {
-                  n.vocabulary[i].synonyms = value
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean);
-                })
-              }
-            />
-            <Select
-              label="Interaction event"
-              value={v.event ?? ''}
-              items={[
-                { id: '', name: 'No additional event' },
-                ...events.map((id) => ({ id, name: id })),
-              ]}
-              onChange={(value) =>
-                edit((n) => {
-                  n.vocabulary[i].event = value ? (value as Event) : null;
-                })
-              }
-            />
-            <button
-              className="danger"
-              onClick={() =>
-                edit((n) => {
-                  n.vocabulary.splice(i, 1);
-                })
-              }
-            >
-              Delete verb
-            </button>
-          </details>
+          <FindingSubject.Provider value={v.id} key={v.id}>
+            <details key={v.id}>
+              <summary>{v.canonical || 'New verb'}</summary>
+              <Text
+                label="Canonical verb"
+                path="canonical"
+                value={v.canonical}
+                onChange={(value) =>
+                  edit((n) => {
+                    n.vocabulary[i].canonical = value;
+                  })
+                }
+              />
+              <Text
+                label="Synonyms (comma separated)"
+                path="synonyms"
+                value={v.synonyms.join(', ')}
+                onChange={(value) =>
+                  edit((n) => {
+                    n.vocabulary[i].synonyms = value
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                  })
+                }
+              />
+              <Select
+                label="Interaction event"
+                value={v.event ?? ''}
+                items={[
+                  { id: '', name: 'No additional event' },
+                  ...events.map((id) => ({ id, name: id })),
+                ]}
+                onChange={(value) =>
+                  edit((n) => {
+                    n.vocabulary[i].event = value ? (value as Event) : null;
+                  })
+                }
+              />
+              <button
+                className="danger"
+                onClick={() =>
+                  references
+                    ? references({ target: { kind: 'verb', id: v.id }, action: 'delete' })
+                    : edit((n) => {
+                        n.vocabulary.splice(i, 1);
+                      })
+                }
+              >
+                Delete verb
+              </button>
+              <ReferenceButton target={{ kind: 'verb', id: v.id }} />
+            </details>
+          </FindingSubject.Provider>
         ))}
         <button
           onClick={() =>
@@ -165,6 +176,7 @@ export default function Inspector({
     <>
       <div className="section-heading">
         <h2>{isGame ? 'Game settings' : o.name}</h2>
+        {!isGame && <ReferenceButton target={{ kind: 'entity', id: o.id }} />}
         {!isGame && (
           <button
             className="danger"
@@ -177,10 +189,16 @@ export default function Inspector({
       </div>
       {isGame ? (
         <>
-          <Text label="Title" value={p.game.title} onChange={(title) => update({ title })} />
+          <Text
+            label="Title"
+            path="title"
+            value={p.game.title}
+            onChange={(title) => update({ title })}
+          />
           <Text label="Author" value={p.game.author} onChange={(author) => update({ author })} />
           <Text
             label="Content version"
+            path="content_version"
             value={p.game.content_version}
             onChange={(content_version) => update({ content_version })}
           />
@@ -192,6 +210,7 @@ export default function Inspector({
           </Field>
           <Select
             label="Starting location"
+            path="starting_location"
             value={p.game.starting_location}
             items={p.locations}
             onChange={(starting_location) => update({ starting_location })}
@@ -199,12 +218,14 @@ export default function Inspector({
           <RichText
             project={p}
             label="Opening text"
+            path="opening_text"
             value={p.game.opening_text}
             onChange={(opening_text) => update({ opening_text })}
           />
           <RichText
             project={p}
             label="Help text"
+            path="help_text"
             value={p.game.help_text}
             onChange={(help_text) => update({ help_text })}
           />
@@ -232,7 +253,7 @@ export default function Inspector({
         </>
       ) : (
         <>
-          <Text label="Name" value={o.name} onChange={(name) => update({ name })} />
+          <Text label="Name" path="name" value={o.name} onChange={(name) => update({ name })} />
           {'aliases' in o && (
             <Text
               label="Aliases (comma separated)"
@@ -250,6 +271,7 @@ export default function Inspector({
           <RichText
             project={p}
             label="Description"
+            path="description"
             value={o.description}
             onChange={(description) => update({ description })}
           />
@@ -302,6 +324,7 @@ export default function Inspector({
             <>
               <Select
                 label="Name colour"
+                path="name_colour"
                 value={o.name_colour ?? ''}
                 items={[
                   { id: '', name: 'Default' },
@@ -319,6 +342,7 @@ export default function Inspector({
               </p>
               <Select
                 label="Initial location"
+                path="location"
                 value={o.location}
                 items={p.locations}
                 onChange={(location) => update({ location })}
@@ -382,7 +406,11 @@ export default function Inspector({
           {'state' in o && (
             <details>
               <summary>Custom state</summary>
-              <Values values={o.state} onChange={(state) => update({ state })} />
+              <Values
+                referenceOwner={o.id}
+                values={o.state}
+                onChange={(state) => update({ state })}
+              />
             </details>
           )}
         </>
@@ -451,11 +479,14 @@ function FlowInspector({
           Delete
         </button>
       </div>
-      {'name' in f && <Text label="Name" value={f.name} onChange={(name) => update({ name })} />}
+      {'name' in f && (
+        <Text label="Name" path="name" value={f.name} onChange={(name) => update({ name })} />
+      )}
       {'verb' in f && (
         <>
           <Select
             label="Verb"
+            path="verb"
             create={{ kind: 'verb' }}
             value={f.verb}
             items={p.vocabulary.map((v) => ({ id: v.id, name: v.canonical }))}
@@ -491,6 +522,7 @@ function FlowInspector({
               {part.type === 'literal' ? (
                 <Text
                   label="Word or phrase"
+                  path={`pattern.${i}`}
                   value={part.text}
                   onChange={(text) =>
                     setPattern(f.pattern.map((v, j) => (i === j ? { type: 'literal', text } : v)))
@@ -499,6 +531,7 @@ function FlowInspector({
               ) : (
                 <Select
                   label="Target"
+                  path={`pattern.${i}`}
                   value={part.entity}
                   items={[...p.objects, ...p.characters, ...p.locations]}
                   onChange={(entity) =>
@@ -551,6 +584,7 @@ function FlowInspector({
           <RichText
             project={p}
             label="Failed requirement response"
+            path="failure_text"
             value={f.failure_text}
             onChange={(failure_text) => update({ failure_text })}
           />
@@ -570,6 +604,7 @@ function FlowInspector({
         <>
           <Select
             label="Destination"
+            path="destination"
             value={f.destination}
             items={p.locations}
             onChange={(destination) => update({ destination })}
@@ -605,6 +640,7 @@ function FlowInspector({
             <RichText
               project={p}
               label="Blocked response"
+              path="blocked_text"
               value={f.blocked_text}
               onChange={(blocked_text) => update({ blocked_text })}
             />
@@ -612,6 +648,7 @@ function FlowInspector({
           <RichText
             project={p}
             label="Traversal text"
+            path="text"
             value={f.text}
             onChange={(text) => update({ text })}
           />
@@ -647,10 +684,12 @@ export function EffectText({
   project: p,
   effect,
   onChange,
+  path,
 }: {
   project: Project;
   effect: Effect;
   onChange: (effect: Effect) => void;
+  path?: string | null;
 }) {
   return (
     <>
@@ -658,6 +697,7 @@ export function EffectText({
         <RichText
           project={p}
           label="SAY text"
+          path={path || undefined}
           value={effect.text}
           onChange={(text) => onChange({ ...effect, text })}
         />
@@ -672,6 +712,7 @@ export function EffectText({
           <RichText
             project={p}
             label="CHARACTER SAYS text"
+            path={path || undefined}
             value={effect.text}
             onChange={(text) => onChange({ ...effect, text })}
           />
@@ -704,6 +745,7 @@ export function EffectText({
               <RichText
                 project={p}
                 label={`Response ${i + 1}`}
+                path={path ? `${path}.responses.${i}` : undefined}
                 value={reply}
                 onChange={(text) =>
                   onChange({
@@ -771,6 +813,7 @@ export function EffectText({
               <RichText
                 project={p}
                 label="Fallback response"
+                path={path ? `${path}.fallback` : undefined}
                 value={effect.fallback}
                 onChange={(fallback) => onChange({ ...effect, fallback })}
               />

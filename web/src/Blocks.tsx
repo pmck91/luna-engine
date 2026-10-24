@@ -1,5 +1,5 @@
 import { bindWorkspaceHistory, type HistoryControls } from './workspaceHistory';
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
+import { useContext, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import * as Blockly from 'blockly/core';
 import * as English from 'blockly/msg/en';
 import type { Condition, Effect, NumericOperand, Project, Value } from './contracts';
@@ -16,6 +16,12 @@ import { refreshChainEnds } from './blockRenderer';
 import type { EditContext } from './projectHistory';
 import { defaultCondition } from './Forms';
 import BlockPicker from './BlockPicker';
+import { FindingContext } from './FindingContext';
+export function nearestBlock(addresses: Map<string, string>, path: string): string | undefined {
+  return [...addresses.entries()]
+    .filter(([, address]) => address && (path === address || path.startsWith(`${address}.`)))
+    .sort((a, b) => b[1].length - a[1].length)[0]?.[0];
+}
 Blockly.setLocale(
   Object.fromEntries(
     Object.entries(English).filter(([, value]) => typeof value === 'string'),
@@ -901,7 +907,7 @@ function parkDraft(block: Blockly.Block) {
   block.moveBy(right + 48 - position.x, 24 - position.y);
 }
 
-function syncConditionBlock(block: Blockly.Block, value: Condition): Blockly.Block {
+export function syncConditionBlock(block: Blockly.Block, value: Condition): Blockly.Block {
   if (block.type !== `condition_${value.type}`) {
     const replacement = makeCondition(block.workspace, value);
     block.unplug();
@@ -1226,6 +1232,8 @@ export default function Blocks({
   ref?: Ref<BlocksHandle>;
 }) {
   project = p;
+  const findingContext = useContext(FindingContext);
+  const findings = findingContext.findings.filter((finding) => finding.flowId === flowId);
   register();
   const conditions = flowConditions(flow(p, flowId));
   const conditionVersion = JSON.stringify(conditions);
@@ -1555,6 +1563,48 @@ export default function Blocks({
     }
     notifySelection();
   }, [selectedId]);
+  useEffect(() => {
+    const ws = workspace.current;
+    const source = findingContext.reveal;
+    if (!ws || source?.flowId !== flowId) return;
+    const root = ws.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+    const blockId = source.blockId ?? (root && nearestBlock(blockAddresses(root), source.path));
+    if (!blockId || !ws.getBlockById(blockId)) return;
+    selectedBlock.current = blockId;
+    (ws.getBlockById(blockId) as Blockly.BlockSvg).select();
+    ws.centerOnBlock(blockId);
+    notifySelection(true);
+  }, [flowId, findingContext.reveal]);
+  useEffect(() => {
+    const ws = workspace.current;
+    const root = ws?.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+    if (!ws || !root) return;
+    const addresses = blockAddresses(root);
+    Blockly.Events.disable();
+    try {
+      for (const block of ws.getAllBlocks(false)) {
+        const draft = !addresses.has(block.id);
+        block.getSvgRoot()?.classList.toggle('luna-draft', draft);
+        const messages = findings
+          .filter((finding) =>
+            finding.blockId
+              ? finding.blockId === block.id
+              : nearestBlock(addresses, finding.path) === block.id,
+          )
+          .map((finding) => finding.message);
+        block.setWarningText(
+          messages.length
+            ? messages.join('\n')
+            : draft && !block.isShadow()
+              ? 'Draft — saved but disconnected; does not run.'
+              : null,
+          'validation',
+        );
+      }
+    } finally {
+      Blockly.Events.enable();
+    }
+  }, [outline, findingContext.findings]);
   const availablePoints = workspace.current ? insertionPoints(workspace.current) : [];
   return (
     <div className="flow-surface">
@@ -1587,6 +1637,13 @@ export default function Blocks({
               >
                 <strong>{block.label}</strong> · {blockLocation(block.address)}
                 {block.value && 'text' in block.value ? ` · ${block.value.text}` : ''}
+                {findings.some(
+                  (finding) =>
+                    finding.blockId === block.blockId ||
+                    (block.address &&
+                      (finding.path === block.address ||
+                        finding.path.startsWith(`${block.address}.`))),
+                ) && <small className="finding-badge"> · ⚠ Finding</small>}
               </button>
               {availablePoints
                 .filter((point) => point.blockId === block.blockId)
