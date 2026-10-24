@@ -179,6 +179,10 @@ pub enum Effect {
     Say {
         text: String,
     },
+    CharacterSays {
+        character: String,
+        text: String,
+    },
     PrintDescription {
         entity: String,
     },
@@ -245,6 +249,10 @@ pub enum Effect {
         object: String,
     },
     Move {
+        location: String,
+    },
+    MoveCharacter {
+        character: String,
         location: String,
     },
     Combine {
@@ -455,6 +463,7 @@ pub struct Object {
 pub struct Character {
     pub id: String,
     pub name: String,
+    pub name_colour: Option<String>,
     pub aliases: Vec<String>,
     pub description: String,
     pub location: String,

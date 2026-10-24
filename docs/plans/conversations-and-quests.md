@@ -68,7 +68,7 @@ Use a directed graph with stable node and reply IDs. Branches can merge, and int
 | Reply | ID, player-facing label, accepted phrases/aliases, availability condition, repeat policy, effect blocks, destination node or end |
 | Entry point | Condition and destination node; first matching entry wins, otherwise use the default |
 
-Dialogue lines support the existing colours and variable/property placeholders. Use the same speaker-formatting helper as the planned CHARACTER SAYS effect, including the character's current name and configured name colour.
+Dialogue lines support the existing colours and variable/property placeholders. Reuse CHARACTER SAYS's `text::speech` formatter, including the character's current name and configured name colour.
 
 Add condition blocks for whether a node has been visited or a reply has been chosen. Existing variables/properties and new quest conditions can model learned information. A hidden reply still needs a progress condition if guessing its words should be insufficient to unlock it.
 

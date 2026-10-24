@@ -1,5 +1,15 @@
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
-import { action, owner, flow, id, allEffects, replaceEffect, entity, gameDataPages } from './model';
+import {
+  action,
+  owner,
+  flow,
+  id,
+  allEffects,
+  replaceEffect,
+  entity,
+  gameDataPages,
+  colourNames,
+} from './model';
 import {
   Check,
   ConditionEditor,
@@ -295,6 +305,23 @@ export default function Inspector({
           )}
           {'location' in o && (
             <>
+              <Select
+                label="Name colour"
+                value={o.name_colour ?? ''}
+                items={[
+                  { id: '', name: 'Default' },
+                  ...colourNames.map((id) => ({ id, name: id })),
+                ]}
+                onChange={(colour) => update({ name_colour: colour || null })}
+              />
+              <p className="text-preview" aria-label="Character speech preview">
+                <span
+                  style={{ color: o.name_colour ? `var(--colour-${o.name_colour})` : undefined }}
+                >
+                  {o.name}
+                </span>
+                {' says: …'}
+              </p>
               <Select
                 label="Initial location"
                 value={o.location}
@@ -597,7 +624,11 @@ function FlowInspector({
       <h3>Text and responses</h3>
       <p className="muted">Drag blocks into the action flow. Edit their text and sequences here.</p>
       {allEffects(f.effects)
-        .filter(({ effect }) => ['say', 'respond', 'print_description'].includes(effect.type))
+        .filter(({ effect }) =>
+          ['say', 'character_says', 'move_character', 'respond', 'print_description'].includes(
+            effect.type,
+          ),
+        )
         .map(({ effect, path }) => (
           <div className="card" key={path.join('.')}>
             {effect.type === 'say' ? (
@@ -607,6 +638,41 @@ function FlowInspector({
                 value={effect.text}
                 onChange={(text) => patchEffect(path, { ...effect, text })}
               />
+            ) : effect.type === 'character_says' ? (
+              <>
+                <Select
+                  label="Speaker"
+                  value={effect.character}
+                  items={p.characters}
+                  onChange={(character) => patchEffect(path, { ...effect, character })}
+                />
+                <RichText
+                  project={p}
+                  label="CHARACTER SAYS text"
+                  value={effect.text}
+                  onChange={(text) => patchEffect(path, { ...effect, text })}
+                />
+              </>
+            ) : effect.type === 'move_character' ? (
+              <>
+                <h4>Move character</h4>
+                <Select
+                  label="Moving character"
+                  value={effect.character}
+                  items={p.characters}
+                  onChange={(character) => patchEffect(path, { ...effect, character })}
+                />
+                <Select
+                  label="Character destination"
+                  value={effect.location}
+                  items={[{ id: '@current', name: 'Current location' }, ...p.locations]}
+                  onChange={(location) => patchEffect(path, { ...effect, location })}
+                />
+                <p className="muted">
+                  Held items follow their owner. This does not move the player or fire player entry
+                  or exit triggers.
+                </p>
+              </>
             ) : effect.type === 'respond' ? (
               <>
                 <h4>Response sequence · {effect.responses.length} replies</h4>

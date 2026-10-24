@@ -218,6 +218,10 @@ impl Check<'_> {
             let f = format!("{f}.{i}");
             match e {
                 Effect::Say { text } => self.text(s, &f, text),
+                Effect::CharacterSays { character, text } => {
+                    self.character(s, &format!("{f}.character"), character);
+                    self.text(s, &format!("{f}.text"), text);
+                }
                 Effect::PrintDescription { entity } => self.entity(s, &f, entity),
                 Effect::Respond {
                     id,
@@ -297,6 +301,15 @@ impl Check<'_> {
                     }
                 }
                 Effect::Move { location } => self.location(s, &f, location),
+                Effect::MoveCharacter {
+                    character,
+                    location,
+                } => {
+                    self.character(s, &format!("{f}.character"), character);
+                    if location != "@current" {
+                        self.location(s, &format!("{f}.location"), location);
+                    }
+                }
                 Effect::Combine {
                     first,
                     second,
@@ -652,6 +665,15 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     }
     for ch in &p.characters {
         c.id(&ch.id, "id");
+        if let Some(colour) = &ch.name_colour
+            && !text::COLOURS.contains(&colour.as_str())
+        {
+            c.error(
+                &ch.id,
+                "name_colour",
+                format!("Unknown character name colour: {colour}"),
+            );
+        }
         c.text(&ch.id, "description", &ch.description);
         c.location(&ch.id, "location", &ch.location)
     }
@@ -735,10 +757,49 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
             c.error(&game.id, "assets", format!("Unsafe asset path: {asset}"))
         }
     }
+    fn follow_effects(
+        effects: Vec<&Effect>,
+        locations: &mut BTreeSet<String>,
+        endings: &mut BTreeSet<String>,
+        characters: &mut BTreeMap<String, BTreeSet<String>>,
+    ) {
+        for effect in effects {
+            match effect {
+                Effect::Move { location } => {
+                    locations.insert(location.clone());
+                }
+                Effect::MoveCharacter {
+                    character,
+                    location,
+                } => {
+                    if let Some(positions) = characters.get_mut(character) {
+                        if location == "@current" {
+                            positions.extend(locations.iter().cloned());
+                        } else {
+                            positions.insert(location.clone());
+                        }
+                    }
+                }
+                Effect::End { ending } => {
+                    endings.insert(ending.clone());
+                }
+                _ => {}
+            }
+        }
+    }
     let mut reachable = BTreeSet::from([game.starting_location.clone()]);
     let mut reachable_endings = BTreeSet::new();
+    let mut character_locations = p
+        .characters
+        .iter()
+        .map(|ch| (ch.id.clone(), BTreeSet::from([ch.location.clone()])))
+        .collect::<BTreeMap<_, _>>();
     loop {
-        let before = reachable.len();
+        let before = reachable.len()
+            + character_locations
+                .values()
+                .map(BTreeSet::len)
+                .sum::<usize>();
         for (owner, actions, triggers) in p.owners() {
             let active = owner == game.id
                 || reachable.contains(owner)
@@ -749,9 +810,9 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                             _ => true,
                         }
                 })
-                || p.characters
-                    .iter()
-                    .any(|ch| ch.id == owner && reachable.contains(&ch.location));
+                || character_locations
+                    .get(owner)
+                    .is_some_and(|positions| positions.iter().any(|id| reachable.contains(id)));
             let mut effects = vec![];
             if active {
                 for a in actions {
@@ -767,17 +828,12 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                     possible_effects(&t.effects, &mut effects)
                 }
             }
-            for e in effects {
-                match e {
-                    Effect::Move { location } => {
-                        reachable.insert(location.clone());
-                    }
-                    Effect::End { ending } => {
-                        reachable_endings.insert(ending.clone());
-                    }
-                    _ => {}
-                }
-            }
+            follow_effects(
+                effects,
+                &mut reachable,
+                &mut reachable_endings,
+                &mut character_locations,
+            );
         }
         for l in &p.locations {
             if reachable.contains(&l.id) {
@@ -787,22 +843,23 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                         reachable.insert(e.destination.clone());
                         let mut effects = vec![];
                         possible_effects(&e.effects, &mut effects);
-                        for ef in effects {
-                            match ef {
-                                Effect::Move { location } => {
-                                    reachable.insert(location.clone());
-                                }
-                                Effect::End { ending } => {
-                                    reachable_endings.insert(ending.clone());
-                                }
-                                _ => {}
-                            }
-                        }
+                        follow_effects(
+                            effects,
+                            &mut reachable,
+                            &mut reachable_endings,
+                            &mut character_locations,
+                        );
                     }
                 }
             }
         }
-        if before == reachable.len() {
+        if before
+            == reachable.len()
+                + character_locations
+                    .values()
+                    .map(BTreeSet::len)
+                    .sum::<usize>()
+        {
             break;
         }
     }

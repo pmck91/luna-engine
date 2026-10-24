@@ -2,11 +2,6 @@
 
 Prioritise the user-facing first-game tutorial over the deeper developer architecture documents.
 
-## Characters
-
-- [ ] Add a MOVE CHARACTER effect. Items held by a character follow their owner; define which movement events fire.
-- [ ] Add CHARACTER SAYS alongside ordinary SAY. Select the speaker by entity reference and print their current name followed by "says:" and the message. Support the existing colours and variable/property placeholders. allow the designer to set a character colour, so their name appears in that colour e.g. <yellow><name></yellow>: <message>
-
 ## Editor UX
 
 Improve the complete authoring flow: create a project, build places and entities, add interactions and puzzles, playtest, then export. Proposed priorities below use P1 for a consistent and reliable editing flow, P2 for faster authoring, and P3 for larger follow-up features.
@@ -64,6 +59,8 @@ Deferred work, planned in [Conversations and quests](conversations-and-quests.md
 
 ## Completed
 
+- [x] Add MOVE CHARACTER to action/trigger blocks and synchronized inspector controls, selecting a destination or the player's current room. Preserve hidden state and canonical inventory ownership; movement changes command scope without moving the player, incrementing visits, or emitting player movement/inventory events. Cover structural ending reachability, rollback, nested blocks/templates, authoring/reopen, export, editor/runner parity, and autosave/named-save restoration in format 2.
+- [x] Add CHARACTER SAYS alongside SAY, selecting a speaker by stable entity reference and printing their literal current name followed by "says:" and a formatted message. Add an optional character name colour from the existing palette, defaulting safely for older projects. Support independent message colours and live variable/property placeholders, synchronized blocks/inspector controls, template remapping, rename-safe references, plain/coloured terminal output, and editor/runner/save-load checks.
 - [x] Make ending outcomes optional across the editor, content model, validation, and runner. New endings default to No outcome; explicit victory/loss/neutral outcomes remain available. Unset outcomes serialize as null, and omitted outcomes are accepted. END GAME still finalizes once, stops later effects, and preserves the ending ID in format-2 autosaves/named saves. Cover clearing/reopening/exporting endings, editor/runner playback, save restoration without replay, malformed outcomes, and existing explicit outcomes.
 - [x] Add the Luna Engine logo to the README and editor header/welcome pages. Use a transparent background so the logo fits the editor's dark theme, with descriptive alt text and compact display sizes.
 - [x] Add a dedicated Triggers workspace under Game data, grouping command, state, and value triggers with owner filters, names, entity shortcuts, condition/effect blocks, and stable layout/IDs when changing owners. Add watches on global variables and entity properties with false-to-true or every-matching-change modes, immediate SET/arithmetic dispatch, deterministic priorities, chained events, rollback/loop limits, and no replay on save restoration. Cover player death and character defeat with core tests and Chromium/Firefox authoring, legacy trigger navigation, export, and runner named-save checks. Existing trigger files default safely; player saves stay in format 2.

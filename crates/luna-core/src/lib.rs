@@ -364,21 +364,23 @@ impl<'a> Run<'a> {
         self.budget -= 1;
         Ok(())
     }
+    fn message(&self, t: &str) -> Result<Vec<text::Span>> {
+        text::format(t, |reference| {
+            let value = match self.p.text_reference(reference) {
+                Some(TextReference::Variable(name)) => self.state.variables.get(name),
+                Some(TextReference::Property { entity, name }) => {
+                    self.state.properties.get(entity).and_then(|m| m.get(name))
+                }
+                None => None,
+            };
+            value
+                .map(ToString::to_string)
+                .with_context(|| format!("Unknown message value: %{reference}%"))
+        })
+    }
     fn say(&mut self, t: &str) -> Result<()> {
         if !t.is_empty() {
-            let spans = text::format(t, |reference| {
-                let value = match self.p.text_reference(reference) {
-                    Some(TextReference::Variable(name)) => self.state.variables.get(name),
-                    Some(TextReference::Property { entity, name }) => {
-                        self.state.properties.get(entity).and_then(|m| m.get(name))
-                    }
-                    None => None,
-                };
-                value
-                    .map(ToString::to_string)
-                    .with_context(|| format!("Unknown message value: %{reference}%"))
-            })?;
-            self.result.messages.push(spans)
+            self.result.messages.push(self.message(t)?)
         }
         Ok(())
     }
@@ -697,6 +699,19 @@ impl<'a> Run<'a> {
             }
             match effect {
                 Effect::Say { text } => self.say(text)?,
+                Effect::CharacterSays { character, text } => {
+                    let speaker = self
+                        .p
+                        .characters
+                        .iter()
+                        .find(|c| c.id == *character)
+                        .context("Unknown speaker")?;
+                    self.result.messages.push(text::speech(
+                        &speaker.name,
+                        speaker.name_colour.as_deref(),
+                        self.message(text)?,
+                    ));
+                }
                 Effect::PrintDescription { entity } => {
                     let description = self
                         .p
@@ -880,6 +895,27 @@ impl<'a> Run<'a> {
                     }
                 }
                 Effect::Move { location } => self.move_to(location)?,
+                Effect::MoveCharacter {
+                    character,
+                    location,
+                } => {
+                    let destination = if location == "@current" {
+                        &self.state.location
+                    } else {
+                        location
+                    };
+                    ensure!(
+                        self.p.locations.iter().any(|l| l.id == *destination),
+                        "Unknown character destination"
+                    );
+                    self.state
+                        .characters
+                        .get_mut(character)
+                        .context("Unknown character")?
+                        .location = destination.clone();
+                    // Enter/leave, room descriptions, and visits belong to player movement.
+                    // Held objects keep their canonical character owner.
+                }
                 Effect::Combine {
                     first,
                     second,

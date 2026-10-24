@@ -95,6 +95,21 @@ pub fn parse(text: &str) -> Result<Vec<Span>> {
 pub fn plain(spans: &[Span]) -> String {
     spans.iter().map(|s| s.text.as_str()).collect()
 }
+/// Speaker names are literal text; the message retains its independent colours.
+pub fn speech(name: &str, colour: Option<&str>, message: Vec<Span>) -> Vec<Span> {
+    let mut spans = vec![
+        Span {
+            text: name.into(),
+            colour: colour.map(str::to_owned),
+        },
+        Span {
+            text: " says: ".into(),
+            colour: None,
+        },
+    ];
+    spans.extend(message);
+    spans
+}
 /// Resolve message values after parsing markup, so inserted text stays literal.
 pub fn format(text: &str, mut resolve: impl FnMut(&str) -> Result<String>) -> Result<Vec<Span>> {
     let mut spans = parse(text)?;

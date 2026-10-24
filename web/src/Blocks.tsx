@@ -20,6 +20,7 @@ Blockly.setLocale(
 let project: Project;
 const effectFields: Record<string, string[]> = {
   say: ['text'],
+  character_says: ['character', 'text'],
   print_description: ['entity'],
   respond: [],
   reset_responses: ['sequence'],
@@ -37,6 +38,7 @@ const effectFields: Record<string, string[]> = {
   open: ['object'],
   close: ['object'],
   move: ['location'],
+  move_character: ['character', 'location'],
   combine: ['first', 'second', 'consume_first', 'consume_second', 'result'],
   end: ['ending'],
   stop: [],
@@ -57,6 +59,7 @@ const conditionFields: Record<string, string[]> = {
 };
 const labels: Record<string, string> = {
   say: 'SAY',
+  character_says: 'CHARACTER SAYS',
   print_description: 'PRINT DESCRIPTION',
   respond: 'RESPONSE SEQUENCE',
   reset_responses: 'RESET RESPONSE SEQUENCE',
@@ -74,6 +77,7 @@ const labels: Record<string, string> = {
   open: 'OPEN',
   close: 'CLOSE',
   move: 'MOVE PLAYER',
+  move_character: 'MOVE CHARACTER',
   combine: 'COMBINE',
   end: 'END GAME',
   stop: 'STOP',
@@ -115,7 +119,9 @@ function field(name: string, type: string): Blockly.Field {
     return dropdown(() => [...project.locations, ...project.objects, ...project.characters]);
   if (name === 'location')
     return dropdown(() => [
-      ...(type === 'place' ? [{ id: '@current', name: 'Current location' }] : []),
+      ...(['place', 'move_character'].includes(type)
+        ? [{ id: '@current', name: 'Current location' }]
+        : []),
       ...project.locations,
     ]);
   if (name === 'ending') return dropdown(() => project.game.endings);
@@ -338,7 +344,9 @@ function register() {
         this.setPreviousStatement(true);
         this.setNextStatement(true);
         this.setColour(
-          ['say', 'respond', 'print_description', 'reset_responses'].includes(type)
+          ['say', 'character_says', 'respond', 'print_description', 'reset_responses'].includes(
+            type,
+          )
             ? '#386b58'
             : type === 'end'
               ? '#9c4a63'
@@ -647,10 +655,12 @@ const toolbox = {
       kind: 'category',
       name: 'Responses',
       colour: '#386b58',
-      contents: ['say', 'respond', 'print_description', 'reset_responses'].map((t) => ({
-        kind: 'block',
-        type: `luna_${t}`,
-      })),
+      contents: ['say', 'character_says', 'respond', 'print_description', 'reset_responses'].map(
+        (t) => ({
+          kind: 'block',
+          type: `luna_${t}`,
+        }),
+      ),
     },
     {
       kind: 'category',
@@ -672,7 +682,12 @@ const toolbox = {
       name: 'World & state',
       colour: '#555f7f',
       contents: Object.keys(effectFields)
-        .filter((t) => !['say', 'respond', 'print_description', 'reset_responses'].includes(t))
+        .filter(
+          (t) =>
+            !['say', 'character_says', 'respond', 'print_description', 'reset_responses'].includes(
+              t,
+            ),
+        )
         .map((t) => ({ kind: 'block', type: `luna_${t}` })),
     },
   ],

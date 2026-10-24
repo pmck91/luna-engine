@@ -58,6 +58,7 @@ export const character = (at: string): Character => {
   return {
     id: key,
     name: 'New character',
+    name_colour: null,
     aliases: [],
     description: '',
     location: at,

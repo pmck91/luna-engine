@@ -286,7 +286,51 @@ describe('semantic block round trips', () => {
     workspace.dispose();
   });
 });
-describe('character inventory blocks', () => {
+describe('character blocks', () => {
+  it('preserves speech and movement through nested effects and saved workspaces without retargeting missing characters', () => {
+    const p = structuredClone(base);
+    const keeper = character('study');
+    keeper.name = 'Keeper';
+    keeper.name_colour = 'yellow';
+    p.characters.push(keeper);
+    p.locations.push(location('Garden'));
+    registerBlocks(p);
+    const effects: Effect[] = [
+      {
+        type: 'if',
+        condition: { type: 'visible', entity: keeper.id },
+        then: [
+          { type: 'character_says', character: keeper.id, text: '<green>Hello %score%.</green>' },
+          { type: 'move_character', character: keeper.id, location: p.locations[1].id },
+          { type: 'move_character', character: keeper.id, location: '@current' },
+        ],
+        otherwise: [{ type: 'character_says', character: 'missing', text: 'A distant voice.' }],
+      },
+    ];
+    const workspace = new Blockly.Workspace();
+    const root = loadEffectBlocks(workspace, effects);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
+    const missing = workspace
+      .getAllBlocks(false)
+      .find((b) => b.getFieldValue('character') === 'missing')!;
+    expect(
+      (missing.getField('character') as Blockly.FieldDropdown).getOptions(false),
+    ).toContainEqual(['Missing: missing', 'missing']);
+    const move = workspace.getAllBlocks(false).find((b) => b.type === 'luna_move_character')!;
+    expect((move.getField('location') as Blockly.FieldDropdown).getOptions(false)).toContainEqual([
+      'Current location',
+      '@current',
+    ]);
+    const restored = new Blockly.Workspace();
+    Blockly.serialization.workspaces.load(
+      Blockly.serialization.workspaces.save(workspace),
+      restored,
+    );
+    const loaded = restored.getTopBlocks(false).find((b) => b.type === 'luna_flow')!;
+    expect(readEffects(loaded.getInputTargetBlock('DO'))).toEqual(effects);
+    workspace.dispose();
+    restored.dispose();
+  });
   it('round trips character transfers and carrying conditions through saved nested flows', () => {
     const p = structuredClone(base);
     const key = object('study');

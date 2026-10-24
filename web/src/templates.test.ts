@@ -175,6 +175,13 @@ describe('saved block templates', () => {
           { type: 'place', object: old.id, location: room.id },
           { type: 'place', object: old.id, location: '@current' },
           { type: 'move', location: room.id },
+          { type: 'move_character', character: keeper.id, location: room.id },
+          { type: 'move_character', character: keeper.id, location: '@current' },
+          {
+            type: 'character_says',
+            character: keeper.id,
+            text: `<green>%${old.id}.charges%</green>`,
+          },
           { type: 'reveal', entity: old.id },
           { type: 'hide', entity: keeper.id },
           {

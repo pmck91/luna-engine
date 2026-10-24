@@ -27,6 +27,128 @@ async fn post(app: axum::Router, path: &str, body: Value) -> Value {
 }
 
 #[tokio::test]
+async fn character_movement_and_coloured_speech_match_exports_and_saved_restoration() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("Character parity");
+    p.game
+        .variables
+        .insert("chances".into(), luna_model::Value::Integer(3));
+    let room = p.game.starting_location.clone();
+    p.locations.push(Location {
+        id: "garden".into(),
+        name: "Garden".into(),
+        ..Default::default()
+    });
+    p.characters.push(Character {
+        id: "keeper".into(),
+        name: "Keeper".into(),
+        name_colour: Some("yellow".into()),
+        location: room.clone(),
+        state: [("health".into(), luna_model::Value::Integer(7))].into(),
+        ..Default::default()
+    });
+    p.objects.push(Object {
+        id: "key".into(),
+        name: "key".into(),
+        placement: Placement::Character {
+            character: "keeper".into(),
+        },
+        ..Default::default()
+    });
+    for (id, destination) in [("send", "garden"), ("recall", "@current")] {
+        p.game.actions.push(Action {
+            id: id.into(),
+            verb: "use".into(),
+            pattern: vec![PatternPart::Literal { text: id.into() }],
+            effects: vec![
+                Effect::MoveCharacter {
+                    character: "keeper".into(),
+                    location: destination.into(),
+                },
+                Effect::CharacterSays {
+                    character: "keeper".into(),
+                    text: "<green>%chances% chances and %keeper.health% health.</green>".into(),
+                },
+            ],
+            ..Default::default()
+        });
+    }
+    let bundle = temp.path().join("characters.luna");
+    std::fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let loaded = storage.load_game(&installed).unwrap();
+    assert_eq!(loaded.characters, p.characters);
+    let (mut runner, _) = Session::start(loaded, None).unwrap();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let mut editor = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"location":null}),
+    )
+    .await;
+    let visits = runner.state.visits.clone();
+    for command in ["use send", "use recall", "use send"] {
+        let result = runner.command(command).unwrap();
+        editor = post(
+            app.clone(),
+            &format!(
+                "/api/v1/playtests/{}/commands",
+                editor["session"].as_str().unwrap()
+            ),
+            json!({"command":command}),
+        )
+        .await;
+        assert_eq!(
+            editor["result"]["messages"],
+            serde_json::to_value(&result.messages).unwrap()
+        );
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(&runner.state).unwrap()
+        );
+        assert_eq!(
+            text::plain(&result.messages[0]),
+            "Keeper says: 3 chances and 7 health."
+        );
+        assert_eq!(result.messages[0][0].colour.as_deref(), Some("yellow"));
+        assert_eq!(result.messages[0][2].colour.as_deref(), Some("green"));
+        assert_eq!(runner.state.location, room);
+        assert_eq!(runner.state.visits, visits);
+        assert_eq!(
+            runner.state.objects["key"].placement,
+            Placement::Character {
+                character: "keeper".into()
+            }
+        );
+        for slot in [None, Some("character checkpoint")] {
+            storage
+                .write_save(&installed, &runner.project, &runner.state, slot)
+                .unwrap();
+            let save = storage
+                .load_save(&installed, &runner.project, slot)
+                .unwrap();
+            runner = Session::restore(storage.load_game(&installed).unwrap(), save.state).unwrap();
+        }
+    }
+    assert_eq!(runner.state.characters["keeper"].location, "garden");
+}
+
+#[tokio::test]
 async fn response_follow_ups_match_exported_runner_and_survive_every_save_boundary() {
     use luna_model::*;
     let temp = tempfile::tempdir().unwrap();

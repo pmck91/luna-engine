@@ -66,6 +66,8 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
     switch (v.type) {
       case 'say':
         return { ...v, text: visitor.text(v.text) };
+      case 'character_says':
+        return { ...v, character: character(v.character), text: visitor.text(v.text) };
       case 'respond':
         return {
           ...v,
@@ -99,6 +101,8 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
         return { ...v, object: object(v.object), location: location(v.location) };
       case 'move':
         return { ...v, location: location(v.location) };
+      case 'move_character':
+        return { ...v, character: character(v.character), location: location(v.location) };
       case 'reveal':
       case 'hide':
         return { ...v, entity: visitor.entity(v.entity, ['object', 'character']) };

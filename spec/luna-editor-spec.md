@@ -64,6 +64,8 @@ Authors can define combinations such as using one object on another. An action s
 
 Characters have a stable ID, name, aliases, description, location, attached verbs, dialogue/action triggers, and mutable state.
 
+MOVE CHARACTER selects a character and a destination room or the player's current location. It preserves the character's hidden state and held items, changes player command scope immediately, and persists through saves. It does not move the player or emit player entry/leave, visit, or inventory events. CHARACTER SAYS selects a speaker by stable reference and prints their literal current name followed by ` says: ` and a formatted message. Character properties include an optional name colour using the existing palette; message colours and variable/property placeholders remain independent. Both effects are available in action/trigger blocks, synchronized inspector controls, and saved block templates.
+
 ### Variables
 
 Variables are named, typed game-state values referenced by conditions and effects. The editor provides a variable list, value inspection in playtest, and validation for missing or incompatible references.
@@ -111,7 +113,7 @@ Each action is authored as an ordered flow:
 
 1. The player command or event matches.
 2. Optional `IF` / `ELSE` conditions check game state.
-3. Ordered effects run, such as `SAY`, `SET`, `ADD ITEM`, `REMOVE ITEM`, `CONSUME`, `COMBINE`, `MOVE PLAYER`, or `END GAME`.
+3. Ordered effects run, such as `SAY`, `CHARACTER SAYS`, `SET`, `ADD ITEM`, `REMOVE ITEM`, `CONSUME`, `COMBINE`, `MOVE PLAYER`, `MOVE CHARACTER`, or `END GAME`.
 4. An optional `STOP` ends the current action flow.
 
 Failed requirements have an explicit response or alternate branch. Effects are not run when the action’s conditions fail. The editor’s block palette uses typed fields and references; authors do not write arbitrary code or regular expressions.

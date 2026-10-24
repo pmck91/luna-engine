@@ -68,6 +68,10 @@ Use **GIVE TO CHARACTER** from **World & state** to assign an object to a select
 
 Character-held objects are omitted from the room listing and player inventory, and player commands cannot target them until an authored action transfers them to the player or a room. Transferring into player inventory fires the object's take event; transferring from the player to a character or room fires its drop event. Transfers between characters do not fire player take/drop events. Inventory ownership is preserved in exported games and player saves.
 
+Use **MOVE CHARACTER** from **World & state** in an action or trigger to move a selected character to another room, or choose **Current location** to bring them to the player. Held items stay with their owner. Moving a character does not move the player, print a room description, change visit counts, or fire player entry/leave or inventory events. The character's actions become available in their new room, and save/load preserves their position and inventory.
+
+Use **CHARACTER SAYS** from **Responses** to print a line such as `Keeper says: You have 3 chances left.` Choose the **Speaker** and edit **CHARACTER SAYS text** in the inspector, using the same colours and variable/property insertion menu as ordinary **SAY**. Set **Name colour** in the character's properties to colour their name independently of the message; **Default** uses normal text. Speaker references survive renaming. Speech can be authored for a distant or hidden character; use a **VISIBLE** condition when they must be present. The effect does not itself fire a speaking event; a `talk Keeper` command still fires its usual interaction event.
+
 ## Play a game
 
 ```sh
