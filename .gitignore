@@ -1,0 +1,13 @@
+/target/
+/web/node_modules/
+/web/dist/
+/web/dist.smoke-hidden/
+/web/test-results/
+/web/playwright-report/
+/dist/
+*.luna
+!.fixtures/*.luna
+!/examples/locked-study.luna
+/web/*.tsbuildinfo
+.luna-recovery/
+.luna-transaction.json
