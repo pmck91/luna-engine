@@ -7,10 +7,6 @@ Prioritise the user-facing first-game tutorial over the deeper developer archite
 - [ ] Add a MOVE CHARACTER effect. Items held by a character follow their owner; define which movement events fire.
 - [ ] Add CHARACTER SAYS alongside ordinary SAY. Select the speaker by entity reference and print their current name followed by "says:" and the message. Support the existing colours and variable/property placeholders. allow the designer to set a character colour, so their name appears in that colour e.g. <yellow><name></yellow>: <message>
 
-## Engine behaviour
-
-- [ ] Make the outcome optional on game completions. Allow an ending without selecting victory, loss, or neutral. Support an unset outcome in the editor, content format, validation, and runner display while still completing the playthrough and preserving the ending in saves.
-
 ## Editor UX
 
 Improve the complete authoring flow: create a project, build places and entities, add interactions and puzzles, playtest, then export. Proposed priorities below use P1 for a consistent and reliable editing flow, P2 for faster authoring, and P3 for larger follow-up features.
@@ -55,8 +51,20 @@ Use Astro Starlight for a user-facing documentation site hosted on GitHub Pages,
 - [ ] Expand the game-file architecture documentation under Developer documentation with schemas, stable references, editor metadata, bundles, versions, and compatibility rules.
 - [ ] Expand the runner architecture documentation under Developer documentation with command execution, rendering, save storage, and recovery/error handling.
 
+## Conversations and quests — future engine update
+
+Deferred work, planned in [Conversations and quests](conversations-and-quests.md). Keep the documentation and current editor UX priorities ahead of this update. Implement the combined update on a separate `feature/conversations-and-quests` branch when work begins.
+
+- [ ] Prototype the conversation graph and quest authoring flow, then confirm the proposed reply presentation, interruption/checkpoint behaviour, quest progression, and version/command compatibility contract.
+- [ ] Add shared conversation/quest definitions, stable references, progress state, validation, generated contracts, transactional project/bundle storage, and explicit content/save-format compatibility paths.
+- [ ] Implement conversations with replies scoped to the active node, phrase aliases, progress conditions, once-only effects, conditional entry points, saved checkpoints, and consistent editor/runner command handling. Prevent guessed future topics from bypassing the graph.
+- [ ] Implement quest statuses, prerequisite stages, idempotent progress/reward hooks, historical journal entries, read-only player log commands, and quest conditions usable by actions, conversations, triggers, and hints.
+- [ ] Build Conversations and Quests workspaces under Game data, character shortcuts, graph/stage navigation, selected-node/reply condition/effect blocks, and playtest conversation/quest-log views. Share speaker formatting with CHARACTER SAYS.
+- [ ] Extend reference/text/effect visitors, response-sequence discovery, templates, duplication, and usage navigation to the new content. Cover current-node gating, rollback, save/resume without replay, legacy compatibility, and Chromium/Firefox authoring/export/runner parity with a complete Keeper quest example before merging the feature branch.
+
 ## Completed
 
+- [x] Make ending outcomes optional across the editor, content model, validation, and runner. New endings default to No outcome; explicit victory/loss/neutral outcomes remain available. Unset outcomes serialize as null, and omitted outcomes are accepted. END GAME still finalizes once, stops later effects, and preserves the ending ID in format-2 autosaves/named saves. Cover clearing/reopening/exporting endings, editor/runner playback, save restoration without replay, malformed outcomes, and existing explicit outcomes.
 - [x] Add the Luna Engine logo to the README and editor header/welcome pages. Use a transparent background so the logo fits the editor's dark theme, with descriptive alt text and compact display sizes.
 - [x] Add a dedicated Triggers workspace under Game data, grouping command, state, and value triggers with owner filters, names, entity shortcuts, condition/effect blocks, and stable layout/IDs when changing owners. Add watches on global variables and entity properties with false-to-true or every-matching-change modes, immediate SET/arithmetic dispatch, deterministic priorities, chained events, rollback/loop limits, and no replay on save restoration. Cover player death and character defeat with core tests and Chromium/Firefox authoring, legacy trigger navigation, export, and runner named-save checks. Existing trigger files default safely; player saves stay in format 2.
 - [x] Remove the duplicate Logic tab and use Actions for command actions, triggers, and exit flows. List each kind separately, preserve the last selected flow per owner, and keep condition blocks, inspector navigation, templates, map-selected routes, and saved flow IDs working. Covered by Chromium/Firefox navigation, editing/playback, reopening, and compact layout checks.

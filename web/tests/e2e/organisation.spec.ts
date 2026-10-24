@@ -82,7 +82,7 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
     .fill('You leave with <green>%chances%</green> chances.');
   await endings.getByRole('button', { name: 'Add ending', exact: true }).click();
   const second = endings.getByRole('group', { name: 'Ending 2', exact: true });
-  await expect(second.getByLabel('Outcome')).toHaveValue('neutral');
+  await expect(second.getByLabel('Outcome')).toHaveValue('');
   await second.getByLabel('Ending name').fill('Unused ending');
   await second.getByRole('button', { name: 'Remove ending', exact: true }).click();
   await expect(endings.getByRole('group')).toHaveCount(1);

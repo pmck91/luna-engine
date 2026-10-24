@@ -478,7 +478,7 @@ pub struct Ending {
     pub id: String,
     pub name: String,
     pub text: String,
-    pub outcome: Outcome,
+    pub outcome: Option<Outcome>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(deny_unknown_fields)]

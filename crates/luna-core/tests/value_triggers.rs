@@ -211,7 +211,7 @@ fn death_ends_the_current_effect_chain_and_runs_ending_handlers_once() {
         id: "death-ending".into(),
         name: "Death".into(),
         text: "Game over.".into(),
-        outcome: Outcome::Loss,
+        outcome: Some(Outcome::Loss),
     });
     p.game.triggers.push(watch(
         "death",
@@ -355,7 +355,7 @@ fn ending_reachability_includes_remote_watches_without_enabling_the_owners_actio
         id: "death".into(),
         name: "Death".into(),
         text: "Defeated.".into(),
-        outcome: Outcome::Loss,
+        outcome: Some(Outcome::Loss),
     });
     p.locations.push(Location {
         id: "remote".into(),

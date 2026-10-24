@@ -18,8 +18,8 @@ export default function Endings({
     <section aria-label="Endings editor">
       <h2>Endings</h2>
       <p className="muted">
-        Choose an ending in an END GAME block to complete a playthrough with its message and
-        outcome.
+        Choose an ending in an END GAME block to complete a playthrough with its message. An outcome
+        is optional.
       </p>
       <Check
         label="Require a reachable ending"
@@ -48,9 +48,14 @@ export default function Endings({
           />
           <Select
             label="Outcome"
-            value={ending.outcome}
-            items={['victory', 'loss', 'neutral'].map((id) => ({ id, name: id }))}
-            onChange={(outcome) => update(ending.id, { outcome: outcome as Ending['outcome'] })}
+            value={ending.outcome ?? ''}
+            items={[
+              { id: '', name: 'No outcome' },
+              ...['victory', 'loss', 'neutral'].map((id) => ({ id, name: id })),
+            ]}
+            onChange={(outcome) =>
+              update(ending.id, { outcome: outcome ? (outcome as Ending['outcome']) : null })
+            }
           />
           <RichText
             project={p}
@@ -74,7 +79,7 @@ export default function Endings({
       <button
         onClick={() =>
           edit((next) => {
-            next.game.endings.push({ id: id(), name: 'New ending', outcome: 'neutral', text: '' });
+            next.game.endings.push({ id: id(), name: 'New ending', outcome: null, text: '' });
           })
         }
       >

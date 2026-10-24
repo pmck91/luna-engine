@@ -99,7 +99,7 @@ On launch, the runner displays the game title, opening text, current location de
 - `look`, `inventory`, `help`, `save`, `load`, `saves`, and `quit` are reserved runner commands. They cannot be silently shadowed by project-authored actions. The editor must expose these reserved names in its validation and authoring UI.
 - Game-specific movement remains parser-driven. The runner does not replace authored exits with a mandatory choice menu.
 - Repeated response sequences display one response per successful interaction and retain their cursor according to the editor’s response-sequence rules.
-- When an ending is reached, show its ending text and outcome. Stop accepting game actions, but allow the player to review the ending, inspect available saves, or quit. Starting a new playthrough is an explicit action.
+- When an ending is reached, show its ending text and, when selected, its outcome. An ending without an outcome still completes the playthrough. Stop accepting game actions, but allow the player to review the ending, inspect available saves, or quit. Starting a new playthrough is an explicit action.
 
 ### Session controls
 
@@ -122,7 +122,7 @@ Names are trimmed, bounded in length, and treated as labels rather than filesyst
 A save represents the entire mutable game state at a completed command boundary. It includes, as applicable:
 
 - Stable game ID and exact game content version.
-- Current location and whether the game has ended, including ending ID/outcome.
+- Current location and whether the game has ended, including the ending ID. Its optional outcome is read from the installed game definition.
 - Inventory and object presence, ownership, location, hidden/revealed, opened/closed, consumed, or combined state.
 - All game variables and other mutable authored state.
 - Location visit counts and first-entry state.

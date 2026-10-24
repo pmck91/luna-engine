@@ -322,7 +322,7 @@ fn follow_up_stop_and_end_propagate_to_the_enclosing_action() {
             id: "punched".into(),
             name: "Punched".into(),
             text: "Game over.".into(),
-            outcome: Outcome::Loss,
+            outcome: Some(Outcome::Loss),
         });
         let (mut s, _) = Session::start(p, None).unwrap();
         for _ in 0..3 {

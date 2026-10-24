@@ -46,7 +46,7 @@ The UI uses a Unity-style hierarchy, canvas, and inspector layout. There are **n
 
 Project title, description, author, starting location, opening text, help text, format version, endings, and game-wide triggers/settings.
 
-An ending has a stable ID, player-facing text, and an outcome such as victory, loss, or neutral. An `END GAME` block selects an ending and stops further actions. Authors can mark a game as requiring a reachable ending; validation then checks that at least one ending can be reached from the start.
+An ending has a stable ID, player-facing text, and an optional outcome of victory, loss, or neutral. New endings default to no outcome. An `END GAME` block selects an ending and stops further actions even when no outcome is selected; only the outcome line is omitted. Authors can mark a game as requiring a reachable ending; validation then checks that at least one ending can be reached from the start.
 
 ### Locations
 

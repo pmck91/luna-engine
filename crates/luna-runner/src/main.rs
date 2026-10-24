@@ -232,10 +232,12 @@ fn show_restored(session: &Session, label: &str, colour: bool) -> Result<()> {
             .find(|e| e.id == *ending)
             .context("Saved ending no longer exists")?;
         messages.push(text::parse(&end.text)?);
-        messages.push(vec![text::Span {
-            text: format!("Outcome: {:?}", end.outcome),
-            colour: None,
-        }]);
+        if let Some(outcome) = &end.outcome {
+            messages.push(vec![text::Span {
+                text: format!("Outcome: {outcome:?}"),
+                colour: None,
+            }]);
+        }
     } else {
         messages.extend(session.description()?);
     }

@@ -24,6 +24,114 @@ fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.fixtures/locked-study.luna")
 }
 #[test]
+fn optional_outcomes_survive_export_completion_and_named_save_restore() {
+    use luna_model::*;
+    for outcome in [
+        None,
+        Some(Outcome::Victory),
+        Some(Outcome::Loss),
+        Some(Outcome::Neutral),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut p = Project::blank("Optional outcome CLI");
+        p.game.require_ending = true;
+        p.game
+            .variables
+            .insert("finalizations".into(), Value::Integer(0));
+        p.game.endings.push(Ending {
+            id: "finish".into(),
+            name: "Finish".into(),
+            text: "A story worth remembering.".into(),
+            outcome: outcome.clone(),
+        });
+        p.game.triggers.push(Trigger {
+            id: "finalize-once".into(),
+            event: Event::Ending,
+            effects: vec![
+                Effect::UpdateVariable {
+                    name: "finalizations".into(),
+                    op: ArithmeticOperation::Add,
+                    operand: NumericOperand::Literal { value: 1 },
+                },
+                Effect::Say {
+                    text: "End handler ran.".into(),
+                },
+            ],
+            ..Default::default()
+        });
+        p.game.actions.push(Action {
+            id: "finish-action".into(),
+            verb: "use".into(),
+            pattern: vec![PatternPart::Literal {
+                text: "finish".into(),
+            }],
+            effects: vec![Effect::End {
+                ending: "finish".into(),
+            }],
+            ..Default::default()
+        });
+        let bundle = temp.path().join("ending.luna");
+        fs::write(
+            &bundle,
+            luna_project::export_bundle(temp.path(), &p).unwrap(),
+        )
+        .unwrap();
+        let imported = command(temp.path(), &["import", bundle.to_str().unwrap()], b"");
+        assert!(
+            imported.status.success(),
+            "{}",
+            String::from_utf8_lossy(&imported.stderr)
+        );
+        let output = command(
+            temp.path(),
+            &["run", &p.game.id, "--new"],
+            b"use finish\nsave completed\nload completed\nuse finish\nquit\n",
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let output = String::from_utf8(output.stdout).unwrap();
+        assert_eq!(output.matches("A story worth remembering.").count(), 2);
+        assert_eq!(output.matches("End handler ran.").count(), 1);
+        assert!(output.contains("This playthrough has ended."));
+        assert_eq!(
+            output.matches("Outcome:").count(),
+            if outcome.is_some() { 2 } else { 0 }
+        );
+        if let Some(outcome) = &outcome {
+            assert_eq!(output.matches(&format!("Outcome: {outcome:?}")).count(), 2);
+        }
+
+        let store = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+        let record = store.records().unwrap().pop().unwrap();
+        assert_eq!(
+            store.load_game(&record).unwrap().game.endings[0].outcome,
+            outcome
+        );
+        for slot in [None, Some("completed")] {
+            let saved = store.load_save(&record, &p, slot).unwrap();
+            assert_eq!(saved.state.ending.as_deref(), Some("finish"));
+            assert_eq!(saved.state.variables["finalizations"], Value::Integer(1));
+        }
+        let resumed = command(
+            temp.path(),
+            &["run", &p.game.id, "--load", "completed"],
+            b"use finish\nquit\n",
+        );
+        assert!(resumed.status.success());
+        let resumed = String::from_utf8(resumed.stdout).unwrap();
+        assert!(resumed.contains("A story worth remembering."));
+        assert!(resumed.contains("This playthrough has ended."));
+        assert!(!resumed.contains("End handler ran."));
+        assert_eq!(
+            resumed.matches("Outcome:").count(),
+            usize::from(outcome.is_some())
+        );
+    }
+}
+#[test]
 fn response_follow_ups_resume_before_and_after_completion_and_can_be_reset() {
     use luna_model::*;
     let temp = tempfile::tempdir().unwrap();

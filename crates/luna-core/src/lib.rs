@@ -940,7 +940,9 @@ impl<'a> Run<'a> {
                     self.fire(Event::Ending, &self.p.game.id)?;
                     self.finalizing = false;
                     self.say(&end.text)?;
-                    self.literal(&format!("Outcome: {:?}", end.outcome));
+                    if let Some(outcome) = &end.outcome {
+                        self.literal(&format!("Outcome: {outcome:?}"));
+                    }
                     return Ok(Flow::End);
                 }
                 Effect::Stop => return Ok(Flow::Stop),
