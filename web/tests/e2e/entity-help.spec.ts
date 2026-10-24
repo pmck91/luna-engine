@@ -1,23 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { join } from 'node:path';
+import { openEditor } from '../editor';
 
 test('entity help lists authored commands and changes with inventory requirements', async ({
   page,
 }, info) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(process.env.LUNA_TEST_URL!);
-  await expect(
-    page
-      .getByRole('button', { name: 'Create a project' })
-      .or(page.getByRole('button', { name: 'Use this directory' })),
-  ).toBeVisible();
-  if (await page.getByRole('button', { name: 'Use this directory' }).isVisible()) {
-    await page
-      .getByLabel('Projects directory (absolute path)')
-      .fill(join(process.env.LUNA_TEST_DIR!, 'projects'));
-    await page.getByRole('button', { name: 'Use this directory' }).click();
-  }
+  await openEditor(page);
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Folder name').fill(`help-${info.project.name}`);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();

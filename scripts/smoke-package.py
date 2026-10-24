@@ -28,27 +28,40 @@ def main():
         package = work / "luna-engine-linux-x86_64"
         env = dict(os.environ, XDG_CONFIG_HOME=str(work / "config"),
                    XDG_DATA_HOME=str(work / "data"), PATH="", NO_COLOR="1")
-        cli = [str(package / "luna"), "--games-dir", str(work / "games"),
-               "--saves-dir", str(work / "saves")]
-
-        def run(arguments, commands=""):
+        def run(arguments, commands="", *, profile="walkthrough"):
+            cli = [str(package / "luna"), "--games-dir", str(work / profile / "games"),
+                   "--saves-dir", str(work / profile / "saves")]
             result = subprocess.run(cli + arguments, input=commands, text=True,
                                     capture_output=True, env=env, cwd=work, timeout=15)
             if result.returncode:
-                raise RuntimeError(f"Packaged CLI failed: {result.stderr}")
+                raise RuntimeError(f"Packaged CLI failed ({profile}, {arguments}): {result.stderr}")
             return result.stdout
 
-        run(["import", str(package / "examples/locked-study.luna")])
+        # The shipped example is editable authoring content; its puzzle may evolve.
+        # Check that it imports and starts, independently of the fixed walkthrough.
+        run(["import", str(package / "examples/locked-study.luna")], profile="example")
+        example = run(["list"], profile="example").splitlines()[0].split("\t")
+        startup = run(["run", example[0], "--new"], "look\nquit\n", profile="example")
+        assert example[2] in startup, startup
+        assert "\x1b" not in startup, startup
+
+        fixture = work / "walkthrough.luna"
+        fixture.write_bytes((root / ".fixtures/locked-study.luna").read_bytes())
+        run(["import", str(fixture)])
         game_id = run(["list"]).splitlines()[0].split("\t")[0]
         transcript = run(["run", game_id, "--new"],
                          "examine painting\nexamine painting\ntake key\nuse key on door\n"
-                         "save before garden\ngo east\nexamine rose\n"
+                         "save before garden\ngo east\nexamine rose\nsave completed\n"
+                         "load completed\nuse key on door\n"
                          "load before garden\ninventory\nquit\n")
-        assert "Outcome: Neutral" in transcript
-        assert "Loaded before garden." in transcript
-        assert "You are carrying: brass key." in transcript
-        assert transcript.count("You enter the study for the first time.") == 1
-        assert "\x1b" not in transcript
+        assert transcript.count("Outcome: Neutral") == 2, transcript
+        assert "Loaded completed." in transcript, transcript
+        assert "This playthrough has ended." in transcript, transcript
+        assert "Loaded before garden." in transcript, transcript
+        assert "You are carrying: brass key." in transcript, transcript
+        assert transcript.count("You enter the study for the first time.") == 1, transcript
+        assert "I couldn't match that command." not in transcript, transcript
+        assert "\x1b" not in transcript, transcript
 
         frontend = root / "web/dist"
         hidden = root / "web/dist.smoke-hidden"
@@ -70,6 +83,16 @@ def main():
             url = urllib.parse.urlsplit(match[0])
             base = url._replace(fragment="").geturl()
             token = urllib.parse.parse_qs(url.fragment)["token"][0]
+
+            def api(path, method="GET", body=None, *, raw=False):
+                request = urllib.request.Request(
+                    urllib.parse.urljoin(base, f"api/v1/{path}"),
+                    data=json.dumps(body).encode() if body is not None else None,
+                    headers={"x-luna-token": token, "content-type": "application/json"},
+                    method=method)
+                with opener.open(request, timeout=5) as response:
+                    return response.read() if raw else json.load(response)
+
             with opener.open(base, timeout=5) as response:
                 html = response.read().decode()
             script = re.search(r'<script[^>]+src="([^"]+)"', html)
@@ -82,10 +105,43 @@ def main():
                 raise AssertionError("API accepted a request without authentication")
             except urllib.error.HTTPError as error:
                 assert error.code == 401
-            request = urllib.request.Request(config_url, headers={"x-luna-token": token})
-            with opener.open(request, timeout=5) as response:
-                config = json.load(response)
+            config = api("config")
             assert config["projects_root"] == str((package / "examples").resolve())
+
+            # Exercise optional outcomes through the packaged editor's actual export,
+            # then resume that completed game using the packaged runner.
+            created = api("projects", "POST", {"folder": "smoke-outcome", "title": "No outcome"})
+            project = created["project"]
+            project["game"]["require_ending"] = True
+            project["game"]["endings"] = [{
+                "id": "finish", "name": "Finish", "text": "The story is complete.",
+                "outcome": None,
+            }]
+            project["game"]["actions"] = [{
+                "id": "finish-action", "name": "Finish", "verb": "use",
+                "pattern": [{"type": "literal", "text": "finish"}],
+                "effects": [{"type": "end", "ending": "finish"}],
+            }]
+            handle = created["handle"]
+            saved = api(f"projects/{handle}", "PUT", {
+                "project": project, "revision": created["revision"],
+            })
+            assert saved["project"]["game"]["endings"][0]["outcome"] is None
+            exported = work / "no-outcome.luna"
+            exported.write_bytes(api(f"projects/{handle}/export", "POST", raw=True))
+            run(["import", str(exported)], profile="no-outcome")
+            game = project["game"]
+            completed = run(["run", game["id"], "--new"],
+                            "use finish\nsave completed\nload completed\nuse finish\nquit\n",
+                            profile="no-outcome")
+            assert completed.count("The story is complete.") == 2, completed
+            assert "Loaded completed." in completed, completed
+            assert "This playthrough has ended." in completed, completed
+            assert "Outcome:" not in completed, completed
+            autosave = work / "no-outcome/saves" / game["id"] / game["content_version"] / "autosave.json"
+            state = json.loads(autosave.read_text())
+            assert state["save_format"] == 2, state
+            assert state["state"]["ending"] == "finish", state
         finally:
             if editor is not None and editor.poll() is None:
                 editor.send_signal(signal.SIGINT)
@@ -96,7 +152,8 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged CLI and embedded editor passed without source UI or development tools.")
+        print("Packaged example, fixed walkthrough, optional outcomes, and embedded editor passed "
+              "without source UI or development tools.")
 
 
 if __name__ == "__main__":

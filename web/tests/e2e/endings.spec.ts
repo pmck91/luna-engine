@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openEditor } from '../editor';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -6,14 +7,7 @@ import { execFileSync } from 'node:child_process';
 test('an ending without an outcome stays completed after reopen, export, and save/load', async ({
   page,
 }, info) => {
-  const configured = page.waitForResponse('**/api/v1/config');
-  await page.goto(process.env.LUNA_TEST_URL!);
-  if (!(await (await configured).json()).projects_root) {
-    await page
-      .getByLabel('Projects directory (absolute path)')
-      .fill(join(process.env.LUNA_TEST_DIR!, 'projects'));
-    await page.getByRole('button', { name: 'Use this directory' }).click();
-  }
+  await openEditor(page);
   const folder = `endings-${info.project.name}`;
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Folder name').fill(folder);

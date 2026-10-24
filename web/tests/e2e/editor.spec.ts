@@ -1,19 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { openEditor } from '../editor';
 import { join } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
 test('create a world through forms, starter actions, and the exit tool', async ({ page }, info) => {
-  const configured = page.waitForResponse('**/api/v1/config');
-  await page.goto(process.env.LUNA_TEST_URL!);
-  // The directory form can appear briefly while existing configuration loads.
-  const config = await configured;
-  expect(config.ok()).toBe(true);
-  if (!(await config.json()).projects_root) {
-    await page
-      .getByLabel('Projects directory (absolute path)')
-      .fill(join(process.env.LUNA_TEST_DIR!, 'projects'));
-    await page.getByRole('button', { name: 'Use this directory' }).click();
-  }
-  await expect(page.getByRole('button', { name: 'Create a project' })).toBeVisible();
+  await openEditor(page);
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Folder name').fill(`authored-${info.project.name}`);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
@@ -81,17 +71,8 @@ test('create a world through forms, starter actions, and the exit tool', async (
 test('author, inspect, play, and export The Locked Study', async ({ page }, info) => {
   const browserErrors: string[] = [];
   page.on('pageerror', (e) => browserErrors.push(e.message));
-  await page.goto(process.env.LUNA_TEST_URL!);
+  await openEditor(page);
   const projectsRoot = join(process.env.LUNA_TEST_DIR!, 'projects');
-  await expect(
-    page
-      .getByRole('button', { name: 'Create a project' })
-      .or(page.getByRole('button', { name: 'Use this directory' })),
-  ).toBeVisible();
-  if (await page.getByLabel('Projects directory (absolute path)').isVisible()) {
-    await page.getByLabel('Projects directory (absolute path)').fill(projectsRoot);
-    await page.getByRole('button', { name: 'Use this directory' }).click();
-  }
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Project title', { exact: true }).fill('The Locked Study');
   await page.getByLabel('Folder name').fill(`locked-study-${info.project.name}`);

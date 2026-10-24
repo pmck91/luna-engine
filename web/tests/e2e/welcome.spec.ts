@@ -1,21 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { join } from 'node:path';
+import { openEditor } from '../editor';
 
 test('a long project list keeps welcome controls reachable above and below the fold', async ({
   page,
 }, info) => {
-  await page.goto(process.env.LUNA_TEST_URL!);
-  await expect(
-    page
-      .getByRole('button', { name: 'Create a project' })
-      .or(page.getByRole('button', { name: 'Use this directory' })),
-  ).toBeVisible();
-  if (await page.getByRole('button', { name: 'Use this directory' }).isVisible()) {
-    await page
-      .getByLabel('Projects directory (absolute path)')
-      .fill(join(process.env.LUNA_TEST_DIR!, 'projects'));
-    await page.getByRole('button', { name: 'Use this directory' }).click();
-  }
+  await openEditor(page);
   const token = await page.evaluate(() => sessionStorage.getItem('luna-token')!);
   const endpoint = new URL('/api/v1/projects', process.env.LUNA_TEST_URL!).toString();
   for (let i = 0; i < 30; i++) {

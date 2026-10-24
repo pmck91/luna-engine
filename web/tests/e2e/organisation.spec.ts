@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openEditor } from '../editor';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -9,18 +10,7 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
   page.setDefaultTimeout(10000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(process.env.LUNA_TEST_URL!);
-  await expect(
-    page
-      .getByRole('button', { name: 'Create a project' })
-      .or(page.getByRole('button', { name: 'Use this directory' })),
-  ).toBeVisible();
-  if (await page.getByRole('button', { name: 'Use this directory' }).isVisible()) {
-    await page
-      .getByLabel('Projects directory (absolute path)')
-      .fill(join(process.env.LUNA_TEST_DIR!, 'projects'));
-    await page.getByRole('button', { name: 'Use this directory' }).click();
-  }
+  await openEditor(page);
   const folder = `organisation-${info.project.name}`;
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Folder name').fill(folder);

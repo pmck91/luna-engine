@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openEditor } from '../editor';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import type { EditorLayout } from '../../src/contracts';
@@ -7,18 +8,7 @@ test('parallel, return, and self-loop exits remain visible and individually sele
   page,
 }, info) => {
   page.setDefaultTimeout(10000);
-  await page.goto(process.env.LUNA_TEST_URL!);
-  await expect(
-    page
-      .getByRole('button', { name: 'Create a project' })
-      .or(page.getByRole('button', { name: 'Use this directory' })),
-  ).toBeVisible();
-  if (await page.getByRole('button', { name: 'Use this directory' }).isVisible()) {
-    await page
-      .getByLabel('Projects directory (absolute path)')
-      .fill(join(process.env.LUNA_TEST_DIR!, 'projects'));
-    await page.getByRole('button', { name: 'Use this directory' }).click();
-  }
+  await openEditor(page);
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Folder name').fill(`map-exits-${info.project.name}`);
   await page.getByLabel('Start with The Locked Study example').check();
