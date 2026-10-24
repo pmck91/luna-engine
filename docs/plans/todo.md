@@ -1,6 +1,6 @@
 # Project todo
 
-Prioritise the first-game tutorial over the deeper architecture documents.
+Prioritise the user-facing first-game tutorial over the deeper developer architecture documents.
 
 ## Characters
 
@@ -11,10 +11,26 @@ Prioritise the first-game tutorial over the deeper architecture documents.
 
 - [ ] Make the outcome optional on game completions. Allow an ending without selecting victory, loss, or neutral. Support an unset outcome in the editor, content format, validation, and runner display while still completing the playthrough and preserving the ending in saves.
 
-## UI
+## Editor UX
 
-- [ ] Add project-wide undo/redo for inspector edits, entity creation/deletion, and map changes, alongside the existing Blockly undo.
-- [ ] Add reference management with a "used by" view before changing or deleting entities, variables, properties, or templates. Support safe variable/property renames, including references in message placeholders, and show affected content before destructive changes.
+Improve the complete authoring flow: create a project, build places and entities, add interactions and puzzles, playtest, then export. Proposed priorities below use P1 for a consistent and reliable editing flow, P2 for faster authoring, and P3 for larger follow-up features.
+
+- [ ] P1: Define consistent roles for menus, forms, blocks, and the inspector. Menus choose content; forms edit entity settings and rich text; blocks show conditions, order, and branching. Make the action/trigger inspector follow the selected block, as hints already do, with a clear route back to the action or trigger settings. Keep inline block fields and inspector fields synchronised.
+- [ ] P1: Add breadcrumbs and navigation history showing the current entity, action/trigger/puzzle, and selected block. Preserve selection, owner filters, canvas position/zoom, and inspector scroll position when moving between views or returning to earlier work.
+- [ ] P1: Streamline creation in context. Add objects and characters to the selected room consistently; let authors create missing verbs, variables, properties, or endings from the relevant picker and return to their work. Offer common command-pattern presets such as `verb entity` and `verb entity to/on/in/with target`, with a readable preview of the command a player will type.
+- [ ] P1: Add block search and a click/keyboard alternative to dragging. Provide an insertion control at empty sockets and between effects, showing compatible blocks and a preview of the insertion point. Keep the existing drag-and-drop workflow available.
+- [ ] P1: Show validation findings beside the affected field or block, with navigation from the findings list to the exact problem. Make disconnected draft blocks visibly distinct and explain that they do not run. Explain missing references, incomplete inputs, and invalid connections in plain language while keeping drafts saveable.
+- [ ] P1: Add project-wide undo/redo for inspector edits, entity creation/deletion, and map changes, alongside the existing Blockly undo. Make the scope of undo and the next operation visible so authors can experiment confidently.
+- [ ] P1: Add reference management with a "used by" view before changing or deleting entities, variables, properties, or templates. Support safe variable/property renames, including references in message placeholders, and show affected content before destructive changes.
+- [ ] P2: Add optional onboarding and useful empty states that lead through a first room, object, action, condition, ending, and export. Link contextual block help to the documentation. Extend the existing template library with ready-to-edit recipes such as a locked door, item handover, and health-based ending.
+- [ ] P2: Add resizable panels and remember their sizes, collapsed states, and authoring views. Extend project search beyond entity names to actions, triggers, puzzles, variables, and message text, with results that open the relevant content.
+- [ ] P2: Review keyboard navigation, focus visibility, screen-reader labels, contrast, and connection cues across custom blocks, pickers, map controls, and panels. Support completing core authoring tasks without precision dragging and avoid relying on colour alone.
+- [ ] P2: Build on Start at and the world-state inspector with named playtest setups for locations, inventories, and values. Let authors replay a command sequence from a known starting state and check expected responses or state changes. Make clear which authored changes require restarting a test.
+- [ ] P3: Add a playtest explanation view showing how a command matched, which requirements passed or failed, which branches and triggers ran, and which values changed. Link results to the authored flow; start with a completed-command trace before considering stepping or breakpoints. This requires runtime tracing as well as UI work.
+- [ ] P3: Extend saved templates with import/export between projects, retaining explicit reference replacements and independent IDs. Keep copied templates distinct from any future shared behaviour that updates all its users.
+- [ ] Check UX changes against a repeatable authoring walkthrough: create two rooms, add a key and locked exit, author a hint and ending, playtest both success and failure, then export and run the game. Observe confusing context changes, repeated setup, and recovery from mistakes, including with a new author.
+
+Design references: [Node-RED quick-add, properties, and error indicators](https://nodered.org/docs/user-guide/editor/workspace/nodes), [MakeCode simulation and highlighted debugging](https://makecode.microbit.org/courses/csintro/iteration/activity), and [Scratch's reusable backpack](https://www.scratchfoundation.org/learn/learning-library/scratch-backpack). Adapt these patterns to text-game authoring and evaluate Blockly support against the version used by this project.
 
 ## Acceptance and compatibility
 
@@ -23,11 +39,21 @@ Prioritise the first-game tutorial over the deeper architecture documents.
 
 ## Docs
 
-- [ ] Write a first-game tutorial with screenshots and a complete playable example.
-- [ ] Write an editor authoring reference covering components and tools, variables versus properties, initial versus current state, requirements versus IF / ELSE, and actions versus triggers.
-- [ ] Expand the parser architecture documentation with command matching, scope, priority, ambiguity, aliases, and ignored words.
-- [ ] Expand the game-file architecture documentation with schemas, stable references, editor metadata, bundles, versions, and compatibility rules.
-- [ ] Expand the runner architecture documentation with installation, command execution, rendering, saves, and recovery/error handling.
+Use Astro Starlight for a user-facing documentation site hosted on GitHub Pages, with Markdown content maintained in this repository. Organise the navigation into Getting started, Editor guide, Game logic, Playing and sharing, Reference, and Developer documentation.
+
+- [ ] Set up the documentation site with the Luna logo, a branded landing page, search, sidebar navigation, and light/dark themes. Provide a local preview command.
+- [ ] Configure GitHub Actions to check documentation builds on pull requests and publish documentation changes from the default branch to GitHub Pages. Support the project's `/luna-engine/` base path.
+- [ ] Write Getting started instructions for installation, launching the editor, and choosing a projects directory. Prioritise a complete "Build your first adventure" tutorial using The Locked Study, with screenshots, exact UI labels, block examples, expected results, and a playable project/export.
+- [ ] Write the Editor guide covering the interface, locations and exits, objects, characters, inventories, actions, and block authoring.
+- [ ] Write the Game logic guide covering variables versus properties, initial versus current state, requirements versus IF / ELSE, actions versus triggers, response sequences, saved block templates, hints, and endings.
+- [ ] Add task-focused guides such as "Create a locked door", "Give an item to a character", and "End the game when health reaches zero". Include step-by-step instructions, screenshots of the relevant blocks, and playtest checks.
+- [ ] Write Playing and sharing instructions for playtesting, exporting and sharing games, importing and running games in the terminal, player commands, saving/loading, and recovery from common errors.
+- [ ] Create a Reference section with a block catalogue, command syntax, message formatting and variable/property placeholders, and troubleshooting.
+- [ ] Shorten the README to a project introduction, installation instructions, and prominent documentation links once the corresponding guides are available. Move detailed authoring guidance into the site and development instructions into Developer documentation.
+- [ ] Add Developer documentation for building, checks, packaging, and contributing. Keep implementation details separate from the author and player guides.
+- [ ] Expand the parser architecture documentation under Developer documentation with command matching, scope, priority, ambiguity, aliases, and ignored words.
+- [ ] Expand the game-file architecture documentation under Developer documentation with schemas, stable references, editor metadata, bundles, versions, and compatibility rules.
+- [ ] Expand the runner architecture documentation under Developer documentation with command execution, rendering, save storage, and recovery/error handling.
 
 ## Completed
 
