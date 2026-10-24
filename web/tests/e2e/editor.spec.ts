@@ -2,18 +2,18 @@ import { expect, test } from '@playwright/test';
 import { join } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
 test('create a world through forms, starter actions, and the exit tool', async ({ page }, info) => {
+  const configured = page.waitForResponse('**/api/v1/config');
   await page.goto(process.env.LUNA_TEST_URL!);
-  await expect(
-    page
-      .getByRole('button', { name: 'Create a project' })
-      .or(page.getByRole('button', { name: 'Use this directory' })),
-  ).toBeVisible();
-  if (await page.getByRole('button', { name: 'Use this directory' }).isVisible()) {
+  // The directory form can appear briefly while existing configuration loads.
+  const config = await configured;
+  expect(config.ok()).toBe(true);
+  if (!(await config.json()).projects_root) {
     await page
       .getByLabel('Projects directory (absolute path)')
       .fill(join(process.env.LUNA_TEST_DIR!, 'projects'));
     await page.getByRole('button', { name: 'Use this directory' }).click();
   }
+  await expect(page.getByRole('button', { name: 'Create a project' })).toBeVisible();
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Folder name').fill(`authored-${info.project.name}`);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
@@ -39,24 +39,23 @@ test('create a world through forms, starter actions, and the exit tool', async (
   await page.getByRole('button', { name: 'Add starter actions', exact: true }).click();
   await expect(page.getByRole('button', { name: /take coin/ })).toBeVisible();
   await page.getByRole('button', { name: /take coin/ }).click();
-  await expect(page.locator('.blocklySvg')).toBeVisible();
+  const workspace = page.getByLabel('Logic block workspace');
+  const canvas = workspace
+    .locator('.blocklyBlockCanvas')
+    .filter({ has: page.locator('.luna_flow') });
+  await expect(canvas.locator('.luna_say')).toHaveCount(1);
   // Drag a response block onto the end of a real authored action flow.
   await page.getByRole('treeitem', { name: 'Responses', exact: true }).click();
-  const block = await page
-    .locator('.blocklyFlyout .blocklyDraggable')
-    .filter({ hasText: 'SAY' })
-    .first()
-    .boundingBox();
-  const body = await page
-    .locator('.blocklyBlockCanvas .blocklyDraggable')
-    .filter({ hasText: 'Taken.' })
-    .last()
-    .boundingBox();
+  const block = await workspace.locator('.blocklyFlyout .luna_say').boundingBox();
+  const body = await canvas.locator('.luna_say').filter({ hasText: 'Taken.' }).boundingBox();
   expect(block).not.toBeNull();
   expect(body).not.toBeNull();
   await page.mouse.move(block!.x + 20, block!.y + 12);
   await page.mouse.down();
-  await page.mouse.move(body!.x + 20, body!.y + body!.height + 12, { steps: 20 });
+  // Earlier connection previews can move the tail. Approach it from the right.
+  await page.mouse.move(body!.x + 180, body!.y + body!.height + 12, { steps: 20 });
+  await page.mouse.move(body!.x + 20, body!.y + body!.height + 12, { steps: 10 });
+  await expect(canvas.locator('.blocklyInsertionMarker')).toBeVisible();
   await page.mouse.up();
   await expect(page.getByLabel('SAY text', { exact: true })).toHaveCount(2);
   await page.getByLabel('SAY text', { exact: true }).last().fill('You pocket the coin.');
