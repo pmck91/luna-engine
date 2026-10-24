@@ -51,6 +51,7 @@ Accepted feedback should be recorded below and reflected in the wireframes and p
 | 2026-10-24 | D0; overall design       | Owner wants the blocks to keep their current appearance and content; everything else looks good.                                             | Preserve the existing renderer and inline fields. Record acceptance of the surrounding design and keep the planned feedback checkpoints.          |
 | 2026-10-24 | First working checkpoint | Owner says the direction looks good; Add action/trigger should match the hint button, and the trigger dropdown should match the owner field. | Applied shared button styling and matching trigger form-field layout; verified creation in both browsers and alignment at desktop/compact widths. |
 | 2026-10-24 | Trigger toolbar          | Add trigger is still out of line with the dropdown; the other controls look good.                                                            | Center the button within the dropdown row beneath the labels. Verified matching vertical centers at 1512, 1100 and 900 px.                        |
+| 2026-10-24 | Breadcrumb navigation    | Garden → Study → Actions incorrectly adds Garden to the path.                                                                                | Distinguish default workspace flows from explicitly selected actions/exits. Preserve explicit flow/block paths and back/forward context.           |
 
 ## Design references
 

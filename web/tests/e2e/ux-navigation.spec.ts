@@ -1,6 +1,77 @@
 import { expect, test } from '@playwright/test';
-import { openEditor } from '../editor';
+import { chooseFlow, openEditor, selectBlock } from '../editor';
 import { join } from 'node:path';
+
+test('breadcrumbs distinguish the Actions workspace from an explicitly selected exit', async ({
+  page,
+}, info) => {
+  await openEditor(page);
+  await page.getByRole('button', { name: 'Create a project' }).click();
+  await page.getByLabel('Folder name').fill(`ux-breadcrumbs-${info.project.name}`);
+  await page.getByLabel('Start with The Locked Study example').check();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
+  const breadcrumbs = page.getByRole('navigation', { name: 'Editor navigation' });
+  const path = breadcrumbs.locator(
+    ':scope > button:not([aria-label]), :scope > span:not([aria-hidden])',
+  );
+  const actions = page.getByRole('button', { name: 'Actions', exact: true });
+  const map = page.getByRole('button', { name: 'World map', exact: true });
+  await page.getByRole('button', { name: 'Edit exit east', exact: true }).click();
+  await inspector.getByLabel('Name', { exact: true }).fill('Garden');
+  await page
+    .locator('.react-flow__node')
+    .filter({ hasText: /^Garden/ })
+    .click();
+  await page
+    .locator('.react-flow__node')
+    .filter({ hasText: /^Study/ })
+    .click();
+  await actions.click();
+  await expect(path).toHaveText(['The Locked Study', 'Study', 'Actions']);
+  // The fallback exit stays editable; it is not another room in the navigation path.
+  await expect(inspector.getByLabel('Traversal text', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Choose action or exit').locator('option:checked')).toHaveText(
+    'Garden · To Garden',
+  );
+  await page.getByRole('button', { name: 'Navigate back', exact: true }).click();
+  await expect(path).toHaveText(['The Locked Study', 'Study', 'World map']);
+  await page.getByRole('button', { name: 'Navigate forward', exact: true }).click();
+  await expect(path).toHaveText(['The Locked Study', 'Study', 'Actions']);
+  // Explicit flow and block selections still identify the content being edited.
+  await chooseFlow(page, /^Garden/);
+  await expect(path).toHaveText(['The Locked Study', 'Study', 'Actions', 'Garden']);
+  await selectBlock(page, 'VARIABLE');
+  await expect(path).toHaveText(['The Locked Study', 'Study', 'Actions', 'Garden', 'VARIABLE']);
+  await breadcrumbs.getByRole('button', { name: 'Garden', exact: true }).click();
+  await expect(path).toHaveText(['The Locked Study', 'Study', 'Actions', 'Garden']);
+  await map.click();
+  await page
+    .locator('.react-flow__node')
+    .filter({ hasText: /^Garden/ })
+    .click();
+  await page
+    .locator('.react-flow__node')
+    .filter({ hasText: /^Study/ })
+    .click();
+  await actions.click();
+  await expect(path).toHaveText(['The Locked Study', 'Study', 'Actions']);
+  await map.click();
+  await page.getByRole('button', { name: 'Edit exit Garden', exact: true }).click();
+  await actions.click();
+  await expect(path).toHaveText(['The Locked Study', 'Study', 'Actions', 'Garden']);
+  await hierarchy.getByRole('button', { name: /old painting/ }).click();
+  await actions.click();
+  await expect(path).toHaveText(['The Locked Study', 'old painting', 'Actions']);
+  await chooseFlow(page, /^Examine painting/);
+  await expect(path).toHaveText([
+    'The Locked Study',
+    'old painting',
+    'Actions',
+    'Examine painting',
+  ]);
+});
 
 test('focused block inspection preserves occurrences, inline content and navigation context', async ({
   page,

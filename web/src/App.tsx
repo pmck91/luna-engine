@@ -49,6 +49,7 @@ export default function App() {
   const [mode, setMode] = useState<'map' | 'actions' | 'hints' | 'triggers'>('map');
   const [triggerFilter, setTriggerFilter] = useState('');
   const [flowSelections, setFlowSelections] = useState<Record<string, string>>({});
+  const [flowBreadcrumb, setFlowBreadcrumb] = useState('');
   const [hintSelection, setHintSelection] = useState<HintSelection | null>(null);
   const [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
   const blocks = useRef<BlocksHandle>(null);
@@ -59,7 +60,10 @@ export default function App() {
   const selectBlock = useCallback((selection: BlockSelection | null, activate = false) => {
     if (!selection) return;
     setBlockSelections((old) => ({ ...old, [selection.flowId]: selection }));
-    if (activate) setSelected(selection.flowId);
+    if (activate) {
+      setSelected(selection.flowId);
+      setFlowBreadcrumb(selection.flowId);
+    }
   }, []);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [playtestCollapsed, setPlaytestCollapsed] = useState(false);
@@ -147,6 +151,7 @@ export default function App() {
     setLogs([]);
     setMode('map');
     setFlowSelections({});
+    setFlowBreadcrumb('');
     setTriggerFilter('');
     setHintSelection(null);
     setBlockSelections({});
@@ -241,8 +246,9 @@ export default function App() {
     document.addEventListener('keydown', shortcut, true);
     return () => document.removeEventListener('keydown', shortcut, true);
   }, [replayProject]);
-  const select = (key: string) => {
+  const select = (key: string, includeFlow = true) => {
     const project = current.current.doc;
+    setFlowBreadcrumb('');
     if (key === gameDataPages.triggers || key.startsWith(triggerPage())) {
       setSelected(gameDataPages.triggers);
       setTriggerFilter(key === gameDataPages.triggers ? '' : key.slice(triggerPage().length));
@@ -263,6 +269,7 @@ export default function App() {
     }
     const selectedFlow = project && flow(project, key);
     if (project && selectedFlow) {
+      if (includeFlow) setFlowBreadcrumb(key);
       setConnecting(false);
       const parent = flowOwner(project, key)!;
       if ('event' in selectedFlow) {
@@ -539,6 +546,11 @@ export default function App() {
     blockSelections[inspectedFlow.id]?.kind !== 'root'
       ? blockSelections[inspectedFlow.id]
       : undefined;
+  // A default flow keeps the workspace useful without adding an unchosen breadcrumb.
+  const breadcrumbFlow =
+    inspectedFlow && (flowBreadcrumb === inspectedFlow.id || inspectedBlock)
+      ? inspectedFlow
+      : undefined;
   useEffect(() => {
     if (mode === 'triggers') inspectorContent.current?.scrollTo({ top: 0 });
   }, [mode, activeTrigger?.id]);
@@ -558,6 +570,7 @@ export default function App() {
     mode,
     triggerFilter,
     hintSelection,
+    flowBreadcrumb,
     inspectedBlock?.blockId,
   ]);
   const inspectorPositions = useRef<Record<string, number>>({});
@@ -600,7 +613,16 @@ export default function App() {
   const navigation = useNavigation(
     view?.handle ?? '',
     navigationKey,
-    { selected, mode, triggerFilter, hintSelection, search, flowSelections, blockSelections },
+    {
+      selected,
+      mode,
+      triggerFilter,
+      hintSelection,
+      search,
+      flowSelections,
+      flowBreadcrumb,
+      blockSelections,
+    },
     (entry) => {
       setSelected(entry.selected);
       setMode(entry.mode);
@@ -608,6 +630,7 @@ export default function App() {
       setHintSelection(entry.hintSelection);
       setSearch(entry.search);
       setFlowSelections(entry.flowSelections);
+      setFlowBreadcrumb(entry.flowBreadcrumb);
       setBlockSelections(entry.blockSelections);
       setConnecting(false);
     },
@@ -1017,22 +1040,23 @@ export default function App() {
                         ? 'Triggers'
                         : 'Actions'}
                 </span>
-                {inspectedFlow && (
+                {breadcrumbFlow && (
                   <>
                     <span aria-hidden="true">›</span>
                     <button
                       onClick={() => {
+                        setFlowBreadcrumb(breadcrumbFlow.id);
                         blocks.current?.selectBlock(null);
                         setBlockSelections((old) => {
                           const next = { ...old };
-                          delete next[inspectedFlow.id];
+                          delete next[breadcrumbFlow.id];
                           return next;
                         });
                       }}
                     >
-                      {inspectedFlow.name ||
-                        ('event' in inspectedFlow
-                          ? inspectedFlow.event.replaceAll('_', ' ')
+                      {breadcrumbFlow.name ||
+                        ('event' in breadcrumbFlow
+                          ? breadcrumbFlow.event.replaceAll('_', ' ')
                           : 'Action')}
                     </button>
                   </>
@@ -1057,7 +1081,11 @@ export default function App() {
                     disabled={!actionOwner}
                     onClick={() => {
                       setConnecting(false);
-                      if (actionFlow) select(actionFlow.id);
+                      if (actionFlow)
+                        select(
+                          actionFlow.id,
+                          activeFlow?.id === actionFlow.id && flowBreadcrumb === actionFlow.id,
+                        );
                       setMode('actions');
                     }}
                   >
@@ -1127,6 +1155,7 @@ export default function App() {
                     selected={selected}
                     select={(key) => {
                       setSelected(key);
+                      setFlowBreadcrumb(flow(doc, key) ? key : '');
                       const parent = flowOwner(doc, key);
                       if (parent) setFlowSelections((old) => ({ ...old, [parent.id]: key }));
                     }}
