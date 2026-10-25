@@ -11,6 +11,11 @@ use luna_model::{Condition, Event, GameState, Project, text};
 /// Commands commit their state and messages together. Hosts can borrow a state
 /// snapshot or replace it through [`Self::replace_state`], which validates the
 /// complete snapshot before committing it.
+///
+/// Each session keeps its definition alive independently of other clones. State
+/// compatibility is structural: debug replacement can install a valid snapshot
+/// that ordinary gameplay could not reach. Host storage owns bundle fingerprints,
+/// save envelopes, and slot/recovery policy.
 pub struct Session {
     definition: GameDefinition,
     state: GameState,
@@ -30,6 +35,11 @@ impl Session {
         Self::start_with_definition(GameDefinition::new(project)?, location)
     }
     /// Start a new playthrough using previously validated, immutable content.
+    ///
+    /// `location` overrides the starting room for this playthrough only. Title,
+    /// opening text, start triggers, and initial entry share the startup budget;
+    /// startup either returns a complete session/result or fails as a whole.
+    /// Cloning a definition shares content without sharing mutable session state.
     ///
     /// # Errors
     ///
@@ -66,6 +76,10 @@ impl Session {
     }
     /// Restore saved state without replaying effects or revalidating game content.
     ///
+    /// Validates the complete snapshot, including its identity/version and progress
+    /// bounds. A completed snapshot stays completed. Presentation is explicit via
+    /// [`Self::resume_messages`]; restoration returns no transcript itself.
+    ///
     /// # Errors
     ///
     /// Returns an error if saved state is incompatible with the definition.
@@ -83,6 +97,9 @@ impl Session {
     }
 
     /// Borrow the current state without allowing unchecked mutation.
+    ///
+    /// Clone this snapshot for host editing, then use [`Self::replace_state`].
+    /// Serialization can borrow it directly without making a copy.
     ///
     /// ```compile_fail
     /// use luna_core::Session;
@@ -138,7 +155,8 @@ impl Session {
     /// # Errors
     ///
     /// Runtime failures, including invalid arithmetic and exhausted trigger
-    /// limits, discard the entire attempted state and transcript.
+    /// limits, discard the entire attempted state and transcript. A normal failed
+    /// requirement or ambiguity is returned as `Ok(CommandResult)` instead.
     pub fn command(&mut self, input: &str) -> Result<CommandResult> {
         let (result, error) = self.execute(input, false);
         if let Some(error) = error {
@@ -151,6 +169,41 @@ impl Session {
     /// Uses the ordinary execution path. On failure, returns
     /// [`CommandStatus::Error`] and diagnostic/discarded-output details in the
     /// explanation while leaving state unchanged and ordinary messages empty.
+    /// A successful attempt commits normally; this is not a dry run. Recording
+    /// may truncate at 8,192 steps or 256 changes per diff without stopping gameplay.
+    /// Full state snapshots make long changing chains more costly to explain.
+    ///
+    /// ```
+    /// use luna_core::{CommandStatus, Session};
+    /// use luna_model::{Action, ArithmeticOperation, Effect, NumericOperand, PatternPart, Project, Value};
+    /// # fn main() -> anyhow::Result<()> {
+    /// let mut project = Project::blank("A risky action");
+    /// project.game.variables.insert("health".into(), Value::Integer(10));
+    /// project.game.variables.insert("divisor".into(), Value::Integer(0));
+    /// project.game.actions.push(Action {
+    ///     id: "risk".into(), verb: "use".into(),
+    ///     pattern: vec![PatternPart::Literal { text: "risk".into() }],
+    ///     effects: vec![
+    ///         Effect::Say { text: "This output is discarded.".into() },
+    ///         Effect::UpdateVariable {
+    ///             name: "health".into(), op: ArithmeticOperation::Divide,
+    ///             operand: NumericOperand::Variable { name: "divisor".into() },
+    ///         },
+    ///     ],
+    ///     ..Default::default()
+    /// });
+    /// let (mut session, _) = Session::start(project, None)?;
+    /// let before = session.state().clone();
+    /// let result = session.command_explained("use risk");
+    /// assert_eq!(result.status, CommandStatus::Error);
+    /// assert!(result.messages.is_empty());
+    /// assert_eq!(session.state(), &before);
+    /// let explanation = result.explanation.unwrap();
+    /// assert!(!explanation.committed);
+    /// assert_eq!(explanation.discarded_messages.len(), 1);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn command_explained(&mut self, input: &str) -> CommandResult {
         self.execute(input, true).0
     }
@@ -226,6 +279,11 @@ impl Session {
         Ok(run.result.messages)
     }
     /// Read-only evaluation for author checks. Uses the same rules as gameplay.
+    ///
+    /// Borrows state without effects, events, transcript output, or progress
+    /// changes. Missing references evaluate false at their leaf; Boolean groups
+    /// and negation still apply. This does not validate arbitrary conditions:
+    /// hosts should validate authoring/check definitions before using them.
     pub fn test_condition(&self, condition: &Condition) -> bool {
         Run::view(&self.definition, &self.state).condition(condition)
     }

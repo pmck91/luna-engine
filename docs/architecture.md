@@ -10,6 +10,8 @@
 
 The React/TypeScript editor uses React Flow for locations and exits and custom Blockly blocks for typed action flows. It never executes game rules in JavaScript. Rust types generate `web/src/contracts.ts`; CI checks that this file has not drifted.
 
+The [development guide](development.md) covers building, embedding, verification, benchmarks, and package checks. The `luna-core` crate reference contains executable start/restore, state-editing, host-control, and explanation examples; build it with `cargo doc -p luna-core --no-deps --open`.
+
 ### Shared runtime modules
 
 The core's public imports remain available at the crate root. Its private implementation is divided by responsibility:
@@ -37,6 +39,8 @@ The immutable definition compiles normalized entity aliases, verb phrases, actio
 An executing command still owns a full attempted state copy for rollback. Read-only description, resume, and condition views borrow session state through `Cow` and collect output separately. Explanation recording retains full per-step state snapshots; an unchanged typed state skips JSON diff construction. Large mutable explanation chains can therefore cost considerably more than ordinary gameplay. The [hardening measurements](plans/core-hardening.md#h5-implementation-and-measurements) separate ordinary commands, read-only views, cloning, snapshot encoding, and explained execution.
 
 The former inline unit-test module lives in [`tests.rs`](../crates/luna-core/src/tests.rs), retaining its assertions and test names. Feature integration tests remain in `crates/luna-core/tests` and the editor/runner crates.
+
+Explanations record at most 8,192 ordered steps and 256 changes per diff. A step's `parent` indexes an earlier step, while its source identifies a stable authored subject and canonical field/index path, independent of Blockly layout. Changes describe attempted state and can therefore include output/state later rolled back. `committed` means execution returned without error, including normal rejections; use the result's `state_changed` to decide whether state changed. Truncation limits diagnostics and never changes gameplay execution. Public core APIs require documentation through the `missing_docs` lint; CI also builds rustdoc with warnings denied.
 
 ### Editor authoring workspaces
 

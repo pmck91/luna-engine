@@ -141,6 +141,20 @@ impl<'a> Run<'a> {
 }
 
 /// Recognize runner save/load/list/quit controls, preserving save-label text.
+///
+/// Only the first word is normalized. Surrounding label whitespace is trimmed,
+/// while its case, punctuation, and internal spacing remain intact. `saves` and
+/// `quit` accept no label. This parser performs no I/O or slot-label validation.
+///
+/// ```
+/// use luna_core::{HostControl, host_control};
+/// assert_eq!(host_control(" SAVE  Before the Gate!  "), Some(HostControl::Save {
+///     name: Some("Before the Gate!".into()),
+/// }));
+/// assert_eq!(host_control("quit"), Some(HostControl::Quit));
+/// assert_eq!(host_control("quit later"), None);
+/// assert_eq!(host_control("examine painting"), None);
+/// ```
 pub fn host_control(input: &str) -> Option<HostControl> {
     let trimmed = input.trim();
     let (first, rest) = trimmed

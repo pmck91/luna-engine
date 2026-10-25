@@ -1,6 +1,6 @@
 # Shared core and runner hardening
 
-Status: **In progress**, starting 25 October 2026. H1 is committed as `c2ad929`, H2 as `ed06e7e`, H3 as `98c3eea`, and H4 as `556e752`; H5 is complete and H6 is next.
+Status: **Ready for owner review**, starting 25 October 2026. H1 is committed as `c2ad929`, H2 as `ed06e7e`, H3 as `98c3eea`, H4 as `556e752`, and H5 as `f3455a0`. H6 documentation and automated acceptance are complete; owner acceptance and branch closeout remain.
 
 Branch: `feature/core-hardening`, created from `main` at `0dcb1be`.
 
@@ -79,11 +79,11 @@ Project/definition encapsulation was brought forward into H2 to make cached vali
 
 ### H6 — Documentation and final acceptance
 
-- [ ] Add crate/module overviews and useful public rustdoc, including examples, errors, transactional guarantees, event ordering, state/schema invariants, and validated-definition lifetime. Add executable examples for the main embedding paths.
-- [ ] Update the architecture/developer notes for the final module/API layout and benchmark commands. Avoid comments that merely restate code.
-- [ ] Run workspace tests, formatting, Clippy with warnings denied, generated-contract checks, and frontend checks affected by contract/API changes. Run browser parity checks if playtest paths change, plus package smoke checks before merging.
-- [ ] Compare benchmark results with H1, review the diff for unintended content/save-format or example changes, and record residual limits. Add focused generated/property tests only for invariants that need broader coverage.
-- [ ] Request owner review of the completed branch. Merge/push when requested; do not fold the deferred conversations/quests or documentation-site work into this branch.
+- [x] Add crate/module overviews and useful public rustdoc, including examples, errors, transactional guarantees, event ordering, state/schema invariants, and validated-definition lifetime. Add executable examples for the main embedding paths.
+- [x] Update the architecture/developer notes for the final module/API layout and benchmark commands. Avoid comments that merely restate code.
+- [x] Run workspace tests, formatting, Clippy with warnings denied, generated-contract checks, and frontend checks affected by contract/API changes. Run browser parity checks if playtest paths change, plus package smoke checks before merging.
+- [x] Compare benchmark results with H1, review the diff for unintended content/save-format or example changes, and record residual limits. Add focused generated/property tests only for invariants that need broader coverage.
+- [x] Request owner review of the completed branch. Merge/push when requested; do not fold the deferred conversations/quests or documentation-site work into this branch. Owner acceptance and merge remain open.
 
 ## Execution record
 
@@ -190,3 +190,35 @@ The crowded examination is approximately ten times faster in this comparison. Di
 There are explicit remaining costs. Definition construction now compiles indexes and retains normalized words/addresses alongside authored content. At 5,000 objects it measured 501 ms distributed and 534 ms with global commands (H4: 462 / 471 ms); this startup work is shared by sessions, restores, and saves through the definition. Changing-state explanation chains remain expensive: the 48-step, 5,000-object case measured 1,239 ms versus H4's 1,147 ms. That diagnostic path still clones and serializes full worlds at many steps; this pass does not claim an improvement there. Its ordinary gameplay equivalent measured below 1 ms. Startup validation, visible-entity scans, transaction copies, and changing explanation diffs are retained limits to profile again if real games need more scale.
 
 H5 verification: all 152 workspace tests/doc tests, Clippy and core rustdoc with warnings denied, Rust formatting, generated-contract checks, workspace builds, both complete twelve-case benchmarks, Markdown formatting, and relative-link checks passed. All ten focused Chromium/Firefox playtest and explanation checks passed with the installed Firefox 1532 override. The new behaviour regressions also pass on H4. Content/save versions, public APIs, generated contracts, examples, and historical fixtures are unchanged. Full browser/package acceptance and the final branch review remain in H6.
+
+### H6 documentation and branch review
+
+The crate reference now documents the embedding boundaries, definition lifetime, structural state invariants, lifecycle and rollback guarantees, ordinary event/watch ordering, host controls, result/status semantics, and bounded explanation records. Executable examples cover fresh execution, snapshot serialization/restoration, validated state replacement, read-only resume, label-preserving control parsing, and an explained failure with discarded output. Public core APIs use `missing_docs`; Clippy with warnings denied enforces coverage, and CI now builds core rustdoc with warnings denied to reject broken API links.
+
+The [development guide](../development.md) connects those examples to the module map and gives build/check, contract-generation, browser, benchmark, and release-smoke commands. The README links to it and the generated API reference. Rust field documentation now appears in generated TypeScript contracts too; removing comments/whitespace yields exactly the H5 declarations. The exporter trims generator whitespace deterministically so regeneration and `--check` agree.
+
+The branch was reviewed against `0dcb1be`. Content/state model definitions, project/bundle storage source, specifications, assets, editable examples, and historical fixtures are unchanged. The intentional Rust source changes are private session fields, state access/replacement methods, reusable `GameDefinition` APIs, typed `CommandStatus`, and runner storage accepting a validated definition. Public core import names remain at the crate root. Serialized status names, content format 1, save format 2 and supported legacy reads are retained. The main deliberate presentation fix is resolving current saved placeholders in resumed title/ending messages. Existing malformed-state, rollback, ordering, parity, legacy-save, and real-CLI coverage was retained and extended; this review found no additional invariant requiring a new property-testing dependency.
+
+The final H5 measurements use the original six H1 fixture/state sizes. H6's documentation and generator-formatting changes leave those runtime algorithms intact, so acceptance compares the retained samples:
+
+| 5,000-object operation                                                 |           H1 | Final H5 implementation |
+| :--------------------------------------------------------------------- | -----------: | ----------------------: |
+| Distributed examination                                                |     1.970 ms |                1.409 ms |
+| Crowded examination                                                    |    39.234 ms |                2.804 ms |
+| Cached state compatibility check (H1 includes full content validation) |   598.950 ms |                1.362 ms |
+| Distributed overwrite autosave                                         | 1,205.475 ms |                9.907 ms |
+| Distributed explained examination                                      |    17.366 ms |                4.484 ms |
+
+The autosave comparison is approximately 122 times faster and crowded examination approximately 14 times faster in these samples. The recorded initialization cost, retained indexes, entity scans, transactional copies, and changing explanation-chain costs remain explicit limits. Tmpfs still excludes physical-disk latency; these figures are observations from one machine and have no functional CI thresholds. Performance work beyond this pass should follow real-game profiling and retain deterministic behaviour and rollback.
+
+H6 acceptance passed:
+
+- All 155 workspace tests/doc tests, including six executable API examples and two compile-fail access checks.
+- Rust formatting, Clippy with warnings denied, and core rustdoc with warnings denied.
+- Reproducible generated contracts, with unchanged TypeScript declarations apart from documentation/whitespace.
+- Frontend formatting, production/type-check builds, and all 63 frontend tests.
+- Complete Chromium/Firefox acceptance: 87 passed, with the existing Firefox skip for the Chromium-extension browser-zoom test. All 44 Chromium tests ran; 43 Firefox tests ran using the installed 1532 executable override. No browser tests were added, weakened, or disabled during hardening.
+- The Linux release archive and checksum built successfully. The packaged example, fixed historical walkthrough, named/completed save restoration, optional outcomes, and embedded editor/export API passed outside the repository with development tools removed from child-process `PATH`. The source frontend was hidden during the smoke check and restored afterward.
+- Documentation formatting/link checks, artifact checksum verification, and the final diff/content-scope review.
+
+The completed branch is ready for owner review on GitHub. Review the Rust API migration and [development guide](../development.md), the recorded performance tradeoffs, and the complete branch diff from `0dcb1be`, including the H6 documentation changes. Owner acceptance and merge remain the branch closeout steps. The deferred example refresh, documentation site, and conversations/quests work retain their existing TODO priorities.

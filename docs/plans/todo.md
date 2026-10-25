@@ -4,9 +4,9 @@ Last reviewed: **25 October 2026**, against the implementation, tests, and accep
 
 The editor UX work (M0–M7 and M9) is accepted and merged into `main` as `1608340`. Custom unknown-command messages and warning acknowledgements are also implemented and committed. Completed work is recorded below; human screen-reader/new-author evaluation remains open.
 
-The next priority is shared-core and runner hardening on `feature/core-hardening`, following the quality/performance review. User-facing documentation follows: refresh the example, establish the Astro Starlight site on GitHub Pages, and publish a complete first-adventure tutorial before expanding the deeper developer documentation. Existing README/architecture notes and in-editor guidance provide starting material; the standalone documentation site has not been built.
+Shared-core and runner hardening on `feature/core-hardening` has completed H1–H6 implementation and automated acceptance and is ready for owner review and branch closeout. User-facing documentation follows: refresh the example, establish the Astro Starlight site on GitHub Pages, and publish a complete first-adventure tutorial before expanding the deeper developer documentation. Existing README, [development guide](../development.md), architecture notes, and in-editor guidance provide starting material; the standalone documentation site has not been built.
 
-## Shared core and runner — current priority
+## Shared core and runner — ready for owner review
 
 Follow the [core hardening plan](core-hardening.md) on `feature/core-hardening`, preserving game/save formats and existing execution semantics.
 
@@ -15,7 +15,8 @@ Follow the [core hardening plan](core-hardening.md) on `feature/core-hardening`,
 - [x] H3: Split runtime responsibilities into focused modules and centralize genuinely shared entity lookup/presentation.
 - [x] H4: Encapsulate sessions, provide validated state replacement, and introduce typed command statuses with unchanged serialized values.
 - [x] H5: Optimize measured lookup/normalization and read-only copying costs without weakening transactional rollback or deterministic ordering.
-- [ ] H6: Add API rustdoc and executable examples, update architecture notes, verify parity/compatibility and performance, and review the branch before merging.
+- [x] H6: Add API rustdoc and executable examples, update architecture/developer notes, complete automated parity/compatibility and package acceptance, and review the branch diff.
+- [ ] Owner review and branch closeout: review `feature/core-hardening` on GitHub, then merge/push when requested. Performance limits and the acceptance record are in the plan.
 
 ## Documentation — after core hardening
 
@@ -31,7 +32,7 @@ Use Astro Starlight for a user-facing documentation site hosted on GitHub Pages,
 - [ ] Write Playing and sharing instructions for playtesting, exporting and sharing games, importing and running games in the terminal, player commands/help/hints, saving/loading, and recovery from common errors.
 - [ ] Create a Reference section with a block catalogue, command syntax and ignored words, message formatting and variable/property placeholders, and troubleshooting. Reuse the existing in-editor help where appropriate.
 - [ ] Shorten the README to a project introduction, installation instructions, and prominent documentation links once the corresponding guides are available. Move detailed authoring guidance into the site and development instructions into Developer documentation.
-- [ ] Expand and publish Developer documentation for building, checks, packaging, and contributing, using the existing README and [architecture notes](../architecture.md). Keep implementation details separate from the author and player guides.
+- [ ] Expand and publish Developer documentation for building, checks, packaging, and contributing, using the existing README, [development guide](../development.md), and [architecture notes](../architecture.md). Keep implementation details separate from the author and player guides.
 - [ ] Expand the parser architecture documentation under Developer documentation with command matching, scope, priority, ambiguity, aliases, and ignored words.
 - [ ] Expand the game-file architecture documentation under Developer documentation with schemas, stable references, editor metadata, bundles, versions, and compatibility rules.
 - [ ] Expand the runner architecture documentation under Developer documentation with command execution, rendering, save storage, and recovery/error handling.

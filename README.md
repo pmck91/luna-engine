@@ -150,6 +150,7 @@ Saves require the exact game ID and content version. Replacing content under the
 ```sh
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc -p luna-core --no-deps
 cargo test --workspace
 cargo run -p luna-editor --example export_types -- --check
 npm --prefix web test
@@ -163,6 +164,8 @@ LUNA_TEST_FIREFOX=1 npm run test:e2e
 The browser tests launch a temporary local service and write only temporary projects. They exercise visual authoring, Rust playtesting, export, and external-change handling. Rust tests compare the editor HTTP session with an installed runner session and test the real CLI with piped commands.
 
 Regenerate shared TypeScript types with `cargo run -p luna-editor --example export_types`. To use Vite during frontend development, launch the Rust service on its default port, run `npm --prefix web run dev`, and open the Vite URL with the same `#token=...` fragment printed by the Rust service.
+
+See the [development guide](docs/development.md) for embedding the shared core, API documentation, test coverage, and repeatable scaling benchmarks. Run `cargo doc -p luna-core --no-deps --open` to browse the API and executable examples.
 
 ## Package
 

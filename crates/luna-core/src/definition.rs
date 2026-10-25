@@ -1,4 +1,10 @@
-//! Immutable, validated content and the schema needed to check saved state.
+//! Immutable content validation, compiled indexes, and saved-state compatibility.
+//!
+//! The public definition owns content and both index sets behind one shared Arc.
+//! Runtime addresses stay valid because content cannot be mutated in place.
+//! Compatibility checks visit saved values without repeating authoring diagnostics
+//! or reachability, and accept sparse hint history while requiring complete entity,
+//! property, visit, and response-sequence sets.
 use crate::runtime::RuntimeIndex;
 use anyhow::{Context, Result, ensure};
 use luna_model::*;
@@ -148,6 +154,9 @@ impl GameDefinition {
     /// Validate owned content and prepare it for runtime use.
     ///
     /// Warnings remain authoring diagnostics and do not prevent construction.
+    /// Call [`luna_model::validate`] separately when an authoring UI needs the
+    /// individual diagnostics. The resulting definition remains immutable;
+    /// changing even compatible content requires constructing a new one.
     ///
     /// # Errors
     ///
@@ -264,6 +273,11 @@ impl GameDefinition {
 
     /// Check untrusted saved state against this definition without rerunning
     /// authoring validation or reachability analysis.
+    ///
+    /// Requires exact game identity/content version, complete declared values
+    /// and entity/progress sets, matching types, safe text, valid placements, and
+    /// bounded response/hint progress. Hint history may be sparse. This checks
+    /// structural compatibility, not gameplay reachability or bundle fingerprints.
     ///
     /// # Errors
     ///

@@ -1,4 +1,10 @@
 //! Ordered event dispatch, movement, and before/after value watches.
+//!
+//! Ordinary dispatch captures owner membership first, then orders handlers by
+//! target/local/global scope, descending priority, and stable ID. Conditions stay
+//! live during execution. Watches capture before/after eligibility, order eligible
+//! handlers by priority/ID independently of owner scope, and recheck before running.
+//! Nested events and watches share the enclosing Run's budget and rollback boundary.
 use super::Run;
 use crate::TraceKind;
 use anyhow::{Context, Result, ensure};
