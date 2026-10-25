@@ -73,7 +73,9 @@ export type TemplateContent = { "type": "action", action: Action, } | { "type": 
 
 export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, content: TemplateContent, };
 
-export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, playtest?: PlaytestLibrary, };
+export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, warning_acknowledgements?: Array<WarningAcknowledgement>, playtest?: PlaytestLibrary, };
+
+export type WarningAcknowledgement = { warning_key: string, subject: string, field: string, message: string, reason: string, };
 
 export type PlaytestSource = { revision: string, title: string, content_version: string, help_mode: HelpMode, };
 
@@ -93,7 +95,7 @@ export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Lo
 
 export type Severity = "error" | "warning";
 
-export type Diagnostic = { severity: Severity, subject: string, field: string, message: string, };
+export type Diagnostic = { severity: Severity, subject: string, field: string, message: string, warning_key?: string, };
 
 export type Span = { text: string, colour: string | null, };
 

@@ -161,6 +161,8 @@ Playtest tools include:
 
 Validation reports errors and warnings with links to the affected content. Checks include missing IDs/references, invalid starting location, unreachable locations, unreachable endings when the project requires one, exit destinations that do not exist, impossible or duplicate command matches, overlapping triggers, invalid object-combination results, and trigger cycles that can repeatedly move the player or re-fire.
 
+Authors can **Acknowledge warning** with an optional reason. Acknowledged warnings are excluded from active counts and inline/block highlights, remain available under **Acknowledged warnings**, and have a **Restore warning** control. Acknowledgements persist in project editor metadata and participate in Undo/Redo. Each applies to a particular warning, subject, and cause; unrelated edits retain it, while materially changed causes require a new acknowledgement. Resolved acknowledgements remain reviewable with a “No longer reported” status. Validation always runs normally, errors cannot be acknowledged, and acknowledgement metadata does not enter exported games or player saves.
+
 ## 10. Local projects and file handling
 
 A small Rust service runs on the user’s system, serves the editor UI, handles filesystem operations, and exposes the Rust engine core to the playtest. It binds to the local machine by default and can read/write only within the user-selected projects location.

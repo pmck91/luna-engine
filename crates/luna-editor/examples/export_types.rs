@@ -46,6 +46,7 @@ fn main() -> Result<()> {
         TemplateContent,
         BlockTemplate,
         EditorLayout,
+        WarningAcknowledgement,
         PlaytestSource,
         PlaytestSetup,
         CheckStart,

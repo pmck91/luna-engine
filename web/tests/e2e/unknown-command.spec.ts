@@ -47,6 +47,7 @@ test('custom unknown-command messages survive reopening, playtest, export and ru
   const state = page.getByRole('dialog', { name: 'World state', exact: true });
   await state.getByLabel('chances value').fill('5');
   await state.getByRole('button', { name: 'Apply test state', exact: true }).click();
+  await expect(state).not.toBeVisible();
   await command('use nonexistent object');
   await expect(log.locator('p').last()).toHaveText(
     'The forest is silent. You have 5 chances left.',

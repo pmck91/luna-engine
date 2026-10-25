@@ -113,6 +113,7 @@ test('authored hint stages, explicit solutions, and help settings survive save a
   await expect(state).toContainText('solution seen');
   await state.getByLabel('solved value').selectOption('true');
   await state.getByRole('button', { name: 'Apply test state', exact: true }).click();
+  await expect(state).not.toBeVisible();
   await command('hint door');
   await expect(log.locator('p').last()).toHaveText(
     'No puzzle hints are available for door right now.',

@@ -558,7 +558,20 @@ pub struct EditorLayout {
     pub templates: Vec<BlockTemplate>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub warning_acknowledgements: Option<Vec<WarningAcknowledgement>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub playtest: Option<PlaytestLibrary>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct WarningAcknowledgement {
+    pub warning_key: String,
+    pub subject: String,
+    pub field: String,
+    pub message: String,
+    #[serde(default)]
+    pub reason: String,
 }
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

@@ -14,6 +14,12 @@ The Actions tab edits command actions and exits, with separate lists and a remem
 
 The hierarchy groups Variables, Command vocabulary, Triggers, and Endings under Game data. Variables, vocabulary, and endings select inspector editors and return the canvas to the world map. Triggers opens its block workspace. All entries expand the inspector and preserve the playtest. Page keys are separate from valid entity IDs. The Endings editor owns `game.endings` and `game.require_ending`; Game settings links to it. Ending edits retain stable IDs and the existing outcome/message model, so END GAME references, exports, and player saves use the same contract.
 
+### Warning acknowledgements
+
+Warnings carry an optional `warning_key`, a SHA-256 fingerprint of the versioned rule, subject, field, message, and relevant cause. Overlap keys include the conflicting vocabulary phrase or flow matching settings; unreachable-room/ending keys include the starting room; movement-cycle keys include the movement graph reachable from that room. Display-name, description, map-layout, and acknowledgement edits do not reset an otherwise unchanged warning.
+
+`editor.warning_acknowledgements` is an optional list of `{warning_key, subject, field, message, reason}` records; an omitted reason defaults to empty. The findings panel provides an acknowledgement dialog and a separate review/restore filter, including changed and resolved records. Active counts and inline/block highlights omit exact acknowledged game warnings. Errors and drafts cannot be acknowledged. Rust validation retains every diagnostic; acknowledgements change only the editor's presentation. Metadata edits use project history and saving without invalidating validation or playtest snapshots. The project retains reasons across reopening and Save As; exports and player saves contain no acknowledgements. Older projects default to no acknowledgements. Content and saved-state versions are unchanged.
+
 ## Authoring contract
 
 `game.json` contains game identity, format version, a three-component numeric content version, metadata, initial typed variables, endings, global actions/triggers, and the relative asset list. `vocabulary.json` stores shared verbs, synonyms, and optional semantic interaction events. Locations, objects, and characters have individual JSON files named by immutable IDs. Renaming display text does not rename IDs or references. New content receives UUIDs; imported IDs may also use safe ASCII slugs.

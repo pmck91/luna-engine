@@ -1,4 +1,6 @@
 use crate::*;
+use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -13,6 +15,9 @@ pub struct Diagnostic {
     pub subject: String,
     pub field: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub warning_key: Option<String>,
 }
 pub fn normalize(input: &str) -> String {
     input
@@ -51,6 +56,43 @@ pub fn safe_asset(path: &str) -> bool {
 pub fn has_errors(diagnostics: &[Diagnostic]) -> bool {
     diagnostics.iter().any(|d| d.severity == Severity::Error)
 }
+fn flow_warning_context(project: &Project, id: &str) -> serde_json::Value {
+    for (owner, actions, triggers) in project.owners() {
+        if let Some(action) = actions.iter().find(|action| action.id == id) {
+            return json!([
+                owner,
+                action.verb,
+                action.pattern,
+                action.priority,
+                action.requirements
+            ]);
+        }
+        if let Some(trigger) = triggers.iter().find(|trigger| trigger.id == id) {
+            return json!([
+                owner,
+                trigger.event,
+                trigger.watch,
+                trigger.priority,
+                trigger.condition
+            ]);
+        }
+    }
+    for room in &project.locations {
+        if let Some(exit) = room.exits.iter().find(|exit| exit.id == id) {
+            return json!([
+                room.id,
+                exit.verb,
+                exit.pattern,
+                exit.name,
+                exit.aliases,
+                exit.priority,
+                exit.visible,
+                exit.available
+            ]);
+        }
+    }
+    serde_json::Value::Null
+}
 struct Check<'a> {
     p: &'a Project,
     diagnostics: Vec<Diagnostic>,
@@ -63,19 +105,35 @@ impl Check<'_> {
         subject: &str,
         field: &str,
         message: impl Into<String>,
+        warning_key: Option<String>,
     ) {
         self.diagnostics.push(Diagnostic {
             severity,
             subject: subject.into(),
             field: field.into(),
             message: message.into(),
+            warning_key,
         })
     }
     fn error(&mut self, s: &str, f: &str, m: impl Into<String>) {
-        self.report(Severity::Error, s, f, m)
+        self.report(Severity::Error, s, f, m, None)
     }
-    fn warn(&mut self, s: &str, f: &str, m: impl Into<String>) {
-        self.report(Severity::Warning, s, f, m)
+    fn warn(
+        &mut self,
+        code: &str,
+        s: &str,
+        f: &str,
+        m: impl Into<String>,
+        context: serde_json::Value,
+    ) {
+        let message = m.into();
+        // Scope acknowledgement to this warning and its cause, excluding editor metadata
+        // and unrelated authoring edits. Version the identity if a rule changes meaning.
+        let key = format!(
+            "{:x}",
+            Sha256::digest(json!(["warning-v1", code, s, f, message, context]).to_string())
+        );
+        self.report(Severity::Warning, s, f, message, Some(key))
     }
     fn id(&mut self, id: &str, field: &str) {
         if !safe_id(id) {
@@ -574,9 +632,17 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
             );
         } else if !ignored_words.insert(normalized) {
             c.warn(
+                "repeated_ignored_word",
                 &game.id,
                 "ignored_words",
                 format!("Ignored word '{word}' is repeated"),
+                json!([
+                    normalize(word),
+                    game.ignored_words
+                        .iter()
+                        .filter(|entry| normalize(entry) == normalize(word))
+                        .count()
+                ]),
             );
         }
     }
@@ -645,8 +711,14 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                     format!("Reserved session command: {word}"),
                 )
             }
-            if let Some(old) = words.insert(n, v.id.clone()) {
-                c.warn(&v.id, "synonyms", format!("Vocabulary overlaps with {old}"))
+            if let Some(old) = words.insert(n.clone(), v.id.clone()) {
+                c.warn(
+                    "vocabulary_overlap",
+                    &v.id,
+                    "synonyms",
+                    format!("Vocabulary overlaps with {old}"),
+                    json!([n, old]),
+                )
             }
         }
     }
@@ -709,7 +781,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                     && old != a.id
                     && overlaps.insert((old.clone(), a.id.clone()))
                 {
-                    c.warn(&a.id, "pattern", format!("Command '{command}' overlaps with {old}; inspect scope, requirements, and priority"));
+                    c.warn("command_overlap", &a.id, "pattern", format!("Command '{command}' overlaps with {old}; inspect scope, requirements, and priority"), json!([command, old, flow_warning_context(p, &a.id), flow_warning_context(p, &old)]));
                 }
             }
         }
@@ -735,9 +807,15 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
             let key = format!("{owner}:{:?}:{:?}:{}", t.event, t.watch, t.priority);
             if let Some(old) = trigger_keys.insert(key, t.id.clone()) {
                 c.warn(
+                    "trigger_overlap",
                     &t.id,
                     "event",
                     format!("Overlapping trigger {old}; both run in stable ID order"),
+                    json!([
+                        old,
+                        flow_warning_context(p, &t.id),
+                        flow_warning_context(p, &old)
+                    ]),
                 )
             }
         }
@@ -764,7 +842,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                     && old != exit.id
                     && overlaps.insert((old.clone(), exit.id.clone()))
                 {
-                    c.warn(&exit.id, "pattern", format!("Exit command '{command}' overlaps with {old}; inspect scope and priority"));
+                    c.warn("exit_overlap", &exit.id, "pattern", format!("Exit command '{command}' overlaps with {old}; inspect scope and priority"), json!([command, old, flow_warning_context(p, &exit.id), flow_warning_context(p, &old)]));
                 }
             }
         }
@@ -883,9 +961,11 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     for l in &p.locations {
         if !reachable.contains(&l.id) {
             c.warn(
+                "unreachable_location",
                 &l.id,
                 "exits",
                 "Location is structurally unreachable from the start",
+                json!(game.starting_location),
             )
         }
     }
@@ -898,7 +978,13 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     }
     for ending in &game.endings {
         if !reachable_endings.contains(&ending.id) {
-            c.warn(&ending.id, "text", "Ending is structurally unreachable")
+            c.warn(
+                "unreachable_ending",
+                &ending.id,
+                "text",
+                "Ending is structurally unreachable",
+                json!(game.starting_location),
+            )
         }
     }
     let mut graph = BTreeMap::<String, Vec<String>>::new();
@@ -951,7 +1037,22 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     }
     for l in &p.locations {
         if degrees.get(&l.id).is_some_and(|degree| *degree > 0) {
-            c.warn(&l.id,"triggers","Entry triggers contain a movement cycle; runtime safeguards will roll back runaway commands")
+            let mut pending = vec![l.id.clone()];
+            let mut context = BTreeMap::new();
+            while let Some(id) = pending.pop() {
+                if context.contains_key(&id) {
+                    continue;
+                }
+                let targets = graph
+                    .get(&id)
+                    .into_iter()
+                    .flatten()
+                    .cloned()
+                    .collect::<BTreeSet<_>>();
+                pending.extend(targets.iter().cloned());
+                context.insert(id, targets);
+            }
+            c.warn("entry_movement_cycle", &l.id,"triggers","Entry triggers contain a movement cycle; runtime safeguards will roll back runaway commands", json!(context))
         }
     }
     c.diagnostics
