@@ -61,6 +61,87 @@ fn value_types(values: &BTreeMap<String, Value>) -> Values {
 }
 
 impl GameDefinition {
+    /// Build initial values and cursors without firing gameplay events.
+    pub(crate) fn initial_state(&self, location: Option<&str>) -> Result<GameState> {
+        let project = self.project();
+        let starting = location
+            .unwrap_or(&project.game.starting_location)
+            .to_owned();
+        ensure!(
+            project.locations.iter().any(|l| l.id == starting),
+            "Unknown starting location"
+        );
+        Ok(GameState {
+            game_id: project.game.id.clone(),
+            content_version: project.game.content_version.clone(),
+            location: starting.clone(),
+            ending: None,
+            variables: project.game.variables.clone(),
+            objects: project
+                .objects
+                .iter()
+                .map(|o| {
+                    (
+                        o.id.clone(),
+                        ObjectState {
+                            placement: o.placement.clone(),
+                            exists: o.placement != Placement::Absent,
+                            consumed: false,
+                            hidden: o.hidden,
+                            open: o.open,
+                        },
+                    )
+                })
+                .collect(),
+            characters: project
+                .characters
+                .iter()
+                .map(|c| {
+                    (
+                        c.id.clone(),
+                        CharacterState {
+                            location: c.location.clone(),
+                            hidden: c.hidden,
+                        },
+                    )
+                })
+                .collect(),
+            properties: project
+                .locations
+                .iter()
+                .map(|l| (l.id.clone(), l.state.clone()))
+                .chain(
+                    project
+                        .objects
+                        .iter()
+                        .map(|o| (o.id.clone(), o.state.clone())),
+                )
+                .chain(
+                    project
+                        .characters
+                        .iter()
+                        .map(|c| (c.id.clone(), c.state.clone())),
+                )
+                .collect(),
+            visits: project
+                .locations
+                .iter()
+                .map(|l| (l.id.clone(), 0))
+                .collect(),
+            sequences: all_effects(project)
+                .into_iter()
+                .filter_map(|e| {
+                    if let Effect::Respond { id, .. } = e {
+                        Some((id.clone(), 0))
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            hints: BTreeMap::new(),
+        })
+    }
+
     /// Validate owned content and prepare it for runtime use.
     ///
     /// Warnings remain authoring diagnostics and do not prevent construction.

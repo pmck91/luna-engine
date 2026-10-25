@@ -10,6 +10,31 @@
 
 The React/TypeScript editor uses React Flow for locations and exits and custom Blockly blocks for typed action flows. It never executes game rules in JavaScript. Rust types generate `web/src/contracts.ts`; CI checks that this file has not drifted.
 
+### Shared runtime modules
+
+The core's public imports remain available at the crate root. Its private implementation is divided by responsibility:
+
+| Module | Responsibility |
+| --- | --- |
+| [`lib.rs`](../crates/luna-core/src/lib.rs) | Public result/control types and API re-exports |
+| [`definition.rs`](../crates/luna-core/src/definition.rs) | Validated immutable content, initial state, and indexed saved-state compatibility checks |
+| [`session.rs`](../crates/luna-core/src/session.rs) | Host lifecycle, creation/restoration, and committing or discarding a command attempt |
+| [`runtime/mod.rs`](../crates/luna-core/src/runtime/mod.rs) | One attempted transaction's state/output, shared operation/depth limits, and observation context |
+| [`commands.rs`](../crates/luna-core/src/runtime/commands.rs), [`matching.rs`](../crates/luna-core/src/runtime/matching.rs) | Control parsing, command dispatch, patterns, candidate ranking, and the matcher reused by full help |
+| [`entities.rs`](../crates/luna-core/src/runtime/entities.rs), [`values.rs`](../crates/luna-core/src/runtime/values.rs) | Shared borrowed definition/value lookup, player scope, entity resolution, and checked arithmetic |
+| [`conditions.rs`](../crates/luna-core/src/runtime/conditions.rs) | Read-only condition semantics |
+| [`events.rs`](../crates/luna-core/src/runtime/events.rs) | Ordered event dispatch, movement/entry, and value-watch before/after transitions |
+| [`effects.rs`](../crates/luna-core/src/runtime/effects.rs) | Effect chains, inventory/visibility mutations, response sequences, branches, stopping, and finalization |
+| [`help.rs`](../crates/luna-core/src/runtime/help.rs), [`hints.rs`](../crates/luna-core/src/runtime/hints.rs) | Player command discovery and authored clue/solution progress |
+| [`presentation.rs`](../crates/luna-core/src/runtime/presentation.rs) | Message formatting, world/inventory listings, live ending presentation, and read-only resume views |
+| [`explanation.rs`](../crates/luna-core/src/runtime/explanation.rs) | Bounded observations, source paths, condition/effect traces, and attempted-state diffs |
+
+All runtime modules work on the same private `Run` context. Helpers buffer output and mutate attempted state; `Session` owns the commit/rollback decision. Ordinary event dispatch and value watches enter the same operation/depth gate, retaining priority/scope/ID ordering and the finalization guard. Explanation recording observes these calls rather than running a separate gameplay interpreter. Definition/schema access and presentation are shared without combining runtime execution, authoring validation, and structural reachability, which have distinct semantics.
+
+The former inline unit-test module lives in [`tests.rs`](../crates/luna-core/src/tests.rs), retaining its assertions and test names. Feature integration tests remain in `crates/luna-core/tests` and the editor/runner crates.
+
+### Editor authoring workspaces
+
 The Actions tab edits command actions and exits, with separate lists and a remembered flow selection per owner. Triggers has a dedicated list and block canvas under Game data, grouped into command, state, and value triggers and filterable by owner. Entity inspectors link to their triggers; trigger selection opens its settings and block flow. Flow roots expose action requirements, trigger conditions, or exit visibility and traversability as Boolean inputs alongside the effects. These inputs and the inspector edit the same canonical conditions. ALL/ANY blocks preserve arbitrary child counts, including empty and single-child groups. Restoring an older workspace adds missing condition inputs from the canonical model without discarding its effect layout. Inspector and playtest collapse controls affect only the editor layout and keep panel contents mounted.
 
 The hierarchy groups Variables, Command vocabulary, Triggers, and Endings under Game data. Variables, vocabulary, and endings select inspector editors and return the canvas to the world map. Triggers opens its block workspace. All entries expand the inspector and preserve the playtest. Page keys are separate from valid entity IDs. The Endings editor owns `game.endings` and `game.require_ending`; Game settings links to it. Ending edits retain stable IDs and the existing outcome/message model, so END GAME references, exports, and player saves use the same contract.

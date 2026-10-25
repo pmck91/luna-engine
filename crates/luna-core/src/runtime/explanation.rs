@@ -1,6 +1,13 @@
 //! Optional observations of the ordinary transactional execution path.
-use super::*;
+use super::Run;
+use anyhow::Result;
+use luna_model::{
+    ArithmeticOperation, Condition, Effect, Event, GameState, Value, ValueTarget, WatchMode,
+    normalize, text,
+};
+use serde::{Deserialize, Serialize};
 use serde_json::Value as Json;
+use ts_rs::TS;
 
 const MAX_STEPS: usize = 8192;
 const MAX_CHANGES: usize = 256;
@@ -107,7 +114,7 @@ pub struct CommandExplanation {
     pub truncated: bool,
 }
 #[derive(Default)]
-pub(super) struct Recorder {
+pub(crate) struct Recorder {
     steps: Vec<TraceStep>,
     failed_step: Option<usize>,
     truncated: bool,
@@ -144,7 +151,7 @@ impl Recorder {
             None,
         );
     }
-    pub(super) fn finish(
+    pub(crate) fn finish(
         mut self,
         command: &str,
         before: &GameState,
@@ -300,15 +307,10 @@ impl Run<'_> {
         }
         let observed = match condition {
             Condition::Variable { name, .. } => self
-                .state
-                .variables
-                .get(name)
+                .variable(name)
                 .and_then(|v| serde_json::to_value(v).ok()),
             Condition::Property { entity, name, .. } => self
-                .state
-                .properties
-                .get(entity)
-                .and_then(|p| p.get(name))
+                .property(entity, name)
                 .and_then(|v| serde_json::to_value(v).ok()),
             Condition::Carrying { object }
             | Condition::CharacterCarrying { object, .. }

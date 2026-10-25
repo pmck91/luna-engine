@@ -1,6 +1,6 @@
 # Shared core and runner hardening
 
-Status: **In progress**, starting 25 October 2026. H1 is committed as `c2ad929`; H2 is complete and H3 is next.
+Status: **In progress**, starting 25 October 2026. H1 is committed as `c2ad929`, H2 as `ed06e7e`; H3 is complete and H4 is next.
 
 Branch: `feature/core-hardening`, created from `main` at `0dcb1be`.
 
@@ -58,9 +58,9 @@ Putting all 5,000 objects in the current room increased examination to about 38 
 
 ### H3 — Divide runtime responsibilities
 
-- [ ] Extract focused modules for command matching/ranking, conditions/state validation, effects, triggers/watches, help/hints, and presentation as appropriate. Keep `Session` as the small host-facing coordinator and explanations as observations of the same execution path.
-- [ ] Centralize repeated entity/schema access and shared presentation. Keep semantic validation, execution, and reachability analysis distinct where they legitimately require different behaviour.
-- [ ] Make this a behaviour-preserving change in reviewable steps. Keep transaction ownership, event ordering, execution budgets, and source paths explicit.
+- [x] Extract focused modules for command matching/ranking, conditions/state validation, effects, triggers/watches, help/hints, and presentation as appropriate. Keep `Session` as the small host-facing coordinator and explanations as observations of the same execution path.
+- [x] Centralize repeated entity/schema access and shared presentation. Keep semantic validation, execution, and reachability analysis distinct where they legitimately require different behaviour.
+- [x] Make this a behaviour-preserving change in reviewable steps. Keep transaction ownership, event ordering, execution budgets, and source paths explicit.
 
 ### H4 — Strengthen the public API
 
@@ -130,3 +130,13 @@ The [H2 measurements](core-hardening-h2.csv) use the same command, compiler, fix
 The 5,000-object save overwrite is approximately 122 times faster in this sample. Ordinary execution remains in the same millisecond range; variation there is not evidence of a command-matching optimization. Physical-disk latency is still excluded, and initialization, state cloning, crowded-room matching, and explanations remain later performance work.
 
 H2 verification: workspace tests (including rustdoc/immutability examples), Clippy with warnings denied, Rust formatting, generated TypeScript contracts, the complete default benchmark, Markdown formatting, and relative-link checks passed. All ten focused browser checks for playtest setups, state edits, schema compatibility, repeatable checks, and explanations passed across Chromium and Firefox. The default Firefox 1555 executable was absent locally; Firefox checks used the installed 1532 build through `LUNA_FIREFOX_EXECUTABLE`. Content/save formats, generated contracts, examples, and historical fixtures are unchanged. Full branch acceptance/package checks remain in H6.
+
+### H3 implementation and verification
+
+The runtime has been divided into private modules documented in the [architecture map](../architecture.md#shared-runtime-modules). `lib.rs` is now a 60-line public facade; `session.rs` is a 142-line lifecycle/transaction coordinator. Initial-state construction moved to the validated definition. Matching and dispatch, conditions, entity/value access, effects, events/watches, help, hints, presentation, and explanations each have an explicit home under `runtime/`. The original inline regression assertions moved unchanged into `tests.rs`; existing feature tests continue to exercise the same public API.
+
+The extraction was verified with workspace tests before further cleanup. Shared borrowed helpers now own location/character/verb/ending lookup and global/property reads. Conditions, arithmetic, formatted messages, and explanations use the same value accessors. Presentation owns inventory/resume output, and ordinary events plus value watches share one operation/depth-entry gate. These changes retain candidate ordering, visibility rules, effect/event order, execution limits, finalization behaviour, trace sources, and command state/output rollback. Runtime helpers remain within the private transaction subtree; the host-facing API and serialized contracts are re-exported through the same crate-root names.
+
+The [H3 benchmark](core-hardening-h3.csv) uses the same compiler, fixtures, sample sizes, and tmpfs storage as H2. All six fixture/state-size comparisons match. At 5,000 distributed objects, examination measured 1.540 ms, the cached state check 1.323 ms, and overwrite autosave 9.393 ms (H2: 1.677 / 1.376 / 9.900 ms). The refactor retains the H2 performance improvement; these small timing differences are not claimed as a new optimization. Lookup indexes, read-only state borrowing, and snapshot costs remain H5 work.
+
+H3 verification: all 141 workspace tests/doc tests, Clippy with warnings denied, Rust formatting, generated TypeScript contract checks, the full default benchmark, Markdown plan formatting, and relative-link checks passed. The moved inline assertions were compared with H2 and match exactly. All ten focused Chromium/Firefox playtest and explanation checks passed, using the same installed Firefox 1532 executable override as H2. Content/save formats, generated contracts, examples, and historical fixtures are unchanged. Full package and branch acceptance checks remain in H6.
