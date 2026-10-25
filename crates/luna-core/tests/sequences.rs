@@ -87,7 +87,7 @@ fn fourth_poke_runs_once_or_repeating_follow_ups_and_preserves_completion() {
         for interaction in 1..=3 {
             // Exercise serialization on both sides of the first follow-up.
             let state = serde_json::from_slice(&serde_json::to_vec(&s.state).unwrap()).unwrap();
-            s = Session::restore(s.project.clone(), state).unwrap();
+            s = Session::restore_with_definition(s.definition().clone(), state).unwrap();
             let result = s.command("poke keeper").unwrap();
             let should_run = interaction == 1 || exhaustion == ExhaustionMode::Repeat;
             assert_eq!(result.state_changed, should_run);
@@ -125,7 +125,7 @@ fn repeat_last_and_loop_never_run_follow_ups() {
             }
             assert_eq!(s.state.variables["punches"], Value::Integer(0));
         }
-        Session::restore(s.project.clone(), s.state.clone()).unwrap();
+        Session::restore_with_definition(s.definition().clone(), s.state.clone()).unwrap();
     }
 }
 
@@ -142,9 +142,9 @@ fn reset_rearms_once_only_follow_ups_and_a_new_session_resets_everything() {
         assert_eq!(s.state.variables["punches"], Value::Integer(count));
         s.command("use reset").unwrap();
         assert_eq!(s.state.sequences["replies"], 0);
-        s = Session::restore(s.project.clone(), s.state.clone()).unwrap();
+        s = Session::restore_with_definition(s.definition().clone(), s.state.clone()).unwrap();
     }
-    let (restarted, _) = Session::start(s.project, None).unwrap();
+    let (restarted, _) = Session::start_with_definition(s.definition().clone(), None).unwrap();
     assert_eq!(restarted.state.sequences["replies"], 0);
     assert_eq!(restarted.state.variables["punches"], Value::Integer(0));
 }
@@ -198,7 +198,7 @@ fn nested_sequences_and_conditions_use_live_state_and_independent_progress() {
         output(s.command("poke keeper").unwrap()),
         "Enough!\nAn extra warning."
     );
-    s = Session::restore(s.project.clone(), s.state.clone()).unwrap();
+    s = Session::restore_with_definition(s.definition().clone(), s.state.clone()).unwrap();
     s.command("poke keeper").unwrap();
     assert_eq!(s.state.variables["punches"], Value::Integer(1));
     assert_eq!(
@@ -335,7 +335,7 @@ fn follow_up_stop_and_end_propagate_to_the_enclosing_action() {
         if end {
             assert!(out.contains("Game over."));
         }
-        Session::restore(s.project.clone(), s.state.clone()).unwrap();
+        Session::restore_with_definition(s.definition().clone(), s.state.clone()).unwrap();
     }
 }
 
@@ -364,7 +364,7 @@ fn old_responses_default_safely_and_saved_cursors_remain_strict() {
             let mut state = s.state.clone();
             state.sequences.insert("replies".into(), cursor);
             assert_eq!(
-                Session::restore(s.project.clone(), state).is_ok(),
+                Session::restore_with_definition(s.definition().clone(), state).is_ok(),
                 cursor <= 3 || (with_follow_up && cursor == 4)
             );
         }

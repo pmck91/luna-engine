@@ -2,7 +2,7 @@
 use anyhow::{Context, Result, ensure};
 use chrono::{DateTime, Utc};
 use fs2::FileExt;
-use luna_core::{GameState, validate_state};
+use luna_core::{GameDefinition, GameState};
 use luna_model::{Project, new_id, safe_id};
 use luna_project::{self as storage, atomic_write, confined};
 use serde::{Deserialize, Serialize};
@@ -274,19 +274,26 @@ impl Storage {
         };
         Ok(self.save_dir(id, version)?.join(key))
     }
+    /// Atomically write compatible state using a previously validated definition.
+    ///
+    /// # Errors
+    ///
+    /// Rejects identity/schema mismatches, invalid names, unsafe paths, and a busy
+    /// lock, or propagates filesystem errors. Incompatible old slots are preserved.
     pub fn write_save(
         &self,
         record: &Installed,
-        project: &Project,
+        definition: &GameDefinition,
         state: &GameState,
         name: Option<&str>,
     ) -> Result<()> {
+        let project = definition.project();
         ensure!(
             record.game_id == project.game.id
                 && record.content_version == project.game.content_version,
             "Save installation identity does not match the game"
         );
-        validate_state(project, state)?;
+        definition.validate_state(state)?;
         let path = self.slot_path(&record.game_id, &record.content_version, name)?;
         let parent = path.parent().unwrap();
         fs::create_dir_all(parent)?;
@@ -312,7 +319,7 @@ impl Storage {
                     if old.game_id == record.game_id
                         && old.content_version == record.content_version
                         && old.label == label
-                        && validate_state(project, &old.state).is_ok() =>
+                        && definition.validate_state(&old.state).is_ok() =>
                 {
                     created_at = old.created_at
                 }
@@ -365,10 +372,16 @@ impl Storage {
         );
         Ok(save)
     }
+    /// Read a compatible slot without repeating immutable content validation.
+    ///
+    /// # Errors
+    ///
+    /// Rejects missing/corrupt slots, unsupported formats, inconsistent identity
+    /// or labels, and incompatible state. Rejected files remain unchanged.
     pub fn load_save(
         &self,
         record: &Installed,
-        p: &Project,
+        definition: &GameDefinition,
         name: Option<&str>,
     ) -> Result<SaveEnvelope> {
         let path = self.slot_path(&record.game_id, &record.content_version, name)?;
@@ -393,7 +406,7 @@ impl Storage {
                 && saved.state.content_version == saved.content_version,
             "Save identity is inconsistent"
         );
-        validate_state(p, &saved.state).context(
+        definition.validate_state(&saved.state).context(
             "Saved state is incompatible with this game definition; the save was preserved",
         )?;
         Ok(saved)
@@ -478,7 +491,9 @@ mod tests {
             .install(store.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
             .unwrap();
         let (session, _) = Session::start(p.clone(), None).unwrap();
-        store.write_save(&record, &p, &session.state, None).unwrap();
+        store
+            .write_save(&record, session.definition(), &session.state, None)
+            .unwrap();
         let path = store
             .slot_path(&p.game.id, &p.game.content_version, None)
             .unwrap();
@@ -486,12 +501,18 @@ mod tests {
         old["save_format"] = 1.into();
         old["state"].as_object_mut().unwrap().remove("hints");
         fs::write(&path, serde_json::to_vec(&old).unwrap()).unwrap();
-        let saved = store.load_save(&record, &p, None).unwrap();
+        let saved = store
+            .load_save(&record, session.definition(), None)
+            .unwrap();
         assert!(saved.state.hints.is_empty());
         let mut session = Session::restore(p.clone(), saved.state).unwrap();
         session.command("hint starting location").unwrap();
-        store.write_save(&record, &p, &session.state, None).unwrap();
-        let saved = store.load_save(&record, &p, None).unwrap();
+        store
+            .write_save(&record, session.definition(), &session.state, None)
+            .unwrap();
+        let saved = store
+            .load_save(&record, session.definition(), None)
+            .unwrap();
         assert_eq!(saved.save_format, 2);
         assert_eq!(saved.state.hints["stage"].clues_seen, 1);
         let mut session = Session::restore(p.clone(), saved.state).unwrap();
@@ -505,9 +526,16 @@ mod tests {
         );
         session.command("hint starting location solution").unwrap();
         store
-            .write_save(&record, &p, &session.state, Some("solution"))
+            .write_save(
+                &record,
+                session.definition(),
+                &session.state,
+                Some("solution"),
+            )
             .unwrap();
-        let saved = store.load_save(&record, &p, Some("solution")).unwrap();
+        let saved = store
+            .load_save(&record, session.definition(), Some("solution"))
+            .unwrap();
         assert!(saved.state.hints["stage"].solution_seen);
         let mut mislabeled: serde_json::Value =
             serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
@@ -515,7 +543,7 @@ mod tests {
         fs::write(&path, serde_json::to_vec(&mislabeled).unwrap()).unwrap();
         assert!(
             store
-                .load_save(&record, &p, None)
+                .load_save(&record, session.definition(), None)
                 .unwrap_err()
                 .to_string()
                 .contains("requires save format 2")
@@ -524,7 +552,7 @@ mod tests {
         fs::write(&path, future).unwrap();
         assert!(
             store
-                .load_save(&record, &p, None)
+                .load_save(&record, session.definition(), None)
                 .unwrap_err()
                 .to_string()
                 .contains("Unsupported save format 99")
@@ -555,13 +583,22 @@ mod tests {
         }
         let before = session.state.clone();
         store
-            .write_save(&record, &p, &before, Some("before garden"))
+            .write_save(
+                &record,
+                session.definition(),
+                &before,
+                Some("before garden"),
+            )
             .unwrap();
         session.command("go east").unwrap();
         session.command("examine rose").unwrap();
         assert!(session.state.ending.is_some());
-        store.write_save(&record, &p, &session.state, None).unwrap();
-        let saved = store.load_save(&record, &p, Some("before garden")).unwrap();
+        store
+            .write_save(&record, session.definition(), &session.state, None)
+            .unwrap();
+        let saved = store
+            .load_save(&record, session.definition(), Some("before garden"))
+            .unwrap();
         assert_eq!(saved.state, before);
         let mut restored = Session::restore(p, saved.state).unwrap();
         let response = restored.command("examine painting").unwrap();
@@ -583,7 +620,12 @@ mod tests {
         let (session, _) = Session::start(p.clone(), None).unwrap();
         for n in 0..12 {
             store
-                .write_save(&record, &p, &session.state, Some(&format!("Slot {n}")))
+                .write_save(
+                    &record,
+                    session.definition(),
+                    &session.state,
+                    Some(&format!("Slot {n}")),
+                )
                 .unwrap()
         }
         store
@@ -605,19 +647,112 @@ mod tests {
             assert!(validate_label(name).is_err())
         }
         let (session, _) = Session::start(p.clone(), None).unwrap();
-        store.write_save(&record, &p, &session.state, None).unwrap();
+        store
+            .write_save(&record, session.definition(), &session.state, None)
+            .unwrap();
         let path = store
             .slot_path(&record.game_id, &record.content_version, None)
             .unwrap();
         fs::write(&path, "broken").unwrap();
-        assert!(store.load_save(&record, &p, None).is_err());
+        assert!(
+            store
+                .load_save(&record, session.definition(), None)
+                .is_err()
+        );
         assert_eq!(fs::read_to_string(&path).unwrap(), "broken");
-        store.write_save(&record, &p, &session.state, None).unwrap();
+        store
+            .write_save(&record, session.definition(), &session.state, None)
+            .unwrap();
         assert!(fs::read_dir(path.parent().unwrap()).unwrap().any(|e| {
             e.unwrap()
                 .file_name()
                 .to_string_lossy()
                 .starts_with("corrupt-")
         }));
+    }
+
+    #[test]
+    fn cached_validation_preserves_good_slots_and_incompatible_previous_state() {
+        let (_temp, store, record, project) = setup();
+        let (session, _) = Session::start(project.clone(), None).unwrap();
+        store
+            .write_save(&record, session.definition(), &session.state, None)
+            .unwrap();
+        let path = store
+            .slot_path(&record.game_id, &record.content_version, None)
+            .unwrap();
+        let original = fs::read(&path).unwrap();
+        let saved = store
+            .load_save(&record, session.definition(), None)
+            .unwrap();
+
+        let mut invalid = session.state.clone();
+        let object = invalid.objects.values_mut().next().unwrap();
+        object.exists = !object.exists;
+        assert!(
+            store
+                .write_save(&record, session.definition(), &invalid, None)
+                .is_err()
+        );
+        assert_eq!(fs::read(&path).unwrap(), original);
+        let mut foreign_record = record.clone();
+        foreign_record.game_id = "another-game".into();
+        assert!(
+            store
+                .write_save(&foreign_record, session.definition(), &session.state, None)
+                .is_err()
+        );
+        assert_eq!(fs::read(&path).unwrap(), original);
+
+        // Cosmetic content changes under the same identity remain compatible.
+        let mut compatible = project.clone();
+        compatible.game.title = "A new title".into();
+        let compatible = GameDefinition::new(compatible).unwrap();
+        store
+            .write_save(&record, &compatible, &session.state, None)
+            .unwrap();
+        assert_eq!(
+            store
+                .load_save(&record, &compatible, None)
+                .unwrap()
+                .created_at,
+            saved.created_at
+        );
+        let previous = fs::read(&path).unwrap();
+
+        // A valid new schema must still reject and preserve an old slot when
+        // loading, then preserve it separately when a fresh game overwrites it.
+        let mut changed = project;
+        changed
+            .game
+            .variables
+            .insert("new-variable".into(), luna_model::Value::Integer(1));
+        let (fresh, _) = Session::start(changed, None).unwrap();
+        let error = store
+            .load_save(&record, fresh.definition(), None)
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("incompatible"));
+        assert_eq!(fs::read(&path).unwrap(), previous);
+        store
+            .write_save(&record, fresh.definition(), &fresh.state, None)
+            .unwrap();
+        let backup = fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("corrupt-")
+            })
+            .expect("Incompatible previous state must be preserved");
+        assert_eq!(fs::read(backup).unwrap(), previous);
+        assert_eq!(
+            store
+                .load_save(&record, fresh.definition(), None)
+                .unwrap()
+                .state,
+            fresh.state
+        );
     }
 }

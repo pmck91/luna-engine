@@ -1,6 +1,6 @@
 # Shared core and runner hardening
 
-Status: **In progress**, starting 25 October 2026. H1 is complete; H2 is next.
+Status: **In progress**, starting 25 October 2026. H1 is committed as `c2ad929`; H2 is complete and H3 is next.
 
 Branch: `feature/core-hardening`, created from `main` at `0dcb1be`.
 
@@ -48,13 +48,13 @@ Putting all 5,000 objects in the current room increased examination to about 38 
 
 ### H2 — Validate immutable content once; validate saved state separately
 
-- [ ] Introduce an explicitly validated, immutable runtime definition or equivalent ownership boundary. Keep checks for arbitrary untrusted `Project` values; a public unchecked flag or cache that can become stale is insufficient.
+- [x] Introduce an explicitly validated, immutable runtime definition or equivalent ownership boundary. Keep checks for arbitrary untrusted `Project` values; a public unchecked flag or cache that can become stale is insufficient.
       Bring forward the project encapsulation from H4 if needed to enforce this boundary.
-- [ ] Separate definition validation/authoring diagnostics from state compatibility checks. Reuse the validated definition across a session, save writes, named loads, and restores.
-- [ ] Keep validation of identities/versions, declared value types and safe text, exact entity/property/visit sets, placement/consumption, endings, response cursors, and hint history. Preserve old corrupt/incompatible saves, locking, atomic replacement, and recovery behaviour.
-- [ ] Derive reusable state-schema indexes once where they eliminate repeated scans. Ensure a changed project must create a new validated definition.
-- [ ] Verify malformed content/state still fails through all public entry points. Add regression coverage for compatible changed content, incompatible old slots, and restoration without replaying effects.
-- [ ] Re-run the H1 benchmark and report before/after results. Full project diagnostics must no longer run for every autosave. Retain synchronous durable writes unless measurements justify another change.
+- [x] Separate definition validation/authoring diagnostics from state compatibility checks. Reuse the validated definition across a session, save writes, named loads, and restores.
+- [x] Keep validation of identities/versions, declared value types and safe text, exact entity/property/visit sets, placement/consumption, endings, response cursors, and hint history. Preserve old corrupt/incompatible saves, locking, atomic replacement, and recovery behaviour.
+- [x] Derive reusable state-schema indexes once where they eliminate repeated scans. Ensure a changed project must create a new validated definition.
+- [x] Verify malformed content/state still fails through all public entry points. Add regression coverage for compatible changed content, incompatible old slots, and restoration without replaying effects.
+- [x] Re-run the H1 benchmark and report before/after results. Full project diagnostics must no longer run for every autosave. Retain synchronous durable writes unless measurements justify another change.
 
 ### H3 — Divide runtime responsibilities
 
@@ -63,6 +63,8 @@ Putting all 5,000 objects in the current room increased examination to about 38 
 - [ ] Make this a behaviour-preserving change in reviewable steps. Keep transaction ownership, event ordering, execution budgets, and source paths explicit.
 
 ### H4 — Strengthen the public API
+
+Project/definition encapsulation was brought forward into H2 to make cached validation trustworthy. Mutable state encapsulation and typed command statuses remain in this milestone.
 
 - [ ] Make session internals private with read-only accessors and an explicit validated state replacement path for the editor. Keep authoring project edits separate from an executing game's definition.
 - [ ] Replace string command status with a serializable enum retaining the existing wire strings. Regenerate TypeScript contracts and adapt hosts/tests without changing player-facing replies.
@@ -108,3 +110,23 @@ The [raw H1 baseline](core-hardening-baseline.csv) was captured on Linux x86_64 
 |               5,000 |  15,001 | 1.970 ms |            598.950 ms |       1,205.475 ms |
 
 The crowded 5,000-object examination took 39.234 ms; its explained version took 53.823 ms. The distributed equivalent's explanation took 17.366 ms. These measurements confirm repeated validation as H2's priority. H1 fixes presentation and establishes the baseline; it does not claim to remove that bottleneck.
+
+### H2 implementation and measurements
+
+`GameDefinition` now owns validated content and compact indexes for saved-state entity IDs, variable/property types, ending IDs, response cursor bounds, and hint stages. Clones share the immutable definition through a private `Arc`. `Session` keeps this definition private; `project()` exposes read-only authored content, and `definition()` lets hosts reuse the validated boundary. Existing untrusted-project start/restore/validation entry points still perform full validation. The additional `start_with_definition` / `restore_with_definition` entry points reuse the definition and check incoming state as required.
+
+Runner saves/loads now require a `GameDefinition`, preserving current/previous-state compatibility checks without re-running project diagnostics. The runner creates one definition per launch and shares it across named loads and autosaves. Editor state application and setup capture use their session's definition. Mutable state is still public until H4. The schema checker lives in `luna-core/src/definition.rs`; this focused extraction supports H2 without attempting the broader H3 module reorganization.
+
+New regressions cover 32 malformed-state mutations, every response mode's cursor/exhaustion bounds, retained hint/sequence progress, restoring without replaying start/entry effects, immutable shared definitions, and valid/invalid changed content. Storage and actual-CLI tests verify good-slot preservation on invalid writes, preserved creation timestamps, replacement-content fingerprint warnings, compatible named resumes, incompatible load rejection without modifying files, and preserving an incompatible old autosave when a new game overwrites it. Tests that formerly mutated a running session's project now explicitly validate and restore a changed copy; runtime rollback remains covered using valid authored cycles and arithmetic failures.
+
+The [H2 measurements](core-hardening-h2.csv) use the same command, compiler, fixtures, sample counts, and tmpfs storage as H1. Serialized state sizes are identical. Definition analysis remains part of startup; the validation column now measures cached state compatibility rather than repeating full authoring validation. The standalone untrusted-project validator retains full checks and is deliberately excluded from the runtime hot path.
+
+| Distributed objects | H1 state validation | H2 cached state check | H1 overwrite autosave | H2 overwrite autosave |
+| ------------------: | ------------------: | --------------------: | --------------------: | --------------------: |
+|                 100 |            3.085 ms |              0.015 ms |              6.291 ms |              0.187 ms |
+|               1,000 |           48.916 ms |              0.217 ms |            103.038 ms |              1.758 ms |
+|               5,000 |          598.950 ms |              1.376 ms |          1,205.475 ms |              9.900 ms |
+
+The 5,000-object save overwrite is approximately 122 times faster in this sample. Ordinary execution remains in the same millisecond range; variation there is not evidence of a command-matching optimization. Physical-disk latency is still excluded, and initialization, state cloning, crowded-room matching, and explanations remain later performance work.
+
+H2 verification: workspace tests (including rustdoc/immutability examples), Clippy with warnings denied, Rust formatting, generated TypeScript contracts, the complete default benchmark, Markdown formatting, and relative-link checks passed. All ten focused browser checks for playtest setups, state edits, schema compatibility, repeatable checks, and explanations passed across Chromium and Firefox. The default Firefox 1555 executable was absent locally; Firefox checks used the installed 1532 build through `LUNA_FIREFOX_EXECUTABLE`. Content/save formats, generated contracts, examples, and historical fixtures are unchanged. Full branch acceptance/package checks remain in H6.

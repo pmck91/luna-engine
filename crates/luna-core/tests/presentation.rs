@@ -42,7 +42,8 @@ fn resuming_an_active_game_formats_current_values_without_replaying_entry() {
         .get_mut("room")
         .unwrap()
         .insert("health".into(), Value::Integer(4));
-    let session = Session::restore(session.project, session.state).unwrap();
+    let session =
+        Session::restore_with_definition(session.definition().clone(), session.state).unwrap();
     let before = session.state.clone();
     let messages = session.resume_messages().unwrap();
     assert_eq!(
@@ -109,7 +110,8 @@ fn completed_resume_matches_live_presentation_and_keeps_substituted_text_literal
     });
     let (mut session, _) = Session::start(project, None).unwrap();
     let live = session.command("use finish").unwrap();
-    let session = Session::restore(session.project, session.state).unwrap();
+    let session =
+        Session::restore_with_definition(session.definition().clone(), session.state).unwrap();
     let before = session.state.clone();
     let resumed = session.resume_messages().unwrap();
     assert_eq!(

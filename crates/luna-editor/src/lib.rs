@@ -591,7 +591,10 @@ async fn set_state(
         .sessions
         .get_mut(&id)
         .context("Playtest expired; restart it")?;
-    luna_core::validate_state(&current.runtime.project, &request.state)?;
+    current
+        .runtime
+        .definition()
+        .validate_state(&request.state)?;
     current.runtime.state = request.state;
     Ok(Json(PlaytestView {
         session: id,

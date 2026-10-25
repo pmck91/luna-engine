@@ -3,7 +3,7 @@
 //! Run `cargo bench -p luna-runner --bench scaling`, optionally followed by
 //! `-- 100 1000 5000` to select object counts. All saves use a temporary directory.
 use anyhow::{Context, Result, ensure};
-use luna_core::{Session, validate_state};
+use luna_core::Session;
 use luna_model::{
     Action, ArithmeticOperation, Effect, Exit, Location, NumericOperand, Object, PatternPart,
     Placement, Project, Value, starter_actions,
@@ -113,21 +113,21 @@ fn run_case(store: &Storage, objects: usize, crowded: bool) -> Result<()> {
         ensure!(result.status == "ok", "Explained command failed");
         Ok(result)
     })?;
-    let validation = measure(2, || validate_state(&session.project, &session.state))?;
+    let validation = measure(2, || session.definition().validate_state(&session.state))?;
     // Measure replacing an existing slot, including validation of its previous
     // state, JSON encoding/decoding, locking, atomic replacement, and syncing.
-    store.write_save(&record, &session.project, &session.state, None)?;
+    store.write_save(&record, session.definition(), &session.state, None)?;
     let save = measure(3, || {
-        store.write_save(&record, &session.project, &session.state, None)
+        store.write_save(&record, session.definition(), &session.state, None)
     })?;
     let bytes = serde_json::to_vec(&session.state)?.len();
     let actions = session
-        .project
+        .project()
         .owners()
         .iter()
         .map(|(_, actions, _)| actions.len())
         .sum::<usize>();
-    let rooms = session.project.locations.len();
+    let rooms = session.project().locations.len();
     let layout = if crowded { "crowded" } else { "distributed" };
     println!(
         "{layout},{objects},{rooms},{actions},{bytes},{start_ms:.3},{look:.3},{unknown:.3},{examine:.3},{mutation:.3},{explained:.3},{validation:.3},{save:.3}"

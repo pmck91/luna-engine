@@ -221,10 +221,15 @@ async fn optional_explanations_preserve_exported_runner_transactions_and_player_
             }
         }
         storage
-            .write_save(&installed, &exported, &runner.state, Some("after command"))
+            .write_save(
+                &installed,
+                runner.definition(),
+                &runner.state,
+                Some("after command"),
+            )
             .unwrap();
         let saved = storage
-            .load_save(&installed, &exported, Some("after command"))
+            .load_save(&installed, runner.definition(), Some("after command"))
             .unwrap();
         runner = Session::restore(exported.clone(), saved.state).unwrap();
         let captured = ok(
@@ -523,10 +528,15 @@ async fn setup_compatibility_is_explicit_and_metadata_survives_reopen_but_not_ex
     let state = p.editor.playtest.unwrap().setups.remove(0).state;
     let runner = Session::restore(exported.clone(), state.clone()).unwrap();
     storage
-        .write_save(&installed, &exported, &runner.state, Some("checkpoint"))
+        .write_save(
+            &installed,
+            runner.definition(),
+            &runner.state,
+            Some("checkpoint"),
+        )
         .unwrap();
     let loaded = storage
-        .load_save(&installed, &exported, Some("checkpoint"))
+        .load_save(&installed, runner.definition(), Some("checkpoint"))
         .unwrap();
     assert_eq!(loaded.state, state);
     assert_eq!(

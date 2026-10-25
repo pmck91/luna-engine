@@ -191,7 +191,9 @@ fn names_aliases_ignored_words_and_ambiguity_follow_entity_scope() {
         "Available commands for brass key:"
     );
     assert_eq!(help(&mut s, "help silver key").status, "unmatched");
-    s.project.game.ignored_words.clear();
+    let mut project = s.project().clone();
+    project.game.ignored_words.clear();
+    s = Session::restore(project, s.state).unwrap();
     assert_eq!(help(&mut s, "help the brass key").status, "unmatched");
     assert_eq!(help(&mut s, "help brass key").status, "ok");
 }
@@ -287,12 +289,14 @@ fn priorities_ambiguity_and_duplicate_phrases_use_the_actual_command_winner() {
     );
     assert_eq!(s.command("push key").unwrap().status, "requirements_failed");
     assert_eq!(s.command("pull key").unwrap().status, "ambiguous");
-    s.project.objects[0]
+    let mut project = s.project().clone();
+    project.objects[0]
         .actions
         .iter_mut()
         .find(|a| a.id == "push-high")
         .unwrap()
         .requirements = Condition::True;
+    s = Session::restore(project, s.state).unwrap();
     assert_eq!(
         lines(&help(&mut s, "help key"))
             .iter()
@@ -328,7 +332,9 @@ fn location_help_includes_only_available_routes_and_literal_owned_commands() {
             "  push the switch"
         ]
     );
-    s.project.locations[0].exits[2].available = Condition::True;
+    let mut project = s.project().clone();
+    project.locations[0].exits[2].available = Condition::True;
+    s = Session::restore(project, s.state).unwrap();
     assert!(lines(&help(&mut s, "help Study")).contains(&"  go south".into()));
 }
 

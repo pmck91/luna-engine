@@ -4,7 +4,9 @@ use luna_model::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
+mod definition;
 mod explanation;
+pub use definition::{GameDefinition, validate_state};
 pub use explanation::*;
 
 // Preserve the public core API while sharing the exact serialized state contract
@@ -45,15 +47,23 @@ impl Default for CommandResult {
     }
 }
 pub struct Session {
-    pub project: Project,
+    definition: GameDefinition,
     pub state: GameState,
 }
 impl Session {
     pub fn start(project: Project, location: Option<&str>) -> Result<(Self, CommandResult)> {
-        ensure!(
-            !has_errors(&validate(&project)),
-            "Project has validation errors"
-        );
+        Self::start_with_definition(GameDefinition::new(project)?, location)
+    }
+    /// Start a new playthrough using previously validated, immutable content.
+    ///
+    /// # Errors
+    ///
+    /// Rejects an unknown starting location or a failed opening/entry effect.
+    pub fn start_with_definition(
+        definition: GameDefinition,
+        location: Option<&str>,
+    ) -> Result<(Self, CommandResult)> {
+        let project = definition.project();
         let starting = location
             .unwrap_or(&project.game.starting_location)
             .to_owned();
@@ -118,7 +128,7 @@ impl Session {
                 .iter()
                 .map(|l| (l.id.clone(), 0))
                 .collect(),
-            sequences: all_effects(&project)
+            sequences: all_effects(project)
                 .into_iter()
                 .filter_map(|e| {
                     if let Effect::Respond { id, .. } = e {
@@ -130,11 +140,11 @@ impl Session {
                 .collect(),
             hints: BTreeMap::new(),
         };
-        let mut session = Self { project, state };
-        let mut run = Run::new(&session.project, session.state.clone());
-        run.say(&session.project.game.title)?;
-        run.say(&session.project.game.opening_text)?;
-        run.fire(Event::Start, &session.project.game.id)?;
+        let mut session = Self { definition, state };
+        let mut run = Run::new(session.definition.project(), session.state.clone());
+        run.say(&session.definition.project().game.title)?;
+        run.say(&session.definition.project().game.opening_text)?;
+        run.fire(Event::Start, &session.definition.project().game.id)?;
         if run.state.ending.is_none() && run.state.visits.get(&run.state.location) == Some(&0) {
             let id = run.state.location.clone();
             run.enter(&id)?;
@@ -145,8 +155,24 @@ impl Session {
         Ok((session, result))
     }
     pub fn restore(project: Project, state: GameState) -> Result<Self> {
-        validate_state(&project, &state)?;
-        Ok(Self { project, state })
+        Self::restore_with_definition(GameDefinition::new(project)?, state)
+    }
+    /// Restore saved state without replaying effects or revalidating game content.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if saved state is incompatible with the definition.
+    pub fn restore_with_definition(definition: GameDefinition, state: GameState) -> Result<Self> {
+        definition.validate_state(&state)?;
+        Ok(Self { definition, state })
+    }
+    /// Borrow the immutable game definition shared with save storage.
+    pub fn definition(&self) -> &GameDefinition {
+        &self.definition
+    }
+    /// Borrow authored content without allowing session-local definition edits.
+    pub fn project(&self) -> &Project {
+        self.definition.project()
     }
     pub fn command(&mut self, input: &str) -> Result<CommandResult> {
         let (result, error) = self.execute(input, false);
@@ -160,7 +186,7 @@ impl Session {
         self.execute(input, true).0
     }
     fn execute(&mut self, input: &str, explain: bool) -> (CommandResult, Option<anyhow::Error>) {
-        let mut run = Run::new(&self.project, self.state.clone());
+        let mut run = Run::new(self.definition.project(), self.state.clone());
         if explain {
             run.recording = Some(explanation::Recorder::default());
         }
@@ -190,7 +216,7 @@ impl Session {
         (run.result, error)
     }
     pub fn description(&self) -> Result<Vec<Vec<text::Span>>> {
-        let mut run = Run::new(&self.project, self.state.clone());
+        let mut run = Run::new(self.definition.project(), self.state.clone());
         run.look()?;
         Ok(run.result.messages)
     }
@@ -221,11 +247,12 @@ impl Session {
     /// # }
     /// ```
     pub fn resume_messages(&self) -> Result<Vec<Vec<text::Span>>> {
-        let mut run = Run::new(&self.project, self.state.clone());
-        run.say(&self.project.game.title)?;
+        let mut run = Run::new(self.definition.project(), self.state.clone());
+        run.say(&self.definition.project().game.title)?;
         if let Some(id) = &self.state.ending {
             let ending = self
-                .project
+                .definition
+                .project()
                 .game
                 .endings
                 .iter()
@@ -239,140 +266,8 @@ impl Session {
     }
     /// Read-only evaluation for author checks. Uses the same rules as gameplay.
     pub fn test_condition(&self, condition: &Condition) -> bool {
-        Run::new(&self.project, self.state.clone()).condition(condition)
+        Run::new(self.definition.project(), self.state.clone()).condition(condition)
     }
-}
-pub fn validate_state(p: &Project, s: &GameState) -> Result<()> {
-    ensure!(!has_errors(&validate(p)), "Game definition is invalid");
-    ensure!(
-        s.game_id == p.game.id && s.content_version == p.game.content_version,
-        "Save belongs to a different game or content version"
-    );
-    ensure!(
-        p.locations.iter().any(|l| l.id == s.location),
-        "Save references a missing current location"
-    );
-    ensure!(
-        s.ending
-            .as_ref()
-            .is_none_or(|id| p.game.endings.iter().any(|e| e.id == *id)),
-        "Save references a missing ending"
-    );
-    fn values(schema: &BTreeMap<String, Value>, values: &BTreeMap<String, Value>) -> bool {
-        schema.len() == values.len()
-            && schema.iter().all(|(k, v)| {
-                values
-                    .get(k)
-                    .is_some_and(|value| v.same_type(value) && value.safe())
-            })
-    }
-    ensure!(
-        values(&p.game.variables, &s.variables),
-        "Save variables do not match this game definition"
-    );
-    ensure!(
-        p.objects.len() == s.objects.len()
-            && p.characters.len() == s.characters.len()
-            && p.locations.len() == s.visits.len(),
-        "Save entity lists do not match this game definition"
-    );
-    for o in &p.objects {
-        let state = s.objects.get(&o.id).context("Missing saved object")?;
-        match &state.placement {
-            Placement::Location { location } => ensure!(
-                p.locations.iter().any(|l| l.id == *location),
-                "Saved object has an invalid location"
-            ),
-            Placement::Character { character } => ensure!(
-                s.characters.contains_key(character),
-                "Saved object has an invalid character owner"
-            ),
-            Placement::Inventory | Placement::Absent => {}
-        }
-        ensure!(
-            state.exists == (state.placement != Placement::Absent),
-            "Saved object existence does not match its placement"
-        );
-        ensure!(
-            !state.consumed || !state.exists,
-            "Consumed object cannot exist"
-        );
-    }
-    for c in &p.characters {
-        let state = s.characters.get(&c.id).context("Missing saved character")?;
-        ensure!(
-            p.locations.iter().any(|l| l.id == state.location),
-            "Saved character has an invalid location"
-        );
-    }
-    ensure!(
-        s.properties.len() == p.locations.len() + p.objects.len() + p.characters.len(),
-        "Saved property owners do not match this game"
-    );
-    for (id, schema) in p
-        .locations
-        .iter()
-        .map(|l| (&l.id, &l.state))
-        .chain(p.objects.iter().map(|o| (&o.id, &o.state)))
-        .chain(p.characters.iter().map(|c| (&c.id, &c.state)))
-    {
-        ensure!(
-            s.properties.get(id).is_some_and(|v| values(schema, v)),
-            "Saved properties do not match entity {id}"
-        );
-    }
-    for l in &p.locations {
-        ensure!(s.visits.contains_key(&l.id), "Missing saved visit count")
-    }
-    let seq = all_effects(p)
-        .into_iter()
-        .filter_map(|e| {
-            if let Effect::Respond {
-                id,
-                responses,
-                mode,
-                on_exhausted,
-                ..
-            } = e
-            {
-                Some((id, responses, mode, on_exhausted))
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-    ensure!(
-        seq.len() == s.sequences.len(),
-        "Saved response sequences do not match this game"
-    );
-    for (id, responses, mode, on_exhausted) in seq {
-        let cursor = *s.sequences.get(id).context("Missing saved sequence")?;
-        ensure!(
-            cursor < responses.len()
-                || (*mode == SequenceMode::Fallback
-                    && (cursor == responses.len()
-                        || (!on_exhausted.is_empty() && cursor == responses.len() + 1))),
-            "Invalid response cursor for {id}"
-        )
-    }
-    for (id, progress) in &s.hints {
-        let stage = p
-            .hint_owners()
-            .iter()
-            .flat_map(|(_, hints)| hints.iter())
-            .flat_map(|h| h.stages.iter())
-            .find(|stage| stage.id == *id)
-            .context("Saved hint progress references a missing stage")?;
-        ensure!(
-            progress.clues_seen <= stage.clues.len(),
-            "Saved hint cursor is incompatible with this stage"
-        );
-        ensure!(
-            !progress.solution_seen || stage.solution.is_some(),
-            "Saved hint solution no longer exists"
-        );
-    }
-    Ok(())
 }
 
 struct Run<'a> {
@@ -1903,7 +1798,9 @@ mod tests {
             ..Default::default()
         });
         let (mut s, _) = Session::start(p, None).unwrap();
-        s.project.objects[0].description = "A <green>gleaming</green> coin.".into();
+        let mut project = s.project().clone();
+        project.objects[0].description = "A <green>gleaming</green> coin.".into();
+        s = Session::restore(project, s.state).unwrap();
         assert_eq!(
             output(s.command("inspect the coin").unwrap()),
             "A gleaming coin."
@@ -1916,7 +1813,9 @@ mod tests {
             output(s.command("look at the starting location").unwrap()),
             "Your adventure begins here."
         );
-        s.project.objects[0].description.clear();
+        let mut project = s.project().clone();
+        project.objects[0].description.clear();
+        s = Session::restore(project, s.state).unwrap();
         let result = s.command("inspect coin").unwrap();
         assert!(result.messages.is_empty());
         assert!(!result.state_changed);
@@ -1977,12 +1876,14 @@ mod tests {
         assert_eq!(text::plain(&r.messages[1]), "1 / 5");
         assert_eq!(text::plain(&r.messages[2]), "Current chances: 1.");
         let state = s.state.clone();
-        let mut restored = Session::restore(s.project.clone(), state.clone()).unwrap();
+        let mut restored =
+            Session::restore_with_definition(s.definition().clone(), state.clone()).unwrap();
         assert_eq!(
             text::plain(&restored.command("pull lever").unwrap().messages[1]),
             "No more than 1."
         );
-        s.project.game.actions[0].effects = vec![
+        let mut invalid = s.project().clone();
+        invalid.game.actions[0].effects = vec![
             Effect::SetVariable {
                 name: "chances".into(),
                 value: Value::Integer(99),
@@ -1991,7 +1892,7 @@ mod tests {
                 text: "%deleted%".into(),
             },
         ];
-        assert!(s.command("pull lever").is_err());
+        assert!(GameDefinition::new(invalid).is_err());
         assert_eq!(s.state, state);
     }
     #[test]
@@ -2255,7 +2156,8 @@ mod tests {
             for text in expected {
                 assert_eq!(output(session.command("examine painting").unwrap()), text);
             }
-            Session::restore(session.project.clone(), session.state.clone()).unwrap();
+            Session::restore_with_definition(session.definition().clone(), session.state.clone())
+                .unwrap();
         }
     }
     #[test]
@@ -2303,7 +2205,7 @@ mod tests {
             let state: GameState =
                 serde_json::from_slice(&serde_json::to_vec(&session.state).unwrap()).unwrap();
             assert_eq!(
-                Session::restore(session.project.clone(), state)
+                Session::restore_with_definition(session.definition().clone(), state)
                     .unwrap()
                     .state,
                 session.state
@@ -2437,7 +2339,7 @@ mod tests {
         let (mut s, _) = Session::start(world(), None).unwrap();
         assert_eq!(output(s.command("INSPECT, painting!").unwrap()), "First");
         let saved = s.state.clone();
-        let mut loaded = Session::restore(s.project.clone(), saved).unwrap();
+        let mut loaded = Session::restore_with_definition(s.definition().clone(), saved).unwrap();
         assert_eq!(
             output(loaded.command("look at old painting").unwrap()),
             "Second"
@@ -2480,16 +2382,30 @@ mod tests {
             })
         }
         assert!(Session::start(p, None).is_err());
-        let (mut s, _) = Session::start(world(), None).unwrap();
-        let old = s.state.clone();
-        s.project.objects[0].actions[0].effects = vec![
+        let mut p = world();
+        p.locations.push(Location {
+            id: "other".into(),
+            name: "Other".into(),
+            triggers: vec![Trigger {
+                id: "self-cycle".into(),
+                event: Event::Enter,
+                effects: vec![Effect::Move {
+                    location: "other".into(),
+                }],
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        p.objects[0].actions[0].effects = vec![
             Effect::Say {
                 text: "discard me".into(),
             },
             Effect::Move {
-                location: "missing".into(),
+                location: "other".into(),
             },
         ];
+        let (mut s, _) = Session::start(p, None).unwrap();
+        let old = s.state.clone();
         assert!(s.command("examine painting").is_err());
         assert_eq!(old, s.state);
     }
@@ -2507,6 +2423,6 @@ mod tests {
     fn full_state_validation() {
         let (mut s, _) = Session::start(world(), None).unwrap();
         s.state.sequences.insert("replies".into(), usize::MAX);
-        assert!(validate_state(&s.project, &s.state).is_err())
+        assert!(validate_state(s.project(), &s.state).is_err())
     }
 }

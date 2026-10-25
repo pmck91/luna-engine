@@ -134,7 +134,9 @@ fn legacy_projects_keep_the_standard_reply_and_explicit_empty_replies_stay_empty
         text::plain(&result.messages[0]),
         default_unknown_command_text()
     );
-    session.project.game.unknown_command_text.clear();
+    let mut project = session.project().clone();
+    project.game.unknown_command_text.clear();
+    session = Session::restore(project, session.state).unwrap();
     let result = session.command("summon starlight").unwrap();
     assert_eq!(result.status, "unmatched");
     assert!(result.messages.is_empty());

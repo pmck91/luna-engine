@@ -137,10 +137,10 @@ async fn character_movement_and_coloured_speech_match_exports_and_saved_restorat
         );
         for slot in [None, Some("character checkpoint")] {
             storage
-                .write_save(&installed, &runner.project, &runner.state, slot)
+                .write_save(&installed, runner.definition(), &runner.state, slot)
                 .unwrap();
             let save = storage
-                .load_save(&installed, &runner.project, slot)
+                .load_save(&installed, runner.definition(), slot)
                 .unwrap();
             runner = Session::restore(storage.load_game(&installed).unwrap(), save.state).unwrap();
         }
@@ -263,10 +263,10 @@ async fn response_follow_ups_match_exported_runner_and_survive_every_save_bounda
         );
         for slot in [None, Some("checkpoint")] {
             storage
-                .write_save(&installed, &runner.project, &runner.state, slot)
+                .write_save(&installed, runner.definition(), &runner.state, slot)
                 .unwrap();
             let save = storage
-                .load_save(&installed, &runner.project, slot)
+                .load_save(&installed, runner.definition(), slot)
                 .unwrap();
             runner = Session::restore(storage.load_game(&installed).unwrap(), save.state).unwrap();
         }
@@ -418,10 +418,10 @@ async fn authored_hints_match_runner_exports_and_resume_saved_progress() {
         );
         for slot in [None, Some("hint checkpoint")] {
             storage
-                .write_save(&installed, &runner.project, &runner.state, slot)
+                .write_save(&installed, runner.definition(), &runner.state, slot)
                 .unwrap();
             let saved = storage
-                .load_save(&installed, &runner.project, slot)
+                .load_save(&installed, runner.definition(), slot)
                 .unwrap();
             assert_eq!(saved.save_format, 2);
             runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();
@@ -678,10 +678,10 @@ async fn character_inventory_transfers_export_and_restore_with_editor_runner_par
         );
         for slot in [None, Some("ownership")] {
             storage
-                .write_save(&installed, &runner.project, &runner.state, slot)
+                .write_save(&installed, runner.definition(), &runner.state, slot)
                 .unwrap();
             let saved = storage
-                .load_save(&installed, &runner.project, slot)
+                .load_save(&installed, runner.definition(), slot)
                 .unwrap();
             assert_eq!(saved.state, runner.state);
             runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();
@@ -793,13 +793,13 @@ async fn arithmetic_exports_and_resumes_identically_in_editor_and_runner() {
         storage
             .write_save(
                 &installed,
-                &runner.project,
+                runner.definition(),
                 &runner.state,
                 Some("calculated"),
             )
             .unwrap();
         let saved = storage
-            .load_save(&installed, &runner.project, Some("calculated"))
+            .load_save(&installed, runner.definition(), Some("calculated"))
             .unwrap();
         assert_eq!(saved.state, runner.state);
         runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();

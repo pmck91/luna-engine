@@ -153,7 +153,8 @@ fn stages_follow_live_progress_and_solutions_require_an_explicit_request() {
     assert!(s.state.hints["have-key"].solution_seen);
     assert!(!output(&mut s, "hint door solution").1);
     let after = s.state.clone();
-    let mut restored = Session::restore(s.project.clone(), after.clone()).unwrap();
+    let mut restored =
+        Session::restore_with_definition(s.definition().clone(), after.clone()).unwrap();
     assert_eq!(restored.state, after);
     assert!(!output(&mut restored, "hint door").1);
     restored.command("drop key").unwrap();
@@ -179,15 +180,19 @@ fn hints_respect_scope_availability_solved_conditions_and_game_settings() {
             ("Puzzle hints are disabled for this game.".into(), false)
         );
     }
-    s.project.game.hints_enabled = true;
-    s.project.objects[1].hints[0].available = Condition::False;
+    let mut project = s.project().clone();
+    project.game.hints_enabled = true;
+    project.objects[1].hints[0].available = Condition::False;
+    s = Session::restore(project, s.state).unwrap();
     assert!(!output(&mut s, "hint").0.contains("oak door"));
     assert!(
         output(&mut s, "hint door")
             .0
             .contains("No puzzle hints are available")
     );
-    s.project.objects[1].hints[0].available = Condition::True;
+    let mut project = s.project().clone();
+    project.objects[1].hints[0].available = Condition::True;
+    s = Session::restore(project, s.state).unwrap();
     s.state.objects.get_mut("door").unwrap().hidden = true;
     assert!(!output(&mut s, "hint").0.contains("oak door"));
     assert!(output(&mut s, "hint door").0.contains("can't find"));
@@ -259,7 +264,7 @@ fn saves_validate_hint_ids_cursors_and_solution_progress_and_accept_legacy_state
     let mut old = serde_json::to_value(&s.state).unwrap();
     old.as_object_mut().unwrap().remove("hints");
     let old = serde_json::from_value(old).unwrap();
-    validate_state(&s.project, &old).unwrap();
+    validate_state(s.project(), &old).unwrap();
     for (id, progress) in [
         (
             "missing",
@@ -285,7 +290,7 @@ fn saves_validate_hint_ids_cursors_and_solution_progress_and_accept_legacy_state
     ] {
         let mut state = s.state.clone();
         state.hints.insert(id.into(), progress);
-        assert!(validate_state(&s.project, &state).is_err());
+        assert!(validate_state(s.project(), &state).is_err());
     }
 }
 

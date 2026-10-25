@@ -186,7 +186,10 @@ pub(crate) async fn capture_setup(
         .sessions
         .get(&id)
         .context("Playtest expired; restart it")?;
-    luna_core::validate_state(&current.runtime.project, &current.runtime.state)?;
+    current
+        .runtime
+        .definition()
+        .validate_state(&current.runtime.state)?;
     Ok(Json(PlaytestSetup {
         version: 1,
         id: new_id(),

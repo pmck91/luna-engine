@@ -88,8 +88,8 @@ fn movement_changes_command_scope_preserves_ownership_and_restores_without_event
 
     let encoded = serde_json::to_vec(&session.state).unwrap();
     let saved = serde_json::from_slice(&encoded).unwrap();
-    validate_state(&session.project, &saved).unwrap();
-    session = Session::restore(session.project, saved).unwrap();
+    validate_state(session.project(), &saved).unwrap();
+    session = Session::restore_with_definition(session.definition().clone(), saved).unwrap();
     assert_eq!(session.state.characters["keeper"].location, "garden");
     assert_eq!(session.state.objects["key"], key);
     session.command("use follow").unwrap();
@@ -97,12 +97,14 @@ fn movement_changes_command_scope_preserves_ownership_and_restores_without_event
     assert_eq!(session.command("take key").unwrap().status, "unmatched");
 
     // @current is resolved when the effect executes, including earlier player moves.
-    session.project.game.actions[0].effects = vec![
+    let mut project = session.project().clone();
+    project.game.actions[0].effects = vec![
         Effect::Move {
             location: player.clone(),
         },
         movement("@current"),
     ];
+    session = Session::restore(project, session.state).unwrap();
     session.command("use scene").unwrap();
     assert_eq!(session.state.characters["keeper"].location, player);
     assert_eq!(session.command("examine Keeper").unwrap().status, "ok");
@@ -217,7 +219,9 @@ fn speech_uses_literal_current_names_independent_colours_and_live_message_values
             "Keeper <&> %chances% says: 5 chances; 9; <red>& %chances%</red> %name%."
         );
         assert!(!text::render(spans, false).contains('\x1b'));
-        session.project.characters[0].name = "Renamed Keeper".into();
+        let mut project = session.project().clone();
+        project.characters[0].name = "Renamed Keeper".into();
+        session = Session::restore(project, session.state).unwrap();
         assert!(
             text::plain(&session.command("use scene").unwrap().messages[0])
                 .starts_with("Renamed Keeper says: ")
