@@ -1,0 +1,34 @@
+{
+  "id": "a9c27ad9-0a96-4d57-bc8f-3bf75a78079f",
+  "name": "Dev room",
+  "aliases": [],
+  "description": "",
+  "actions": [
+    {
+      "id": "97b12bd3-9536-4561-9939-75bbc97c1b2e",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "a9c27ad9-0a96-4d57-bc8f-3bf75a78079f"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "a9c27ad9-0a96-4d57-bc8f-3bf75a78079f"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "exits": [],
+  "state": {},
+  "hints": []
+}

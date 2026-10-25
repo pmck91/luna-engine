@@ -135,17 +135,14 @@
           "character": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
         },
         {
-          "type": "hide",
-          "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
-        },
-        {
-          "type": "hide",
-          "entity": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
-        },
-        {
           "type": "set_variable",
           "name": "tom_has_toy",
           "value": true
+        },
+        {
+          "type": "move_character",
+          "character": "e6259d7c-f192-455d-a151-0e4ab3c9c14b",
+          "location": "a9c27ad9-0a96-4d57-bc8f-3bf75a78079f"
         }
       ]
     }
