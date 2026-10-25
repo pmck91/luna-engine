@@ -10,6 +10,43 @@
     }
   },
   "blocks": {
+    "2a9faf4c-f754-4034-ac24-02acdfb3ffb7": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "visible",
+                "available"
+              ]
+            },
+            "id": "P=;4ja^st]inhL+0]xT6",
+            "inputs": {
+              "available": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "tQ`^PIObj?J,a7vNTu;4",
+                  "type": "condition_true"
+                }
+              },
+              "visible": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "_Tz=mL,GwKlSLUYi/=**",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
     "2ef07a95-2fd6-43ce-8a38-5f34394f3240": {
       "blocks": {
         "blocks": [
@@ -76,11 +113,110 @@
         "languageVersion": 0
       }
     },
+    "45a636fe-4c4a-4fb5-8742-bdd1ac58d46b": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "8fx-E5i5NKBdJgqs$sp+",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"if\",\"condition\":{\"type\":\"variable\",\"name\":\"door_unlocked\",\"op\":\"eq\",\"value\":true},\"then\":[{\"type\":\"say\",\"text\":\"The door is already unlocked.\"}],\"otherwise\":[{\"type\":\"set_variable\",\"name\":\"door_unlocked\",\"value\":true},{\"type\":\"open\",\"object\":\"87aab837-6e3d-4dcf-85fa-f3782b11385e\"},{\"type\":\"say\",\"text\":\"The brass key turns. The door is <green>unlocked</green>.\"}]}",
+                  "id": "*ZeL-cx57;BL#aTNM|.t",
+                  "inputs": {
+                    "ELSE": {
+                      "block": {
+                        "data": "{\"type\":\"set_variable\",\"name\":\"door_unlocked\",\"value\":true}",
+                        "fields": {
+                          "name": "door_unlocked",
+                          "value": "true"
+                        },
+                        "id": "/Eyno,:E,OxZ65W}5Wzo",
+                        "next": {
+                          "block": {
+                            "data": "{\"type\":\"open\",\"object\":\"87aab837-6e3d-4dcf-85fa-f3782b11385e\"}",
+                            "fields": {
+                              "object": "87aab837-6e3d-4dcf-85fa-f3782b11385e"
+                            },
+                            "id": "`rB0RB%ruGd4{^R?mJtT",
+                            "next": {
+                              "block": {
+                                "data": "{\"type\":\"say\",\"text\":\"The brass key turns. The door is <green>unlocked</green>.\"}",
+                                "fields": {
+                                  "text": "The brass key turns. The door is <green>unlocked</green>."
+                                },
+                                "id": "mDT*7e7=t^`a/WRMFh%]",
+                                "type": "luna_say"
+                              }
+                            },
+                            "type": "luna_open"
+                          }
+                        },
+                        "type": "luna_set_variable"
+                      }
+                    },
+                    "TEST": {
+                      "block": {
+                        "data": "{\"type\":\"variable\",\"name\":\"door_unlocked\",\"op\":\"eq\",\"value\":true}",
+                        "fields": {
+                          "name": "door_unlocked",
+                          "op": "eq",
+                          "value": "true"
+                        },
+                        "id": "(!6wJ#/t%d5#Ok7J$b^p",
+                        "type": "condition_variable"
+                      }
+                    },
+                    "THEN": {
+                      "block": {
+                        "data": "{\"type\":\"say\",\"text\":\"The door is already unlocked.\"}",
+                        "fields": {
+                          "text": "The door is already unlocked."
+                        },
+                        "id": "BE?P#%`!e29,nZhIQEx;",
+                        "type": "luna_say"
+                      }
+                    }
+                  },
+                  "type": "luna_if"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"carrying\",\"object\":\"97427b4c-2a5d-4876-83ea-c31a0f987a21\"}",
+                  "fields": {
+                    "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+                  },
+                  "id": "QNy}BO2/pj~Cn2_Y7=zN",
+                  "type": "condition_carrying"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
     "46b8d142-882a-4455-8269-fcf04fe57dfd": {
       "blocks": {
         "blocks": [
           {
             "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
             "id": "rr@m0i,TDOgKMJp)t`lu",
             "inputs": {
               "DO": {
@@ -90,7 +226,10 @@
                   "inputs": {
                     "ELSE": {
                       "block": {
-                        "data": "{\"type\":\"respond\",\"id\":\"0863bf34-507f-43c1-af85-5b64ad68e255\",\"responses\":[\"The door is already unlocked!\",\"It's unlocked...\",\"The door is unlocked bozo.\"],\"mode\":\"repeat_last\",\"fallback\":\"\"}",
+                        "data": "{\"type\":\"respond\",\"id\":\"0863bf34-507f-43c1-af85-5b64ad68e255\",\"responses\":[\"The door is already unlocked!\",\"It's unlocked...\",\"The door is unlocked bozo.\"],\"mode\":\"repeat_last\",\"fallback\":\"\",\"exhaustion\":\"once\",\"on_exhausted\":[]}",
+                        "fields": {
+                          "exhaustion": "once"
+                        },
                         "id": "(QHVQ;MRG|}^?;hZRzB!",
                         "type": "luna_respond"
                       }
@@ -129,6 +268,16 @@
                     }
                   },
                   "type": "luna_if"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"carrying\",\"object\":\"97427b4c-2a5d-4876-83ea-c31a0f987a21\"}",
+                  "fields": {
+                    "object": "97427b4c-2a5d-4876-83ea-c31a0f987a21"
+                  },
+                  "id": "s/IoT0yu^bhz!Gk@uVk@",
+                  "type": "condition_carrying"
                 }
               }
             },
@@ -212,19 +361,20 @@
                 "requirements"
               ]
             },
-            "id": "-:3u?Ql:Gaadd302/al5",
+            "id": "kH|:_;M81O0asw/)X@=r",
             "inputs": {
               "DO": {
                 "block": {
-                  "data": "{\"type\":\"if\",\"condition\":{\"type\":\"property\",\"entity\":\"a98e97aa-3c36-43a3-9428-a14cba0f2ba3\",\"name\":\"uneven\",\"op\":\"eq\",\"value\":true},\"then\":[{\"type\":\"respond\",\"id\":\"6ffb4082-41ab-408f-8348-c32c627a718f\",\"responses\":[\"A painting of an old man. The painting hangs <red>unevenly</red>.\",\"Still an old man. Still <red>crooked</red>. \"],\"mode\":\"loop\",\"fallback\":\"\"}],\"otherwise\":[{\"type\":\"respond\",\"id\":\"2487b16b-3f75-447a-bb1e-0c6a221deff9\",\"responses\":[\"\"],\"mode\":\"repeat_last\",\"fallback\":\"\"}]}",
-                  "id": "kK!;:1D[vLd`f#^wfVH;",
+                  "data": "{\"type\":\"if\",\"condition\":{\"type\":\"property\",\"entity\":\"a98e97aa-3c36-43a3-9428-a14cba0f2ba3\",\"name\":\"uneven\",\"op\":\"eq\",\"value\":true},\"then\":[{\"type\":\"respond\",\"id\":\"6ffb4082-41ab-408f-8348-c32c627a718f\",\"responses\":[\"A painting of an old man. The painting hangs <red>unevenly</red>.\",\"Still an old man. Still <red>crooked</red>. \"],\"mode\":\"loop\",\"fallback\":\"\",\"exhaustion\":\"once\",\"on_exhausted\":[]}],\"otherwise\":[{\"type\":\"say\",\"text\":\"The painting now straight, you see the old man in a new light, he looks <green>happier</green>.\"}]}",
+                  "id": "gK*eJ;K,H.f~2t;lXjDs",
                   "inputs": {
                     "ELSE": {
                       "block": {
+                        "data": "{\"type\":\"say\",\"text\":\"The painting now straight, you see the old man in a new light, he looks <green>happier</green>.\"}",
                         "fields": {
-                          "text": ""
+                          "text": "The painting now straight, you see the old man in a new light, he looks <green>happier</green>."
                         },
-                        "id": "X^`z=$kMId*lB5PTfY%]",
+                        "id": "|TlE^w9$uc0xkpYn]2v,",
                         "type": "luna_say"
                       }
                     },
@@ -237,14 +387,17 @@
                           "op": "eq",
                           "value": "true"
                         },
-                        "id": "Co(B3fc.lHAlP!F=jnP)",
+                        "id": "[HK+L7.$,|}WYAq7q*sv",
                         "type": "condition_property"
                       }
                     },
                     "THEN": {
                       "block": {
-                        "data": "{\"type\":\"respond\",\"id\":\"6ffb4082-41ab-408f-8348-c32c627a718f\",\"responses\":[\"A painting of an old man. The painting hangs <red>unevenly</red>.\",\"Still an old man. Still <red>crooked</red>. \"],\"mode\":\"loop\",\"fallback\":\"\"}",
-                        "id": "BqYIR2-#asNu{#lKhYh@",
+                        "data": "{\"type\":\"respond\",\"id\":\"6ffb4082-41ab-408f-8348-c32c627a718f\",\"responses\":[\"A painting of an old man. The painting hangs <red>unevenly</red>.\",\"Still an old man. Still <red>crooked</red>. \"],\"mode\":\"loop\",\"fallback\":\"\",\"exhaustion\":\"once\",\"on_exhausted\":[]}",
+                        "fields": {
+                          "exhaustion": "once"
+                        },
+                        "id": "AZr0@}I-=$mb-#:bj]?c",
                         "type": "luna_respond"
                       }
                     }
@@ -255,7 +408,7 @@
               "requirements": {
                 "block": {
                   "data": "{\"type\":\"true\"}",
-                  "id": "1_pU5sb?~[j)s0#2)lE/",
+                  "id": "KEVnM+?@@iiSqNsQueT4",
                   "type": "condition_true"
                 }
               }
@@ -370,11 +523,58 @@
         "languageVersion": 0
       }
     },
+    "7c5da5f0-450c-4fec-bc03-e414003f9166": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "visible",
+                "available"
+              ]
+            },
+            "id": "}W1?ocv1[T%Lk#Da^;JY",
+            "inputs": {
+              "available": {
+                "block": {
+                  "data": "{\"type\":\"variable\",\"name\":\"door_unlocked\",\"op\":\"eq\",\"value\":true}",
+                  "fields": {
+                    "name": "door_unlocked",
+                    "op": "eq",
+                    "value": "true"
+                  },
+                  "id": "$BWcBqK:h(e1#O2.zd_,",
+                  "type": "condition_variable"
+                }
+              },
+              "visible": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": ")c3B#m;dtevHPPK{+d2C",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
     "926ae891-7bb3-4e06-8224-37253e9d87fe": {
       "blocks": {
         "blocks": [
           {
             "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
             "id": "er54XB8h(-Mvc1K5Ugym",
             "inputs": {
               "DO": {
@@ -410,7 +610,10 @@
                         "inputs": {
                           "ELSE": {
                             "block": {
-                              "data": "{\"type\":\"respond\",\"id\":\"264aa003-b316-4aee-833f-0f9bc405e867\",\"responses\":[\"A locked door. The Key must be around here somewhere...\",\"The same locked door... You should find the key!\",\"For Gods sake <red>FIND THE KEY</red>\"],\"mode\":\"repeat_last\",\"fallback\":\"\"}",
+                              "data": "{\"type\":\"respond\",\"id\":\"264aa003-b316-4aee-833f-0f9bc405e867\",\"responses\":[\"A locked door. The Key must be around here somewhere...\",\"The same locked door... You should find the key!\",\"For Gods sake <red>FIND THE KEY</red>\"],\"mode\":\"repeat_last\",\"fallback\":\"\",\"exhaustion\":\"once\",\"on_exhausted\":[]}",
+                              "fields": {
+                                "exhaustion": "once"
+                              },
                               "id": "4o/`;$^YWv!@xo%`)}?%",
                               "type": "luna_respond"
                             }
@@ -440,6 +643,13 @@
                   },
                   "type": "luna_if"
                 }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "jdr!N@}Z`0bEf]w/`6nJ",
+                  "type": "condition_true"
+                }
               }
             },
             "movable": false,
@@ -456,6 +666,11 @@
         "blocks": [
           {
             "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
             "id": "zWrD3#K27{tdczWe0WdH",
             "inputs": {
               "DO": {
@@ -465,6 +680,13 @@
                   },
                   "id": "CrD|{./+$_P-%R3L4.J~",
                   "type": "luna_end"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "-]c;cGx;$qTd,DG+8FSI",
+                  "type": "condition_true"
                 }
               }
             },
@@ -657,6 +879,11 @@
         "blocks": [
           {
             "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
             "id": ";(i`Y-hT3}@Fd*+^_1CJ",
             "inputs": {
               "DO": {
@@ -703,6 +930,52 @@
                     }
                   },
                   "type": "luna_if"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "_n$H7o!n/pMeO4{iXEUT",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "c48ce956-a374-4b4c-8203-cf5635b42cd5": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "1[)$rOuBz8RwkC[kF~P~",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"print_description\",\"entity\":\"27a10baa-e8bc-4cc2-bf51-44c1870a6198\"}",
+                  "fields": {
+                    "entity": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                  },
+                  "id": "NO+$@c1%obZUA$;d~K:!",
+                  "type": "luna_print_description"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "WY]2sPTU*D56arBavz0z",
+                  "type": "condition_true"
                 }
               }
             },
@@ -1085,5 +1358,112 @@
       }
     }
   },
-  "templates": []
+  "templates": [],
+  "playtest": {
+    "setups": [
+      {
+        "version": 1,
+        "id": "9b0ff905-43ee-4cc2-9285-d1254f42c07c",
+        "name": "at the door carrying the key",
+        "source": {
+          "revision": "bb8bd92cabbac4f593113aea7aa0bbf754092799fd6d71d2d4cd2440f773b690",
+          "title": "The Locked Study",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "game_id": "ad700f74-e584-4d5d-8b9e-b7c54438b0fe",
+          "content_version": "0.1.0",
+          "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca",
+          "ending": null,
+          "variables": {
+            "door_unlocked": false,
+            "study_entries": 0,
+            "tom_has_toy": false
+          },
+          "objects": {
+            "27a10baa-e8bc-4cc2-bf51-44c1870a6198": {
+              "placement": {
+                "type": "location",
+                "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "87aab837-6e3d-4dcf-85fa-f3782b11385e": {
+              "placement": {
+                "type": "location",
+                "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "97427b4c-2a5d-4876-83ea-c31a0f987a21": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "a98e97aa-3c36-43a3-9428-a14cba0f2ba3": {
+              "placement": {
+                "type": "location",
+                "location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "c751c642-110a-42da-bdc4-e70ac26db7d8": {
+              "placement": {
+                "type": "location",
+                "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "e6259d7c-f192-455d-a151-0e4ab3c9c14b": {
+              "location": "8b7e69bd-426e-4c3c-a87d-03f40ced27e6",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "27a10baa-e8bc-4cc2-bf51-44c1870a6198": {},
+            "87aab837-6e3d-4dcf-85fa-f3782b11385e": {},
+            "8b7e69bd-426e-4c3c-a87d-03f40ced27e6": {},
+            "97427b4c-2a5d-4876-83ea-c31a0f987a21": {},
+            "a98e97aa-3c36-43a3-9428-a14cba0f2ba3": {
+              "uneven": false
+            },
+            "c751c642-110a-42da-bdc4-e70ac26db7d8": {},
+            "e6259d7c-f192-455d-a151-0e4ab3c9c14b": {},
+            "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca": {}
+          },
+          "visits": {
+            "8b7e69bd-426e-4c3c-a87d-03f40ced27e6": 0,
+            "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca": 1
+          },
+          "sequences": {
+            "0863bf34-507f-43c1-af85-5b64ad68e255": 0,
+            "264aa003-b316-4aee-833f-0f9bc405e867": 0,
+            "6ffb4082-41ab-408f-8348-c32c627a718f": 0,
+            "c8003608-5e34-43b2-85de-54ce3affca84": 0
+          },
+          "hints": {}
+        }
+      }
+    ],
+    "checks": []
+  }
 }
