@@ -1,6 +1,8 @@
 # Final UX review
 
-Status: **M9 automated verification and agent review complete on `feature/editor-ux`; human review, final owner acceptance, and merge pending.** M0–M7 are the implemented scope. [Portable templates](../../plans/portable-templates-extension.md), originally M8 / UX-13, remain a deferred potential extension.
+Status: **M9 complete; the owner reviewed and accepted the tested editor on 25 October 2026.** M0–M7 are the implemented scope, approved for the coordinated merge from `feature/editor-ux` to `main`. [Portable templates](../../plans/portable-templates-extension.md), originally M8 / UX-13, remain a deferred potential extension.
+
+After reviewing the UI test coverage, the owner confirmed: “I completed the review, Im happy with whats there”. This closes final owner acceptance for the current scope. Separate human screen-reader and new-author sessions were not reported; retain them as follow-up evaluation rather than claiming they ran.
 
 ## Findings and fixes
 
@@ -18,7 +20,7 @@ The author's current Locked Study also validates, with its existing vocabulary-o
 
 Content format remains 1 and player-save format remains 2. Shared state types moved into the model without changing serialized player state. Optional setup/check metadata stays in editor files; personal layout/preferences stay in user configuration. Structured explanations are optional runtime results. Existing project, workspace, export, legacy-save, autosave, and named-save compatibility checks cover these boundaries.
 
-Remote main was fetched for integration review and remains at `92b3ab6`, already an ancestor of this branch. There are no upstream changes to reconcile at this checkpoint. Fetch and recheck before the final merge if main advances.
+Remote main was fetched again after owner acceptance and remains at `92b3ab6`, already an ancestor of this branch. There are no upstream changes to reconcile and no implementation changes since the recorded verification. The coordinated merge preserves the reviewed feature commits and the owner's example edits.
 
 ## Verification record
 
@@ -31,8 +33,8 @@ Remote main was fetched for integration review and remains at `92b3ab6`, already
 | Actual 200% browser zoom                                      | Chromium tab zoom set through its extension API, independently confirmed as 2.0; control reachability and modal scrolling passed |
 | Final reduced-motion and zoom authoring follow-up             | 5 passed after the full suite; 1 intentional Firefox skip                                                                        |
 | Release package and source-independent smoke check            | Passed with the refreshed example bundle                                                                                         |
-| Owner's final walkthrough                                     | Pending                                                                                                                          |
-| Human screen-reader and new-author review                     | Pending; automated role/focus checks are not evidence of a human assistive-technology session                                    |
+| Owner's final walkthrough                                     | Completed and accepted on 25 October 2026                                                                                        |
+| Human screen-reader and new-author review                     | Not separately reported; retained as follow-up evaluation. Automated role/focus checks do not replace these sessions             |
 
 The actual-zoom check uses an isolated browser profile and a temporary test extension. Firefox exercises the shared authoring, dialog, and compact-layout checks; the Chromium-specific extension test is intentionally skipped there. CSS viewport reduction and actual browser tab zoom are recorded separately.
 
@@ -56,4 +58,4 @@ The final follow-up verifies immediate transcript visibility with reduced motion
 6. At 200% browser zoom, collapse panels as needed, reopen the inspector, edit an object, use search, and run a command. Check that controls remain reachable, dialogs scroll, text wraps, and the page does not require horizontal scrolling. Also try reduced motion if available in your system/browser settings.
 7. Review labels, selected state, findings, and the transcript with a screen reader. If someone unfamiliar with the editor is available, have them try the first-adventure journey and record where they need guidance. These human checks have not been claimed as completed by automation.
 
-Record feedback before marking the active UX checklist complete. The [M9 agreement](../../plans/editor-ux.md#m9--test-and-merge-the-agreed-scope) requires acceptance of the actual tested editor before the coordinated merge. If a manual check cannot be performed, agree and record any scope adjustment explicitly.
+The owner's final acceptance above resolves the [M9 review gate](../../plans/editor-ux.md#m9--test-and-merge-the-agreed-scope) for the tested scope. The walkthrough remains available for future regression reviews; separate human screen-reader and new-author evaluation remains on the TODO list.
