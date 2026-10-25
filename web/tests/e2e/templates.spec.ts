@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, selectBlock, flowSettings } from '../editor';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -43,6 +43,7 @@ test('action templates remap placeholders, validate replacements, and export ind
   await charges('3');
   await inspector.getByRole('button', { name: /Examine painting/ }).click();
   await page.getByLabel('Action verb', { exact: true }).selectOption('pull');
+  await selectBlock(page, 'RESPONSE SEQUENCE');
   const firstReply = inspector.getByLabel('Response 1', { exact: true });
   await firstReply.fill('First look: ');
   await firstReply.press('End');
@@ -69,9 +70,7 @@ test('action templates remap placeholders, validate replacements, and export ind
   await library.getByLabel('New action name').fill('Inspect carving');
   await library.getByRole('button', { name: 'Insert as new action', exact: true }).click();
   await expect(library.getByRole('alert')).toContainText('Unknown message value');
-  await expect(
-    page.getByRole('list', { name: 'Entity actions' }).getByRole('listitem'),
-  ).toHaveCount(1);
+  await expect(page.getByLabel('Choose action or exit').locator('option')).toHaveCount(1);
   await library.press('Escape');
   await expect(library).not.toBeVisible();
   await inspector.getByText('Custom state', { exact: true }).click();
@@ -81,6 +80,7 @@ test('action templates remap placeholders, validate replacements, and export ind
   await library.getByRole('button', { name: 'Insert as new action', exact: true }).click();
   await expect(library).not.toBeVisible();
   await expect(inspector.getByLabel('Name', { exact: true })).toHaveValue('Inspect carving');
+  await selectBlock(page, 'RESPONSE SEQUENCE');
   await expect(firstReply).toHaveValue(/First look: %.+\.charges%\./);
   await page.getByRole('button', { name: 'Start playtest', exact: true }).click();
   const log = page.getByRole('log');
@@ -169,6 +169,7 @@ test('selected block templates append with undo and remain usable after deleting
   await library.getByRole('button', { name: 'Save template', exact: true }).click();
   await library.getByLabel('Saved template name', { exact: true }).fill('Reusable replies');
   await library.getByRole('button', { name: 'Close', exact: true }).click();
+  await flowSettings(page);
   page.once('dialog', (dialog) => dialog.accept());
   await inspector.getByRole('button', { name: 'Delete', exact: true }).click();
   await page.getByRole('button', { name: 'Add object', exact: true }).click();
@@ -182,6 +183,7 @@ test('selected block templates append with undo and remain usable after deleting
   await expect(library).not.toBeVisible();
   await expect(target.locator('.luna_respond')).toHaveCount(1);
   expect(await target.locator('.luna_print_description').getAttribute('data-id')).toBe(existing);
+  await selectBlock(page, 'RESPONSE SEQUENCE');
   await expect(inspector.getByLabel('Response 1', { exact: true })).toHaveValue(
     'A painting of an old man.',
   );
@@ -190,6 +192,7 @@ test('selected block templates append with undo and remain usable after deleting
   await expect(target.locator('.luna_respond')).toHaveCount(0);
   await page.keyboard.press('Control+Shift+z');
   await expect(target.locator('.luna_respond')).toHaveCount(1);
+  await selectBlock(page, 'RESPONSE SEQUENCE');
   await expect(inspector.getByLabel('Response 1', { exact: true })).toHaveValue(
     'A painting of an old man.',
   );

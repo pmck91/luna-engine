@@ -1,7 +1,11 @@
-import type { HintSet, HintStage, Project } from './contracts';
+import * as Blockly from 'blockly/core';
+import type { Condition, HintSet, HintStage, Project } from './contracts';
 import { entity } from './model';
 import { Check, ConditionEditor, RichText, Text } from './Forms';
 import type { HintPart, HintSelection } from './HintBlocks';
+import { hintWorkspaceKey, registerHintBlocks } from './HintBlocks';
+import { readCondition, syncConditionBlock } from './Blocks';
+import { InlineFindings } from './FindingContext';
 
 export default function HintInspector({
   project,
@@ -45,6 +49,16 @@ export default function HintInspector({
       if (target) update(target);
     });
   const stageSettings = () => choose({ type: 'stage', stageId: stage!.id });
+  if (part.type === 'draft')
+    return (
+      <HintDraftInspector
+        project={project}
+        puzzleId={hint.id}
+        blockId={part.blockId}
+        edit={edit}
+        select={(blockId) => choose({ type: 'draft', blockId })}
+      />
+    );
   if (!stage)
     return (
       <>
@@ -59,7 +73,11 @@ export default function HintInspector({
             })
           }
         />
-        <details key={`available:${hint.id}`}>
+        <details
+          key={`available:${hint.id}`}
+          data-field-path="available"
+          data-field-subject={hint.id}
+        >
           <summary>Available when</summary>
           <ConditionEditor
             project={project}
@@ -71,7 +89,7 @@ export default function HintInspector({
             }
           />
         </details>
-        <details key={`solved:${hint.id}`}>
+        <details key={`solved:${hint.id}`} data-field-path="solved" data-field-subject={hint.id}>
           <summary>Solved when</summary>
           <ConditionEditor
             project={project}
@@ -105,6 +123,7 @@ export default function HintInspector({
           key={`${stage.id}:${part.index}`}
           project={project}
           label="Clue text"
+          path={`clues.${part.index}`}
           value={stage.clues[part.index]}
           onChange={(text) =>
             changeStage((s) => {
@@ -153,6 +172,7 @@ export default function HintInspector({
           key={stage.id}
           project={project}
           label="Final solution"
+          path="solution"
           value={stage.solution}
           onChange={(solution) =>
             changeStage((s) => {
@@ -190,7 +210,7 @@ export default function HintInspector({
           })
         }
       />
-      <details key={`stage:${stage.id}`}>
+      <details key={`stage:${stage.id}`} data-field-path="condition" data-field-subject={stage.id}>
         <summary>Stage applies when</summary>
         <ConditionEditor
           project={project}
@@ -263,6 +283,81 @@ export default function HintInspector({
         <button onClick={() => choose({ type: 'solution', stageId: stage.id })}>
           Edit solution
         </button>
+      )}
+    </>
+  );
+}
+
+function hintDraft<T>(
+  project: Project,
+  puzzleId: string,
+  blockId: string,
+  read: (workspace: Blockly.Workspace, block: Blockly.Block) => T,
+): T {
+  registerHintBlocks(project);
+  const workspace = new Blockly.Workspace();
+  try {
+    Blockly.serialization.workspaces.load(
+      project.editor.blocks[hintWorkspaceKey(puzzleId)] as object,
+      workspace,
+    );
+    const block = workspace.getBlockById(blockId);
+    if (!block || block.getRootBlock().id === puzzleId)
+      throw new Error('This draft no longer exists.');
+    return read(workspace, block);
+  } finally {
+    workspace.dispose();
+  }
+}
+function HintDraftInspector({
+  project,
+  puzzleId,
+  blockId,
+  edit,
+  select,
+}: {
+  project: Project;
+  puzzleId: string;
+  blockId: string;
+  edit: (change: (p: Project) => void) => void;
+  select: (blockId: string) => void;
+}) {
+  let value: { type: string; text: string; condition?: Condition };
+  try {
+    value = hintDraft(project, puzzleId, blockId, (_, block) => ({
+      type: block.type,
+      text: block.getFieldValue('text') ?? block.getFieldValue('name') ?? '',
+      condition: block.type.startsWith('condition_') ? readCondition(block) : undefined,
+    }));
+  } catch {
+    return <p>This draft was removed. Select a surviving puzzle block.</p>;
+  }
+  const change = (value: string | Condition) =>
+    edit((p) =>
+      hintDraft(p, puzzleId, blockId, (workspace, block) => {
+        const changed =
+          typeof value === 'string'
+            ? (block.setFieldValue(value, block.getField('text') ? 'text' : 'name'), block)
+            : syncConditionBlock(block, value);
+        p.editor.blocks[hintWorkspaceKey(puzzleId)] = Blockly.serialization.workspaces.save(
+          workspace,
+        ) as any;
+        if (changed.id !== blockId) select(changed.id);
+      }),
+    );
+  return (
+    <>
+      <h2>Draft block</h2>
+      <p className="draft-notice">
+        Saved but disconnected · does not run. Connect it to the puzzle to use it.
+      </p>
+      <InlineFindings subject={puzzleId} path={null} blockId={blockId} />
+      {value.condition ? (
+        <ConditionEditor project={project} value={value.condition} onChange={change} />
+      ) : value.type === 'hint_clue' || value.type === 'hint_solution' ? (
+        <RichText project={project} label="Draft text" value={value.text} onChange={change} />
+      ) : (
+        <Text label="Draft name" value={value.text} onChange={change} />
       )}
     </>
   );

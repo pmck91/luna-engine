@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, openNewAction } from '../editor';
 import { join } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
 
@@ -35,6 +35,7 @@ test('character inventories share object placement and author transfers and requ
   await hierarchy.getByRole('button', { name: /Keeper/ }).click();
   await expect(inspector.locator('.inventory-list')).toContainText('key');
   await inspector.getByRole('button', { name: /Examine/ }).click();
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('talk');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await inspector.getByLabel('Condition', { exact: true }).selectOption('character_carrying');
@@ -59,6 +60,7 @@ test('character inventories share object placement and author transfers and requ
   await drag('luna_give', talkRoot.x + 40, talkRoot.y + talkRoot.height - 16);
   await expect(talkCanvas.locator('.luna_give')).toContainText('key');
   await page.getByRole('treeitem', { name: 'World & state', exact: true }).press('Escape');
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('use');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await inspector.getByLabel('Condition', { exact: true }).selectOption('carrying');

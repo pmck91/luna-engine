@@ -1,15 +1,5 @@
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
-import {
-  action,
-  owner,
-  flow,
-  id,
-  allEffects,
-  replaceEffect,
-  entity,
-  gameDataPages,
-  colourNames,
-} from './model';
+import { action, owner, flow, id, entity, gameDataPages, colourNames } from './model';
 import {
   Check,
   ConditionEditor,
@@ -23,6 +13,12 @@ import {
 import { request } from './api';
 import Endings from './Endings';
 import TriggerSettings from './TriggerSettings';
+import { useState } from 'react';
+import CommandPreset from './CommandPreset';
+import { commandDraft, commandPattern, commandPreview, validCommandDraft } from './authoring';
+import { flowOwner } from './model';
+import { ReferenceButton, useReferenceActions } from './ReferenceManager';
+import { FindingSubject } from './FindingContext';
 import { commandEvents, stateEvents, triggerLabel, triggerPage } from './triggerModel';
 type Edit = (change: (p: Project) => void) => void;
 const events: Event[] = [...stateEvents, ...commandEvents];
@@ -41,6 +37,7 @@ export default function Inspector({
   remove: (key: string) => void;
   error: (e: string) => void;
 }) {
+  const references = useReferenceActions();
   const selectedFlow = flow(p, selected);
   const selectedOwner = owner(p, selected);
   const update = (changes: Record<string, unknown>) =>
@@ -54,6 +51,7 @@ export default function Inspector({
         <h2>Variables</h2>
         <p className="muted">Typed values used by conditions and effects.</p>
         <Values
+          referenceOwner="@variables"
           values={p.game.variables}
           onChange={(v) =>
             edit((n) => {
@@ -88,53 +86,60 @@ export default function Inspector({
           the key on the door. Clear the list to require exact names.
         </p>
         {p.vocabulary.map((v, i) => (
-          <details key={v.id}>
-            <summary>{v.canonical || 'New verb'}</summary>
-            <Text
-              label="Canonical verb"
-              value={v.canonical}
-              onChange={(value) =>
-                edit((n) => {
-                  n.vocabulary[i].canonical = value;
-                })
-              }
-            />
-            <Text
-              label="Synonyms (comma separated)"
-              value={v.synonyms.join(', ')}
-              onChange={(value) =>
-                edit((n) => {
-                  n.vocabulary[i].synonyms = value
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean);
-                })
-              }
-            />
-            <Select
-              label="Interaction event"
-              value={v.event ?? ''}
-              items={[
-                { id: '', name: 'No additional event' },
-                ...events.map((id) => ({ id, name: id })),
-              ]}
-              onChange={(value) =>
-                edit((n) => {
-                  n.vocabulary[i].event = value ? (value as Event) : null;
-                })
-              }
-            />
-            <button
-              className="danger"
-              onClick={() =>
-                edit((n) => {
-                  n.vocabulary.splice(i, 1);
-                })
-              }
-            >
-              Delete verb
-            </button>
-          </details>
+          <FindingSubject.Provider value={v.id} key={v.id}>
+            <details key={v.id}>
+              <summary>{v.canonical || 'New verb'}</summary>
+              <Text
+                label="Canonical verb"
+                path="canonical"
+                value={v.canonical}
+                onChange={(value) =>
+                  edit((n) => {
+                    n.vocabulary[i].canonical = value;
+                  })
+                }
+              />
+              <Text
+                label="Synonyms (comma separated)"
+                path="synonyms"
+                value={v.synonyms.join(', ')}
+                onChange={(value) =>
+                  edit((n) => {
+                    n.vocabulary[i].synonyms = value
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                  })
+                }
+              />
+              <Select
+                label="Interaction event"
+                value={v.event ?? ''}
+                items={[
+                  { id: '', name: 'No additional event' },
+                  ...events.map((id) => ({ id, name: id })),
+                ]}
+                onChange={(value) =>
+                  edit((n) => {
+                    n.vocabulary[i].event = value ? (value as Event) : null;
+                  })
+                }
+              />
+              <button
+                className="danger"
+                onClick={() =>
+                  references
+                    ? references({ target: { kind: 'verb', id: v.id }, action: 'delete' })
+                    : edit((n) => {
+                        n.vocabulary.splice(i, 1);
+                      })
+                }
+              >
+                Delete verb
+              </button>
+              <ReferenceButton target={{ kind: 'verb', id: v.id }} />
+            </details>
+          </FindingSubject.Provider>
         ))}
         <button
           onClick={() =>
@@ -150,6 +155,7 @@ export default function Inspector({
   if (selectedFlow)
     return (
       <FlowInspector
+        key={selectedFlow.id}
         project={p}
         selected={selectedFlow}
         update={update}
@@ -170,6 +176,7 @@ export default function Inspector({
     <>
       <div className="section-heading">
         <h2>{isGame ? 'Game settings' : o.name}</h2>
+        {!isGame && <ReferenceButton target={{ kind: 'entity', id: o.id }} />}
         {!isGame && (
           <button
             className="danger"
@@ -182,10 +189,16 @@ export default function Inspector({
       </div>
       {isGame ? (
         <>
-          <Text label="Title" value={p.game.title} onChange={(title) => update({ title })} />
+          <Text
+            label="Title"
+            path="title"
+            value={p.game.title}
+            onChange={(title) => update({ title })}
+          />
           <Text label="Author" value={p.game.author} onChange={(author) => update({ author })} />
           <Text
             label="Content version"
+            path="content_version"
             value={p.game.content_version}
             onChange={(content_version) => update({ content_version })}
           />
@@ -197,6 +210,7 @@ export default function Inspector({
           </Field>
           <Select
             label="Starting location"
+            path="starting_location"
             value={p.game.starting_location}
             items={p.locations}
             onChange={(starting_location) => update({ starting_location })}
@@ -204,12 +218,14 @@ export default function Inspector({
           <RichText
             project={p}
             label="Opening text"
+            path="opening_text"
             value={p.game.opening_text}
             onChange={(opening_text) => update({ opening_text })}
           />
           <RichText
             project={p}
             label="Help text"
+            path="help_text"
             value={p.game.help_text}
             onChange={(help_text) => update({ help_text })}
           />
@@ -237,7 +253,7 @@ export default function Inspector({
         </>
       ) : (
         <>
-          <Text label="Name" value={o.name} onChange={(name) => update({ name })} />
+          <Text label="Name" path="name" value={o.name} onChange={(name) => update({ name })} />
           {'aliases' in o && (
             <Text
               label="Aliases (comma separated)"
@@ -255,6 +271,7 @@ export default function Inspector({
           <RichText
             project={p}
             label="Description"
+            path="description"
             value={o.description}
             onChange={(description) => update({ description })}
           />
@@ -307,6 +324,7 @@ export default function Inspector({
             <>
               <Select
                 label="Name colour"
+                path="name_colour"
                 value={o.name_colour ?? ''}
                 items={[
                   { id: '', name: 'Default' },
@@ -324,6 +342,7 @@ export default function Inspector({
               </p>
               <Select
                 label="Initial location"
+                path="location"
                 value={o.location}
                 items={p.locations}
                 onChange={(location) => update({ location })}
@@ -387,7 +406,11 @@ export default function Inspector({
           {'state' in o && (
             <details>
               <summary>Custom state</summary>
-              <Values values={o.state} onChange={(state) => update({ state })} />
+              <Values
+                referenceOwner={o.id}
+                values={o.state}
+                onChange={(state) => update({ state })}
+              />
             </details>
           )}
         </>
@@ -446,11 +469,8 @@ function FlowInspector({
   edit: Edit;
   remove: (id: string) => void;
 }) {
-  const patchEffect = (path: number[], replacement: Effect) =>
-    edit((n) => {
-      replaceEffect(flow(n, f.id)!.effects, path, replacement);
-    });
   const setPattern = (pattern: PatternPart[]) => update({ pattern });
+  const [draft, setDraft] = useState(() => commandDraft(p, flowOwner(p, f.id)?.id ?? p.game.id));
   return (
     <>
       <div className="section-heading">
@@ -459,21 +479,50 @@ function FlowInspector({
           Delete
         </button>
       </div>
-      {'name' in f && <Text label="Name" value={f.name} onChange={(name) => update({ name })} />}
+      {'name' in f && (
+        <Text label="Name" path="name" value={f.name} onChange={(name) => update({ name })} />
+      )}
       {'verb' in f && (
         <>
           <Select
             label="Verb"
+            path="verb"
+            create={{ kind: 'verb' }}
             value={f.verb}
             items={p.vocabulary.map((v) => ({ id: v.id, name: v.canonical }))}
             onChange={(verb) => update({ verb })}
           />
           <h3>Command pattern</h3>
+          <p className="command-preview" aria-label="Current command preview">
+            Player types:{' '}
+            <strong>
+              {commandPreview(
+                p,
+                f.verb,
+                f.pattern.length
+                  ? f.pattern
+                  : 'destination' in f
+                    ? [{ type: 'literal', text: f.name }]
+                    : [],
+              )}
+            </strong>
+          </p>
+          <details className="command-presets">
+            <summary>Use a command preset</summary>
+            <CommandPreset project={p} verb={f.verb} value={draft} onChange={setDraft} />
+            <button
+              disabled={!validCommandDraft(p, draft)}
+              onClick={() => setPattern(commandPattern(draft))}
+            >
+              Apply command preset
+            </button>
+          </details>
           {f.pattern.map((part, i) => (
             <div className="pattern-part" key={i}>
               {part.type === 'literal' ? (
                 <Text
                   label="Word or phrase"
+                  path={`pattern.${i}`}
                   value={part.text}
                   onChange={(text) =>
                     setPattern(f.pattern.map((v, j) => (i === j ? { type: 'literal', text } : v)))
@@ -482,6 +531,7 @@ function FlowInspector({
               ) : (
                 <Select
                   label="Target"
+                  path={`pattern.${i}`}
                   value={part.entity}
                   items={[...p.objects, ...p.characters, ...p.locations]}
                   onChange={(entity) =>
@@ -534,6 +584,7 @@ function FlowInspector({
           <RichText
             project={p}
             label="Failed requirement response"
+            path="failure_text"
             value={f.failure_text}
             onChange={(failure_text) => update({ failure_text })}
           />
@@ -553,6 +604,7 @@ function FlowInspector({
         <>
           <Select
             label="Destination"
+            path="destination"
             value={f.destination}
             items={p.locations}
             onChange={(destination) => update({ destination })}
@@ -588,6 +640,7 @@ function FlowInspector({
             <RichText
               project={p}
               label="Blocked response"
+              path="blocked_text"
               value={f.blocked_text}
               onChange={(blocked_text) => update({ blocked_text })}
             />
@@ -595,6 +648,7 @@ function FlowInspector({
           <RichText
             project={p}
             label="Traversal text"
+            path="text"
             value={f.text}
             onChange={(text) => update({ text })}
           />
@@ -621,179 +675,184 @@ function FlowInspector({
           </button>
         </>
       )}
-      <h3>Text and responses</h3>
-      <p className="muted">Drag blocks into the action flow. Edit their text and sequences here.</p>
-      {allEffects(f.effects)
-        .filter(({ effect }) =>
-          ['say', 'character_says', 'move_character', 'respond', 'print_description'].includes(
-            effect.type,
-          ),
-        )
-        .map(({ effect, path }) => (
-          <div className="card" key={path.join('.')}>
-            {effect.type === 'say' ? (
+      <p className="stable-id">Stable ID: {f.id}</p>
+    </>
+  );
+}
+
+export function EffectText({
+  project: p,
+  effect,
+  onChange,
+  path,
+}: {
+  project: Project;
+  effect: Effect;
+  onChange: (effect: Effect) => void;
+  path?: string | null;
+}) {
+  return (
+    <>
+      {effect.type === 'say' ? (
+        <RichText
+          project={p}
+          label="SAY text"
+          path={path || undefined}
+          value={effect.text}
+          onChange={(text) => onChange({ ...effect, text })}
+        />
+      ) : effect.type === 'character_says' ? (
+        <>
+          <Select
+            label="Speaker"
+            value={effect.character}
+            items={p.characters}
+            onChange={(character) => onChange({ ...effect, character })}
+          />
+          <RichText
+            project={p}
+            label="CHARACTER SAYS text"
+            path={path || undefined}
+            value={effect.text}
+            onChange={(text) => onChange({ ...effect, text })}
+          />
+        </>
+      ) : effect.type === 'move_character' ? (
+        <>
+          <h4>Move character</h4>
+          <Select
+            label="Moving character"
+            value={effect.character}
+            items={p.characters}
+            onChange={(character) => onChange({ ...effect, character })}
+          />
+          <Select
+            label="Character destination"
+            value={effect.location}
+            items={[{ id: '@current', name: 'Current location' }, ...p.locations]}
+            onChange={(location) => onChange({ ...effect, location })}
+          />
+          <p className="muted">
+            Held items follow their owner. This does not move the player or fire player entry or
+            exit triggers.
+          </p>
+        </>
+      ) : effect.type === 'respond' ? (
+        <>
+          <h4>Response sequence · {effect.responses.length} replies</h4>
+          {effect.responses.map((reply, i) => (
+            <div className="response" key={i}>
               <RichText
                 project={p}
-                label="SAY text"
-                value={effect.text}
-                onChange={(text) => patchEffect(path, { ...effect, text })}
+                label={`Response ${i + 1}`}
+                path={path ? `${path}.responses.${i}` : undefined}
+                value={reply}
+                onChange={(text) =>
+                  onChange({
+                    ...effect,
+                    responses: effect.responses.map((v, j) => (i === j ? text : v)),
+                  })
+                }
               />
-            ) : effect.type === 'character_says' ? (
-              <>
-                <Select
-                  label="Speaker"
-                  value={effect.character}
-                  items={p.characters}
-                  onChange={(character) => patchEffect(path, { ...effect, character })}
-                />
-                <RichText
-                  project={p}
-                  label="CHARACTER SAYS text"
-                  value={effect.text}
-                  onChange={(text) => patchEffect(path, { ...effect, text })}
-                />
-              </>
-            ) : effect.type === 'move_character' ? (
-              <>
-                <h4>Move character</h4>
-                <Select
-                  label="Moving character"
-                  value={effect.character}
-                  items={p.characters}
-                  onChange={(character) => patchEffect(path, { ...effect, character })}
-                />
-                <Select
-                  label="Character destination"
-                  value={effect.location}
-                  items={[{ id: '@current', name: 'Current location' }, ...p.locations]}
-                  onChange={(location) => patchEffect(path, { ...effect, location })}
-                />
-                <p className="muted">
-                  Held items follow their owner. This does not move the player or fire player entry
-                  or exit triggers.
-                </p>
-              </>
-            ) : effect.type === 'respond' ? (
-              <>
-                <h4>Response sequence · {effect.responses.length} replies</h4>
-                {effect.responses.map((reply, i) => (
-                  <div className="response" key={i}>
-                    <RichText
-                      project={p}
-                      label={`Response ${i + 1}`}
-                      value={reply}
-                      onChange={(text) =>
-                        patchEffect(path, {
-                          ...effect,
-                          responses: effect.responses.map((v, j) => (i === j ? text : v)),
-                        })
-                      }
-                    />
-                    <div className="inline">
-                      <button
-                        disabled={i === 0}
-                        onClick={() => {
-                          const replies = [...effect.responses];
-                          [replies[i - 1], replies[i]] = [replies[i], replies[i - 1]];
-                          patchEffect(path, { ...effect, responses: replies });
-                        }}
-                      >
-                        Move up
-                      </button>
-                      <button
-                        disabled={i === effect.responses.length - 1}
-                        onClick={() => {
-                          const replies = [...effect.responses];
-                          [replies[i], replies[i + 1]] = [replies[i + 1], replies[i]];
-                          patchEffect(path, { ...effect, responses: replies });
-                        }}
-                      >
-                        Move down
-                      </button>
-                      <button
-                        onClick={() =>
-                          patchEffect(path, {
-                            ...effect,
-                            responses: effect.responses.filter((_, j) => j !== i),
-                          })
-                        }
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="inline">
+                <button
+                  disabled={i === 0}
+                  onClick={() => {
+                    const replies = [...effect.responses];
+                    [replies[i - 1], replies[i]] = [replies[i], replies[i - 1]];
+                    onChange({ ...effect, responses: replies });
+                  }}
+                >
+                  Move up
+                </button>
+                <button
+                  disabled={i === effect.responses.length - 1}
+                  onClick={() => {
+                    const replies = [...effect.responses];
+                    [replies[i], replies[i + 1]] = [replies[i + 1], replies[i]];
+                    onChange({ ...effect, responses: replies });
+                  }}
+                >
+                  Move down
+                </button>
                 <button
                   onClick={() =>
-                    patchEffect(path, {
+                    onChange({
                       ...effect,
-                      responses: [...effect.responses, 'New response'],
+                      responses: effect.responses.filter((_, j) => j !== i),
                     })
                   }
                 >
-                  Add response
+                  Remove
                 </button>
-                <Select
-                  label="After last response"
-                  value={effect.mode}
-                  items={[
-                    { id: 'repeat_last', name: 'Repeat last' },
-                    { id: 'loop', name: 'Loop to first' },
-                    { id: 'fallback', name: 'Separate fallback' },
-                  ]}
-                  onChange={(mode) =>
-                    patchEffect(path, { ...effect, mode: mode as typeof effect.mode })
-                  }
-                />
-                {effect.mode === 'fallback' && (
-                  <>
-                    <RichText
-                      project={p}
-                      label="Fallback response"
-                      value={effect.fallback}
-                      onChange={(fallback) => patchEffect(path, { ...effect, fallback })}
-                    />
-                    <Select
-                      label="Follow-up effects"
-                      value={effect.exhaustion}
-                      items={[
-                        { id: 'once', name: 'Once' },
-                        { id: 'repeat', name: 'Every later interaction' },
-                      ]}
-                      onChange={(exhaustion) =>
-                        patchEffect(path, {
-                          ...effect,
-                          exhaustion: exhaustion as typeof effect.exhaustion,
-                        })
-                      }
-                    />
-                  </>
-                )}
-                <p className="muted">
-                  Add effects to AFTER LAST REPLY on the response block. In Separate fallback mode,
-                  they start on the next interaction after the final reply, after the fallback text.
-                  Repeat last and Loop to first leave them inactive. RESET RESPONSE SEQUENCE starts
-                  the replies and once-only follow-ups again.
-                </p>
-                <p className="stable-id">Sequence ID: {effect.id}</p>
-              </>
-            ) : effect.type === 'print_description' ? (
-              <>
-                <h4>Print description</h4>
-                <Select
-                  label="Description entity"
-                  value={effect.entity}
-                  items={[...p.locations, ...p.objects, ...p.characters]}
-                  onChange={(entity) => patchEffect(path, { ...effect, entity })}
-                />
-                <p className="muted">
-                  Prints the entity's current description when the action runs.
-                </p>
-              </>
-            ) : null}
-          </div>
-        ))}
-      <p className="stable-id">Stable ID: {f.id}</p>
+              </div>
+            </div>
+          ))}
+          <button
+            onClick={() =>
+              onChange({
+                ...effect,
+                responses: [...effect.responses, 'New response'],
+              })
+            }
+          >
+            Add response
+          </button>
+          <Select
+            label="After last response"
+            value={effect.mode}
+            items={[
+              { id: 'repeat_last', name: 'Repeat last' },
+              { id: 'loop', name: 'Loop to first' },
+              { id: 'fallback', name: 'Separate fallback' },
+            ]}
+            onChange={(mode) => onChange({ ...effect, mode: mode as typeof effect.mode })}
+          />
+          {effect.mode === 'fallback' && (
+            <>
+              <RichText
+                project={p}
+                label="Fallback response"
+                path={path ? `${path}.fallback` : undefined}
+                value={effect.fallback}
+                onChange={(fallback) => onChange({ ...effect, fallback })}
+              />
+              <Select
+                label="Follow-up effects"
+                value={effect.exhaustion}
+                items={[
+                  { id: 'once', name: 'Once' },
+                  { id: 'repeat', name: 'Every later interaction' },
+                ]}
+                onChange={(exhaustion) =>
+                  onChange({
+                    ...effect,
+                    exhaustion: exhaustion as typeof effect.exhaustion,
+                  })
+                }
+              />
+            </>
+          )}
+          <p className="muted">
+            Add effects to AFTER LAST REPLY on the response block. In Separate fallback mode, they
+            start on the next interaction after the final reply, after the fallback text. Repeat
+            last and Loop to first leave them inactive. RESET RESPONSE SEQUENCE starts the replies
+            and once-only follow-ups again.
+          </p>
+          <p className="stable-id">Sequence ID: {effect.id}</p>
+        </>
+      ) : effect.type === 'print_description' ? (
+        <>
+          <h4>Print description</h4>
+          <Select
+            label="Description entity"
+            value={effect.entity}
+            items={[...p.locations, ...p.objects, ...p.characters]}
+            onChange={(entity) => onChange({ ...effect, entity })}
+          />
+          <p className="muted">Prints the entity's current description when the action runs.</p>
+        </>
+      ) : null}
     </>
   );
 }

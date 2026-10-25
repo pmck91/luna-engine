@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, openNewAction } from '../editor';
 
 test('entity help lists authored commands and changes with inventory requirements', async ({
   page,
@@ -25,6 +25,7 @@ test('entity help lists authored commands and changes with inventory requirement
   await inspector.getByLabel('Canonical verb', { exact: true }).last().fill('give');
   await hierarchy.getByRole('button', { name: /brass key/ }).click();
   await inspector.getByRole('button', { name: /Examine/ }).click();
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption({ label: 'give' });
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await inspector.getByRole('button', { name: 'Add word', exact: true }).click();

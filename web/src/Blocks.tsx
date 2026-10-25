@@ -1,4 +1,5 @@
-import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { bindWorkspaceHistory, type HistoryControls } from './workspaceHistory';
+import { useContext, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import * as Blockly from 'blockly/core';
 import * as English from 'blockly/msg/en';
 import type { Condition, Effect, NumericOperand, Project, Value } from './contracts';
@@ -12,13 +13,23 @@ import {
   type FlowConditions,
 } from './model';
 import { refreshChainEnds } from './blockRenderer';
+import type { EditContext } from './projectHistory';
+import { defaultCondition } from './Forms';
+import BlockPicker from './BlockPicker';
+import { FindingContext } from './FindingContext';
+import { ExplanationFocus } from './explanations';
+export function nearestBlock(addresses: Map<string, string>, path: string): string | undefined {
+  return [...addresses.entries()]
+    .filter(([, address]) => address && (path === address || path.startsWith(`${address}.`)))
+    .sort((a, b) => b[1].length - a[1].length)[0]?.[0];
+}
 Blockly.setLocale(
   Object.fromEntries(
     Object.entries(English).filter(([, value]) => typeof value === 'string'),
   ) as Record<string, string>,
 );
 let project: Project;
-const effectFields: Record<string, string[]> = {
+export const effectFields: Record<string, string[]> = {
   say: ['text'],
   character_says: ['character', 'text'],
   print_description: ['entity'],
@@ -57,7 +68,7 @@ const conditionFields: Record<string, string[]> = {
   opened: ['object'],
   visible: ['entity'],
 };
-const labels: Record<string, string> = {
+export const labels: Record<string, string> = {
   say: 'SAY',
   character_says: 'CHARACTER SAYS',
   print_description: 'PRINT DESCRIPTION',
@@ -81,6 +92,7 @@ const labels: Record<string, string> = {
   combine: 'COMBINE',
   end: 'END GAME',
   stop: 'STOP',
+  if: 'IF / ELSE',
 };
 function choices(items: Array<{ id: string; name: string }>): [string, string][] {
   return items.length ? items.map((e) => [e.name, e.id]) : [['Choose…', '']];
@@ -267,18 +279,193 @@ export function loadEffectBlocks(
   makeEffects(workspace, effects, root.getInput('DO')!.connection!);
   return root;
 }
-export function appendEffectBlocks(workspace: Blockly.Workspace, effects: Effect[]) {
+export type BlockSocket = { blockId: string; input: string };
+export type InsertionPoint = BlockSocket & {
+  key: string;
+  label: string;
+  kind: 'effect' | 'condition' | 'number';
+  occupied: boolean;
+};
+export type CatalogueBlock = {
+  type: string;
+  name: string;
+  category: string;
+  aliases: string;
+  kind: InsertionPoint['kind'];
+};
+export const blockCatalogue: CatalogueBlock[] = [
+  ...[...Object.keys(effectFields), 'if'].map((type): CatalogueBlock => ({
+    type: `luna_${type}`,
+    name: labels[type],
+    kind: 'effect',
+    category: ['say', 'character_says', 'print_description', 'respond', 'reset_responses'].includes(
+      type,
+    )
+      ? 'Responses'
+      : type === 'if'
+        ? 'Logic'
+        : 'World and state',
+    aliases:
+      (
+        {
+          say: 'print message text',
+          character_says: 'speech dialogue dialog',
+          print_description: 'examine inspect',
+          if: 'conditional branch else',
+          give_character: 'hand transfer inventory',
+          end: 'finish ending outcome',
+        } as Record<string, string>
+      )[type] ?? type.replaceAll('_', ' '),
+  })),
+  ...[...Object.keys(conditionFields), 'not', 'all', 'any'].map((type): CatalogueBlock => ({
+    type: `condition_${type}`,
+    name: type.replaceAll('_', ' ').toUpperCase(),
+    kind: 'condition',
+    category: 'Conditions',
+    aliases:
+      (
+        {
+          true: 'always',
+          false: 'never',
+          carrying: 'player has inventory requirement',
+          property: 'entity state health',
+          variable: 'global value state',
+          all: 'and',
+          any: 'or',
+        } as Record<string, string>
+      )[type] ?? type.replaceAll('_', ' '),
+  })),
+  ...['literal', 'variable', 'property'].map((type): CatalogueBlock => ({
+    type: `number_${type}`,
+    name: type === 'literal' ? 'NUMBER' : `${type.toUpperCase()} VALUE`,
+    kind: 'number',
+    category: 'Numbers',
+    aliases: type === 'literal' ? 'integer amount literal' : `numeric ${type}`,
+  })),
+];
+export function createCatalogueBlock(workspace: Blockly.Workspace, type: string) {
+  const entry = blockCatalogue.find((item) => item.type === type);
+  if (!entry) throw new Error('Choose a block from the catalogue.');
+  if (entry.kind === 'condition')
+    return makeCondition(
+      workspace,
+      defaultCondition(type.slice('condition_'.length) as Condition['type'], project),
+    );
+  const block = workspace.newBlock(type);
+  if (type === 'luna_if')
+    block
+      .getInput('TEST')!
+      .connection!.connect(makeCondition(workspace, { type: 'true' }).outputConnection!);
+  if (type === 'luna_set_variable' || type === 'luna_set_property')
+    setFields(block, { value: schema(block) ?? false });
+  return block;
+}
+function socketConnection(workspace: Blockly.Workspace, socket: BlockSocket) {
+  const block = workspace.getBlockById(socket.blockId);
+  return socket.input === 'NEXT'
+    ? block?.nextConnection
+    : block?.getInput(socket.input)?.connection;
+}
+export function insertionPoints(workspace: Blockly.Workspace): InsertionPoint[] {
   const root = workspace.getTopBlocks(false).find((block) => block.type === 'luna_flow');
-  if (!root) throw new Error('Select an action or trigger before inserting blocks.');
-  let tail = root.getInputTargetBlock('DO');
-  while (tail?.getNextBlock()) tail = tail.getNextBlock();
-  const connection = tail?.nextConnection ?? root.getInput('DO')!.connection!;
+  const addresses = root ? blockAddresses(root) : new Map<string, string>();
+  const points: InsertionPoint[] = [];
+  for (const block of workspace.getAllBlocks(true)) {
+    if (block.isShadow() || block.isInsertionMarker()) continue;
+    const label = block.type === 'luna_flow' ? 'Flow' : describeBlock(block, '', addresses).label;
+    const location = blockLocation(addresses.get(block.id) ?? null);
+    const add = (input: string, connection: Blockly.Connection, label: string) => {
+      const check = connection.getCheck();
+      const kind =
+        connection.type === Blockly.ConnectionType.NEXT_STATEMENT
+          ? 'effect'
+          : check?.includes('Boolean')
+            ? 'condition'
+            : check?.includes('Number')
+              ? 'number'
+              : null;
+      if (kind)
+        points.push({
+          blockId: block.id,
+          input,
+          key: `${block.id}/${input}`,
+          label,
+          kind,
+          occupied: !!connection.targetBlock(),
+        });
+    };
+    for (const input of block.inputList)
+      if (input.connection) {
+        const name =
+          input.name === 'DO'
+            ? 'Start of flow'
+            : input.name === 'TEST'
+              ? 'Condition'
+              : input.name === 'ON_EXHAUSTED'
+                ? 'After last reply'
+                : input.name in conditionLabels
+                  ? blockLocation(input.name)
+                  : input.name.replaceAll('_', ' ');
+        add(
+          input.name,
+          input.connection,
+          `${name} · ${label}${block === root ? '' : ` · ${location}`}`,
+        );
+      }
+    if (block.nextConnection) add('NEXT', block.nextConnection, `After ${label} · ${location}`);
+  }
+  return points;
+}
+export function insertCatalogueBlock(
+  workspace: Blockly.Workspace,
+  socket: BlockSocket,
+  type: string,
+) {
+  const point = insertionPoints(workspace).find(
+    (point) => point.blockId === socket.blockId && point.input === socket.input,
+  );
+  const entry = blockCatalogue.find((item) => item.type === type);
+  const connection = socketConnection(workspace, socket);
+  if (!point || !entry || point.kind !== entry.kind || !connection)
+    throw new Error('This block does not fit the selected insertion point.');
+  const inserted = createCatalogueBlock(workspace, type);
+  const plug = inserted.outputConnection ?? inserted.previousConnection!;
+  if (!workspace.connectionChecker.canConnect(connection, plug, false)) {
+    inserted.dispose(false);
+    throw new Error('This block does not fit the selected insertion point.');
+  }
+  const displaced = connection.targetBlock();
+  if (displaced) {
+    if (displaced.isShadow()) displaced.setShadow(false);
+    connection.setShadowState(null);
+    connection.disconnect();
+  }
+  connection.connect(plug);
+  if (displaced) {
+    if (entry.kind === 'effect') inserted.nextConnection!.connect(displaced.previousConnection!);
+    else parkDraft(displaced);
+  }
+  return inserted;
+}
+export function insertEffectBlocks(
+  workspace: Blockly.Workspace,
+  effects: Effect[],
+  socket: BlockSocket,
+) {
+  const parent = workspace.getBlockById(socket.blockId);
+  const connection =
+    socket.input === 'NEXT' ? parent?.nextConnection : parent?.getInput(socket.input)?.connection;
+  if (
+    !connection ||
+    connection.type !== Blockly.ConnectionType.NEXT_STATEMENT ||
+    (connection.getCheck()?.length && !connection.getCheck()?.includes('Effect'))
+  )
+    throw new Error('Choose an effect connection before inserting effect blocks.');
+  const following = connection.targetBlock();
   const eventsEnabled = Blockly.Events.isEnabled();
   const previousGroup = Blockly.Events.getGroup();
   Blockly.Events.setGroup(true);
   try {
-    // Capture one complete creation event, including response metadata. Capturing
-    // newBlock's initial empty state would lose authored replies on redo.
     let first: Blockly.Block | null;
     Blockly.Events.disable();
     try {
@@ -286,12 +473,27 @@ export function appendEffectBlocks(workspace: Blockly.Workspace, effects: Effect
     } finally {
       Blockly.Events.enable();
     }
-    if (!first) return;
+    if (!first) return null;
+    let tail = first;
+    while (tail.getNextBlock()) tail = tail.getNextBlock()!;
     if (eventsEnabled) Blockly.Events.fire(new Blockly.Events.BlockCreate(first));
+    if (following) connection.disconnect();
     connection.connect(first.previousConnection!);
+    if (following) tail.nextConnection!.connect(following.previousConnection!);
+    return first;
   } finally {
     Blockly.Events.setGroup(previousGroup);
   }
+}
+export function appendEffectBlocks(workspace: Blockly.Workspace, effects: Effect[]) {
+  const root = workspace.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+  if (!root) throw new Error('Select an action or trigger before inserting blocks.');
+  let tail = root.getInputTargetBlock('DO');
+  while (tail?.getNextBlock()) tail = tail.getNextBlock();
+  return insertEffectBlocks(workspace, effects, {
+    blockId: tail?.id ?? root.id,
+    input: tail ? 'NEXT' : 'DO',
+  });
 }
 function register() {
   if (Blockly.Blocks.luna_flow) return;
@@ -534,7 +736,7 @@ export function readCondition(block: Blockly.Block | null): Condition {
     };
   return { type, ...fields(block, conditionFields[type] ?? []) } as Condition;
 }
-function readOperand(block: Blockly.Block | null): NumericOperand {
+export function readOperand(block: Blockly.Block | null): NumericOperand {
   if (!block) return { type: 'literal', value: 1 };
   if (block.type === 'number_literal')
     return { type: 'literal', value: Number(block.getFieldValue('value')) };
@@ -548,10 +750,10 @@ function readOperand(block: Blockly.Block | null): NumericOperand {
     };
   throw new Error('Arithmetic requires a numeric value block');
 }
-export function readEffects(first: Blockly.Block | null): Effect[] {
+export function readEffects(first: Blockly.Block | null, limit = Infinity): Effect[] {
   const effects: Effect[] = [];
   let block = first;
-  while (block) {
+  while (block && effects.length < limit) {
     const type = block.type.replace('luna_', '') as Effect['type'];
     if (type === 'if')
       effects.push({
@@ -692,10 +894,330 @@ const toolbox = {
     },
   ],
 };
+function parkDraft(block: Blockly.Block) {
+  const others = block.workspace.getTopBlocks(false).filter((item) => item.id !== block.id);
+  const right = Math.max(
+    400,
+    ...others.map(
+      (item) =>
+        item.getRelativeToSurfaceXY().x +
+        (item instanceof Blockly.BlockSvg ? Math.max(320, item.getHeightWidth().width) : 320),
+    ),
+  );
+  const position = block.getRelativeToSurfaceXY();
+  block.moveBy(right + 48 - position.x, 24 - position.y);
+}
+
+export function syncConditionBlock(block: Blockly.Block, value: Condition): Blockly.Block {
+  if (block.type !== `condition_${value.type}`) {
+    const replacement = makeCondition(block.workspace, value);
+    block.unplug();
+    parkDraft(block);
+    return replacement;
+  }
+  setFields(block, value as unknown as Record<string, unknown>);
+  if (value.type === 'not') syncConditionInput(block, 'TEST', value.condition);
+  if (value.type === 'all' || value.type === 'any') {
+    setConditionCount(block, value.conditions.length);
+    groupInputs(block).forEach((input, i) =>
+      syncConditionInput(block, input.name, value.conditions[i]),
+    );
+  }
+  return block;
+}
+function syncConditionInput(parent: Blockly.Block, name: string, value: Condition) {
+  const old = parent.getInputTargetBlock(name);
+  const next = old ? syncConditionBlock(old, value) : makeCondition(parent.workspace, value);
+  const connection = parent.getInput(name)!.connection!;
+  if (connection.targetBlock() !== next) connection.connect(next.outputConnection!);
+}
+
+export type BlockValue = Effect | Condition | NumericOperand;
+export function blockLocation(address: string | null) {
+  if (address === null) return 'Draft';
+  const names: Record<string, string> = {
+    effects: 'Effects',
+    requirements: 'Requirements',
+    condition: 'Condition',
+    conditions: 'Conditions',
+    then: 'Then',
+    otherwise: 'Else',
+    on_exhausted: 'After last reply',
+    operand: 'Amount',
+    visible: 'Visible when',
+    available: 'Traversable when',
+  };
+  return address
+    .split('.')
+    .map((part) => (/^\d+$/.test(part) ? String(Number(part) + 1) : (names[part] ?? part)))
+    .join(' › ');
+}
+export type BlockSelection = {
+  flowId: string;
+  blockId: string;
+  kind: 'effect' | 'condition' | 'operand' | 'root';
+  label: string;
+  connected: boolean;
+  address: string | null;
+  value: BlockValue | null;
+  fields: Array<{
+    name: string;
+    label: string;
+    value: string;
+    options?: Array<{ id: string; name: string }>;
+    checkbox?: boolean;
+    number?: boolean;
+  }>;
+};
+
+/** Runtime addresses are derived from connections; editor identity is always the block ID. */
+export function blockAddresses(root: Blockly.Block): Map<string, string> {
+  const result = new Map<string, string>([[root.id, '']]);
+  const condition = (block: Blockly.Block | null, address: string) => {
+    if (!block) return;
+    result.set(block.id, address);
+    if (block.type === 'condition_not')
+      condition(block.getInputTargetBlock('TEST'), `${address}.condition`);
+    if (block.type === 'condition_all' || block.type === 'condition_any')
+      groupInputs(block).forEach((input, i) =>
+        condition(input.connection!.targetBlock(), `${address}.conditions.${i}`),
+      );
+  };
+  const chain = (first: Blockly.Block | null, address: string) => {
+    let block = first;
+    let index = 0;
+    while (block) {
+      const at = `${address}.${index++}`;
+      result.set(block.id, at);
+      if (block.type === 'luna_if') {
+        condition(block.getInputTargetBlock('TEST'), `${at}.condition`);
+        chain(block.getInputTargetBlock('THEN'), `${at}.then`);
+        chain(block.getInputTargetBlock('ELSE'), `${at}.otherwise`);
+      }
+      if (block.type === 'luna_respond')
+        chain(block.getInputTargetBlock('ON_EXHAUSTED'), `${at}.on_exhausted`);
+      const operand = block.getInputTargetBlock('OPERAND');
+      if (operand) result.set(operand.id, `${at}.operand`);
+      block = block.getNextBlock();
+    }
+  };
+  for (const key of Object.keys(conditionLabels)) condition(root.getInputTargetBlock(key), key);
+  chain(root.getInputTargetBlock('DO'), 'effects');
+  return result;
+}
+export function describeBlock(
+  block: Blockly.Block,
+  flowId: string,
+  addresses?: Map<string, string>,
+): BlockSelection {
+  const root = block.workspace.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+  const address = (addresses ?? (root ? blockAddresses(root) : undefined))?.get(block.id);
+  const kind =
+    block.type === 'luna_flow'
+      ? 'root'
+      : block.type.startsWith('condition_')
+        ? 'condition'
+        : block.type.startsWith('number_')
+          ? 'operand'
+          : 'effect';
+  const value =
+    kind === 'root'
+      ? null
+      : kind === 'condition'
+        ? readCondition(block)
+        : kind === 'operand'
+          ? readOperand(block)
+          : readEffects(block, 1)[0];
+  return {
+    flowId,
+    blockId: block.id,
+    kind,
+    label:
+      labels[block.type.replace('luna_', '')] ??
+      block.type
+        .replace(/^(condition_|number_)/, '')
+        .replaceAll('_', ' ')
+        .toUpperCase(),
+    connected: address !== undefined,
+    address: address ?? null,
+    value,
+    fields: block.inputList.flatMap((input) =>
+      input.fieldRow
+        .filter((f) => !!f.name && f.name !== 'FLOW_TITLE')
+        .map((f) => ({
+          name: f.name!,
+          label: f.name!.replaceAll('_', ' '),
+          value: String(f.getValue()),
+          ...(f instanceof Blockly.FieldDropdown
+            ? {
+                options: f
+                  .getOptions(false)
+                  .filter((option): option is [string, string] => typeof option[0] === 'string')
+                  .map(([name, id]) => ({ id, name })),
+              }
+            : {}),
+          ...(f instanceof Blockly.FieldCheckbox ? { checkbox: true } : {}),
+          ...(f instanceof Blockly.FieldNumber ? { number: true } : {}),
+        })),
+    ),
+  };
+}
+
+/** Reconcile canonical edits without clearing editor-only drafts or unchanged occurrences. */
+export function syncEffectWorkspace(
+  root: Blockly.Block,
+  effects: Effect[],
+  conditions: FlowConditions,
+) {
+  type Node = {
+    type: string;
+    value: BlockValue;
+    at: string;
+    children: Record<string, Node | null>;
+    next: Node | null;
+    block?: Blockly.Block;
+  };
+  const all: Node[] = [];
+  const node = (value: BlockValue, kind: 'luna' | 'condition' | 'number', at: string): Node => {
+    const n: Node = { type: `${kind}_${value.type}`, value, at, children: {}, next: null };
+    all.push(n);
+    if (kind === 'condition') {
+      const c = value as Condition;
+      if (c.type === 'not') n.children.TEST = node(c.condition, 'condition', `${at}.condition`);
+      if (c.type === 'all' || c.type === 'any')
+        c.conditions.forEach(
+          (c, i) =>
+            (n.children[i === 0 ? 'A' : i === 1 ? 'B' : `C${i}`] = node(
+              c,
+              'condition',
+              `${at}.conditions.${i}`,
+            )),
+        );
+    }
+    if (kind === 'luna') {
+      const e = value as Effect;
+      if (e.type === 'if') {
+        n.children.TEST = node(e.condition, 'condition', `${at}.condition`);
+        n.children.THEN = chain(e.then, `${at}.then`);
+        n.children.ELSE = chain(e.otherwise, `${at}.otherwise`);
+      }
+      if (e.type === 'respond')
+        n.children.ON_EXHAUSTED = chain(e.on_exhausted, `${at}.on_exhausted`);
+      if (e.type === 'update_variable' || e.type === 'update_property')
+        n.children.OPERAND = node(e.operand, 'number', `${at}.operand`);
+    }
+    return n;
+  };
+  const chain = (effects: Effect[], at: string): Node | null => {
+    const nodes = effects.map((effect, i) => node(effect, 'luna', `${at}.${i}`));
+    nodes.forEach((n, i) => (n.next = nodes[i + 1] ?? null));
+    return nodes[0] ?? null;
+  };
+  const targets: Record<string, Node | null> = { DO: chain(effects, 'effects') };
+  for (const [name, value] of Object.entries(conditions))
+    targets[name] = node(value, 'condition', name);
+  const addresses = blockAddresses(root);
+  const previous = [...addresses]
+    .filter(([id]) => id !== root.id)
+    .map(([id, at]) => {
+      const block = root.workspace.getBlockById(id)!;
+      return { block, at, value: describeBlock(block, '', addresses).value };
+    });
+  const used = new Set<string>();
+  // Reserve unchanged occurrences before matching edited fields by their old address.
+  for (const n of all) {
+    const matches = previous.filter(
+      ({ block, value }) =>
+        block.type === n.type &&
+        !used.has(block.id) &&
+        JSON.stringify(value) === JSON.stringify(n.value),
+    );
+    const match = matches.find((m) => m.at === n.at) ?? matches[0];
+    if (match) {
+      n.block = match.block;
+      used.add(match.block.id);
+    }
+  }
+  for (const n of all)
+    if (!n.block) {
+      const match = previous.find(
+        ({ block, at }) => at === n.at && block.type === n.type && !used.has(block.id),
+      );
+      if (match) {
+        n.block = match.block;
+        used.add(match.block.id);
+      }
+    }
+  setFlowConditionInputs(root, Object.keys(conditions));
+  for (const n of all) {
+    n.block ??= root.workspace.newBlock(n.type);
+    setFields(n.block, n.value as unknown as Record<string, unknown>);
+    if (n.value.type === 'all' || n.value.type === 'any')
+      setConditionCount(n.block, n.value.conditions.length);
+  }
+  const desired = new Map<Blockly.Connection, Blockly.Block | null>();
+  for (const n of all) {
+    for (const [name, child] of Object.entries(n.children)) {
+      const connection = n.block!.getInput(name)?.connection;
+      if (connection) desired.set(connection, child?.block ?? null);
+    }
+    if (n.block!.nextConnection) desired.set(n.block!.nextConnection, n.next?.block ?? null);
+  }
+  for (const [name, child] of Object.entries(targets))
+    desired.set(root.getInput(name)!.connection!, child?.block ?? null);
+  // Disconnect changed connections before reconnecting, keeping unchanged shadows intact.
+  for (const [connection, child] of desired)
+    if (connection.targetBlock() !== child && connection.isConnected()) {
+      connection.setShadowState(null);
+      const previousChild = connection.targetBlock()!;
+      if (previousChild.isShadow()) previousChild.setShadow(false);
+      connection.disconnect();
+    }
+  const connect = (connection: Blockly.Connection | null, target: Node | null) => {
+    if (!connection || !target || connection.targetBlock() === target.block) return;
+    const child = target.block!.outputConnection ?? target.block!.previousConnection!;
+    if (child.isConnected()) child.disconnect();
+    connection.connect(child);
+  };
+  for (const n of all) {
+    for (const [name, child] of Object.entries(n.children))
+      connect(n.block!.getInput(name)?.connection ?? null, child);
+    connect(n.block!.nextConnection, n.next);
+  }
+  for (const [name, child] of Object.entries(targets))
+    connect(root.getInput(name)!.connection, child);
+  // Removed connected blocks become explicit drafts; pre-existing drafts are untouched.
+  for (const { block } of previous)
+    if (!used.has(block.id) && !block.isShadow() && !block.getParent()) parkDraft(block);
+}
+
+export type BlockView = { x: number; y: number; scale: number };
 export type BlocksHandle = {
   selectedEffects: () => Effect[] | null;
   appendEffects: (effects: Effect[]) => void;
+  selectBlock: (id: string | null) => void;
+  updateBlock: (selection: BlockSelection, value: BlockValue, references?: Project) => void;
 };
+export function canMoveEffect(block: Blockly.Block, direction: number): boolean {
+  if (!block.type.startsWith('luna_') || block.type === 'luna_flow') return false;
+  if (direction > 0) return !!block.getNextBlock();
+  const previous = block.previousConnection?.targetBlock();
+  return !!previous && previous.nextConnection === block.previousConnection?.targetConnection;
+}
+export function moveEffectBlock(block: Blockly.Block, direction: number): boolean {
+  if (!canMoveEffect(block, direction)) return false;
+  const first = direction > 0 ? block : block.previousConnection!.targetBlock()!;
+  const second = first.getNextBlock()!;
+  const socket = first.previousConnection!.targetConnection!;
+  const following = second.getNextBlock();
+  first.previousConnection!.disconnect();
+  first.nextConnection!.disconnect();
+  if (following) second.nextConnection!.disconnect();
+  socket.connect(second.previousConnection!);
+  second.nextConnection!.connect(first.previousConnection!);
+  if (following) first.nextConnection!.connect(following.previousConnection!);
+  return true;
+}
 export default function Blocks({
   project: p,
   flowId,
@@ -704,18 +1226,36 @@ export default function Blocks({
   onChange,
   onError,
   title = 'WHEN THIS ACTION RUNS',
+  onSelect,
+  selectedId,
+  view,
+  onViewChange,
+  history,
   ref,
 }: {
   project: Project;
   flowId: string;
   effects: Effect[];
   saved: unknown;
-  onChange: (effects: Effect[], workspace: unknown, conditions: FlowConditions) => void;
+  onChange: (
+    effects: Effect[],
+    workspace: unknown,
+    conditions: FlowConditions,
+    context?: EditContext,
+  ) => void;
   onError: (e: string) => void;
   title?: string;
+  onSelect?: (selection: BlockSelection | null, activate?: boolean) => void;
+  selectedId?: string | null;
+  view?: BlockView;
+  onViewChange?: (view: BlockView) => void;
+  history?: HistoryControls;
   ref?: Ref<BlocksHandle>;
 }) {
   project = p;
+  const findingContext = useContext(FindingContext);
+  const explanationFocus = useContext(ExplanationFocus);
+  const findings = findingContext.findings.filter((finding) => finding.flowId === flowId);
   register();
   const conditions = flowConditions(flow(p, flowId));
   const conditionVersion = JSON.stringify(conditions);
@@ -733,9 +1273,95 @@ export default function Blocks({
   const host = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   const selectedBlock = useRef<string | null>(null);
+  const [outline, setOutline] = useState<BlockSelection[]>([]);
+  const [insertion, setInsertion] = useState<{ points: InsertionPoint[]; initial: string } | null>(
+    null,
+  );
+  const [insertionNotice, setInsertionNotice] = useState('');
+  const openPicker = (key?: string) => {
+    const ws = workspace.current;
+    if (!ws) return;
+    const points = insertionPoints(ws);
+    const block = ws.getBlockById(selectedBlock.current ?? '');
+    const selected =
+      points.find((point) => point.blockId === block?.id && point.input === 'NEXT') ??
+      points.find((point) => socketConnection(ws, point)?.targetBlock()?.id === block?.id);
+    setInsertion({
+      points,
+      initial:
+        key ??
+        selected?.key ??
+        points.find((point) => point.input === 'DO')?.key ??
+        points[0]?.key ??
+        '',
+    });
+  };
+  const updateOutline = () => {
+    const ws = workspace.current;
+    if (!ws) return;
+    const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+    const addresses = root ? blockAddresses(root) : new Map<string, string>();
+    setOutline(
+      ws
+        .getAllBlocks(true)
+        .map((block) => {
+          try {
+            return block.isInsertionMarker() ? null : describeBlock(block, flowId, addresses);
+          } catch {
+            return null;
+          }
+        })
+        .filter((block): block is BlockSelection => !!block && block.kind !== 'root'),
+    );
+  };
   useImperativeHandle(
     ref,
     () => ({
+      selectBlock: (id) => {
+        selectedBlock.current = id;
+        if (id) (workspace.current?.getBlockById(id) as Blockly.BlockSvg | null)?.select();
+        else Blockly.common.getSelected()?.unselect();
+        notifySelection();
+      },
+      updateBlock: (selection, value, references) => {
+        if (references) project = references;
+        const ws = workspace.current;
+        const block = ws?.getBlockById(selection.blockId);
+        if (!ws || !block || selection.flowId !== flowId) return;
+        Blockly.Events.disable();
+        try {
+          if (selection.kind === 'effect' && value.type === block.type.replace('luna_', '')) {
+            const effect = value as Effect;
+            setFields(block, effect as unknown as Record<string, unknown>);
+            if (effect.type === 'if') syncConditionInput(block, 'TEST', effect.condition);
+          } else if (selection.kind === 'condition') {
+            const parent = block.outputConnection?.targetConnection;
+            const next = syncConditionBlock(block, value as Condition);
+            if (next !== block && parent) parent.connect(next.outputConnection!);
+            selectedBlock.current = next.id;
+          } else if (selection.kind === 'operand') {
+            if (block.type === `number_${value.type}`)
+              setFields(block, value as unknown as Record<string, unknown>);
+            else {
+              const parent = block.outputConnection?.targetConnection;
+              const next = ws.newBlock(`number_${value.type}`);
+              setFields(next, value as unknown as Record<string, unknown>);
+              block.unplug();
+              parkDraft(block);
+              parent?.connect(next.outputConnection!);
+              selectedBlock.current = next.id;
+            }
+          }
+          for (const b of ws.getAllBlocks(false)) b.initSvg();
+          ws.render();
+          commit();
+          notifySelection();
+        } catch (e) {
+          current.current.onError(String(e));
+        } finally {
+          Blockly.Events.enable();
+        }
+      },
       selectedEffects: () => {
         const focused = Blockly.common.getSelected();
         const selected =
@@ -766,15 +1392,58 @@ export default function Blocks({
     }),
     [flowId],
   );
-  const current = useRef({ effects, conditions, saved, onChange, onError, title });
-  current.current = { effects, conditions, saved, onChange, onError, title };
+  const current = useRef({
+    effects,
+    conditions,
+    saved,
+    onChange,
+    onError,
+    title,
+    onSelect,
+    onViewChange,
+    history,
+  });
+  current.current = {
+    effects,
+    conditions,
+    saved,
+    onChange,
+    onError,
+    title,
+    onSelect,
+    onViewChange,
+    history,
+  };
+  const notifySelection = (activate = false) => {
+    const block = workspace.current?.getBlockById(selectedBlock.current ?? '');
+    const fallback =
+      !block && selectedBlock.current
+        ? workspace.current?.getTopBlocks(false).find((b) => b.type === 'luna_flow')
+        : null;
+    current.current.onSelect?.(
+      block ? describeBlock(block, flowId) : fallback ? describeBlock(fallback, flowId) : null,
+      activate,
+    );
+  };
+  const commit = (context?: EditContext) => {
+    const ws = workspace.current!;
+    const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+    refreshChainEnds(ws);
+    const effects = readEffects(root?.getInputTargetBlock('DO') ?? null);
+    const conditions = readFlowConditions(root ?? null);
+    last.current = JSON.stringify({ effects, conditions });
+    const saved = Blockly.serialization.workspaces.save(ws);
+    lastWorkspace.current = JSON.stringify(saved);
+    current.current.onChange(effects, saved, conditions, context);
+    updateOutline();
+  };
   const last = useRef('');
+  const lastWorkspace = useRef('');
   const load = () => {
     const ws = workspace.current!;
     Blockly.Events.disable();
     try {
       ws.clear();
-      selectedBlock.current = null;
       let loaded = false;
       if (current.current.saved) {
         try {
@@ -804,6 +1473,7 @@ export default function Blocks({
         effects: current.current.effects,
         conditions: current.current.conditions,
       });
+      lastWorkspace.current = JSON.stringify(current.current.saved);
     } finally {
       Blockly.Events.enable();
     }
@@ -811,21 +1481,40 @@ export default function Blocks({
   useEffect(() => {
     const ws = Blockly.inject(host.current!, blockWorkspaceOptions(toolbox));
     workspace.current = ws;
+    if (current.current.history) bindWorkspaceHistory(ws, () => current.current.history!);
+    selectedBlock.current = selectedId ?? null;
     load();
+    if (view) {
+      ws.setScale(view.scale);
+      ws.scroll(view.x, view.y);
+    }
+    commit({ derived: true });
+    Blockly.Events.disable();
+    try {
+      if (selectedBlock.current)
+        (ws.getBlockById(selectedBlock.current) as Blockly.BlockSvg | null)?.select();
+    } finally {
+      Blockly.Events.enable();
+    }
+    notifySelection();
     const listener = (event: Blockly.Events.Abstract) => {
-      if (event instanceof Blockly.Events.Selected && event.newElementId) {
-        const block = ws.getBlockById(event.newElementId);
-        selectedBlock.current = block?.previousConnection ? block.id : null;
+      if (event instanceof Blockly.Events.Selected) {
+        const block = event.newElementId ? ws.getBlockById(event.newElementId) : null;
+        // Selecting a field in the inspector must not clear the authored occurrence.
+        if (block) {
+          selectedBlock.current = block.id;
+          notifySelection(true);
+        }
       }
-      if (event.isUiEvent) return;
+      if (event.isUiEvent) {
+        if (event instanceof Blockly.Events.ViewportChange)
+          current.current.onViewChange?.({ x: ws.scrollX, y: ws.scrollY, scale: ws.scale });
+        return;
+      }
       try {
         conditionFieldChanged(event, ws);
-        const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
-        refreshChainEnds(ws);
-        const next = readEffects(root?.getInputTargetBlock('DO') ?? null);
-        const nextConditions = readFlowConditions(root ?? null);
-        last.current = JSON.stringify({ effects: next, conditions: nextConditions });
-        current.current.onChange(next, Blockly.serialization.workspaces.save(ws), nextConditions);
+        commit({ label: 'Edit blocks', group: event.group || undefined });
+        notifySelection();
       } catch (e) {
         current.current.onError(String(e));
       }
@@ -841,8 +1530,29 @@ export default function Blocks({
     };
   }, [flowId]);
   useEffect(() => {
-    if (workspace.current && last.current !== JSON.stringify({ effects, conditions })) load();
-  }, [effects, conditionVersion]);
+    const ws = workspace.current;
+    if (!ws) return;
+    if (saved && lastWorkspace.current !== JSON.stringify(saved)) {
+      load();
+      updateOutline();
+      notifySelection();
+      return;
+    }
+    if (last.current === JSON.stringify({ effects, conditions })) return;
+    Blockly.Events.disable();
+    try {
+      const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow')!;
+      syncEffectWorkspace(root, effects, conditions);
+      for (const block of ws.getAllBlocks(false)) block.initSvg();
+      ws.render();
+      commit({ derived: true });
+      notifySelection();
+    } catch (e) {
+      current.current.onError(String(e));
+    } finally {
+      Blockly.Events.enable();
+    }
+  }, [effects, conditionVersion, saved]);
   useEffect(() => {
     const ws = workspace.current;
     if (!ws) return;
@@ -863,5 +1573,230 @@ export default function Blocks({
       Blockly.Events.enable();
     }
   }, [title]);
-  return <div className="block-workspace" ref={host} aria-label="Logic block workspace" />;
+  useEffect(() => {
+    if (selectedId === undefined || selectedId === selectedBlock.current) return;
+    selectedBlock.current = selectedId;
+    const block = selectedId ? workspace.current?.getBlockById(selectedId) : null;
+    Blockly.Events.disable();
+    try {
+      if (block) (block as Blockly.BlockSvg).select();
+    } finally {
+      Blockly.Events.enable();
+    }
+    notifySelection();
+  }, [selectedId]);
+  useEffect(() => {
+    const ws = workspace.current;
+    const source = findingContext.reveal;
+    if (!ws || source?.flowId !== flowId) return;
+    const root = ws.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+    const blockId = source.blockId ?? (root && nearestBlock(blockAddresses(root), source.path));
+    if (!blockId || !ws.getBlockById(blockId)) return;
+    selectedBlock.current = blockId;
+    (ws.getBlockById(blockId) as Blockly.BlockSvg).select();
+    ws.centerOnBlock(blockId);
+    notifySelection(true);
+  }, [flowId, findingContext.reveal]);
+  useEffect(() => {
+    const ws = workspace.current;
+    if (!ws) return;
+    const marked = ws
+      .getAllBlocks(false)
+      .map((b) => (b as Blockly.BlockSvg).getSvgRoot?.())
+      .filter((node) => !!node);
+    for (const node of marked) {
+      node.classList.remove('luna-explanation-source');
+      node.removeAttribute('data-explanation-source');
+    }
+    if (explanationFocus?.flowId === flowId) {
+      const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+      const id = root && (nearestBlock(blockAddresses(root), explanationFocus.path) ?? root.id);
+      const svg = id && (ws.getBlockById(id) as Blockly.BlockSvg | null)?.getSvgRoot();
+      if (svg) {
+        svg.classList.add('luna-explanation-source');
+        svg.setAttribute('data-explanation-source', 'true');
+      }
+    }
+    return () => {
+      for (const node of marked) {
+        node.classList.remove('luna-explanation-source');
+        node.removeAttribute('data-explanation-source');
+      }
+    };
+  }, [flowId, explanationFocus, p]);
+  useEffect(() => {
+    const ws = workspace.current;
+    const root = ws?.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+    if (!ws || !root) return;
+    const addresses = blockAddresses(root);
+    Blockly.Events.disable();
+    try {
+      for (const block of ws.getAllBlocks(false)) {
+        const draft = !addresses.has(block.id);
+        block.getSvgRoot()?.classList.toggle('luna-draft', draft);
+        const messages = findings
+          .filter((finding) =>
+            finding.blockId
+              ? finding.blockId === block.id
+              : nearestBlock(addresses, finding.path) === block.id,
+          )
+          .map((finding) => finding.message);
+        block.setWarningText(
+          messages.length
+            ? messages.join('\n')
+            : draft && !block.isShadow()
+              ? 'Draft — saved but disconnected; does not run.'
+              : null,
+          'validation',
+        );
+      }
+    } finally {
+      Blockly.Events.enable();
+    }
+  }, [outline, findingContext.findings]);
+  const availablePoints = workspace.current ? insertionPoints(workspace.current) : [];
+  return (
+    <div className="flow-surface">
+      <div className="insertion-toolbar">
+        <button onClick={() => openPicker()}>Add block</button>
+        <span>Search and insert at a chosen connection, or drag from the palette.</span>
+        <span aria-live="polite" className="sr-only">
+          {insertionNotice}
+        </span>
+      </div>
+      <details className="flow-outline">
+        <summary>
+          Flow outline · {outline.filter((block) => block.connected).length} connected blocks ·{' '}
+          {outline.filter((block) => !block.connected).length} drafts
+        </summary>
+        <ol aria-label="Flow blocks">
+          {outline.map((block) => (
+            <li key={block.blockId}>
+              <button
+                aria-label={`Select ${block.label} · ${blockLocation(block.address)}`}
+                data-address={block.address ?? undefined}
+                aria-pressed={selectedBlock.current === block.blockId}
+                onClick={() => {
+                  selectedBlock.current = block.blockId;
+                  (
+                    workspace.current?.getBlockById(block.blockId) as Blockly.BlockSvg | null
+                  )?.select();
+                  notifySelection(true);
+                }}
+              >
+                <strong>{block.label}</strong> · {blockLocation(block.address)}
+                {block.value && 'text' in block.value ? ` · ${block.value.text}` : ''}
+                {findings.some(
+                  (finding) =>
+                    finding.blockId === block.blockId ||
+                    (block.address &&
+                      (finding.path === block.address ||
+                        finding.path.startsWith(`${block.address}.`))),
+                ) && <small className="finding-badge"> · ⚠ Finding</small>}
+              </button>
+              {block.kind === 'effect' &&
+                block.connected &&
+                [-1, 1].map((direction) => (
+                  <button
+                    key={direction}
+                    aria-label={`Move ${block.label} ${direction < 0 ? 'up' : 'down'} · ${blockLocation(block.address)}`}
+                    disabled={
+                      !workspace.current?.getBlockById(block.blockId) ||
+                      !canMoveEffect(workspace.current.getBlockById(block.blockId)!, direction)
+                    }
+                    onClick={() => {
+                      const ws = workspace.current!;
+                      Blockly.Events.disable();
+                      try {
+                        if (moveEffectBlock(ws.getBlockById(block.blockId)!, direction)) {
+                          ws.render();
+                          commit({ label: 'Reorder effect' });
+                          notifySelection(true);
+                        }
+                      } finally {
+                        Blockly.Events.enable();
+                      }
+                    }}
+                  >
+                    {direction < 0 ? '↑ Up' : '↓ Down'}
+                  </button>
+                ))}
+              {block.kind !== 'root' && (
+                <button
+                  aria-label={`${block.connected ? 'Disconnect' : 'Delete draft'} ${block.label} · ${blockLocation(block.address)}`}
+                  onClick={() => {
+                    const ws = workspace.current!;
+                    const selected = ws.getBlockById(block.blockId);
+                    if (!selected) return;
+                    Blockly.Events.disable();
+                    try {
+                      if (block.connected) {
+                        if (selected.isShadow()) selected.setShadow(false);
+                        selected.unplug(true);
+                        parkDraft(selected);
+                      } else selected.dispose(true);
+                      ws.render();
+                      commit({
+                        label: block.connected ? 'Disconnect draft block' : 'Delete draft block',
+                      });
+                      notifySelection(true);
+                    } finally {
+                      Blockly.Events.enable();
+                    }
+                  }}
+                >
+                  {block.connected ? 'Keep as draft' : 'Delete draft'}
+                </button>
+              )}
+              {availablePoints
+                .filter((point) => point.blockId === block.blockId)
+                .map((point) => (
+                  <button
+                    key={point.key}
+                    className="insert-point"
+                    aria-label={`Insert at ${point.label}`}
+                    onClick={() => openPicker(point.key)}
+                  >
+                    + {point.label}
+                  </button>
+                ))}
+            </li>
+          ))}
+          {!outline.length && (
+            <li>No blocks yet. Use Add block or drag from a category to begin.</li>
+          )}
+        </ol>
+      </details>
+      <div className="block-workspace" ref={host} aria-label="Logic block workspace" />
+      {insertion && (
+        <BlockPicker
+          project={p}
+          points={insertion.points}
+          initial={insertion.initial}
+          close={() => setInsertion(null)}
+          insert={(socket, type) => {
+            const ws = workspace.current!;
+            Blockly.Events.disable();
+            try {
+              const block = insertCatalogueBlock(ws, socket, type);
+              for (const item of ws.getAllBlocks(false)) item.initSvg();
+              ws.render();
+              selectedBlock.current = block.id;
+              (block as Blockly.BlockSvg).select();
+              commit({
+                label: `Insert ${blockCatalogue.find((entry) => entry.type === type)!.name}`,
+              });
+              notifySelection(true);
+              setInsertionNotice(`Inserted ${describeBlock(block, flowId).label}.`);
+              setInsertion(null);
+            } catch (e) {
+              current.current.onError(String(e));
+            } finally {
+              Blockly.Events.enable();
+            }
+          }}
+        />
+      )}
+    </div>
+  );
 }

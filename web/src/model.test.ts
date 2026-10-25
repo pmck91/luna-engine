@@ -15,6 +15,7 @@ import {
   sequenceChoices,
 } from './model';
 import { lockedStudy } from './example';
+import { authoringRoom, commandDraft, commandPattern, commandPreview } from './authoring';
 import type { Project, Effect, Condition, ArithmeticOperation, NumericOperand } from './contracts';
 const base: Project = {
   game: {
@@ -55,6 +56,44 @@ const base: Project = {
   characters: [],
   editor: { positions: {}, blocks: {}, routes: {}, templates: [] },
 };
+it('uses initial room context for entities, their actions and character-held objects', () => {
+  const p = lockedStudy(structuredClone(base));
+  const garden = p.locations[1];
+  const keeper = character(garden.id);
+  p.characters.push(keeper);
+  const book = object(garden.id);
+  book.placement = { type: 'character', character: keeper.id };
+  p.objects.push(book);
+  for (const key of [garden.id, keeper.id, keeper.actions[0].id, book.id, book.actions[0].id])
+    expect(authoringRoom(p, key)).toBe(garden.id);
+  book.placement = { type: 'inventory' };
+  expect(authoringRoom(p, book.id)).toBe(p.game.starting_location);
+  expect(authoringRoom(p, 'project:variables')).toBe(p.game.starting_location);
+});
+it('builds explicit parser patterns while retaining stable entities and literal phrases', () => {
+  const p = lockedStudy(structuredClone(base));
+  p.vocabulary.push({ id: 'give', canonical: 'give', synonyms: [], event: null });
+  const keeper = character(p.locations[0].id);
+  keeper.name = 'Keeper';
+  p.characters.push(keeper);
+  const draft = {
+    ...commandDraft(p, p.objects[0].id),
+    preset: 'target' as const,
+    target: keeper.id,
+  };
+  expect(commandPattern(draft)).toEqual([
+    { type: 'entity', entity: p.objects[0].id },
+    { type: 'literal', text: 'to' },
+    { type: 'entity', entity: keeper.id },
+  ]);
+  expect(commandPreview(p, 'give', commandPattern(draft))).toBe('give old painting to Keeper');
+  keeper.name = 'New Keeper';
+  expect(commandPreview(p, 'give', commandPattern(draft))).toBe('give old painting to New Keeper');
+  expect(commandPattern({ ...draft, preset: 'literal', phrase: '  red lever  ' })).toEqual([
+    { type: 'literal', text: 'red lever' },
+  ]);
+  expect(commandPattern(commandDraft(p, p.game.id))).toEqual([]);
+});
 describe('semantic block round trips', () => {
   it('preserves nested follow-ups, reset targets, stable IDs, and repeat choices through saved blocks', () => {
     const p = lockedStudy(structuredClone(base));

@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
-import { openEditor } from '../editor';
+import { openEditor, openNewAction, flowSettings } from '../editor';
 import { join, resolve } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -39,6 +39,7 @@ test('central triggers author command, lifecycle, and value rules with exported 
   await page.getByRole('button', { name: 'Add object', exact: true }).click();
   await inspector.getByLabel('Name', { exact: true }).fill('lever');
   await page.getByRole('button', { name: 'Actions', exact: true }).click();
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('use');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await page.getByRole('button', { name: 'Collapse playtest', exact: true }).click();
@@ -96,6 +97,9 @@ test('central triggers author command, lifecycle, and value rules with exported 
   await expect(triggersMenu).toHaveAttribute('aria-current', 'page');
   const browser = page.getByRole('region', { name: 'Project triggers', exact: true });
   async function addTrigger(kind: string, name: string, eventOrValue: string) {
+    const details = browser.locator('.new-flow');
+    if (!(await details.evaluate((element) => element.hasAttribute('open'))))
+      await details.locator('summary').click();
     await browser.getByLabel('New trigger type').selectOption(kind);
     if (kind === 'value')
       await browser.getByLabel('Value for new trigger').selectOption({ label: eventOrValue });
@@ -123,15 +127,12 @@ test('central triggers author command, lifecycle, and value rules with exported 
   await addTrigger('command', 'Command marker', 'command');
   await append('luna_say', 'Responses');
   await inspector.getByLabel('SAY text', { exact: true }).fill('Command complete.');
+  await flowSettings(page);
   await inspector.getByLabel('Trigger owner').selectOption({ label: 'Goblin' });
-  await expect(browser.getByRole('list', { name: 'Command triggers' })).toContainText('Goblin');
+  await expect(browser.locator('optgroup[label="Command triggers"]')).toContainText('Goblin');
   await inspector.getByLabel('Trigger owner').selectOption({ label: 'Trigger game' });
-  await expect(
-    browser.getByRole('list', { name: 'State triggers' }).getByRole('listitem'),
-  ).toHaveCount(2);
-  await expect(
-    browser.getByRole('list', { name: 'Value triggers' }).getByRole('listitem'),
-  ).toHaveCount(2);
+  await expect(browser.locator('optgroup[label="State triggers"] option')).toHaveCount(2);
+  await expect(browser.locator('optgroup[label="Value triggers"] option')).toHaveCount(2);
   await page.getByRole('button', { name: 'Expand playtest', exact: true }).click();
   await page.getByRole('button', { name: 'Start playtest', exact: true }).click();
   const log = page.getByRole('log');
@@ -196,9 +197,8 @@ test('central triggers author command, lifecycle, and value rules with exported 
   await hierarchy.getByRole('button', { name: /◇ Goblin/ }).click();
   await inspector.getByRole('button', { name: 'View triggers', exact: true }).click();
   await expect(browser.getByLabel('Filter triggers by owner')).toHaveValue(goblin.id);
-  await expect(
-    browser.getByRole('list', { name: 'Value triggers' }).getByRole('listitem'),
-  ).toHaveCount(1);
+  await expect(browser.locator('optgroup[label="Value triggers"] option')).toHaveCount(1);
+  await flowSettings(page);
   await expect(inspector.getByLabel('Name', { exact: true })).toHaveValue('Goblin defeated');
   await expect(canvas.locator('.condition_property')).toContainText('Goblin');
   await expect(canvas.locator('.luna_hide')).toContainText('Goblin');

@@ -223,9 +223,9 @@ test('hint blocks, forms, inspector messages, layout, and live progress stay in 
   await hints.getByRole('button', { name: 'Add puzzle hints', exact: true }).click();
   await inspector.getByLabel('Puzzle name', { exact: true }).fill('Another puzzle');
   await hints.getByRole('button', { name: 'Move puzzle up', exact: true }).click();
-  await expect(
-    hints.getByRole('list', { name: 'Entity puzzles' }).getByRole('listitem').first(),
-  ).toContainText('Another puzzle');
+  await expect(hints.getByLabel('Choose puzzle').locator('option').first()).toContainText(
+    'Another puzzle',
+  );
   await hints.getByRole('button', { name: 'Move puzzle down', exact: true }).click();
   await hints.getByRole('button', { name: 'Remove puzzle', exact: true }).click();
   await expect(root).toHaveAttribute('transform', rootTransform!);

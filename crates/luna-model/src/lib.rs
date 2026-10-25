@@ -1,5 +1,7 @@
 //! Versioned, host-independent Luna authoring contract.
 mod command_words;
+mod state;
+pub use state::*;
 pub mod text;
 mod validation;
 pub use command_words::EntityWords;
@@ -549,6 +551,9 @@ pub struct EditorLayout {
     pub blocks: BTreeMap<String, serde_json::Value>,
     pub routes: BTreeMap<String, RouteLayout>,
     pub templates: Vec<BlockTemplate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub playtest: Option<PlaytestLibrary>,
 }
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

@@ -1,18 +1,25 @@
-import { cloneElement, useId, useLayoutEffect, useRef, useState } from 'react';
+import { cloneElement, useContext, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { Condition, Project, Value, Comparison, GameState, Placement } from './contracts';
 import { colourNames, literal, messageValues, preview, hintChoices } from './model';
+import { CreateReferenceButton, type ReferenceSpec } from './ReferenceCreation';
+import { ReferenceButton, useReferenceActions } from './ReferenceManager';
+import { FindingSubject, InlineFindings } from './FindingContext';
 export function Field({
   label,
   children,
+  path,
 }: {
   label: string;
   children: React.ReactElement<{ id?: string }>;
+  path?: string;
 }) {
   const id = useId();
+  const subject = useContext(FindingSubject);
   return (
-    <div className="field">
+    <div className="field" data-field-path={path} data-field-subject={subject || undefined}>
       <label htmlFor={id}>{label}</label>
       {cloneElement(children, { id })}
+      {subject && path && <InlineFindings subject={subject} path={path} />}
     </div>
   );
 }
@@ -20,15 +27,17 @@ export function Text({
   label,
   value,
   onChange,
+  path,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  path?: string;
 }) {
   const [draft, setDraft] = useState(value);
   const [focused, setFocused] = useState(false);
   return (
-    <Field label={label}>
+    <Field label={label} path={path}>
       <input
         value={focused ? draft : value}
         onFocus={() => {
@@ -65,23 +74,32 @@ export function Select({
   value,
   items,
   onChange,
+  create,
+  path,
 }: {
   label: string;
   value: string;
   items: Array<{ id: string; name: string }>;
   onChange: (v: string) => void;
+  create?: ReferenceSpec & { onCreated?: (id: string, initial: Value) => void };
+  path?: string;
 }) {
   return (
-    <Field label={label}>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
-        {!items.some((i) => i.id === value) && <option value={value}>{value || 'Choose…'}</option>}
-        {items.map((i) => (
-          <option key={i.id} value={i.id}>
-            {i.name}
-          </option>
-        ))}
-      </select>
-    </Field>
+    <>
+      <Field label={label} path={path}>
+        <select value={value} onChange={(e) => onChange(e.target.value)}>
+          {!items.some((i) => i.id === value) && (
+            <option value={value}>{value || 'Choose…'}</option>
+          )}
+          {items.map((i) => (
+            <option key={i.id} value={i.id}>
+              {i.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {create && <CreateReferenceButton spec={create} onCreated={create.onCreated ?? onChange} />}
+    </>
   );
 }
 export function PlacementSelect({
@@ -112,6 +130,7 @@ export function PlacementSelect({
   return (
     <Select
       label={label}
+      path="placement"
       value={key}
       items={items}
       onChange={(v) =>
@@ -162,11 +181,13 @@ export function RichText({
   value,
   onChange,
   project,
+  path,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   project?: Project;
+  path?: string;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const insertionCursor = useRef<number | null>(null);
@@ -193,7 +214,7 @@ export function RichText({
   };
   return (
     <div className="rich-text">
-      <Field label={label}>
+      <Field label={label} path={path}>
         <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rows={3} />
       </Field>
       <div className="text-toolbar">
@@ -269,11 +290,14 @@ export function Values({
   values: inputValues,
   onChange,
   fixed = false,
+  referenceOwner,
 }: {
   values?: Record<string, Value | undefined>;
   onChange: (v: Record<string, Value>) => void;
   fixed?: boolean;
+  referenceOwner?: string;
 }) {
+  const references = useReferenceActions();
   const values = Object.fromEntries(
     Object.entries(inputValues ?? {}).filter(
       (entry): entry is [string, Value] => entry[1] !== undefined,
@@ -283,7 +307,18 @@ export function Values({
   return (
     <div className="values">
       {Object.entries(values).map(([key, value]) => (
-        <div className="value-row" key={key}>
+        <div
+          className="value-row"
+          key={key}
+          data-field-path={
+            referenceOwner
+              ? `${referenceOwner === '@variables' ? 'variables' : 'state'}.${key}`
+              : undefined
+          }
+          data-field-subject={
+            referenceOwner === '@variables' ? 'project:variables' : referenceOwner
+          }
+        >
           <span title={key}>{key}</span>
           {!fixed && (
             <select
@@ -330,16 +365,49 @@ export function Values({
             />
           )}
           {!fixed && (
-            <button
-              aria-label={`Remove ${key}`}
-              onClick={() => {
-                const next = { ...values };
-                delete next[key];
-                onChange(next);
-              }}
-            >
-              ×
-            </button>
+            <span className="value-reference-actions">
+              {referenceOwner && (
+                <>
+                  <ReferenceButton
+                    target={
+                      referenceOwner === '@variables'
+                        ? { kind: 'variable', name: key }
+                        : { kind: 'property', entity: referenceOwner, name: key }
+                    }
+                    label={`Used by ${key}`}
+                  />
+                  <ReferenceButton
+                    target={
+                      referenceOwner === '@variables'
+                        ? { kind: 'variable', name: key }
+                        : { kind: 'property', entity: referenceOwner, name: key }
+                    }
+                    action="rename"
+                    label={`Rename ${key}`}
+                  />
+                </>
+              )}
+              <button
+                aria-label={`Remove ${key}`}
+                onClick={() => {
+                  if (references && referenceOwner) {
+                    references({
+                      target:
+                        referenceOwner === '@variables'
+                          ? { kind: 'variable', name: key }
+                          : { kind: 'property', entity: referenceOwner, name: key },
+                      action: 'delete',
+                    });
+                    return;
+                  }
+                  const next = { ...values };
+                  delete next[key];
+                  onChange(next);
+                }}
+              >
+                ×
+              </button>
+            </span>
           )}
         </div>
       ))}
@@ -385,7 +453,7 @@ const kinds: Array<Condition['type']> = [
   'visible',
 ];
 const comparisons = ['eq', 'ne', 'gt', 'ge', 'lt', 'le'];
-function defaultCondition(type: Condition['type'], p: Project): Condition {
+export function defaultCondition(type: Condition['type'], p: Project): Condition {
   const object = p.objects[0]?.id ?? '';
   const location = p.locations[0]?.id ?? '';
   const entity = object || location;
@@ -423,10 +491,12 @@ export function ConditionEditor({
   value: c,
   project: p,
   onChange,
+  allowCreation = true,
 }: {
   value: Condition;
   project: Project;
   onChange: (c: Condition) => void;
+  allowCreation?: boolean;
 }) {
   const entities = [...p.objects, ...p.characters, ...p.locations];
   const patch = (v: Partial<Condition>) => onChange({ ...c, ...v } as Condition);
@@ -463,6 +533,7 @@ export function ConditionEditor({
           {c.conditions.map((child, i) => (
             <div key={i}>
               <ConditionEditor
+                allowCreation={allowCreation}
                 project={p}
                 value={child}
                 onChange={(next) =>
@@ -481,6 +552,7 @@ export function ConditionEditor({
       )}
       {c.type === 'not' && (
         <ConditionEditor
+          allowCreation={allowCreation}
           project={p}
           value={c.condition}
           onChange={(condition) => onChange({ type: 'not', condition })}
@@ -529,6 +601,11 @@ export function ConditionEditor({
       {c.type === 'variable' && (
         <Select
           label="Variable"
+          create={
+            allowCreation
+              ? { kind: 'variable', onCreated: (name, value) => onChange({ ...c, name, value }) }
+              : undefined
+          }
           value={c.name}
           items={Object.keys(p.game.variables).map((id) => ({ id, name: id }))}
           onChange={(name) => onChange({ ...c, name, value: p.game.variables[name] ?? false })}
@@ -537,6 +614,15 @@ export function ConditionEditor({
       {c.type === 'property' && (
         <Select
           label="Property"
+          create={
+            allowCreation
+              ? {
+                  kind: 'property',
+                  ownerId: c.entity,
+                  onCreated: (name, value) => onChange({ ...c, name, value }),
+                }
+              : undefined
+          }
           value={c.name}
           items={Object.keys(entities.find((e) => e.id === c.entity)?.state ?? {}).map((id) => ({
             id,
@@ -573,10 +659,12 @@ export function StateInspector({
   state,
   project,
   onApply,
+  savedSetup = false,
 }: {
   state: GameState;
   project: Project;
   onApply: (s: GameState) => void | Promise<void>;
+  savedSetup?: boolean;
 }) {
   const [draft, setDraft] = useState(() => structuredClone(state));
   const [message, setMessage] = useState('');
@@ -588,7 +676,11 @@ export function StateInspector({
     });
   return (
     <div className="state-editor">
-      <p>Changes apply only to this playtest.</p>
+      <p>
+        {savedSetup
+          ? 'Changes apply only to this saved setup. The active playtest is unchanged.'
+          : 'Changes apply only to this playtest.'}
+      </p>
       <Select
         label="Current location"
         value={draft.location}
@@ -800,7 +892,7 @@ export function StateInspector({
             }
           }}
         >
-          Apply test state
+          {savedSetup ? 'Save setup state' : 'Apply test state'}
         </button>
         <button onClick={() => setDraft(structuredClone(state))}>Reset form</button>
       </div>

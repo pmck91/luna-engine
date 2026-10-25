@@ -10,6 +10,7 @@ luna-project = { path = "../luna-project" }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 uuid.workspace = true
 clap.workspace = true
 directories.workspace = true

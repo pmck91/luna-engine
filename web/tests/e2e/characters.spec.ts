@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { openEditor } from '../editor';
+import { openEditor, openNewAction, selectBlock } from '../editor';
 
 test('character speech and movement author, reopen, export, and restore with their inventory', async ({
   page,
@@ -45,6 +45,7 @@ test('character speech and movement author, reopen, export, and restore with the
   await inspector.getByLabel('Can be taken', { exact: true }).check();
   await hierarchy.getByRole('button', { name: /Keeper/ }).click();
   await page.getByRole('button', { name: 'Actions', exact: true }).click();
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('talk');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await inspector.getByLabel('Name', { exact: true }).fill('Speak and leave');
@@ -108,6 +109,7 @@ test('character speech and movement author, reopen, export, and restore with the
 
   // A room action can bring the same character back without moving the player.
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
+  await openNewAction(page);
   await page.getByLabel('Verb for new action').selectOption('pull');
   await page.getByRole('button', { name: 'Add action', exact: true }).click();
   await append('luna_move_character', 'World & state');
@@ -138,10 +140,12 @@ test('character speech and movement author, reopen, export, and restore with the
 
   await page.reload();
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
+  await page.getByRole('button', { name: 'Expand playtest', exact: true }).click();
   await hierarchy.getByRole('button', { name: /Guide/ }).click();
   await expect(inspector.getByLabel('Name colour', { exact: true })).toHaveValue('yellow');
   await inspector.getByRole('button', { name: /Speak and leave/ }).click();
   await expect(canvas.locator('.luna_character_says')).toContainText('Guide');
+  await selectBlock(page, 'CHARACTER SAYS');
   await expect(inspector.getByLabel('CHARACTER SAYS text', { exact: true })).toHaveValue(
     talk.effects[0].text,
   );

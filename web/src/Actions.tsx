@@ -1,7 +1,12 @@
+import type { HistoryControls } from './workspaceHistory';
+import type { ProjectEdit } from './projectHistory';
 import { useState, type Ref } from 'react';
 import type { Action, Exit, Project, Trigger } from './contracts';
 import { action, entity as findEntity, flow, owner } from './model';
-import Blocks, { type BlocksHandle } from './Blocks';
+import Blocks, { type BlockSelection, type BlockView, type BlocksHandle } from './Blocks';
+import CommandPreset from './CommandPreset';
+import { commandDraft, commandPattern, commandPreview, validCommandDraft } from './authoring';
+import { CreateReferenceButton } from './ReferenceCreation';
 
 export default function Actions({
   project: p,
@@ -10,19 +15,28 @@ export default function Actions({
   edit,
   select,
   error,
+  history,
   blocksRef,
+  onBlockSelect,
+  selectedBlock,
+  blockViews,
 }: {
+  history: HistoryControls;
   project: Project;
   ownerId: string;
   active: Action | Trigger | Exit | undefined;
-  edit: (change: (project: Project) => void) => void;
+  edit: ProjectEdit;
   select: (id: string) => void;
   error: (message: string) => void;
   blocksRef: Ref<BlocksHandle>;
+  onBlockSelect: (selection: BlockSelection | null) => void;
+  selectedBlock?: string;
+  blockViews: { current: Record<string, BlockView> };
 }) {
   const entity = owner(p, ownerId)!;
   const name = 'title' in entity ? entity.title : entity.name;
   const [newVerb, setNewVerb] = useState('examine');
+  const [draft, setDraft] = useState(() => commandDraft(p, ownerId));
   const verb = p.vocabulary.some((verb) => verb.id === newVerb)
     ? newVerb
     : (p.vocabulary[0]?.id ?? '');
@@ -57,63 +71,67 @@ export default function Actions({
   return (
     <div className="entity-actions">
       <section className="action-browser" aria-label={`Actions for ${name}`}>
-        <h2>{name}</h2>
-        <div className="action-flows">
-          {groups
-            .filter((group) => group.label === 'Entity actions' || group.items.length)
-            .map((group) => (
-              <section className="action-group" key={group.label}>
-                <h3>
-                  {group.name} · {group.items.length}
-                </h3>
-                <div className="action-list" role="list" aria-label={group.label}>
-                  {group.items.map((item) => (
-                    <div key={item.id} role="listitem">
-                      <button
-                        className={`action-item ${active?.id === item.id ? 'active' : ''}`}
-                        aria-pressed={active?.id === item.id}
-                        onClick={() => select(item.id)}
-                      >
-                        <strong>{item.name}</strong>
-                        <span>{item.detail}</span>
-                      </button>
-                    </div>
-                  ))}
-                  {!group.items.length && (
-                    <p className="muted">No actions yet. Choose a verb below to add one.</p>
-                  )}
-                </div>
-              </section>
-            ))}
-        </div>
-        <div className="new-action">
-          <label htmlFor="new-action-verb">Verb for new action</label>
+        <label className="flow-selector">
+          Action or exit
           <select
-            id="new-action-verb"
-            value={verb}
-            onChange={(event) => setNewVerb(event.target.value)}
+            aria-label="Choose action or exit"
+            value={active?.id ?? ''}
+            onChange={(event) => select(event.target.value)}
           >
-            {p.vocabulary.map((verb) => (
-              <option key={verb.id} value={verb.id}>
-                {verb.canonical}
-              </option>
-            ))}
+            {!active && <option value="">Choose an action</option>}
+            {groups
+              .filter((group) => group.items.length)
+              .map((group) => (
+                <optgroup key={group.label} label={group.name}>
+                  {group.items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} · {item.detail}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
           </select>
-          <button
-            disabled={!verb}
-            onClick={() => {
-              const created = action('title' in entity ? undefined : ownerId, verb);
-              created.name = `${p.vocabulary.find((item) => item.id === verb)!.canonical} ${name}`;
-              edit((project) => {
-                owner(project, ownerId)!.actions.push(created);
-              });
-              select(created.id);
-            }}
-          >
-            Add action
-          </button>
-          {!p.vocabulary.length && <small>Add a verb in Command vocabulary first.</small>}
-        </div>
+        </label>
+        <details className="new-flow">
+          <summary>Add action</summary>
+          <div className="new-action">
+            <label htmlFor="new-action-verb">Verb for new action</label>
+            <select
+              id="new-action-verb"
+              value={verb}
+              onChange={(event) => setNewVerb(event.target.value)}
+            >
+              {p.vocabulary.map((verb) => (
+                <option key={verb.id} value={verb.id}>
+                  {verb.canonical}
+                </option>
+              ))}
+            </select>
+            <CreateReferenceButton spec={{ kind: 'verb' }} onCreated={setNewVerb} />
+            <CommandPreset project={p} verb={verb} value={draft} onChange={setDraft} />
+            <p className="muted">
+              Action on {name}. Entities must be in scope when the player uses the command;
+              requirements still apply.
+            </p>
+            <button
+              disabled={!verb || !validCommandDraft(p, draft)}
+              onClick={(click) => {
+                const created = action('title' in entity ? undefined : ownerId, verb);
+                created.pattern = commandPattern(draft);
+                created.name = commandPreview(p, verb, created.pattern);
+                edit((project) => {
+                  owner(project, ownerId)!.actions.push(created);
+                });
+                select(created.id);
+                const menu = click.currentTarget.closest('details');
+                if (menu) menu.open = false;
+              }}
+            >
+              Add action
+            </button>
+            {!p.vocabulary.length && <small>Add a verb in Command vocabulary first.</small>}
+          </div>
+        </details>
       </section>
       <section className="action-editor" aria-label="Action logic">
         {active ? (
@@ -170,17 +188,24 @@ export default function Actions({
             <div className="action-blocks">
               <Blocks
                 ref={blocksRef}
+                onSelect={onBlockSelect}
+                selectedId={selectedBlock}
+                view={blockViews.current[active.id]}
+                onViewChange={(view) => {
+                  blockViews.current[active.id] = view;
+                }}
+                history={history}
                 project={p}
                 flowId={active.id}
                 effects={active.effects}
                 saved={p.editor.blocks[active.id]}
                 title={title}
-                onChange={(effects, workspace, conditions) =>
+                onChange={(effects, workspace, conditions, context) =>
                   edit((project) => {
                     Object.assign(flow(project, active.id)!, conditions, { effects });
                     project.editor.blocks[active.id] =
                       workspace as (typeof project.editor.blocks)[string];
-                  })
+                  }, context)
                 }
                 onError={error}
               />

@@ -73,7 +73,21 @@ export type TemplateContent = { "type": "action", action: Action, } | { "type": 
 
 export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, content: TemplateContent, };
 
-export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, };
+export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, playtest?: PlaytestLibrary, };
+
+export type PlaytestSource = { revision: string, title: string, content_version: string, help_mode: HelpMode, };
+
+export type PlaytestSetup = { version: number, id: string, name: string, source: PlaytestSource, state: GameState, };
+
+export type CheckStart = { "type": "fresh", location: string | null, } | { "type": "setup", setup: string, };
+
+export type CompletionExpectation = { "type": "playing" } | { "type": "ended", ending: string | null, };
+
+export type CheckStep = { command: string, transcript: string | null, condition: Condition | null, completion: CompletionExpectation | null, };
+
+export type PlaytestCheck = { id: string, name: string, start: CheckStart, help_mode: HelpMode | null, steps: Array<CheckStep>, };
+
+export type PlaytestLibrary = { setups: Array<PlaytestSetup>, checks: Array<PlaytestCheck>, };
 
 export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, editor: EditorLayout, };
 
@@ -93,11 +107,29 @@ export type GameState = { game_id: string, content_version: string, location: st
 
 export type HostControl = { "type": "save", name: string | null, } | { "type": "load", name: string | null, } | { "type": "saves" } | { "type": "quit" };
 
-export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>, state_changed: boolean, status: string, control: HostControl | null, };
+export type TraceSource = { subject: string, path: string, };
+
+export type TraceChange = { path: Array<string>, before: JsonValue, after: JsonValue, };
+
+export type TraceKind = { "type": "candidate", name: string, matched: boolean, reason: string, literals: number, targets: number, scope: string, priority: number, } | { "type": "selected", name: string, } | { "type": "condition", label: string, condition: Condition, value: boolean, observed: JsonValue | null, } | { "type": "branch", taken: string, } | { "type": "effect", effect: string, } | { "type": "arithmetic", target: ValueTarget, op: ArithmeticOperation, before: Value, operand: number, result: Value | null, } | { "type": "trigger", name: string, event: Event | null, target: ValueTarget | null, fired: boolean, } | { "type": "watch", target: ValueTarget, before: Value, after: Value, mode: WatchMode, eligible: boolean, } | { "type": "notice", text: string, };
+
+export type TraceOutcome = "completed" | "failed";
+
+export type TraceStep = { parent: number | null, source: TraceSource | null, kind: TraceKind, outcome: TraceOutcome, changes: Array<TraceChange>, error: string | null, };
+
+export type CommandExplanation = { command: string, normalized: string, committed: boolean, error: string | null, failed_step: number | null, steps: Array<TraceStep>, changes: Array<TraceChange>, discarded_messages: Array<Array<Span>>, truncated: boolean, };
+
+export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>, state_changed: boolean, status: string, control: HostControl | null, selected_flow: string | null, explanation?: CommandExplanation, };
 
 export type Draft = { revision: string, project: Project, };
 
-export type ProjectView = { handle: string, folder: string, project: Project, revision: string, recovery: Draft | null, };
+export type PanelLayout = { hierarchy_width: number, inspector_width: number, playtest_height: number, hierarchy_collapsed: boolean, inspector_collapsed: boolean, playtest_collapsed: boolean, };
+
+export type CanvasPreference = { x: number, y: number, scale: number, };
+
+export type EditorPreferences = { layout: PanelLayout, navigation: JsonValue | null, block_views: { [key in string]?: CanvasPreference }, map_view: CanvasPreference | null, hint_views: { [key in string]?: string }, inspector_scroll: { [key in string]?: number }, expanded_sections: { [key in string]?: Array<string> }, project_search: string, tutorial_visible: boolean, tutorial_steps: Array<string>, };
+
+export type ProjectView = { handle: string, folder: string, project: Project, revision: string, recovery: Draft | null, preferences: EditorPreferences, };
 
 export type ConfigView = { projects_root: string | null, reserved: Array<string>, };
 
@@ -115,11 +147,23 @@ export type ProjectListItem = { folder: string, title: string, };
 
 export type DiskView = { revision: string, project: Project, };
 
-export type StartPlaytest = { project: Project, location: string | null, help_mode: HelpMode | null, };
+export type StartPlaytest = { project: Project, location: string | null, help_mode: HelpMode | null, setup: PlaytestSetup | null, };
 
-export type CommandRequest = { command: string, };
+export type CommandRequest = { command: string, explain: boolean, };
 
 export type StateRequest = { state: GameState, };
 
-export type PlaytestView = { session: string, result: CommandResult, state: GameState, };
+export type PlaytestView = { session: string, result: CommandResult, state: GameState, source: PlaytestSource, };
+
+export type CaptureSetup = { name: string, };
+
+export type SetupStatusRequest = { project: Project, setup: PlaytestSetup, help_mode: HelpMode | null, };
+
+export type SetupStatus = { compatible: boolean, exact: boolean, reason: string | null, source: PlaytestSource, };
+
+export type RunCheck = { project: Project, check: PlaytestCheck, explain: boolean, };
+
+export type CheckStepResult = { index: number, command: string, result: CommandResult | null, failures: Array<string>, };
+
+export type CheckRun = { session: string, source: PlaytestSource, initial_state: GameState, initial_messages: Array<Array<Span>>, steps: Array<CheckStepResult>, state: GameState, passed: boolean, };
 

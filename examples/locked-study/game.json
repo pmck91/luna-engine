@@ -42,18 +42,6 @@
     }
   ],
   "actions": [],
-  "triggers": [
-    {
-      "id": "60bbbd3f-e330-4a86-bc3a-e903b6bc388e",
-      "name": "On first enter",
-      "event": "first_enter",
-      "watch": null,
-      "priority": 0,
-      "condition": {
-        "type": "true"
-      },
-      "effects": []
-    }
-  ],
+  "triggers": [],
   "assets": []
 }

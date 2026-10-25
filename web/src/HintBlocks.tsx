@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { bindWorkspaceHistory, type HistoryControls } from './workspaceHistory';
+import type { EditContext } from './projectHistory';
+import { useContext, useEffect, useRef } from 'react';
 import * as Blockly from 'blockly/core';
 import type { Condition, HintSet, HintStage, Project } from './contracts';
 import {
@@ -9,11 +11,15 @@ import {
   readCondition,
   refreshBlockFields,
   registerBlocks,
+  type BlockView,
 } from './Blocks';
 import { refreshChainEnds } from './blockRenderer';
 import { hintChoices } from './model';
+import { FindingContext } from './FindingContext';
+import type { ReferenceSite } from './references';
 
 export type HintPart =
+  | { type: 'draft'; blockId: string }
   | { type: 'puzzle' }
   | { type: 'stage'; stageId: string }
   | { type: 'clue'; stageId: string; index: number }
@@ -190,6 +196,7 @@ export function readHintBlocks(root: Blockly.Block): HintSet {
 }
 export function hintPart(root: Blockly.Block, block: Blockly.Block | null): HintPart | null {
   if (!block) return null;
+  if (block.getRootBlock() !== root) return { type: 'draft', blockId: block.id };
   if (block === root) return { type: 'puzzle' };
   const stages = chain(root.getInputTargetBlock('STAGES'));
   if (stages.includes(block)) return { type: 'stage', stageId: stageId(block) };
@@ -201,6 +208,41 @@ export function hintPart(root: Blockly.Block, block: Blockly.Block | null): Hint
   }
   // Selecting a condition shows the owning puzzle/stage settings.
   return block.getParent() ? hintPart(root, block.getParent()) : null;
+}
+export function hintFindingBlock(
+  workspace: Blockly.Workspace,
+  puzzleId: string,
+  source: ReferenceSite,
+): Blockly.Block | null {
+  if (source.blockId) return workspace.getBlockById(source.blockId);
+  const root = workspace.getBlockById(puzzleId);
+  const stage = source.stageId
+    ? workspace
+        .getAllBlocks(false)
+        .find((block) => block.type === 'hint_stage' && stageId(block) === source.stageId)
+    : null;
+  const [key, ...rest] = source.path.split('.');
+  let block =
+    key === 'available'
+      ? root?.getInputTargetBlock('AVAILABLE')
+      : key === 'solved'
+        ? root?.getInputTargetBlock('SOLVED')
+        : key === 'condition'
+          ? stage?.getInputTargetBlock('WHEN')
+          : key === 'solution'
+            ? stage?.getInputTargetBlock('SOLUTION')
+            : key === 'clues'
+              ? chain(stage?.getInputTargetBlock('CLUES') ?? null)[Number(rest.shift())]
+              : (stage ?? root);
+  while (block && rest.length) {
+    const key = rest.shift();
+    if (key === 'condition') block = block.getInputTargetBlock('TEST');
+    else if (key === 'conditions') {
+      const index = Number(rest.shift());
+      block = block.getInputTargetBlock(index === 0 ? 'A' : index === 1 ? 'B' : `C${index}`);
+    } else break;
+  }
+  return block ?? stage ?? root;
 }
 const toolbox = {
   kind: 'categoryToolbox',
@@ -229,6 +271,10 @@ export default function HintBlocks({
   project,
   hint,
   saved,
+  selectedPart,
+  view,
+  onViewChange,
+  history,
   onChange,
   onSelect,
   onError,
@@ -236,17 +282,23 @@ export default function HintBlocks({
   project: Project;
   hint: HintSet;
   saved: unknown;
-  onChange: (hint: HintSet, workspace: unknown) => void;
+  selectedPart?: HintPart;
+  view?: BlockView;
+  onViewChange?: (view: BlockView) => void;
+  history?: HistoryControls;
+  onChange: (hint: HintSet, workspace: unknown, context?: EditContext) => void;
   onSelect: (part: HintPart) => void;
   onError: (message: string) => void;
 }) {
   registerHintBlocks(project);
   const host = useRef<HTMLDivElement>(null);
+  const findingContext = useContext(FindingContext);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   const selected = useRef<string | null>(null);
   const last = useRef('');
-  const current = useRef({ hint, saved, onChange, onSelect, onError });
-  current.current = { hint, saved, onChange, onSelect, onError };
+  const lastWorkspace = useRef('');
+  const current = useRef({ hint, saved, onChange, onSelect, onError, onViewChange, history });
+  current.current = { hint, saved, onChange, onSelect, onError, onViewChange, history };
   const choiceVersion = JSON.stringify({
     entities: [...project.locations, ...project.objects, ...project.characters].map((e) => [
       e.id,
@@ -256,12 +308,14 @@ export default function HintBlocks({
     variables: project.game.variables,
     hints: hintChoices(project),
   });
-  const publish = (updateSelection = false) => {
+  const publish = (updateSelection = false, context?: EditContext) => {
     const ws = workspace.current!;
     const root = ws.getBlockById(current.current.hint.id)!;
     const next = readHintBlocks(root);
     last.current = JSON.stringify(next);
-    current.current.onChange(next, Blockly.serialization.workspaces.save(ws));
+    const saved = Blockly.serialization.workspaces.save(ws);
+    lastWorkspace.current = JSON.stringify(saved);
+    current.current.onChange(next, saved, context);
     const part = hintPart(root, ws.getBlockById(selected.current ?? ''));
     if (updateSelection && part) current.current.onSelect(part);
   };
@@ -273,14 +327,19 @@ export default function HintBlocks({
   useEffect(() => {
     const ws = Blockly.inject(host.current!, blockWorkspaceOptions(toolbox));
     workspace.current = ws;
+    if (current.current.history) bindWorkspaceHistory(ws, () => current.current.history!);
     Blockly.Events.disable();
     try {
       loadHintWorkspace(ws, current.current.hint, current.current.saved);
       render(ws);
+      if (view) {
+        ws.setScale(view.scale);
+        ws.scroll(view.x, view.y);
+      }
     } finally {
       Blockly.Events.enable();
     }
-    publish();
+    publish(false, { derived: true });
     const listener = (event: Blockly.Events.Abstract) => {
       try {
         if (event instanceof Blockly.Events.Selected && event.newElementId) {
@@ -291,10 +350,14 @@ export default function HintBlocks({
           );
           if (part) current.current.onSelect(part);
         }
-        if (event.isUiEvent) return;
+        if (event.isUiEvent) {
+          if (event instanceof Blockly.Events.ViewportChange)
+            current.current.onViewChange?.({ x: ws.scrollX, y: ws.scrollY, scale: ws.scale });
+          return;
+        }
         conditionFieldChanged(event, ws);
         refreshChainEnds(ws);
-        publish(true);
+        publish(true, { label: 'Edit hint blocks', group: event.group || undefined });
       } catch (e) {
         current.current.onError(String(e));
       }
@@ -311,7 +374,20 @@ export default function HintBlocks({
   }, [hint.id]);
   useEffect(() => {
     const ws = workspace.current;
-    if (!ws || last.current === JSON.stringify(hint)) return;
+    if (!ws) return;
+    if (saved && lastWorkspace.current !== JSON.stringify(saved)) {
+      Blockly.Events.disable();
+      try {
+        ws.clear();
+        loadHintWorkspace(ws, hint, saved);
+        render(ws);
+      } finally {
+        Blockly.Events.enable();
+      }
+      publish(true, { derived: true });
+      return;
+    }
+    if (last.current === JSON.stringify(hint)) return;
     Blockly.Events.disable();
     try {
       syncHintBlocks(ws, hint);
@@ -319,8 +395,8 @@ export default function HintBlocks({
     } finally {
       Blockly.Events.enable();
     }
-    publish();
-  }, [hint]);
+    publish(true, { derived: true });
+  }, [hint, saved]);
   useEffect(() => {
     const ws = workspace.current;
     if (!ws) return;
@@ -331,5 +407,72 @@ export default function HintBlocks({
       Blockly.Events.enable();
     }
   }, [choiceVersion]);
+  useEffect(() => {
+    const ws = workspace.current;
+    const root = ws?.getBlockById(hint.id);
+    if (!ws || !root || !selectedPart) return;
+    const candidate =
+      selectedPart.type === 'draft'
+        ? ws.getBlockById(selectedPart.blockId)
+        : ws
+            .getAllBlocks(false)
+            .find(
+              (block) =>
+                block.type.startsWith('hint_') &&
+                JSON.stringify(hintPart(root, block)) === JSON.stringify(selectedPart),
+            );
+    if (candidate && candidate.id !== selected.current) {
+      selected.current = candidate.id;
+      Blockly.Events.disable();
+      try {
+        (candidate as Blockly.BlockSvg).select();
+      } finally {
+        Blockly.Events.enable();
+      }
+    }
+  }, [hint.id, JSON.stringify(selectedPart)]);
+  useEffect(() => {
+    const ws = workspace.current;
+    const source = findingContext.reveal;
+    if (!ws || source?.puzzleId !== hint.id) return;
+    const block = hintFindingBlock(ws, hint.id, source);
+    if (block) {
+      selected.current = block.id;
+      (block as Blockly.BlockSvg).select();
+      ws.centerOnBlock(block.id);
+      const part = hintPart(ws.getBlockById(hint.id)!, block);
+      if (part) current.current.onSelect(part);
+    }
+  }, [hint.id, findingContext.reveal]);
+  useEffect(() => {
+    const ws = workspace.current;
+    const root = ws?.getBlockById(hint.id);
+    if (!ws || !root) return;
+    const live = new Set(root.getDescendants(false).map((block) => block.id));
+    Blockly.Events.disable();
+    try {
+      for (const block of ws.getAllBlocks(false)) {
+        const draft = !live.has(block.id);
+        block.getSvgRoot()?.classList.toggle('luna-draft', draft);
+        const messages = findingContext.findings
+          .filter(
+            (finding) =>
+              finding.puzzleId === hint.id &&
+              hintFindingBlock(ws, hint.id, finding)?.id === block.id,
+          )
+          .map((finding) => finding.message);
+        block.setWarningText(
+          messages.length
+            ? messages.join('\n')
+            : draft
+              ? 'Draft — saved but disconnected; does not run.'
+              : null,
+          'validation',
+        );
+      }
+    } finally {
+      Blockly.Events.enable();
+    }
+  }, [hint, saved, findingContext.findings]);
   return <div className="block-workspace" ref={host} aria-label="Hint block workspace" />;
 }

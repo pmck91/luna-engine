@@ -20,6 +20,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 use ts_rs::TS;
+mod preferences;
+pub use preferences::*;
+mod playtests;
+pub use playtests::*;
 
 #[derive(Clone)]
 pub struct App {
@@ -30,7 +34,8 @@ struct Workspace {
     root: Option<PathBuf>,
     config: PathBuf,
     projects: BTreeMap<String, OpenProject>,
-    sessions: BTreeMap<String, Session>,
+    sessions: BTreeMap<String, playtests::EditorSession>,
+    preferences: BTreeMap<String, EditorPreferences>,
 }
 #[derive(Clone)]
 struct OpenProject {
@@ -51,6 +56,7 @@ pub struct ProjectView {
     pub project: Project,
     pub revision: String,
     pub recovery: Option<Draft>,
+    pub preferences: EditorPreferences,
 }
 #[derive(Serialize, TS)]
 pub struct ConfigView {
@@ -96,10 +102,13 @@ pub struct StartPlaytest {
     pub location: Option<String>,
     #[serde(default)]
     pub help_mode: Option<HelpMode>,
+    pub setup: Option<PlaytestSetup>,
 }
 #[derive(Deserialize, TS)]
 pub struct CommandRequest {
     pub command: String,
+    #[serde(default)]
+    pub explain: bool,
 }
 #[derive(Deserialize, TS)]
 pub struct StateRequest {
@@ -110,6 +119,7 @@ pub struct PlaytestView {
     pub session: String,
     pub result: CommandResult,
     pub state: GameState,
+    pub source: PlaytestSource,
 }
 #[derive(Deserialize)]
 struct AssetQuery {
@@ -119,6 +129,8 @@ struct AssetQuery {
 #[derive(Serialize, Deserialize, Default)]
 struct EditorConfig {
     projects_root: Option<PathBuf>,
+    #[serde(default)]
+    project_preferences: BTreeMap<String, EditorPreferences>,
 }
 pub struct ApiError(anyhow::Error);
 impl From<anyhow::Error> for ApiError {
@@ -168,6 +180,7 @@ impl App {
                 config,
                 projects: BTreeMap::new(),
                 sessions: BTreeMap::new(),
+                preferences: saved.project_preferences,
             })),
             token,
         })
@@ -179,6 +192,26 @@ impl App {
     }
 }
 impl Workspace {
+    fn preferences_for(&self, path: &FsPath) -> EditorPreferences {
+        let mut preferences = self
+            .preferences
+            .get(&path.to_string_lossy().to_string())
+            .cloned()
+            .unwrap_or_default();
+        preferences.normalize();
+        preferences
+    }
+    fn save_config(&self, root: Option<PathBuf>) -> Result<()> {
+        atomic_write(
+            &self.config,
+            serde_json::to_string_pretty(&EditorConfig {
+                projects_root: root,
+                project_preferences: self.preferences.clone(),
+            })?
+            .as_bytes(),
+        )?;
+        Ok(())
+    }
     fn root(&self) -> Result<&FsPath> {
         self.root
             .as_deref()
@@ -202,6 +235,7 @@ impl Workspace {
             None
         };
         let handle = new_id();
+        let preferences = self.preferences_for(&path);
         self.projects.insert(
             handle.clone(),
             OpenProject {
@@ -217,6 +251,7 @@ impl Workspace {
             project,
             revision,
             recovery,
+            preferences,
         })
     }
 }
@@ -227,6 +262,7 @@ pub fn router(app: App) -> Router {
         .route("/open", post(open))
         .route("/projects/{handle}", put(save))
         .route("/projects/{handle}/disk", get(disk))
+        .route("/projects/{handle}/preferences", put(save_preferences))
         .route("/projects/{handle}/save-as", post(save_as))
         .route("/projects/{handle}/folder", post(open_folder))
         .route("/projects/{handle}/export", post(export))
@@ -234,6 +270,9 @@ pub fn router(app: App) -> Router {
         .route("/validate", post(diagnostics))
         .route("/templates/object-actions", post(object_actions))
         .route("/playtests", post(start_playtest))
+        .route("/playtests/setup-status", post(setup_status))
+        .route("/playtests/checks", post(run_check))
+        .route("/playtests/{id}/capture", post(capture_setup))
         .route("/playtests/{id}/commands", post(command))
         .route("/playtests/{id}/state", put(set_state))
         .layer(DefaultBodyLimit::max(storage::MAX_FILE as usize))
@@ -306,18 +345,31 @@ async fn configure(
         .context("Cannot open projects directory")?;
     {
         let mut w = app.lock()?;
-        atomic_write(
-            &w.config,
-            serde_json::to_string_pretty(&EditorConfig {
-                projects_root: Some(path.clone()),
-            })?
-            .as_bytes(),
-        )?;
+        w.save_config(Some(path.clone()))?;
         w.root = Some(path);
         w.projects.clear();
         w.sessions.clear();
     }
     config(State(app)).await
+}
+async fn save_preferences(
+    State(app): State<App>,
+    Path(handle): Path<String>,
+    Json(mut preferences): Json<EditorPreferences>,
+) -> Api<Json<EditorPreferences>> {
+    ensure!(
+        serde_json::to_vec(&preferences)?.len() <= 65536,
+        "Editor preferences are too large"
+    );
+    preferences.normalize();
+    let mut w = app.lock()?;
+    let project = w.open(&handle)?;
+    w.preferences.insert(
+        project.path.to_string_lossy().to_string(),
+        preferences.clone(),
+    );
+    w.save_config(w.root.clone())?;
+    Ok(Json(preferences))
 }
 fn folder(root: &FsPath, name: &str) -> Result<PathBuf> {
     ensure!(
@@ -407,6 +459,7 @@ async fn save(
         project: request.project,
         revision,
         recovery: None,
+        preferences: w.preferences_for(&current.path),
     }))
 }
 async fn save_as(
@@ -489,6 +542,7 @@ async fn asset(
         project: current.project,
         revision,
         recovery: None,
+        preferences: w.preferences_for(&current.path),
     }))
 }
 async fn diagnostics(Json(p): Json<Project>) -> Json<Vec<Diagnostic>> {
@@ -496,24 +550,6 @@ async fn diagnostics(Json(p): Json<Project>) -> Json<Vec<Diagnostic>> {
 }
 async fn object_actions(Json(o): Json<Object>) -> Json<Vec<Action>> {
     Json(starter_actions(&o))
-}
-async fn start_playtest(
-    State(app): State<App>,
-    Json(request): Json<StartPlaytest>,
-) -> Api<Json<PlaytestView>> {
-    let mut project = request.project;
-    if let Some(mode) = request.help_mode {
-        project.game.help_mode = mode;
-    }
-    let (session, result) = Session::start(project, request.location.as_deref())?;
-    let id = new_id();
-    let view = PlaytestView {
-        session: id.clone(),
-        result,
-        state: session.state.clone(),
-    };
-    app.lock()?.sessions.insert(id, session);
-    Ok(Json(view))
 }
 async fn command(
     State(app): State<App>,
@@ -525,15 +561,20 @@ async fn command(
         .sessions
         .get_mut(&id)
         .context("Playtest expired; restart it")?;
-    let mut result = session.command(&request.command)?;
+    let mut result = if request.explain {
+        session.runtime.command_explained(&request.command)
+    } else {
+        session.runtime.command(&request.command)?
+    };
     let quit = matches!(&result.control, Some(luna_core::HostControl::Quit));
     if result.control.is_some() {
-        result.messages.push(vec![text::Span{text:if quit { "Playtest ended. Start a new playtest to continue." } else { "Player save files are managed by the runner. Use Restart or the state inspector for editor playtests." }.into(),colour:None}]);
+        result.messages.push(vec![text::Span{text:if quit { "Playtest ended. Start a new playtest to continue." } else { "Player save files are managed by the runner. Use Fresh start, a saved setup, or the state inspector for editor playtests." }.into(),colour:None}]);
     }
     let view = PlaytestView {
         session: id.clone(),
         result,
-        state: session.state.clone(),
+        state: session.runtime.state.clone(),
+        source: session.source.clone(),
     };
     if quit {
         w.sessions.remove(&id);
@@ -550,12 +591,13 @@ async fn set_state(
         .sessions
         .get_mut(&id)
         .context("Playtest expired; restart it")?;
-    luna_core::validate_state(&current.project, &request.state)?;
-    current.state = request.state;
+    luna_core::validate_state(&current.runtime.project, &request.state)?;
+    current.runtime.state = request.state;
     Ok(Json(PlaytestView {
         session: id,
         result: CommandResult::default(),
-        state: current.state.clone(),
+        state: current.runtime.state.clone(),
+        source: current.source.clone(),
     }))
 }
 #[derive(rust_embed::RustEmbed)]
@@ -587,6 +629,93 @@ mod tests {
     use super::*;
     use axum::{body::Body, http::Request};
     use tower::ServiceExt;
+    #[tokio::test]
+    async fn preferences_survive_restart_and_root_changes_without_editing_content() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path().join("projects");
+        let config_path = temp.path().join("editor.json");
+        fs::write(
+            &config_path,
+            serde_json::to_vec(&serde_json::json!({"projects_root": root}))?,
+        )?;
+        let app = App::new(config_path.clone(), None, "old-token".into())?;
+        let created = create(
+            State(app.clone()),
+            Json(NewProject {
+                folder: "one".into(),
+                title: "One".into(),
+            }),
+        )
+        .await
+        .map_err(|e| e.0)?
+        .0;
+        let before = storage::revision(&root.join("one"))?;
+        let mut preferences = EditorPreferences::default();
+        preferences.layout.inspector_collapsed = true;
+        preferences.layout.hierarchy_width = 250;
+        preferences.layout.playtest_height = 0;
+        preferences.project_search = "quiet signal".into();
+        let _ = save_preferences(State(app.clone()), Path(created.handle), Json(preferences))
+            .await
+            .map_err(|e| e.0)?;
+        assert_eq!(storage::revision(&root.join("one"))?, before);
+        let restarted = App::new(config_path.clone(), None, "new-token".into())?;
+        let opened = open(
+            State(restarted.clone()),
+            Json(OpenRequest {
+                folder: "one".into(),
+            }),
+        )
+        .await
+        .map_err(|e| e.0)?
+        .0;
+        assert!(opened.preferences.layout.inspector_collapsed);
+        assert_eq!(opened.preferences.layout.hierarchy_width, 250);
+        assert_eq!(opened.preferences.layout.playtest_height, 180);
+        assert_eq!(opened.preferences.project_search, "quiet signal");
+        let other_root = temp.path().join("other-projects");
+        let _ = configure(
+            State(restarted.clone()),
+            Json(Configure {
+                projects_root: other_root.to_string_lossy().into(),
+            }),
+        )
+        .await
+        .map_err(|e| e.0)?;
+        fs::create_dir_all(other_root.join("one"))?;
+        storage::save_project(&other_root.join("one"), &created.project, None)?;
+        let other = open(
+            State(restarted.clone()),
+            Json(OpenRequest {
+                folder: "one".into(),
+            }),
+        )
+        .await
+        .map_err(|e| e.0)?
+        .0;
+        assert!(!other.preferences.layout.inspector_collapsed);
+        let _ = configure(
+            State(restarted.clone()),
+            Json(Configure {
+                projects_root: root.to_string_lossy().into(),
+            }),
+        )
+        .await
+        .map_err(|e| e.0)?;
+        let original = open(
+            State(restarted),
+            Json(OpenRequest {
+                folder: "one".into(),
+            }),
+        )
+        .await
+        .map_err(|e| e.0)?
+        .0;
+        assert_eq!(original.preferences.layout.hierarchy_width, 250);
+        let saved = fs::read_to_string(config_path)?;
+        assert!(!saved.contains("old-token") && !saved.contains("new-token"));
+        Ok(())
+    }
     #[tokio::test]
     async fn auth_and_origin() {
         let temp = tempfile::tempdir().unwrap();

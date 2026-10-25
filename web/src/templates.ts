@@ -136,7 +136,7 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
 
 // Match message expansion's percent handling, including an unmatched percentage
 // before a later placeholder. Colour spans form separate formatting boundaries.
-function mapMessage(text: string, map: (reference: string) => string): string {
+export function mapMessage(text: string, map: (reference: string) => string): string {
   return text
     .split(/(<\/?[a-z-]+>)/gi)
     .map((span, index) => {
@@ -171,7 +171,7 @@ function mapMessage(text: string, map: (reference: string) => string): string {
     })
     .join('');
 }
-const decode = (value: string) =>
+export const decode = (value: string) =>
   value.replace(/&(lt|gt|amp);/g, (_, key: string) => ({ lt: '<', gt: '>', amp: '&' })[key]!);
 function messageEntity(t: BlockTemplate, reference: string): string | undefined {
   if (t.text_variables.includes(decode(reference))) return;

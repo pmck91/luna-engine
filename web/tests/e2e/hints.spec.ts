@@ -87,7 +87,7 @@ test('authored hint stages, explicit solutions, and help settings survive save a
   await expect(log.locator('p').last()).toHaveText('Puzzle hints are disabled for this game.');
   await inspector.getByLabel('Entity help', { exact: true }).selectOption('basic');
   await inspector.getByLabel('Enable puzzle hints').check();
-  await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  await page.getByRole('button', { name: 'Fresh start', exact: true }).click();
   await command('help door');
   await expect(log).toContainText('Verbs for door: examine.');
   await expect(log).not.toContainText('examine door');
@@ -118,7 +118,7 @@ test('authored hint stages, explicit solutions, and help settings survive save a
     'No puzzle hints are available for door right now.',
   );
   await page.getByLabel('Playtest help', { exact: true }).selectOption('full');
-  await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  await page.getByRole('button', { name: 'Fresh start', exact: true }).click();
   await command('help door');
   await expect(log).toContainText('Available commands for door:');
   await expect(log.locator('p').last()).toHaveText('examine door');
