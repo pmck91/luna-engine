@@ -1409,6 +1409,15 @@
     }
   },
   "templates": [],
+  "warning_acknowledgements": [
+    {
+      "warning_key": "57ca23972a66887c8f644a3dc6a12022aee3c0ba1a15994dd6cba60458db58a4",
+      "subject": "a9c27ad9-0a96-4d57-bc8f-3bf75a78079f",
+      "field": "exits",
+      "message": "Location is structurally unreachable from the start",
+      "reason": "Room is used to store characters no longer needed on map"
+    }
+  ],
   "playtest": {
     "setups": [
       {
