@@ -310,7 +310,7 @@ function scan(
     };
     for (const key of [
       'description',
-      ...('title' in owner ? ['title', 'opening_text', 'help_text'] : []),
+      ...('title' in owner ? ['title', 'opening_text', 'help_text', 'unknown_command_text'] : []),
     ])
       message(owner, key, site);
     if ('starting_location' in owner)

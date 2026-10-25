@@ -29,6 +29,7 @@ function fixture(): Project {
       starting_location: room.id,
       opening_text: '',
       help_text: '',
+      unknown_command_text: '',
       help_mode: 'basic',
       hints_enabled: true,
       ignored_words: [],

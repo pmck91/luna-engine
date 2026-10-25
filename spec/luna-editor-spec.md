@@ -44,7 +44,9 @@ The UI uses a Unity-style hierarchy, canvas, and inspector layout. There are **n
 
 ### Project
 
-Project title, description, author, starting location, opening text, help text, format version, endings, and game-wide triggers/settings.
+Project title, description, author, starting location, opening text, help text, unknown command message, format version, endings, and game-wide triggers/settings.
+
+Game settings includes an **Unknown command message** editor for the reply shown when no available authored command matches. It supports the same colours and variable/property placeholders as other messages, allowing the reply to match the game's tone. Existing projects retain the standard message until changed. Matched commands with failed requirements still use their own failure replies.
 
 An ending has a stable ID, player-facing text, and an optional outcome of victory, loss, or neutral. New endings default to no outcome. An `END GAME` block selects an ending and stops further actions even when no outcome is selected; only the outcome line is omitted. Authors can mark a game as requiring a reachable ending; validation then checks that at least one ending can be reached from the start.
 

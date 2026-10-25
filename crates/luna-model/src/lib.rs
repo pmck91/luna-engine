@@ -24,6 +24,9 @@ pub const RESERVED: &[&str] = &[
 pub fn default_ignored_words() -> Vec<String> {
     ["a", "an", "the"].into_iter().map(str::to_owned).collect()
 }
+pub fn default_unknown_command_text() -> String {
+    "I couldn't match that command. Try help, or use a visible object's name.".into()
+}
 pub fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
@@ -503,6 +506,8 @@ pub struct Game {
     pub starting_location: String,
     pub opening_text: String,
     pub help_text: String,
+    #[serde(default = "default_unknown_command_text")]
+    pub unknown_command_text: String,
     #[serde(default)]
     pub help_mode: HelpMode,
     #[serde(default = "hints_enabled_default")]
@@ -622,6 +627,7 @@ impl Project {
                 starting_location: location.id.clone(),
                 opening_text: "Welcome to your adventure.".into(),
                 help_text: "Type commands to interact with the world.".into(),
+                unknown_command_text: default_unknown_command_text(),
                 help_mode: HelpMode::Basic,
                 hints_enabled: true,
                 ignored_words: default_ignored_words(),

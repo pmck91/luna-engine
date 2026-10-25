@@ -1720,10 +1720,7 @@ impl<'a> Run<'a> {
         }
         let Some(best) = matches.first().cloned() else {
             self.result.status = "unmatched".into();
-            self.literal(
-                "I couldn't match that command. Try help, or use a visible object's name.",
-            );
-            return Ok(());
+            return self.say(&self.p.game.unknown_command_text);
         };
         let tied = matches
             .iter()

@@ -625,6 +625,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         ("title", &game.title),
         ("opening_text", &game.opening_text),
         ("help_text", &game.help_text),
+        ("unknown_command_text", &game.unknown_command_text),
     ] {
         c.text(&game.id, f, t)
     }
@@ -959,6 +960,56 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn unknown_command_messages_default_for_older_projects_and_round_trip() {
+        let mut value = serde_json::to_value(Project::blank("Legacy reply")).unwrap();
+        value["game"]
+            .as_object_mut()
+            .unwrap()
+            .remove("unknown_command_text");
+        let mut project: Project = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            project.game.unknown_command_text,
+            default_unknown_command_text()
+        );
+        assert_eq!(
+            Project::blank("New reply").game.unknown_command_text,
+            default_unknown_command_text()
+        );
+        project.game.unknown_command_text = "The forest has no answer for that.".into();
+        let restored: Project =
+            serde_json::from_slice(&serde_json::to_vec(&project).unwrap()).unwrap();
+        assert_eq!(
+            restored.game.unknown_command_text,
+            project.game.unknown_command_text
+        );
+    }
+    #[test]
+    fn unknown_command_messages_validate_colours_and_value_references() {
+        let mut project = Project::blank("Reply validation");
+        project
+            .game
+            .variables
+            .insert("chances".into(), Value::Integer(3));
+        project.locations[0]
+            .state
+            .insert("charges".into(), Value::Integer(7));
+        project.game.unknown_command_text = format!(
+            "<green>%chances% chances, %{}.charges% charges.</green>",
+            project.locations[0].id
+        );
+        assert!(!has_errors(&validate(&project)));
+        for invalid in ["%missing%", "<green>Unclosed", "Bad\u{1b}control"] {
+            project.game.unknown_command_text = invalid.into();
+            assert!(validate(&project).iter().any(|diagnostic| {
+                diagnostic.subject == project.game.id
+                    && diagnostic.field == "unknown_command_text"
+                    && diagnostic.severity == Severity::Error
+            }));
+        }
+        project.game.unknown_command_text.clear();
+        assert!(!has_errors(&validate(&project)));
+    }
     #[test]
     fn diagnostics_identify_nested_conditions_and_individual_replies() {
         let mut p = Project::blank("Precise findings");

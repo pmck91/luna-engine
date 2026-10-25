@@ -229,6 +229,14 @@ export default function Inspector({
             value={p.game.help_text}
             onChange={(help_text) => update({ help_text })}
           />
+          <RichText
+            project={p}
+            label="Unknown command message"
+            path="unknown_command_text"
+            value={p.game.unknown_command_text}
+            onChange={(unknown_command_text) => update({ unknown_command_text })}
+          />
+          <p className="muted">Shown when a player's command does not match an available action.</p>
           <Select
             label="Entity help"
             value={p.game.help_mode}
