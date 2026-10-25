@@ -221,26 +221,8 @@ fn print_messages(result: &CommandResult, colour: bool) -> Result<()> {
     Ok(())
 }
 fn show_restored(session: &Session, label: &str, colour: bool) -> Result<()> {
+    let messages = session.resume_messages()?;
     println!("Loaded {label}.");
-    let mut messages = vec![text::parse(&session.project.game.title)?];
-    if let Some(ending) = &session.state.ending {
-        let end = session
-            .project
-            .game
-            .endings
-            .iter()
-            .find(|e| e.id == *ending)
-            .context("Saved ending no longer exists")?;
-        messages.push(text::parse(&end.text)?);
-        if let Some(outcome) = &end.outcome {
-            messages.push(vec![text::Span {
-                text: format!("Outcome: {outcome:?}"),
-                colour: None,
-            }]);
-        }
-    } else {
-        messages.extend(session.description()?);
-    }
     print_messages(
         &CommandResult {
             messages,

@@ -4,9 +4,20 @@ Last reviewed: **25 October 2026**, against the implementation, tests, and accep
 
 The editor UX work (M0–M7 and M9) is accepted and merged into `main` as `1608340`. Custom unknown-command messages and warning acknowledgements are also implemented and committed. Completed work is recorded below; human screen-reader/new-author evaluation remains open.
 
-The next priority is user-facing documentation: refresh the example, establish the Astro Starlight site on GitHub Pages, and publish a complete first-adventure tutorial before expanding the deeper developer documentation. Existing README/architecture notes and in-editor guidance provide starting material; the standalone documentation site has not been built.
+The next priority is shared-core and runner hardening on `feature/core-hardening`, following the quality/performance review. User-facing documentation follows: refresh the example, establish the Astro Starlight site on GitHub Pages, and publish a complete first-adventure tutorial before expanding the deeper developer documentation. Existing README/architecture notes and in-editor guidance provide starting material; the standalone documentation site has not been built.
 
-## Documentation — next priority
+## Shared core and runner — current priority
+
+Follow the [core hardening plan](core-hardening.md) on `feature/core-hardening`, preserving game/save formats and existing execution semantics.
+
+- [x] H1: Correct restored-session message formatting through shared core presentation, add runner regression coverage, and establish repeatable release benchmarks.
+- [ ] H2: Separate immutable game-definition validation from saved-state compatibility checks, removing repeated project analysis from autosaves while preserving corruption/recovery protections.
+- [ ] H3: Split runtime responsibilities into focused modules and centralize genuinely shared entity lookup/presentation.
+- [ ] H4: Encapsulate sessions, provide validated state replacement, and introduce typed command statuses with unchanged serialized values.
+- [ ] H5: Optimize measured lookup/normalization and read-only copying costs without weakening transactional rollback or deterministic ordering.
+- [ ] H6: Add API rustdoc and executable examples, update architecture notes, verify parity/compatibility and performance, and review the branch before merging.
+
+## Documentation — after core hardening
 
 Use Astro Starlight for a user-facing documentation site hosted on GitHub Pages, with Markdown content maintained in this repository. Organise the navigation into Getting started, Editor guide, Game logic, Playing and sharing, Reference, and Developer documentation.
 
@@ -34,7 +45,7 @@ These are follow-up sessions, not unresolved gates for the already accepted and 
 
 ## Conversations and quests — deferred engine update
 
-Design is documented in [Conversations and quests](conversations-and-quests.md); the model, runtime, and authoring UI are not implemented. Documentation remains ahead of this update; UX evaluation is tracked separately above. Implement the combined update on a separate `feature/conversations-and-quests` branch when work begins.
+Design is documented in [Conversations and quests](conversations-and-quests.md); the model, runtime, and authoring UI are not implemented. Core hardening and documentation remain ahead of this update; UX evaluation is tracked separately above. Implement the combined update on a separate `feature/conversations-and-quests` branch when work begins.
 
 - [ ] Prototype the conversation graph and quest authoring flow, then confirm the proposed reply presentation, interruption/checkpoint behaviour, quest progression, and version/command compatibility contract.
 - [ ] Add shared conversation/quest definitions, stable references, progress state, validation, generated contracts, transactional project/bundle storage, and explicit content/save-format compatibility paths.

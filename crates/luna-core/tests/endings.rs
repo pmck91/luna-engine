@@ -91,6 +91,15 @@ fn endings_with_omitted_null_or_explicit_outcomes_finalize_and_restore() {
         let saved = serde_json::to_vec(&session.state).unwrap();
         let mut restored = Session::restore(p, serde_json::from_slice(&saved).unwrap()).unwrap();
         assert_eq!(restored.state, session.state);
+        let presentation = restored.resume_messages().unwrap();
+        assert_eq!(
+            presentation[1..]
+                .iter()
+                .map(|message| text::plain(message))
+                .collect::<Vec<_>>(),
+            expected
+        );
+        assert_eq!(restored.state, session.state);
         let blocked = restored.command("use finish").unwrap();
         assert_eq!(blocked.status, "ended");
         assert!(!blocked.state_changed);

@@ -194,6 +194,49 @@ impl Session {
         run.look()?;
         Ok(run.result.messages)
     }
+
+    /// Present a resumed game's title and current location or completed ending.
+    ///
+    /// Messages use current saved values and the same formatting as ordinary
+    /// execution. This does not replay opening text, entry/ending triggers, or
+    /// effects, and leaves visits and response/hint progress unchanged.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a referenced location, ending, or message value is
+    /// missing, or the presented text contains invalid formatting.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use luna_core::Session;
+    /// use luna_model::{Project, text};
+    /// # fn main() -> anyhow::Result<()> {
+    /// let (session, _) = Session::start(Project::blank("An adventure"), None)?;
+    /// let before = session.state.clone();
+    /// let messages = session.resume_messages()?;
+    /// assert_eq!(text::plain(&messages[0]), "An adventure");
+    /// assert_eq!(session.state, before);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn resume_messages(&self) -> Result<Vec<Vec<text::Span>>> {
+        let mut run = Run::new(&self.project, self.state.clone());
+        run.say(&self.project.game.title)?;
+        if let Some(id) = &self.state.ending {
+            let ending = self
+                .project
+                .game
+                .endings
+                .iter()
+                .find(|ending| ending.id == *id)
+                .context("Saved ending no longer exists")?;
+            run.describe_ending(ending)?;
+        } else {
+            run.look()?;
+        }
+        Ok(run.result.messages)
+    }
     /// Read-only evaluation for author checks. Uses the same rules as gameplay.
     pub fn test_condition(&self, condition: &Condition) -> bool {
         Run::new(&self.project, self.state.clone()).condition(condition)
@@ -413,6 +456,13 @@ impl<'a> Run<'a> {
                 colour: None,
             }])
         }
+    }
+    fn describe_ending(&mut self, ending: &Ending) -> Result<()> {
+        self.say(&ending.text)?;
+        if let Some(outcome) = &ending.outcome {
+            self.literal(&format!("Outcome: {outcome:?}"));
+        }
+        Ok(())
     }
     fn available(&self, id: &str) -> bool {
         if id == self.p.game.id || id == self.state.location {
@@ -1123,16 +1173,12 @@ impl<'a> Run<'a> {
                     .endings
                     .iter()
                     .find(|e| e.id == *ending)
-                    .context("Unknown ending")?
-                    .clone();
+                    .context("Unknown ending")?;
                 self.state.ending = Some(ending.clone());
                 self.finalizing = true;
                 self.fire(Event::Ending, &self.p.game.id)?;
                 self.finalizing = false;
-                self.say(&end.text)?;
-                if let Some(outcome) = &end.outcome {
-                    self.literal(&format!("Outcome: {outcome:?}"));
-                }
+                self.describe_ending(end)?;
                 return Ok(Flow::End);
             }
             Effect::Stop => return Ok(Flow::Stop),

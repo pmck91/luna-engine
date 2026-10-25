@@ -33,7 +33,7 @@ fn optional_outcomes_survive_export_completion_and_named_save_restore() {
         Some(Outcome::Neutral),
     ] {
         let temp = tempfile::tempdir().unwrap();
-        let mut p = Project::blank("Optional outcome CLI");
+        let mut p = Project::blank("Optional outcome CLI: %finalizations%");
         p.game.require_ending = true;
         p.game
             .variables
@@ -41,7 +41,7 @@ fn optional_outcomes_survive_export_completion_and_named_save_restore() {
         p.game.endings.push(Ending {
             id: "finish".into(),
             name: "Finish".into(),
-            text: "A story worth remembering.".into(),
+            text: "A story worth remembering: <green>%finalizations%</green>.".into(),
             outcome: outcome.clone(),
         });
         p.game.triggers.push(Trigger {
@@ -93,7 +93,10 @@ fn optional_outcomes_survive_export_completion_and_named_save_restore() {
             String::from_utf8_lossy(&output.stderr)
         );
         let output = String::from_utf8(output.stdout).unwrap();
-        assert_eq!(output.matches("A story worth remembering.").count(), 2);
+        assert!(output.contains("Optional outcome CLI: 0"));
+        assert!(output.contains("Optional outcome CLI: 1"));
+        assert_eq!(output.matches("A story worth remembering: 1.").count(), 2);
+        assert!(!output.contains("%finalizations%"));
         assert_eq!(output.matches("End handler ran.").count(), 1);
         assert!(output.contains("This playthrough has ended."));
         assert_eq!(
@@ -122,13 +125,33 @@ fn optional_outcomes_survive_export_completion_and_named_save_restore() {
         );
         assert!(resumed.status.success());
         let resumed = String::from_utf8(resumed.stdout).unwrap();
-        assert!(resumed.contains("A story worth remembering."));
+        assert!(resumed.contains("Optional outcome CLI: 1"));
+        assert!(resumed.contains("A story worth remembering: 1."));
+        assert!(!resumed.contains("%finalizations%"));
         assert!(resumed.contains("This playthrough has ended."));
         assert!(!resumed.contains("End handler ran."));
         assert_eq!(
             resumed.matches("Outcome:").count(),
             usize::from(outcome.is_some())
         );
+
+        let coloured = command(
+            temp.path(),
+            &[
+                "--color",
+                "always",
+                "run",
+                &p.game.id,
+                "--load",
+                "completed",
+            ],
+            b"quit\n",
+        );
+        assert!(coloured.status.success());
+        let coloured = String::from_utf8(coloured.stdout).unwrap();
+        assert!(coloured.contains("\u{1b}[32m1\u{1b}[39m"));
+        assert!(!coloured.contains("%finalizations%"));
+        assert!(!coloured.contains("End handler ran."));
     }
 }
 #[test]
