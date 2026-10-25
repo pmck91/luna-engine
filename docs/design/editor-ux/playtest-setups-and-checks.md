@@ -51,4 +51,4 @@ All 58 frontend tests, Rust workspace tests, formatting/Clippy, generated-contra
 
 ![Incompatible setup after adding a variable](previews/implemented-playtest-incompatible.png)
 
-M7 is now available as a separate working review. M8–M9, release packaging, final manual acceptance, and the coordinated merge remain open. The complete UX TODO checklist stays open until that scope is accepted.
+M7 is accepted as a separate working checkpoint. M8 template exchange is a [deferred potential extension](../../plans/portable-templates-extension.md). M9 testing, release packaging, final manual acceptance, and the coordinated merge remain open. The active UX TODO checklist stays open until that scope is accepted.

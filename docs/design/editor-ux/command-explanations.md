@@ -1,6 +1,6 @@
 # Command explanations checkpoint
 
-25 October 2026 · `feature/editor-ux` · M7 working review; owner feedback pending.
+25 October 2026 · `feature/editor-ux` · M7 working checkpoint accepted.
 
 This follows the accepted [playtest setups and checks checkpoint](playtest-setups-and-checks.md). The [implementation plan](../../plans/editor-ux.md) governs the remaining milestones and coordinated merge. Existing Blockly shapes, colours, inline content, connections, and terminal blocks remain unchanged.
 
@@ -19,7 +19,7 @@ The author's edited example requires `adjust painting` before `take key`; the bu
 
 Each record describes one completed command. It includes candidate selection, requirements and condition results, chosen branches, ordered effects, numeric operations with resolved operands, value-watch eligibility, and fired/skipped triggers. ALL and ANY conditions preserve short-circuit evaluation: children that were never checked do not appear. Matching is ranked by literal words, bound targets, owner scope, and authored priority; an equal top rank remains ambiguous.
 
-The main timeline shows requirements, branches, effects, eligible watches, fired triggers, and numeric changes. Rejected candidates, skipped triggers, and internal before/after evaluations stay under Details by default. Step numbers retain their recorded order, so the main timeline may have gaps. This is a working default offered for feedback.
+The main timeline shows requirements, branches, effects, eligible watches, fired triggers, and numeric changes. Rejected candidates, skipped triggers, and internal before/after evaluations stay under Details by default. Step numbers retain their recorded order, so the main timeline may have gaps. This is the default in the accepted working checkpoint.
 
 **Net state changes** shows the difference between the command's starting and final states. A step's expandable changes include its nested effects; these are inclusive snapshots, so they should not be added together. Names and placements are presented in terms of authored entities. Variables, properties, inventory ownership, visits, response/hint progress, and completion changes can all appear. Built-in controls have summary records; help/hint matching probes do not produce a full authored-effect timeline.
 
@@ -49,7 +49,7 @@ Viewing a check's explanation or source does not adopt its state into the intera
 
 The accepted Explain wireframe and MakeCode reference inform nearby execution feedback and source context. Luna uses its existing native dialog, readable event cards, and the original Blockly renderer. Candidate matching starts collapsed to keep the ordinary action explanation focused. Escape returns focus; compact layouts scroll within the window and keep source controls reachable.
 
-Review how much detail belongs in the default timeline, whether the rollback wording makes attempted changes clear, and whether **Show source → Return to explanation** feels natural. The working presentation awaits owner feedback. Real zoom, screen-reader use, and a new-author walkthrough remain M9 manual acceptance checks.
+The owner accepted this working checkpoint, calling the work “really REALLY fantastic” and later asking to continue the UX work. Real zoom, screen-reader use, and a new-author walkthrough remain M9 manual acceptance checks; accepting the checkpoint does not complete those final gates.
 
 ## Verification and captures
 
@@ -67,4 +67,4 @@ Core and editor API tests additionally compare recorded/unrecorded gameplay, exp
 
 ![Earlier snapshot record with source links disabled at compact width](previews/implemented-explanation-stale.png)
 
-M8–M9, final manual acceptance, and the coordinated merge remain open. The complete UX checklist stays open until that scope is accepted.
+M8 template exchange is a [deferred potential extension](../../plans/portable-templates-extension.md). M9 testing and final review is next, followed by the coordinated merge after owner acceptance. The active UX checklist stays open until that scope is accepted.

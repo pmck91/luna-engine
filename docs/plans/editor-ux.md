@@ -1,8 +1,8 @@
 # Editor UX implementation plan
 
-Status: **Implementation in progress on `feature/editor-ux`; M6 accepted and M7 command explanations available for review.** The accepted block-preservation requirement remains in force. See the [current working checkpoint](../design/editor-ux/command-explanations.md).
+Status: **Implementation in progress on `feature/editor-ux`; M7 accepted, M8 deferred, and M9 testing and final review next.** The accepted block-preservation requirement remains in force. See the [accepted explanation checkpoint](../design/editor-ux/command-explanations.md).
 
-Branch: `feature/editor-ux`, created from main at `92b3ab6` on 24 October 2026. This document covers every Editor UX TODO and records the accepted design direction; merging remains subject to the agreed testing and owner acceptance. See the [design review guide](../design/editor-ux/README.md), [interaction specification](../design/editor-ux/interaction-design.md), and [wireframes](../design/editor-ux/wireframes.html).
+Branch: `feature/editor-ux`, created from main at `92b3ab6` on 24 October 2026. This document records the accepted design direction and current Editor UX scope; merging remains subject to the agreed testing and owner acceptance. The original M8 template-exchange proposal is now a [deferred potential extension](portable-templates-extension.md), outside the current completion requirements. See the [design review guide](../design/editor-ux/README.md), [interaction specification](../design/editor-ux/interaction-design.md), and [wireframes](../design/editor-ux/wireframes.html).
 
 ## Working agreement
 
@@ -30,10 +30,10 @@ The design covers all P1–P3 points. The owner accepted the surrounding design 
 | UX-10 | Keyboard, focus, screen readers, contrast                  | Foundation in M1/M3; full audit M5      | Insert, Compact       |
 | UX-11 | Playtest setups and repeatable command checks              | M6                                      | Playtest              |
 | UX-12 | Command explanation and source links                       | M7, P3                                  | Explain               |
-| UX-13 | Template import/export                                     | M8, P3                                  | Templates             |
+| UX-13 | Template import/export                                     | Deferred extension; former M8           | Templates             |
 | UX-14 | Full authoring walkthrough                                 | Every checkpoint, final gate M9         | All                   |
 
-Dependency order: M0 → M1 → M2 → M3/M4 → M5 → M6 → M7/M8 → M9. M3 and M4 can be developed in either order after shared identity/history foundations; M7 depends on reliable source mapping and playtest revisions. Accessibility checks apply to each milestone, rather than being delayed until M5.
+Current dependency order: M0 → M1 → M2 → M3/M4 → M5 → M6 → M7 → M9. M3 and M4 can be developed in either order after shared identity/history foundations; M7 depends on reliable source mapping and playtest revisions. M8 / UX-13 is deferred and does not block M9 or the coordinated merge. Keep milestone numbering for existing references. Accessibility checks apply to each milestone, rather than being delayed until M5.
 
 ## Implementation progress — 24–25 October 2026
 
@@ -45,8 +45,9 @@ Dependency order: M0 → M1 → M2 → M3/M4 → M5 → M6 → M7/M8 → M9. M3 
 - M4: precise Rust diagnostic paths, current-revision findings, exact block/field navigation, nonblocking draft findings, and a typed reference index are implemented. Used by groups logic, placements, messages, drafts, and templates. Checked variable/property renames and explicit compatible replacement before deletion publish as one history transaction. The accepted D5 default is implemented; detailed review of the [working preview](../design/editor-ux/findings-and-references.md) remains pending.
 - M5: resizable keyboard-operated panels, compact drawers, playtest focus, and per-project personal preferences are implemented. Preferences live in user configuration and survive a new loopback port without modifying game files. Project search reveals exact messages/blocks/fields and preserves return context. A resumable tutorial, bundled authoring/shortcut help, explicit starter recipes, an Add exit form, and effect reorder/draft controls support authoring without dragging. The owner accepted the [working checkpoint](../design/editor-ux/layout-search-and-guidance.md), reporting that it looks amazing and works well. New-author, manual accessibility, and final owner walkthroughs remain acceptance gates.
 - M6: immutable content snapshot identities, an explicit restart banner, named setup capture/validated restore/editing, and isolated repeatable command checks are implemented and accepted. Setups preserve the full state without replaying start/entry events; checks report the first failure and can be explicitly opened as the interactive session. Editor metadata persists setups/checks, stays out of exports/player saves, and participates in history and checked reference renames. See the [accepted checkpoint](../design/editor-ux/playtest-setups-and-checks.md).
-- M7: optional structured completed-command records explain candidate selection, requirements, short-circuit conditions, branches, effects, arithmetic, value watches, and trigger order. Committed state changes and attempted rolled-back work are distinguished; discarded output stays out of the transcript. Exact content snapshots gate source links and a read-only outline on existing blocks. Interactive commands and isolated checks share the same engine execution. See the [working review](../design/editor-ux/command-explanations.md); default detail and source-return presentation await owner feedback.
-- M8–M9: remain planned. The full TODO items are not marked complete before the remaining work, feedback, and acceptance gates.
+- M7: optional structured completed-command records explain candidate selection, requirements, short-circuit conditions, branches, effects, arithmetic, value watches, and trigger order. Committed state changes and attempted rolled-back work are distinguished; discarded output stays out of the transcript. Exact content snapshots gate source links and a read-only outline on existing blocks. Interactive commands and isolated checks share the same engine execution. The owner accepted the [working checkpoint](../design/editor-ux/command-explanations.md), calling it “really REALLY fantastic work” and later asking to continue the UX work.
+- M8: deferred at the owner's request. Preserve the full proposal and selected import/creation preferences in [Portable templates — potential extension](portable-templates-extension.md); implementation is not part of the current UX scope.
+- M9: next active milestone. The current UX TODO items remain open until the final walkthrough, required checks, feedback, and acceptance gates are complete.
 
 The foundation checkpoint passed its 43 frontend tests, 44-test Chromium/Firefox suite, Rust workspace tests, Rust formatting/Clippy and generated-contract checks. Its follow-up navigation checks covered native text undo, layout-only playtest edits, and returning to a surviving room when undo removes the selected entity.
 
@@ -58,7 +59,7 @@ M5 verification: all 57 frontend tests, the full 66-check Chromium/Firefox suite
 
 M6 verification: all 58 frontend tests, Rust workspace tests, formatting/Clippy, generated-contract checks, and frontend build/format checks pass. The full 70-check Chromium/Firefox suite passed, followed by 18 passing final targeted checks covering setups, check results, manual-state history, inventory/state editing, layout preferences, and navigation. Captured states restore without replayed rewards; isolated runs preserve interactive state and match runner save/restore semantics. See the [working walkthrough and captures](../design/editor-ux/playtest-setups-and-checks.md). The owner accepted the working presentation; final manual acceptance gates remain open.
 
-M7 verification: all 59 frontend tests, Rust workspace tests, formatting/Clippy, generated-contract checks, and frontend build/format checks pass. The full 76-check Chromium/Firefox suite passed, followed by four passing explanation walkthroughs after a final wording correction. Coverage includes false requirements, exact nested source links, stale records, read-only inspection, chained value triggers, resolved arithmetic operands, rollback/discarded output, unrecorded commands, and isolated failed checks. Core/API tests compare recorded and unrecorded execution, exported runner transactions, named-save restoration, short-circuiting, response follow-ups, and bounded recording without stopping gameplay. Release packaging and its smoke check pass for this checkpoint. See the [working review and captures](../design/editor-ux/command-explanations.md); owner feedback and final M9 acceptance remain open.
+M7 verification: all 59 frontend tests, Rust workspace tests, formatting/Clippy, generated-contract checks, and frontend build/format checks pass. The full 76-check Chromium/Firefox suite passed, followed by four passing explanation walkthroughs after a final wording correction. Coverage includes false requirements, exact nested source links, stale records, read-only inspection, chained value triggers, resolved arithmetic operands, rollback/discarded output, unrecorded commands, and isolated failed checks. Core/API tests compare recorded and unrecorded execution, exported runner transactions, named-save restoration, short-circuiting, response follow-ups, and bounded recording without stopping gameplay. Release packaging and its smoke check pass for this checkpoint. See the [accepted checkpoint and captures](../design/editor-ux/command-explanations.md); final M9 acceptance remains open.
 
 ## M0 — Review design and prove the risky foundations
 
@@ -172,15 +173,11 @@ Acceptance: explain a failed key requirement, a successful IF branch, a health v
 
 Feedback checkpoint: review a real completed-command explanation before choosing how much detail is shown by default.
 
-## M8 — Portable template files (P3)
+## M8 — Portable template files (deferred potential extension)
 
-Specify a versioned data-only exchange format for template content and dependencies. Extend validation, reference visitors, and binding previews before permitting imported templates to mutate a project. Preserve current independent action/sequence IDs and internal reset remapping.
+The owner chose to defer this work. The full proposal is preserved in [Portable templates — potential extension](portable-templates-extension.md), including importing to the library before binding references at insertion and creating basic editable entities for missing dependencies.
 
-Provide export/import, content preview, missing-reference binding, explicit dependency creation, compatibility errors, and undo. Preserve source-project independence; reject unsupported versions or malformed data without changing the target project.
-
-Acceptance: export a locked-door recipe from one project, bind it to differently named entities/properties in another, and insert two independent copies. Verify colour/placeholder text, nested sequences/resets, hint/ending references, invalid imports, cancellation, and undo. Exporting a game includes inserted runtime logic but no template library/exchange metadata.
-
-Feedback checkpoint: review reference-binding terminology and the distinction between importing a template and inserting a copy.
+This extension is not required for the current UX acceptance or merge. Keep M8 / UX-13 as historical identifiers; continue directly to M9 with the existing project-local template library.
 
 ## M9 — Test and merge the agreed scope
 

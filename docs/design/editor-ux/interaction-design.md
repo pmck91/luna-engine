@@ -159,6 +159,8 @@ A structured, optional core trace must identify the source flow and effect/condi
 
 ## UX-13 — Template exchange between projects
 
+Status: deferred at the owner's request. Preserve this design as a [potential extension](../../plans/portable-templates-extension.md); it is not required for the current UX acceptance or merge. The paragraphs below describe the future proposal.
+
 Keep the existing project template library and make entry points visible from the workspace and a Templates page. Save complete actions, effect chains, or selected chains as independent snapshots, including nested conditions and sequence state definitions.
 
 Add explicit file export/import for templates. Preview the content and its dependencies; bind entity references, variables/properties, verbs, hints, and endings in the receiving project. Show incompatible kinds/types and missing dependencies before inserting. Do not add hidden dependencies on the source project or create globally shared mutable behaviour.
