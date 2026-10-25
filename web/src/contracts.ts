@@ -107,7 +107,19 @@ export type GameState = { game_id: string, content_version: string, location: st
 
 export type HostControl = { "type": "save", name: string | null, } | { "type": "load", name: string | null, } | { "type": "saves" } | { "type": "quit" };
 
-export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>, state_changed: boolean, status: string, control: HostControl | null, selected_flow: string | null, };
+export type TraceSource = { subject: string, path: string, };
+
+export type TraceChange = { path: Array<string>, before: JsonValue, after: JsonValue, };
+
+export type TraceKind = { "type": "candidate", name: string, matched: boolean, reason: string, literals: number, targets: number, scope: string, priority: number, } | { "type": "selected", name: string, } | { "type": "condition", label: string, condition: Condition, value: boolean, observed: JsonValue | null, } | { "type": "branch", taken: string, } | { "type": "effect", effect: string, } | { "type": "arithmetic", target: ValueTarget, op: ArithmeticOperation, before: Value, operand: number, result: Value | null, } | { "type": "trigger", name: string, event: Event | null, target: ValueTarget | null, fired: boolean, } | { "type": "watch", target: ValueTarget, before: Value, after: Value, mode: WatchMode, eligible: boolean, } | { "type": "notice", text: string, };
+
+export type TraceOutcome = "completed" | "failed";
+
+export type TraceStep = { parent: number | null, source: TraceSource | null, kind: TraceKind, outcome: TraceOutcome, changes: Array<TraceChange>, error: string | null, };
+
+export type CommandExplanation = { command: string, normalized: string, committed: boolean, error: string | null, failed_step: number | null, steps: Array<TraceStep>, changes: Array<TraceChange>, discarded_messages: Array<Array<Span>>, truncated: boolean, };
+
+export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>, state_changed: boolean, status: string, control: HostControl | null, selected_flow: string | null, explanation?: CommandExplanation, };
 
 export type Draft = { revision: string, project: Project, };
 
@@ -137,7 +149,7 @@ export type DiskView = { revision: string, project: Project, };
 
 export type StartPlaytest = { project: Project, location: string | null, help_mode: HelpMode | null, setup: PlaytestSetup | null, };
 
-export type CommandRequest = { command: string, };
+export type CommandRequest = { command: string, explain: boolean, };
 
 export type StateRequest = { state: GameState, };
 
@@ -149,7 +161,7 @@ export type SetupStatusRequest = { project: Project, setup: PlaytestSetup, help_
 
 export type SetupStatus = { compatible: boolean, exact: boolean, reason: string | null, source: PlaytestSource, };
 
-export type RunCheck = { project: Project, check: PlaytestCheck, };
+export type RunCheck = { project: Project, check: PlaytestCheck, explain: boolean, };
 
 export type CheckStepResult = { index: number, command: string, result: CommandResult | null, failures: Array<string>, };
 

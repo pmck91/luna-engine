@@ -17,6 +17,7 @@ import Modal from './Modal';
 import type { ProjectEdit } from './projectHistory';
 import { checkChanged, checkStep, stateSummary, playContentKey } from './playtest';
 import { flow } from './model';
+import type { ExplanationRecord } from './explanations';
 
 function Summary({ project, state }: { project: Project; state: GameState }) {
   const summary = stateSummary(project, state);
@@ -90,6 +91,7 @@ export default function PlaytestTools({
   openRun,
   revealFlow,
   isCurrent,
+  explain,
 }: {
   project: Project;
   play: PlaytestView | null;
@@ -104,6 +106,7 @@ export default function PlaytestTools({
   openRun: (run: CheckRun, project: Project, check: PlaytestCheck) => void;
   revealFlow: (id: string) => void;
   isCurrent: boolean;
+  explain: (record: ExplanationRecord) => void;
 }) {
   const setups = project.editor.playtest?.setups ?? [];
   const checks = project.editor.playtest?.checks ?? [];
@@ -679,6 +682,7 @@ export default function PlaytestTools({
                         const run = await request<CheckRun>('/playtests/checks', 'POST', {
                           project: snapshot,
                           check,
+                          explain: true,
                         });
                         setReport({ run, project: snapshot, check });
                       })
@@ -738,6 +742,34 @@ export default function PlaytestTools({
                               {failure}
                             </p>
                           ))}
+                          {step.result?.explanation && (
+                            <button
+                              onClick={() => {
+                                if (
+                                  changed &&
+                                  !window.confirm(
+                                    'Discard unsaved check changes to inspect this command?',
+                                  )
+                                )
+                                  return;
+                                explain({
+                                  explanation: step.result!.explanation!,
+                                  project: report.project,
+                                  source: report.run.source,
+                                  contentKey: playContentKey(
+                                    report.project,
+                                    report.check.help_mode ?? '',
+                                  ),
+                                  help: report.check.help_mode ?? '',
+                                  status: step.result!.status,
+                                  origin: `Check · ${report.check.name} · command ${step.index + 1}`,
+                                });
+                                close();
+                              }}
+                            >
+                              Explain command {step.index + 1}
+                            </button>
+                          )}
                           {step.result?.selected_flow &&
                             (playContentKey(project, report.check.help_mode ?? '') ===
                             playContentKey(report.project, report.check.help_mode ?? '') ? (

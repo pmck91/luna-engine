@@ -8,6 +8,14 @@ import { projectReferences, referencePlan, resolveMessageReference, usedBy } fro
 import { connectedFindings, prepareDraftValidation } from './diagnostics';
 import { nearestBlock } from './Blocks';
 import { playContentKey } from './playtest';
+import {
+  changeTitle,
+  detailedStep,
+  explanationIsCurrent,
+  traceTitle,
+  traceValue,
+  type ExplanationRecord,
+} from './explanations';
 
 function fixture(): Project {
   const room = location('Study');
@@ -46,6 +54,90 @@ function fixture(): Project {
     editor: { positions: {}, routes: {}, templates: [], blocks: {} },
   };
 }
+it('keeps explanation links tied to runtime content while mapping value names and matching details', () => {
+  const p = fixture();
+  const record: ExplanationRecord = {
+    project: structuredClone(p),
+    source: {
+      revision: 'captured',
+      title: p.game.title,
+      content_version: p.game.content_version,
+      help_mode: 'basic',
+    },
+    contentKey: playContentKey(p),
+    help: '',
+    status: 'ok',
+    explanation: {
+      command: 'look',
+      normalized: 'look',
+      committed: true,
+      error: null,
+      failed_step: null,
+      changes: [],
+      discarded_messages: [],
+      truncated: false,
+      steps: [],
+    },
+  };
+  p.editor.positions.study = { x: 200, y: 40 };
+  expect(explanationIsCurrent(record, p)).toBe(true);
+  p.characters[0].description = 'A new description';
+  expect(explanationIsCurrent(record, p)).toBe(false);
+  expect(
+    traceTitle(p, {
+      type: 'condition',
+      label: 'Requirement',
+      condition: { type: 'property', entity: 'keeper.old', name: 'health', op: 'le', value: 0 },
+      value: false,
+      observed: 2,
+    }),
+  ).toBe('Requirement: Keeper · health ≤ 0 · False');
+  expect(
+    changeTitle(p, { path: ['properties', 'keeper.old', 'health'], before: 2, after: 0 }),
+  ).toBe('Keeper · health');
+  expect(traceValue(p, { type: 'character', character: 'keeper.old' })).toBe('Keeper · inventory');
+  const base = { source: null, changes: [], error: null, outcome: 'completed' as const };
+  const steps = [
+    {
+      ...base,
+      parent: null,
+      kind: {
+        type: 'candidate' as const,
+        name: 'Try',
+        matched: true,
+        reason: 'Matched',
+        literals: 1,
+        targets: 0,
+        scope: 'global',
+        priority: 0,
+      },
+    },
+    {
+      ...base,
+      parent: null,
+      kind: {
+        type: 'condition' as const,
+        label: 'Before value change',
+        condition: { type: 'true' as const },
+        value: true,
+        observed: null,
+      },
+    },
+    {
+      ...base,
+      parent: 1,
+      kind: {
+        type: 'condition' as const,
+        label: 'ALL member',
+        condition: { type: 'true' as const },
+        value: true,
+        observed: null,
+      },
+    },
+    { ...base, parent: null, kind: { type: 'branch' as const, taken: 'ELSE' } },
+  ];
+  expect(steps.map((_, index) => detailedStep(steps, index))).toEqual([true, true, true, false]);
+});
 it('includes captured state and check expectations in checked renames and blocks snapshot merges', () => {
   const p = fixture();
   p.editor.playtest = {

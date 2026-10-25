@@ -2109,6 +2109,89 @@ dialog.modal {
   border: 1px solid #8c7baf;
   border-radius: 6px;
 }
+.command-explanation {
+  width: min(900px, calc(100vw - 32px));
+  overflow-wrap: anywhere;
+}
+.explanation-command {
+  font-size: 16px;
+  font-weight: 600;
+}
+.trace-success {
+  color: #9edcc5;
+}
+.trace-changes {
+  padding-left: 22px;
+}
+.trace-changes li {
+  margin: 6px 0;
+}
+.explanation-steps {
+  padding: 0;
+  list-style: none;
+}
+.explanation-steps > li {
+  border: 1px solid #56516b;
+  border-left: 3px solid #9cccb9;
+  border-radius: 6px;
+  padding: 10px;
+  margin: 10px 0 10px calc(min(var(--trace-depth, 0), 6) * 10px);
+  min-width: 0;
+}
+.explanation-steps .trace-failed {
+  border-color: #eba676;
+}
+.explanation-steps .trace-selected {
+  outline: 2px solid #e5ce8e;
+  outline-offset: 2px;
+}
+.trace-step-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.trace-badge {
+  border: 1px solid #b9996f;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+.explanation-steps p {
+  margin: 7px 0;
+}
+.explanation-steps details {
+  margin: 8px 0;
+}
+.command-explanation pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.trace-details {
+  border-top: 1px solid #5a5269;
+  padding-top: 12px;
+  margin-top: 16px;
+}
+.explanation-source-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #373044;
+  border-bottom: 1px solid #cbb079;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.explanation-source-bar span {
+  flex: 1;
+  min-width: 120px;
+}
+.luna-explanation-source > .blocklyPath {
+  stroke: #ffe3a4 !important;
+  stroke-width: 3px !important;
+  stroke-dasharray: 6 3;
+}
 .playtest-focused .canvas-section {
   display: none;
 }

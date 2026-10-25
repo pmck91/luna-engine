@@ -27,6 +27,8 @@ pub struct SetupStatus {
 pub struct RunCheck {
     pub project: Project,
     pub check: PlaytestCheck,
+    #[serde(default)]
+    pub explain: bool,
 }
 #[derive(Serialize, TS)]
 pub struct CheckStepResult {
@@ -265,6 +267,14 @@ pub(crate) async fn run_check(
         let result = if luna_core::host_control(&step.command).is_some() {
             failures.push("Runner save/load and quit commands are unavailable in checks.".into());
             None
+        } else if request.explain {
+            let result = runtime.command_explained(&step.command);
+            if let Some(error) = result.explanation.as_ref().and_then(|e| e.error.as_ref()) {
+                failures.push(format!(
+                    "Command failed and its changes were rolled back: {error}"
+                ));
+            }
+            Some(result)
         } else {
             match runtime.command(&step.command) {
                 Ok(result) => Some(result),
@@ -276,7 +286,9 @@ pub(crate) async fn run_check(
                 }
             }
         };
-        if let Some(result) = &result {
+        if let Some(result) = &result
+            && result.status != "error"
+        {
             if let Some(expected) = &step.transcript {
                 let actual = result
                     .messages

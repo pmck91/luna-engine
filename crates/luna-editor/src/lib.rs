@@ -107,6 +107,8 @@ pub struct StartPlaytest {
 #[derive(Deserialize, TS)]
 pub struct CommandRequest {
     pub command: String,
+    #[serde(default)]
+    pub explain: bool,
 }
 #[derive(Deserialize, TS)]
 pub struct StateRequest {
@@ -559,7 +561,11 @@ async fn command(
         .sessions
         .get_mut(&id)
         .context("Playtest expired; restart it")?;
-    let mut result = session.runtime.command(&request.command)?;
+    let mut result = if request.explain {
+        session.runtime.command_explained(&request.command)
+    } else {
+        session.runtime.command(&request.command)?
+    };
     let quit = matches!(&result.control, Some(luna_core::HostControl::Quit));
     if result.control.is_some() {
         result.messages.push(vec![text::Span{text:if quit { "Playtest ended. Start a new playtest to continue." } else { "Player save files are managed by the runner. Use Fresh start, a saved setup, or the state inspector for editor playtests." }.into(),colour:None}]);

@@ -1,6 +1,6 @@
 # Playtest setups and checks checkpoint
 
-25 October 2026 · `feature/editor-ux` · M6 working review; owner feedback pending.
+25 October 2026 · `feature/editor-ux` · M6 working checkpoint accepted.
 
 This follows the accepted [layout, search, and guidance checkpoint](layout-search-and-guidance.md). The existing Blockly appearance and content remain the reference. The [implementation plan](../../plans/editor-ux.md) governs the remaining milestones and the coordinated merge.
 
@@ -31,13 +31,13 @@ Each check starts fresh at the game's starting room, fresh at a selected room, o
 
 Checks execute in separate sessions and stop at the first failed expectation or engine error. Failed engine commands preserve their previous state through the ordinary transaction rollback. Runner save/load/quit controls are reported as unavailable in checks. Results retain the exact initial state, source snapshot, completed command history, actual replies, first failure, and final state. Repeated runs start independently.
 
-**Inspect [action name]** reveals the selected action/exit while the run's game content matches the editor. If content has changed, the result asks for a rerun instead of pointing at an unrelated current flow. This uses a typed selected-flow identity; the richer branch/effect explanation remains M7 work.
+**Inspect [action name]** reveals the selected action/exit while the run's game content matches the editor. If content has changed, the result asks for a rerun instead of pointing at an unrelated current flow. This uses a typed selected-flow identity. The subsequent [M7 checkpoint](command-explanations.md) adds **Explain command** for recorded branch/effect details, including engine errors.
 
 ## Presentation and review
 
 The working presentation follows Luna's existing native dialogs for focused forms: one **Setups & checks** dock entry opens two tabs, leaving the transcript behind the window. Labelled controls, arrow-key tab selection, Escape/focus return, command reorder buttons, and a scrollable compact window support keyboard use. Fields stay fixed during a request. Unsaved check changes require an explicit discard choice when closing or switching checks; **Run check** clearly runs the displayed draft.
 
-Review the restart wording, the setup summary, and how easily you can find the first failed command. The window presentation was offered for feedback; it remains a working review rather than an accepted final preference. Real browser zoom, assistive-technology use, and a new-author walkthrough remain manual M9 acceptance checks.
+The owner accepted this working checkpoint and requested M7. The reviewed presentation includes restart wording, setup summaries, and first-failure results in the native dialog. Real browser zoom, assistive-technology use, and a new-author walkthrough remain manual M9 acceptance checks.
 
 ## Verification and captures
 
@@ -51,4 +51,4 @@ All 58 frontend tests, Rust workspace tests, formatting/Clippy, generated-contra
 
 ![Incompatible setup after adding a variable](previews/implemented-playtest-incompatible.png)
 
-M7–M9, release packaging, final manual acceptance, and the coordinated merge remain open. The complete UX TODO checklist stays open until that scope is accepted.
+M7 is now available as a separate working review. M8–M9, release packaging, final manual acceptance, and the coordinated merge remain open. The complete UX TODO checklist stays open until that scope is accepted.

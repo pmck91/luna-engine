@@ -42,7 +42,12 @@ import { authoringRoom } from './authoring';
 import ReferenceCreation from './ReferenceCreation';
 import ReferenceManager, { ReferenceActions, type ReferenceRequest } from './ReferenceManager';
 import { referencePlan, usedBy, type ReferenceSite, type ReferenceTarget } from './references';
-import { connectedFindings, prepareDraftValidation, type Finding } from './diagnostics';
+import {
+  connectedFindings,
+  findingSite,
+  prepareDraftValidation,
+  type Finding,
+} from './diagnostics';
 import { FindingContext, FindingsList, FindingSubject, InlineFindings } from './FindingContext';
 import { ProjectHistory, type EditContext } from './projectHistory';
 import Actions from './Actions';
@@ -61,6 +66,13 @@ import Tutorial from './Tutorial';
 import AuthoringHelp from './AuthoringHelp';
 import PlaytestTools from './PlaytestTools';
 import { historyCanReplay, playContentKey, runLogs, stateKey, type PlaytestLog } from './playtest';
+import CommandExplanation from './CommandExplanation';
+import {
+  ExplanationFocus,
+  explanationIsCurrent,
+  traceTitle,
+  type ExplanationRecord,
+} from './explanations';
 export default function App() {
   const [config, setConfig] = useState<ConfigView | null>(null);
   const [root, setRoot] = useState('');
@@ -123,6 +135,14 @@ export default function App() {
   const [logs, setLogs] = useState<PlaytestLog[]>([]);
   const [playStart, setPlayStart] = useState<CheckStart>({ type: 'fresh', location: null });
   const [playInitialState, setPlayInitialState] = useState<string | null>(null);
+  const [recordExplanations, setRecordExplanations] = useState(true);
+  const [explanationRecord, setExplanationRecord] = useState<ExplanationRecord | null>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [explanationFocus, setExplanationFocus] = useState<{
+    record: ExplanationRecord;
+    index: number;
+  } | null>(null);
+  const [playRecordingHelp, setPlayRecordingHelp] = useState<HelpMode | ''>('');
   const [playtestTools, setPlaytestTools] = useState<{ setupId?: string; checkId?: string } | null>(
     null,
   );
@@ -228,6 +248,9 @@ export default function App() {
     setMessage('');
     setStatus('Saved');
     setPlay(null);
+    setExplanationRecord(null);
+    setExplanationFocus(null);
+    setShowExplanation(false);
     setPlaytestTools(null);
     setPlayStart({ type: 'fresh', location: null });
     setPlayInitialState(null);
@@ -498,6 +521,10 @@ export default function App() {
       });
       if (current.current.view?.handle !== view?.handle) return;
       setPlay(result);
+      setExplanationRecord(null);
+      setExplanationFocus(null);
+      setShowExplanation(false);
+      setPlayRecordingHelp(playHelpMode);
       setPlayProject(structuredClone(doc));
       setPlaySource(playVersion);
       setLogs(result.result.messages.map((spans) => ({ spans })));
@@ -525,12 +552,31 @@ export default function App() {
     setHistoryAt(next.length);
     setLogs((old) => [...old, { command }]);
     setBusy(true);
+    setExplanationRecord(null);
+    setExplanationFocus(null);
     try {
       const result = await request<PlaytestView>(`/playtests/${play.session}/commands`, 'POST', {
         command,
+        explain: recordExplanations,
       });
       setPlay(result.result.control?.type === 'quit' ? null : result);
       setLogs((old) => [...old, ...result.result.messages.map((spans) => ({ spans }))]);
+      if (result.result.explanation && playProject) {
+        const explanation = result.result.explanation;
+        setExplanationRecord({
+          explanation,
+          source: result.source,
+          project: playProject,
+          contentKey: playSource,
+          help: playRecordingHelp,
+          status: result.result.status,
+        });
+        if (explanation.error)
+          setLogs((old) => [
+            ...old,
+            { spans: [{ text: `Command rolled back: ${explanation.error}`, colour: 'red' }] },
+          ]);
+      }
     } catch (e) {
       error(e);
     } finally {
@@ -946,6 +992,20 @@ export default function App() {
   ).length;
   const inspectorHidden = inspectorCollapsed || playtestFocused;
   const hierarchyHidden = layout.hierarchy_collapsed || playtestFocused;
+  const traceTarget =
+    doc && explanationFocus && explanationIsCurrent(explanationFocus.record, doc)
+      ? (() => {
+          const source = explanationFocus.record.explanation.steps[explanationFocus.index]?.source;
+          return source
+            ? findingSite(doc, {
+                subject: source.subject,
+                field: source.path,
+                severity: 'warning',
+                message: '',
+              })
+            : null;
+        })()
+      : null;
   const editor = (
     <div className="app">
       <header>
@@ -1380,6 +1440,24 @@ export default function App() {
           )}
           <div className="center">
             <section className="canvas-section">
+              {explanationFocus && (
+                <div className="explanation-source-bar" role="note">
+                  <span>
+                    {traceTarget
+                      ? `Recorded step ${explanationFocus.index + 1}: ${traceTitle(explanationFocus.record.project, explanationFocus.record.explanation.steps[explanationFocus.index].kind)}`
+                      : 'Game content changed; the recorded source highlight is cleared.'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setExplanationRecord(explanationFocus.record);
+                      setShowExplanation(true);
+                    }}
+                  >
+                    Return to explanation
+                  </button>
+                  <button onClick={() => setExplanationFocus(null)}>Clear highlight</button>
+                </div>
+              )}
               {tutorialVisible && (
                 <Tutorial
                   project={doc}
@@ -1825,6 +1903,17 @@ export default function App() {
                   <button disabled={!play || busy}>Run ↵</button>
                 </form>
                 <div className="debug-toolbar">
+                  <Check
+                    label="Record explanations"
+                    value={recordExplanations}
+                    onChange={setRecordExplanations}
+                  />
+                  <button
+                    disabled={!explanationRecord || busy}
+                    onClick={() => setShowExplanation(true)}
+                  >
+                    Explain last command
+                  </button>
                   <details>
                     <summary>Parser trace</summary>
                     <pre>{play?.result.trace.join('\n') || 'No command matches yet.'}</pre>
@@ -2138,6 +2227,10 @@ export default function App() {
           isCurrent={playSource === playVersion}
           edit={edit}
           close={() => setPlaytestTools(null)}
+          explain={(record) => {
+            setExplanationRecord(record);
+            setShowExplanation(true);
+          }}
           revealFlow={(id) =>
             reveal({
               subject: id,
@@ -2168,6 +2261,21 @@ export default function App() {
             });
             setPlayProject(snapshot);
             setPlayHelpMode(check.help_mode ?? '');
+            setPlayRecordingHelp(check.help_mode ?? '');
+            const last = run.steps.at(-1)?.result;
+            setExplanationRecord(
+              last?.explanation
+                ? {
+                    explanation: last.explanation,
+                    project: snapshot,
+                    source: run.source,
+                    contentKey: playContentKey(snapshot, check.help_mode ?? ''),
+                    help: check.help_mode ?? '',
+                    status: last.status,
+                  }
+                : null,
+            );
+            setExplanationFocus(null);
             setPlaySource(playContentKey(snapshot, check.help_mode ?? ''));
             setPlayStart(check.start);
             setPlayInitialState(stateKey(run.initial_state));
@@ -2177,6 +2285,28 @@ export default function App() {
             setInput('');
             setShowState(false);
             setPlaytestCollapsed(false);
+          }}
+        />
+      )}
+      {showExplanation && explanationRecord && doc && (
+        <CommandExplanation
+          record={explanationRecord}
+          project={doc}
+          close={() => setShowExplanation(false)}
+          inspect={(index) => {
+            if (!explanationIsCurrent(explanationRecord, doc)) return;
+            const source = explanationRecord.explanation.steps[index]?.source;
+            if (!source) return;
+            setExplanationFocus({ record: explanationRecord, index });
+            setShowExplanation(false);
+            reveal(
+              findingSite(doc, {
+                subject: source.subject,
+                field: source.path,
+                severity: 'warning',
+                message: '',
+              }),
+            );
           }}
         />
       )}
@@ -2239,51 +2369,53 @@ export default function App() {
         } else setReferenceRequest(reference);
       }}
     >
-      <FindingContext.Provider value={{ findings: diagnostics, reveal: revealTarget }}>
-        <ReferenceCreation
-          project={doc}
-          edit={edit}
-          reserved={config?.reserved ?? []}
-          transact={(label, change) => {
-            const previous = creationTransaction.current;
-            const before = current.current.doc;
-            const context = { group: crypto.randomUUID(), label };
-            creationTransaction.current = context;
-            try {
-              change();
-              const after = current.current.doc;
-              current.current.doc = before;
-              creationTransaction.current = previous;
-              if (after && after !== before)
-                edit((project) => Object.assign(project, after), context);
-            } catch (error) {
-              current.current.doc = before;
-              throw error;
-            } finally {
-              creationTransaction.current = previous;
-            }
-          }}
-        >
-          {editor}
-          {doc && referenceRequest && (
-            <ReferenceManager
-              key={JSON.stringify(referenceRequest)}
-              project={doc}
-              request={referenceRequest}
-              close={() => setReferenceRequest(null)}
-              edit={edit}
-              reveal={reveal}
-              removed={(target) => {
-                if (
-                  'id' in target &&
-                  (selected === target.id || flowOwner(doc, selected)?.id === target.id)
-                )
-                  select(flowOwner(doc, target.id)?.id ?? doc.game.id);
-              }}
-            />
-          )}
-        </ReferenceCreation>
-      </FindingContext.Provider>
+      <ExplanationFocus.Provider value={traceTarget}>
+        <FindingContext.Provider value={{ findings: diagnostics, reveal: revealTarget }}>
+          <ReferenceCreation
+            project={doc}
+            edit={edit}
+            reserved={config?.reserved ?? []}
+            transact={(label, change) => {
+              const previous = creationTransaction.current;
+              const before = current.current.doc;
+              const context = { group: crypto.randomUUID(), label };
+              creationTransaction.current = context;
+              try {
+                change();
+                const after = current.current.doc;
+                current.current.doc = before;
+                creationTransaction.current = previous;
+                if (after && after !== before)
+                  edit((project) => Object.assign(project, after), context);
+              } catch (error) {
+                current.current.doc = before;
+                throw error;
+              } finally {
+                creationTransaction.current = previous;
+              }
+            }}
+          >
+            {editor}
+            {doc && referenceRequest && (
+              <ReferenceManager
+                key={JSON.stringify(referenceRequest)}
+                project={doc}
+                request={referenceRequest}
+                close={() => setReferenceRequest(null)}
+                edit={edit}
+                reveal={reveal}
+                removed={(target) => {
+                  if (
+                    'id' in target &&
+                    (selected === target.id || flowOwner(doc, selected)?.id === target.id)
+                  )
+                    select(flowOwner(doc, target.id)?.id ?? doc.game.id);
+                }}
+              />
+            )}
+          </ReferenceCreation>
+        </FindingContext.Provider>
+      </ExplanationFocus.Provider>
     </ReferenceActions.Provider>
   );
 }

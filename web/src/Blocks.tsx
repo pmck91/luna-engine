@@ -17,6 +17,7 @@ import type { EditContext } from './projectHistory';
 import { defaultCondition } from './Forms';
 import BlockPicker from './BlockPicker';
 import { FindingContext } from './FindingContext';
+import { ExplanationFocus } from './explanations';
 export function nearestBlock(addresses: Map<string, string>, path: string): string | undefined {
   return [...addresses.entries()]
     .filter(([, address]) => address && (path === address || path.startsWith(`${address}.`)))
@@ -1253,6 +1254,7 @@ export default function Blocks({
 }) {
   project = p;
   const findingContext = useContext(FindingContext);
+  const explanationFocus = useContext(ExplanationFocus);
   const findings = findingContext.findings.filter((finding) => finding.flowId === flowId);
   register();
   const conditions = flowConditions(flow(p, flowId));
@@ -1595,6 +1597,33 @@ export default function Blocks({
     ws.centerOnBlock(blockId);
     notifySelection(true);
   }, [flowId, findingContext.reveal]);
+  useEffect(() => {
+    const ws = workspace.current;
+    if (!ws) return;
+    const marked = ws
+      .getAllBlocks(false)
+      .map((b) => (b as Blockly.BlockSvg).getSvgRoot?.())
+      .filter((node) => !!node);
+    for (const node of marked) {
+      node.classList.remove('luna-explanation-source');
+      node.removeAttribute('data-explanation-source');
+    }
+    if (explanationFocus?.flowId === flowId) {
+      const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+      const id = root && (nearestBlock(blockAddresses(root), explanationFocus.path) ?? root.id);
+      const svg = id && (ws.getBlockById(id) as Blockly.BlockSvg | null)?.getSvgRoot();
+      if (svg) {
+        svg.classList.add('luna-explanation-source');
+        svg.setAttribute('data-explanation-source', 'true');
+      }
+    }
+    return () => {
+      for (const node of marked) {
+        node.classList.remove('luna-explanation-source');
+        node.removeAttribute('data-explanation-source');
+      }
+    };
+  }, [flowId, explanationFocus, p]);
   useEffect(() => {
     const ws = workspace.current;
     const root = ws?.getTopBlocks(false).find((block) => block.type === 'luna_flow');

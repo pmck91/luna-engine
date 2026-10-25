@@ -164,6 +164,109 @@ fn step(command: &str) -> Json {
 }
 
 #[tokio::test]
+async fn optional_explanations_preserve_exported_runner_transactions_and_player_saves() {
+    let temp = tempfile::tempdir().unwrap();
+    let app = router(App::new(temp.path().join("config.json"), None, "test".into()).unwrap());
+    let mut p = world();
+    p.editor
+        .blocks
+        .insert("prepare".into(), json!({"editor_only":"private-block-id"}));
+    let bundle = temp.path().join("trace.luna");
+    std::fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &p).unwrap(),
+    )
+    .unwrap();
+    let storage =
+        luna_runner::Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage
+        .install(
+            storage.prepare(&bundle).unwrap(),
+            luna_runner::ExistingPolicy::Replace,
+        )
+        .unwrap();
+    let exported = storage.load_game(&installed).unwrap();
+    let (mut runner, _) = Session::start(exported.clone(), None).unwrap();
+    let mut editor = ok(&app, "POST", "/playtests", json!({"project":p})).await;
+    let id = editor["session"].as_str().unwrap().to_owned();
+    let source = editor["source"].clone();
+    for command in ["use prepare", "use broken", "use finish"] {
+        let expected = runner.command(command);
+        editor = ok(
+            &app,
+            "POST",
+            &format!("/playtests/{id}/commands"),
+            json!({"command":command,"explain":true}),
+        )
+        .await;
+        assert_eq!(editor["source"], source);
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(&runner.state).unwrap()
+        );
+        let trace = &editor["result"]["explanation"];
+        assert!(!trace.to_string().contains("private-block-id"));
+        match expected {
+            Ok(mut result) => {
+                assert_eq!(trace["committed"], true);
+                result.explanation = serde_json::from_value(trace.clone()).unwrap();
+                assert_eq!(editor["result"], serde_json::to_value(result).unwrap());
+            }
+            Err(error) => {
+                assert_eq!(trace["committed"], false);
+                assert_eq!(trace["error"], error.to_string());
+                assert_eq!(editor["result"]["messages"], json!([]));
+                let index = trace["failed_step"].as_u64().unwrap() as usize;
+                assert_eq!(trace["steps"][index]["source"]["path"], "effects.1.operand");
+            }
+        }
+        storage
+            .write_save(&installed, &exported, &runner.state, Some("after command"))
+            .unwrap();
+        let saved = storage
+            .load_save(&installed, &exported, Some("after command"))
+            .unwrap();
+        runner = Session::restore(exported.clone(), saved.state).unwrap();
+        let captured = ok(
+            &app,
+            "POST",
+            &format!("/playtests/{id}/capture"),
+            json!({"name":"Read state"}),
+        )
+        .await;
+        assert_eq!(captured["state"], editor["state"]);
+    }
+    let fresh = ok(&app, "POST", "/playtests", json!({"project":p})).await;
+    let fresh_id = fresh["session"].as_str().unwrap();
+    let legacy = ok(
+        &app,
+        "POST",
+        &format!("/playtests/{fresh_id}/commands"),
+        json!({"command":"look"}),
+    )
+    .await;
+    assert!(legacy["result"].get("explanation").is_none());
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &format!("/playtests/{fresh_id}/commands"),
+            json!({"command":"use broken"})
+        )
+        .await
+        .0,
+        StatusCode::BAD_REQUEST
+    );
+    let checked = ok(&app,"POST","/playtests/checks",json!({"project":p,"check":check(json!({"type":"fresh","location":null}),json!([step("use broken"),step("use finish")])),"explain":true})).await;
+    assert_eq!(checked["passed"], false);
+    assert_eq!(checked["steps"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        checked["steps"][0]["result"]["explanation"]["committed"],
+        false
+    );
+}
+
+#[tokio::test]
 async fn captured_state_restores_without_rewards_and_checks_are_isolated_and_repeatable() {
     let temp = tempfile::tempdir().unwrap();
     let app = router(App::new(temp.path().join("config.json"), None, "test".into()).unwrap());

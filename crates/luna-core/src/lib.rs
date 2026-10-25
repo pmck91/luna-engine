@@ -4,6 +4,8 @@ use luna_model::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
+mod explanation;
+pub use explanation::*;
 
 // Preserve the public core API while sharing the exact serialized state contract
 // with typed editor-only playtest setups.
@@ -25,6 +27,9 @@ pub struct CommandResult {
     pub control: Option<HostControl>,
     #[serde(default)]
     pub selected_flow: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub explanation: Option<CommandExplanation>,
 }
 impl Default for CommandResult {
     fn default() -> Self {
@@ -35,6 +40,7 @@ impl Default for CommandResult {
             status: "ok".into(),
             control: None,
             selected_flow: None,
+            explanation: None,
         }
     }
 }
@@ -143,11 +149,45 @@ impl Session {
         Ok(Self { project, state })
     }
     pub fn command(&mut self, input: &str) -> Result<CommandResult> {
+        let (result, error) = self.execute(input, false);
+        if let Some(error) = error {
+            return Err(error);
+        }
+        Ok(result)
+    }
+    /// Execute once with optional observations, retaining failed attempts without committing them.
+    pub fn command_explained(&mut self, input: &str) -> CommandResult {
+        self.execute(input, true).0
+    }
+    fn execute(&mut self, input: &str, explain: bool) -> (CommandResult, Option<anyhow::Error>) {
         let mut run = Run::new(&self.project, self.state.clone());
-        run.command(input)?;
-        run.result.state_changed = run.state != self.state;
-        self.state = run.state;
-        Ok(run.result)
+        if explain {
+            run.recording = Some(explanation::Recorder::default());
+        }
+        let error = run.command(input).err();
+        if let Some(recorder) = run.recording.take() {
+            let discarded = if error.is_some() {
+                std::mem::take(&mut run.result.messages)
+            } else {
+                vec![]
+            };
+            run.result.explanation = Some(recorder.finish(
+                input,
+                &self.state,
+                &run.state,
+                error.as_ref().map(|e| format!("{e:#}")),
+                discarded,
+            ));
+        }
+        if error.is_none() {
+            run.result.state_changed = run.state != self.state;
+            self.state = run.state;
+        } else {
+            run.result.status = "error".into();
+            run.result.state_changed = false;
+            run.result.control = None;
+        }
+        (run.result, error)
     }
     pub fn description(&self) -> Result<Vec<Vec<text::Span>>> {
         let mut run = Run::new(&self.project, self.state.clone());
@@ -300,6 +340,9 @@ struct Run<'a> {
     budget: usize,
     depth: usize,
     finalizing: bool,
+    recording: Option<explanation::Recorder>,
+    source: Option<TraceSource>,
+    trace_parent: Option<usize>,
 }
 #[derive(Clone)]
 enum Handler {
@@ -330,6 +373,9 @@ impl<'a> Run<'a> {
             budget: 2048,
             depth: 0,
             finalizing: false,
+            recording: None,
+            source: None,
+            trace_parent: None,
         }
     }
     fn step(&mut self) -> Result<()> {
@@ -483,12 +529,30 @@ impl<'a> Run<'a> {
             if self.state.ending.is_some() && !self.finalizing {
                 break;
             }
-            if self.condition(&t.condition) {
-                self.result
-                    .trace
-                    .push(format!("Trigger {} ({event:?})", t.id));
-                self.effects(&t.effects)?;
-            }
+            self.traced(
+                TraceKind::Trigger {
+                    name: t.name.clone(),
+                    event: Some(event),
+                    target: None,
+                    fired: false,
+                },
+                self.source_for(&t.id, ""),
+                true,
+                |this| {
+                    if this.checked_condition(
+                        &t.condition,
+                        this.source_for(&t.id, "condition"),
+                        "Trigger condition",
+                    ) {
+                        this.trigger_fired();
+                        this.result
+                            .trace
+                            .push(format!("Trigger {} ({event:?})", t.id));
+                        this.effects_at(&t.effects, this.source_for(&t.id, "effects"))?;
+                    }
+                    Ok(())
+                },
+            )?;
         }
         self.depth -= 1;
         Ok(())
@@ -587,15 +651,15 @@ impl<'a> Run<'a> {
         .context("Unknown variable/property")
     }
     fn set_value(&mut self, target: &ValueTarget, value: Value) -> Result<()> {
-        let previous = self.value(target)?;
+        let previous = self.value(target)?.clone();
         ensure!(
             previous.same_type(&value),
             "Variable/property type mismatch"
         );
-        if *previous == value {
+        if previous == value {
             return Ok(());
         }
-        let mut eligible = self
+        let watchers = self
             .p
             .owners()
             .into_iter()
@@ -606,8 +670,20 @@ impl<'a> Run<'a> {
                     .as_ref()
                     .is_some_and(|watch| watch.target == *target)
             })
-            .map(|trigger| (trigger.clone(), self.condition(&trigger.condition)))
+            .cloned()
             .collect::<Vec<_>>();
+        let mut eligible = watchers
+            .into_iter()
+            .map(|trigger| {
+                let before = self.checked_condition(
+                    &trigger.condition,
+                    self.source_for(&trigger.id, "condition"),
+                    "Before value change",
+                );
+                (trigger, before)
+            })
+            .collect::<Vec<_>>();
+        let changed_to = value.clone();
         match target {
             ValueTarget::Variable { name } => {
                 self.state.variables.insert(name.clone(), value);
@@ -621,8 +697,24 @@ impl<'a> Run<'a> {
             }
         }
         eligible.retain(|(trigger, before)| {
-            (!before || trigger.watch.as_ref().unwrap().mode == WatchMode::EachChange)
-                && self.condition(&trigger.condition)
+            let mode = trigger.watch.as_ref().unwrap().mode;
+            let eligible = (!before || mode == WatchMode::EachChange)
+                && self.checked_condition(
+                    &trigger.condition,
+                    self.source_for(&trigger.id, "condition"),
+                    "After value change",
+                );
+            self.observe(
+                TraceKind::Watch {
+                    target: target.clone(),
+                    before: previous.clone(),
+                    after: changed_to.clone(),
+                    mode,
+                    eligible,
+                },
+                self.source_for(&trigger.id, "watch"),
+            );
+            eligible
         });
         if eligible.is_empty() {
             return Ok(());
@@ -639,12 +731,30 @@ impl<'a> Run<'a> {
             if self.state.ending.is_some() && !self.finalizing {
                 break;
             }
-            if self.condition(&trigger.condition) {
-                self.result
-                    .trace
-                    .push(format!("Trigger {} (value change)", trigger.id));
-                self.effects(&trigger.effects)?;
-            }
+            self.traced(
+                TraceKind::Trigger {
+                    name: trigger.name.clone(),
+                    event: None,
+                    target: Some(target.clone()),
+                    fired: false,
+                },
+                self.source_for(&trigger.id, ""),
+                true,
+                |this| {
+                    if this.checked_condition(
+                        &trigger.condition,
+                        this.source_for(&trigger.id, "condition"),
+                        "Recheck before running",
+                    ) {
+                        this.trigger_fired();
+                        this.result
+                            .trace
+                            .push(format!("Trigger {} (value change)", trigger.id));
+                        this.effects_at(&trigger.effects, this.source_for(&trigger.id, "effects"))?;
+                    }
+                    Ok(())
+                },
+            )?;
         }
         self.depth -= 1;
         Ok(())
@@ -667,298 +777,365 @@ impl<'a> Run<'a> {
         *current = result;
         Ok(())
     }
-    fn effects(&mut self, effects: &[Effect]) -> Result<Flow> {
-        for effect in effects {
-            self.step()?;
-            if self.state.ending.is_some() && !self.finalizing {
-                return Ok(Flow::End);
+    fn update_value(
+        &mut self,
+        target: ValueTarget,
+        op: ArithmeticOperation,
+        operand: &NumericOperand,
+    ) -> Result<()> {
+        let operand = self.numeric_operand(operand)?;
+        let mut value = self.value(&target)?.clone();
+        if self.recording.is_none() {
+            Self::update_integer(&mut value, op, operand)?;
+            return self.set_value(&target, value);
+        }
+        self.traced(
+            TraceKind::Arithmetic {
+                target: target.clone(),
+                op,
+                before: value.clone(),
+                operand,
+                result: None,
+            },
+            self.child_source("operand"),
+            false,
+            |this| {
+                Self::update_integer(&mut value, op, operand)?;
+                this.arithmetic_result(&value);
+                this.set_value(&target, value)
+            },
+        )
+    }
+    fn effects_at(&mut self, effects: &[Effect], source: Option<TraceSource>) -> Result<Flow> {
+        for (index, effect) in effects.iter().enumerate() {
+            let flow =
+                self.run_effect(effect, source.as_ref().map(|s| s.child(index.to_string())))?;
+            if flow != Flow::Continue {
+                return Ok(flow);
             }
-            match effect {
-                Effect::Say { text } => self.say(text)?,
-                Effect::CharacterSays { character, text } => {
-                    let speaker = self
-                        .p
-                        .characters
-                        .iter()
-                        .find(|c| c.id == *character)
-                        .context("Unknown speaker")?;
-                    self.result.messages.push(text::speech(
-                        &speaker.name,
-                        speaker.name_colour.as_deref(),
-                        self.message(text)?,
-                    ));
-                }
-                Effect::PrintDescription { entity } => {
-                    let description = self
-                        .p
-                        .entity_description(entity)
-                        .context("Unknown description entity")?;
-                    self.say(description)?;
-                }
-                Effect::Respond {
-                    id,
-                    responses,
-                    mode,
-                    fallback,
-                    exhaustion,
-                    on_exhausted,
-                } => {
-                    let cursor = *self
-                        .state
-                        .sequences
-                        .get(id)
-                        .context("Unknown response sequence")?;
-                    let len = responses.len();
-                    ensure!(len > 0, "Empty response sequence");
-                    if *mode == SequenceMode::Fallback && cursor >= len {
-                        self.say(fallback)?;
-                        if !on_exhausted.is_empty()
-                            && (*exhaustion == ExhaustionMode::Repeat || cursor == len)
-                        {
-                            // Mark before executing: nested triggers must not run a once-only
-                            // follow-up twice, and an explicit reset in the flow must persist.
-                            self.state.sequences.insert(id.clone(), len + 1);
-                            let flow = self.effects(on_exhausted)?;
-                            if flow != Flow::Continue {
-                                return Ok(flow);
-                            }
+        }
+        Ok(Flow::Continue)
+    }
+    fn run_effect(&mut self, effect: &Effect, source: Option<TraceSource>) -> Result<Flow> {
+        if self.state.ending.is_some() && !self.finalizing {
+            self.step()?;
+            return Ok(Flow::End);
+        }
+        if self.recording.is_none() {
+            self.step()?;
+            return self.effect(effect);
+        }
+        self.traced(
+            TraceKind::Effect {
+                effect: explanation::effect_name(effect).into(),
+            },
+            source,
+            true,
+            |this| {
+                this.step()?;
+                this.effect(effect)
+            },
+        )
+    }
+    fn effect(&mut self, effect: &Effect) -> Result<Flow> {
+        match effect {
+            Effect::Say { text } => self.say(text)?,
+            Effect::CharacterSays { character, text } => {
+                let speaker = self
+                    .p
+                    .characters
+                    .iter()
+                    .find(|c| c.id == *character)
+                    .context("Unknown speaker")?;
+                self.result.messages.push(text::speech(
+                    &speaker.name,
+                    speaker.name_colour.as_deref(),
+                    self.message(text)?,
+                ));
+            }
+            Effect::PrintDescription { entity } => {
+                let description = self
+                    .p
+                    .entity_description(entity)
+                    .context("Unknown description entity")?;
+                self.say(description)?;
+            }
+            Effect::Respond {
+                id,
+                responses,
+                mode,
+                fallback,
+                exhaustion,
+                on_exhausted,
+            } => {
+                let cursor = *self
+                    .state
+                    .sequences
+                    .get(id)
+                    .context("Unknown response sequence")?;
+                let len = responses.len();
+                ensure!(len > 0, "Empty response sequence");
+                if *mode == SequenceMode::Fallback && cursor >= len {
+                    self.say(fallback)?;
+                    if !on_exhausted.is_empty()
+                        && (*exhaustion == ExhaustionMode::Repeat || cursor == len)
+                    {
+                        // Mark before executing: nested triggers must not run a once-only
+                        // follow-up twice, and an explicit reset in the flow must persist.
+                        self.state.sequences.insert(id.clone(), len + 1);
+                        let flow =
+                            self.effects_at(on_exhausted, self.child_source("on_exhausted"))?;
+                        if flow != Flow::Continue {
+                            return Ok(flow);
                         }
-                        continue;
                     }
-                    let text = responses.get(cursor).unwrap_or(fallback);
-                    self.say(text)?;
-                    let next = match mode {
-                        SequenceMode::RepeatLast => (cursor + 1).min(len - 1),
-                        SequenceMode::Loop => (cursor + 1) % len,
-                        SequenceMode::Fallback => (cursor + 1).min(len),
-                    };
-                    self.state.sequences.insert(id.clone(), next);
+                    return Ok(Flow::Continue);
                 }
-                Effect::ResetResponses { sequence } => {
-                    *self
-                        .state
-                        .sequences
-                        .get_mut(sequence)
-                        .context("Unknown response sequence")? = 0;
-                }
-                Effect::SetVariable { name, value } => {
-                    self.set_value(&ValueTarget::Variable { name: name.clone() }, value.clone())?;
-                }
-                Effect::SetProperty {
-                    entity,
-                    name,
-                    value,
-                } => {
-                    self.set_value(
-                        &ValueTarget::Property {
-                            entity: entity.clone(),
-                            name: name.clone(),
-                        },
-                        value.clone(),
-                    )?;
-                }
-                Effect::UpdateVariable { name, op, operand } => {
-                    let operand = self.numeric_operand(operand)?;
-                    let target = ValueTarget::Variable { name: name.clone() };
-                    let mut value = self.value(&target)?.clone();
-                    Self::update_integer(&mut value, *op, operand)?;
-                    self.set_value(&target, value)?;
-                }
-                Effect::UpdateProperty {
-                    entity,
-                    name,
-                    op,
-                    operand,
-                } => {
-                    let operand = self.numeric_operand(operand)?;
-                    let target = ValueTarget::Property {
+                let text = responses.get(cursor).unwrap_or(fallback);
+                self.say(text)?;
+                let next = match mode {
+                    SequenceMode::RepeatLast => (cursor + 1).min(len - 1),
+                    SequenceMode::Loop => (cursor + 1) % len,
+                    SequenceMode::Fallback => (cursor + 1).min(len),
+                };
+                self.state.sequences.insert(id.clone(), next);
+            }
+            Effect::ResetResponses { sequence } => {
+                *self
+                    .state
+                    .sequences
+                    .get_mut(sequence)
+                    .context("Unknown response sequence")? = 0;
+            }
+            Effect::SetVariable { name, value } => {
+                self.set_value(&ValueTarget::Variable { name: name.clone() }, value.clone())?;
+            }
+            Effect::SetProperty {
+                entity,
+                name,
+                value,
+            } => {
+                self.set_value(
+                    &ValueTarget::Property {
                         entity: entity.clone(),
                         name: name.clone(),
-                    };
-                    let mut value = self.value(&target)?.clone();
-                    Self::update_integer(&mut value, *op, operand)?;
-                    self.set_value(&target, value)?;
+                    },
+                    value.clone(),
+                )?;
+            }
+            Effect::UpdateVariable { name, op, operand } => {
+                self.update_value(ValueTarget::Variable { name: name.clone() }, *op, operand)?;
+            }
+            Effect::UpdateProperty {
+                entity,
+                name,
+                op,
+                operand,
+            } => {
+                self.update_value(
+                    ValueTarget::Property {
+                        entity: entity.clone(),
+                        name: name.clone(),
+                    },
+                    *op,
+                    operand,
+                )?;
+            }
+            Effect::Give { object } => {
+                let o = self
+                    .state
+                    .objects
+                    .get_mut(object)
+                    .context("Unknown object")?;
+                let changed = o.placement != Placement::Inventory || !o.exists;
+                o.exists = true;
+                o.consumed = false;
+                o.placement = Placement::Inventory;
+                if changed {
+                    self.fire(Event::Take, object)?
                 }
-                Effect::Give { object } => {
-                    let o = self
+            }
+            Effect::GiveCharacter { object, character } => {
+                ensure!(
+                    self.state.characters.contains_key(character),
+                    "Unknown character inventory"
+                );
+                let o = self
+                    .state
+                    .objects
+                    .get_mut(object)
+                    .context("Unknown object")?;
+                let dropping = o.exists && o.placement == Placement::Inventory;
+                o.exists = true;
+                o.consumed = false;
+                o.placement = Placement::Character {
+                    character: character.clone(),
+                };
+                if dropping {
+                    self.fire(Event::Drop, object)?;
+                }
+            }
+            Effect::Remove { object } | Effect::Consume { object } => {
+                let o = self
+                    .state
+                    .objects
+                    .get_mut(object)
+                    .context("Unknown object")?;
+                o.placement = Placement::Absent;
+                o.exists = false;
+                o.consumed = matches!(effect, Effect::Consume { .. });
+            }
+            Effect::Place { object, location } => {
+                let loc = if location == "@current" {
+                    self.state.location.clone()
+                } else {
+                    location.clone()
+                };
+                ensure!(
+                    self.p.locations.iter().any(|l| l.id == loc),
+                    "Unknown object destination"
+                );
+                let o = self
+                    .state
+                    .objects
+                    .get_mut(object)
+                    .context("Unknown object")?;
+                let dropping = o.placement == Placement::Inventory;
+                o.exists = true;
+                o.consumed = false;
+                o.placement = Placement::Location { location: loc };
+                if dropping {
+                    self.fire(Event::Drop, object)?
+                }
+            }
+            Effect::Reveal { entity } | Effect::Hide { entity } => {
+                let hidden = matches!(effect, Effect::Hide { .. });
+                if let Some(o) = self.state.objects.get_mut(entity) {
+                    o.hidden = hidden
+                } else if let Some(c) = self.state.characters.get_mut(entity) {
+                    c.hidden = hidden
+                } else {
+                    bail!("Unknown visibility target")
+                }
+            }
+            Effect::Open { object } | Effect::Close { object } => {
+                let open = matches!(effect, Effect::Open { .. });
+                let o = self
+                    .state
+                    .objects
+                    .get_mut(object)
+                    .context("Unknown object")?;
+                ensure!(o.exists, "Object does not exist");
+                let changed = o.open != open;
+                o.open = open;
+                if changed {
+                    self.fire(if open { Event::Open } else { Event::Close }, object)?
+                }
+            }
+            Effect::Move { location } => self.move_to(location)?,
+            Effect::MoveCharacter {
+                character,
+                location,
+            } => {
+                let destination = if location == "@current" {
+                    &self.state.location
+                } else {
+                    location
+                };
+                ensure!(
+                    self.p.locations.iter().any(|l| l.id == *destination),
+                    "Unknown character destination"
+                );
+                self.state
+                    .characters
+                    .get_mut(character)
+                    .context("Unknown character")?
+                    .location = destination.clone();
+                // Enter/leave, room descriptions, and visits belong to player movement.
+                // Held objects keep their canonical character owner.
+            }
+            Effect::Combine {
+                first,
+                second,
+                consume_first,
+                consume_second,
+                result,
+            } => {
+                ensure!(
+                    self.available(first) && self.available(second),
+                    "Both combination objects must be present and visible"
+                );
+                ensure!(
+                    !self
                         .state
                         .objects
-                        .get_mut(object)
-                        .context("Unknown object")?;
-                    let changed = o.placement != Placement::Inventory || !o.exists;
-                    o.exists = true;
-                    o.consumed = false;
-                    o.placement = Placement::Inventory;
-                    if changed {
-                        self.fire(Event::Take, object)?
+                        .get(result)
+                        .context("Unknown result object")?
+                        .exists,
+                    "Combination result already exists"
+                );
+                for (id, consume) in [(first, consume_first), (second, consume_second)] {
+                    if *consume {
+                        self.run_effect(
+                            &Effect::Consume { object: id.clone() },
+                            self.source.clone(),
+                        )?;
                     }
                 }
-                Effect::GiveCharacter { object, character } => {
-                    ensure!(
-                        self.state.characters.contains_key(character),
-                        "Unknown character inventory"
-                    );
-                    let o = self
-                        .state
-                        .objects
-                        .get_mut(object)
-                        .context("Unknown object")?;
-                    let dropping = o.exists && o.placement == Placement::Inventory;
-                    o.exists = true;
-                    o.consumed = false;
-                    o.placement = Placement::Character {
-                        character: character.clone(),
-                    };
-                    if dropping {
-                        self.fire(Event::Drop, object)?;
-                    }
-                }
-                Effect::Remove { object } | Effect::Consume { object } => {
-                    let o = self
-                        .state
-                        .objects
-                        .get_mut(object)
-                        .context("Unknown object")?;
-                    o.placement = Placement::Absent;
-                    o.exists = false;
-                    o.consumed = matches!(effect, Effect::Consume { .. });
-                }
-                Effect::Place { object, location } => {
-                    let loc = if location == "@current" {
-                        self.state.location.clone()
-                    } else {
-                        location.clone()
-                    };
-                    ensure!(
-                        self.p.locations.iter().any(|l| l.id == loc),
-                        "Unknown object destination"
-                    );
-                    let o = self
-                        .state
-                        .objects
-                        .get_mut(object)
-                        .context("Unknown object")?;
-                    let dropping = o.placement == Placement::Inventory;
-                    o.exists = true;
-                    o.consumed = false;
-                    o.placement = Placement::Location { location: loc };
-                    if dropping {
-                        self.fire(Event::Drop, object)?
-                    }
-                }
-                Effect::Reveal { entity } | Effect::Hide { entity } => {
-                    let hidden = matches!(effect, Effect::Hide { .. });
-                    if let Some(o) = self.state.objects.get_mut(entity) {
-                        o.hidden = hidden
-                    } else if let Some(c) = self.state.characters.get_mut(entity) {
-                        c.hidden = hidden
-                    } else {
-                        bail!("Unknown visibility target")
-                    }
-                }
-                Effect::Open { object } | Effect::Close { object } => {
-                    let open = matches!(effect, Effect::Open { .. });
-                    let o = self
-                        .state
-                        .objects
-                        .get_mut(object)
-                        .context("Unknown object")?;
-                    ensure!(o.exists, "Object does not exist");
-                    let changed = o.open != open;
-                    o.open = open;
-                    if changed {
-                        self.fire(if open { Event::Open } else { Event::Close }, object)?
-                    }
-                }
-                Effect::Move { location } => self.move_to(location)?,
-                Effect::MoveCharacter {
-                    character,
-                    location,
-                } => {
-                    let destination = if location == "@current" {
-                        &self.state.location
-                    } else {
-                        location
-                    };
-                    ensure!(
-                        self.p.locations.iter().any(|l| l.id == *destination),
-                        "Unknown character destination"
-                    );
-                    self.state
-                        .characters
-                        .get_mut(character)
-                        .context("Unknown character")?
-                        .location = destination.clone();
-                    // Enter/leave, room descriptions, and visits belong to player movement.
-                    // Held objects keep their canonical character owner.
-                }
-                Effect::Combine {
-                    first,
-                    second,
-                    consume_first,
-                    consume_second,
-                    result,
-                } => {
-                    ensure!(
-                        self.available(first) && self.available(second),
-                        "Both combination objects must be present and visible"
-                    );
-                    ensure!(
-                        !self
-                            .state
-                            .objects
-                            .get(result)
-                            .context("Unknown result object")?
-                            .exists,
-                        "Combination result already exists"
-                    );
-                    for (id, consume) in [(first, consume_first), (second, consume_second)] {
-                        if *consume {
-                            self.effects(&[Effect::Consume { object: id.clone() }])?;
-                        }
-                    }
-                    self.effects(&[Effect::Give {
+                self.run_effect(
+                    &Effect::Give {
                         object: result.clone(),
-                    }])?;
-                }
-                Effect::If {
+                    },
+                    self.source.clone(),
+                )?;
+            }
+            Effect::If {
+                condition,
+                then,
+                otherwise,
+            } => {
+                let taken = self.checked_condition(
                     condition,
-                    then,
-                    otherwise,
-                } => {
-                    let flow = self.effects(if self.condition(condition) {
-                        then
-                    } else {
-                        otherwise
-                    })?;
-                    if flow != Flow::Continue {
-                        return Ok(flow);
-                    }
+                    self.child_source("condition"),
+                    "IF condition",
+                );
+                self.observe(
+                    TraceKind::Branch {
+                        taken: if taken { "THEN" } else { "ELSE" }.into(),
+                    },
+                    self.source.clone(),
+                );
+                let flow = self.effects_at(
+                    if taken { then } else { otherwise },
+                    self.child_source(if taken { "then" } else { "otherwise" }),
+                )?;
+                if flow != Flow::Continue {
+                    return Ok(flow);
                 }
-                Effect::End { ending } => {
-                    if self.state.ending.is_some() {
-                        return Ok(Flow::End);
-                    }
-                    let end = self
-                        .p
-                        .game
-                        .endings
-                        .iter()
-                        .find(|e| e.id == *ending)
-                        .context("Unknown ending")?
-                        .clone();
-                    self.state.ending = Some(ending.clone());
-                    self.finalizing = true;
-                    self.fire(Event::Ending, &self.p.game.id)?;
-                    self.finalizing = false;
-                    self.say(&end.text)?;
-                    if let Some(outcome) = &end.outcome {
-                        self.literal(&format!("Outcome: {outcome:?}"));
-                    }
+            }
+            Effect::End { ending } => {
+                if self.state.ending.is_some() {
                     return Ok(Flow::End);
                 }
-                Effect::Stop => return Ok(Flow::Stop),
+                let end = self
+                    .p
+                    .game
+                    .endings
+                    .iter()
+                    .find(|e| e.id == *ending)
+                    .context("Unknown ending")?
+                    .clone();
+                self.state.ending = Some(ending.clone());
+                self.finalizing = true;
+                self.fire(Event::Ending, &self.p.game.id)?;
+                self.finalizing = false;
+                self.say(&end.text)?;
+                if let Some(outcome) = &end.outcome {
+                    self.literal(&format!("Outcome: {outcome:?}"));
+                }
+                return Ok(Flow::End);
             }
+            Effect::Stop => return Ok(Flow::Stop),
         }
         Ok(Flow::Continue)
     }
@@ -1193,7 +1370,7 @@ impl<'a> Run<'a> {
         let mut commands = BTreeMap::new();
         for phrase in phrases {
             let normalized = normalize(&phrase);
-            let candidates = self.candidates(&normalized)?;
+            let candidates = self.candidates(&normalized, None)?;
             let Some(best) = candidates.first() else {
                 continue;
             };
@@ -1318,10 +1495,15 @@ impl<'a> Run<'a> {
         }
         Ok(())
     }
-    fn candidates(&self, input: &str) -> Result<Vec<Candidate>> {
+    fn candidates(
+        &self,
+        input: &str,
+        mut recorder: Option<&mut explanation::Recorder>,
+    ) -> Result<Vec<Candidate>> {
         let mut matches = vec![];
         for (owner, actions, _) in self.p.owners() {
-            if !self.available(owner) {
+            let available = self.available(owner);
+            if !available && recorder.is_none() {
                 continue;
             }
             let scope = if owner == self.p.game.id {
@@ -1332,8 +1514,39 @@ impl<'a> Run<'a> {
                 2
             };
             for a in actions {
-                if self.matches(input, &a.verb, &a.pattern, None, false) {
-                    let (literals, entities) = specificity(&a.pattern);
+                let matched = available && self.matches(input, &a.verb, &a.pattern, None, false);
+                if !matched && recorder.is_none() {
+                    continue;
+                }
+                let (literals, entities) = specificity(&a.pattern);
+                if let Some(recorder) = recorder.as_deref_mut() {
+                    recorder.candidate(
+                        &a.id,
+                        "pattern",
+                        TraceKind::Candidate {
+                            name: a.name.clone(),
+                            matched,
+                            reason: if !available {
+                                "Owner is outside the current command scope"
+                            } else if matched {
+                                "Verb, pattern, and target scope matched"
+                            } else {
+                                "Verb, pattern, or target scope did not match"
+                            }
+                            .into(),
+                            literals,
+                            targets: entities,
+                            scope: match scope {
+                                2 => "object/character",
+                                1 => "location",
+                                _ => "global",
+                            }
+                            .into(),
+                            priority: a.priority,
+                        },
+                    );
+                }
+                if matched {
                     matches.push(Candidate {
                         id: a.id.clone(),
                         name: a.name.clone(),
@@ -1352,8 +1565,24 @@ impl<'a> Run<'a> {
             .context("Unknown location")?;
         for exit in &location.exits {
             if !self.condition(&exit.visible) {
+                if let Some(recorder) = recorder.as_deref_mut() {
+                    recorder.candidate(
+                        &exit.id,
+                        "visible",
+                        TraceKind::Candidate {
+                            name: exit.name.clone(),
+                            matched: false,
+                            reason: "Exit is hidden".into(),
+                            literals: 0,
+                            targets: 0,
+                            scope: "location".into(),
+                            priority: exit.priority,
+                        },
+                    );
+                }
                 continue;
             }
+            let mut matched_rank = None;
             let patterns = if exit.pattern.is_empty() {
                 std::iter::once(&exit.name)
                     .chain(&exit.aliases)
@@ -1385,8 +1614,31 @@ impl<'a> Run<'a> {
                         rank: (literals, entities, 1, exit.priority),
                         handler: Handler::Exit(exit.clone()),
                     });
+                    matched_rank = Some((literals, entities));
                     break;
                 }
+            }
+            if let Some(recorder) = recorder.as_deref_mut() {
+                let (literals, targets) =
+                    matched_rank.unwrap_or_else(|| specificity(&exit.pattern));
+                recorder.candidate(
+                    &exit.id,
+                    "pattern",
+                    TraceKind::Candidate {
+                        name: exit.name.clone(),
+                        matched: matched_rank.is_some(),
+                        reason: if matched_rank.is_some() {
+                            "Verb, route, and target scope matched"
+                        } else {
+                            "Verb, route, or target scope did not match"
+                        }
+                        .into(),
+                        literals,
+                        targets,
+                        scope: "location".into(),
+                        priority: exit.priority,
+                    },
+                );
             }
         }
         matches.sort_by(|a, b| b.rank.cmp(&a.rank).then_with(|| a.id.cmp(&b.id)));
@@ -1394,6 +1646,14 @@ impl<'a> Run<'a> {
     }
     fn command(&mut self, input: &str) -> Result<()> {
         let normalized = normalize(input);
+        if self.recording.is_some() && (normalized.is_empty() || reserved(input)) {
+            self.observe(
+                TraceKind::Notice {
+                    text: "Built-in control; authored command effects are not dispatched.".into(),
+                },
+                None,
+            );
+        }
         if normalized.is_empty() {
             return Ok(());
         }
@@ -1449,7 +1709,10 @@ impl<'a> Run<'a> {
             return Ok(());
         }
         ensure!(input.len() <= 4096, "Command is too long");
-        let matches = self.candidates(&normalized)?;
+        let mut recorder = self.recording.take();
+        let matches = self.candidates(&normalized, recorder.as_mut());
+        self.recording = recorder;
+        let matches = matches?;
         for m in &matches {
             self.result
                 .trace
@@ -1476,9 +1739,19 @@ impl<'a> Run<'a> {
             best.name, best.id
         ));
         self.result.selected_flow = Some(best.id.clone());
+        self.observe(
+            TraceKind::Selected {
+                name: best.name.clone(),
+            },
+            self.source_for(&best.id, ""),
+        );
         match best.handler {
             Handler::Action(action) => {
-                if !self.condition(&action.requirements) {
+                if !self.checked_condition(
+                    &action.requirements,
+                    self.source_for(&action.id, "requirements"),
+                    "Action requirements",
+                ) {
                     self.result.status = "requirements_failed".into();
                     self.say(if action.failure_text.is_empty() {
                         "You cannot do that yet."
@@ -1487,7 +1760,7 @@ impl<'a> Run<'a> {
                     })?;
                     return Ok(());
                 }
-                self.effects(&action.effects)?;
+                self.effects_at(&action.effects, self.source_for(&action.id, "effects"))?;
                 if self.state.ending.is_none() {
                     if let Some(event) = self
                         .p
@@ -1504,7 +1777,11 @@ impl<'a> Run<'a> {
                 }
             }
             Handler::Exit(exit) => {
-                if !self.condition(&exit.available) {
+                if !self.checked_condition(
+                    &exit.available,
+                    self.source_for(&exit.id, "available"),
+                    "Exit availability",
+                ) {
                     self.result.status = "requirements_failed".into();
                     self.say(if exit.blocked_text.is_empty() {
                         "That route is not available yet."
@@ -1514,9 +1791,16 @@ impl<'a> Run<'a> {
                     return Ok(());
                 }
                 self.say(&exit.text)?;
-                let flow = self.effects(&exit.effects)?;
+                let flow = self.effects_at(&exit.effects, self.source_for(&exit.id, "effects"))?;
                 if flow == Flow::Continue {
-                    self.move_to(&exit.destination)?
+                    self.traced(
+                        TraceKind::Notice {
+                            text: "Travel through the selected exit.".into(),
+                        },
+                        self.source_for(&exit.id, "destination"),
+                        true,
+                        |this| this.move_to(&exit.destination),
+                    )?;
                 }
                 if self.state.ending.is_none() {
                     self.fire(Event::Command, &best.owner)?
