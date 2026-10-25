@@ -1,4 +1,4 @@
-use luna_core::{Session, validate_state};
+use luna_core::{CommandStatus, Session, validate_state};
 use luna_model::*;
 
 fn held(character: &str) -> Placement {
@@ -101,7 +101,7 @@ fn characters_own_items_without_exposing_them_to_player_commands() {
         None,
     )
     .unwrap();
-    assert_eq!(session.state.objects["key"].placement, held("keeper"));
+    assert_eq!(session.state().objects["key"].placement, held("keeper"));
     assert!(
         initial
             .messages
@@ -114,10 +114,10 @@ fn characters_own_items_without_exposing_them_to_player_commands() {
     );
     assert_eq!(output(&mut session, "use check"), "Keeper holds key.");
     for command in ["examine key", "take key"] {
-        let before = session.state.clone();
+        let before = session.state().clone();
         let result = session.command(command).unwrap();
-        assert_eq!(result.status, "unmatched");
-        assert_eq!(session.state, before);
+        assert_eq!(result.status, CommandStatus::Unmatched);
+        assert_eq!(session.state(), &before);
     }
     output(&mut session, "use transfer");
     assert_eq!(
@@ -181,10 +181,13 @@ fn every_transfer_replaces_the_single_owner_and_removal_has_an_explicit_destinat
             p.objects[0].placement = source.clone();
             let (mut s, _) = Session::start(p, None).unwrap();
             output(&mut s, "use transfer");
-            assert_eq!(s.state.objects["key"].placement, expected);
-            assert_eq!(s.state.objects["key"].exists, expected != Placement::Absent);
-            assert_eq!(s.state.objects["key"].consumed, consumed);
-            validate_state(s.project(), &s.state).unwrap();
+            assert_eq!(s.state().objects["key"].placement, expected);
+            assert_eq!(
+                s.state().objects["key"].exists,
+                expected != Placement::Absent
+            );
+            assert_eq!(s.state().objects["key"].consumed, consumed);
+            validate_state(s.project(), s.state()).unwrap();
         }
     }
     let (mut s, _) = Session::start(
@@ -197,9 +200,9 @@ fn every_transfer_replaces_the_single_owner_and_removal_has_an_explicit_destinat
     .unwrap();
     output(&mut s, "use transfer");
     assert_eq!(
-        s.state.objects["key"].placement,
+        s.state().objects["key"].placement,
         Placement::Location {
-            location: s.state.location.clone()
+            location: s.state().location.clone()
         }
     );
 }
@@ -211,18 +214,20 @@ fn carrying_uses_live_ownership_independently_of_character_visibility_or_locatio
     p.characters[0].hidden = true;
     let (mut s, _) = Session::start(p, None).unwrap();
     assert_eq!(output(&mut s, "use check"), "Keeper holds key.");
-    s.state.characters.get_mut("keeper").unwrap().location = s.state.location.clone();
-    assert_eq!(s.state.objects["key"].placement, held("keeper"));
+    let mut state = s.state().clone();
+    state.characters.get_mut("keeper").unwrap().location = state.location.clone();
+    s.replace_state(state).unwrap();
+    assert_eq!(s.state().objects["key"].placement, held("keeper"));
     let mut project = s.project().clone();
     project.game.actions[0].effects = vec![Effect::Consume {
         object: "key".into(),
     }];
-    s = Session::restore(project, s.state).unwrap();
+    s = Session::restore(project, s.into_state()).unwrap();
     output(&mut s, "use transfer");
     assert_eq!(output(&mut s, "use check"), "Keeper has no key.");
     let mut project = s.project().clone();
     project.game.actions[0].effects = vec![give("keeper")];
-    s = Session::restore(project, s.state).unwrap();
+    s = Session::restore(project, s.into_state()).unwrap();
     output(&mut s, "use transfer");
     assert_eq!(output(&mut s, "use check"), "Keeper holds key.");
 }
@@ -259,8 +264,8 @@ fn take_and_drop_events_track_only_transfers_across_the_player_inventory() {
     }
     let (mut s, _) = Session::start(p, None).unwrap();
     output(&mut s, "use transfer");
-    assert_eq!(s.state.variables["takes"], Value::Integer(1));
-    assert_eq!(s.state.variables["drops"], Value::Integer(1));
+    assert_eq!(s.state().variables["takes"], Value::Integer(1));
+    assert_eq!(s.state().variables["drops"], Value::Integer(1));
 }
 
 #[test]
@@ -296,9 +301,9 @@ fn failed_commands_rollback_transfers_and_trigger_changes() {
         ..Default::default()
     });
     let (mut s, _) = Session::start(p, None).unwrap();
-    let before = s.state.clone();
+    let before = s.state().clone();
     assert!(s.command("use transfer").is_err());
-    assert_eq!(s.state, before);
+    assert_eq!(s.state(), &before);
     assert_eq!(output(&mut s, "use check"), "Keeper holds key.");
 }
 
@@ -336,7 +341,7 @@ fn invalid_owners_and_inconsistent_saves_are_rejected() {
         (held("keeper"), false, false),
         (held("keeper"), true, true),
     ] {
-        let mut state = s.state.clone();
+        let mut state = s.state().clone();
         let item = state.objects.get_mut("key").unwrap();
         item.placement = placement;
         item.exists = exists;

@@ -1,6 +1,6 @@
 //! Built-in controls and authored command dispatch within one transaction.
 use super::{Flow, Run, matching::Handler};
-use crate::{HostControl, TraceKind};
+use crate::{CommandStatus, HostControl, TraceKind};
 use anyhow::{Result, ensure};
 use luna_model::{Event, normalize, reserved};
 
@@ -20,7 +20,7 @@ impl<'a> Run<'a> {
         }
         if let Some(control) = host_control(input) {
             self.result.control = Some(control);
-            self.result.status = "control".into();
+            self.result.status = CommandStatus::Control;
             return Ok(());
         }
         if let Some(query) = normalized.strip_prefix("help ") {
@@ -43,7 +43,7 @@ impl<'a> Run<'a> {
         }
         if self.state.ending.is_some() {
             self.literal("This playthrough has ended. You can look, inspect your inventory, save, load, or quit.");
-            self.result.status = "ended".into();
+            self.result.status = CommandStatus::Ended;
             return Ok(());
         }
         ensure!(input.len() <= 4096, "Command is too long");
@@ -57,7 +57,7 @@ impl<'a> Run<'a> {
                 .push(format!("Candidate '{}' [{}]: literal specificity {}, bound targets {}, scope {}, priority {}", m.name,m.id,m.rank.0,m.rank.1,match m.rank.2 { 2 => "object/character", 1 => "location", _ => "global" },m.rank.3))
         }
         let Some(best) = matches.first().cloned() else {
-            self.result.status = "unmatched".into();
+            self.result.status = CommandStatus::Unmatched;
             return self.say(&self.p.game.unknown_command_text);
         };
         let tied = matches
@@ -65,7 +65,7 @@ impl<'a> Run<'a> {
             .filter(|m| m.rank == best.rank)
             .collect::<Vec<_>>();
         if tied.len() > 1 {
-            self.result.status = "ambiguous".into();
+            self.result.status = CommandStatus::Ambiguous;
             self.literal(&format!("Please clarify your command: {}. Type a more specific command; nothing has changed.",tied.iter().map(|m|m.name.as_str()).collect::<Vec<_>>().join(" or ")));
             return Ok(());
         }
@@ -87,7 +87,7 @@ impl<'a> Run<'a> {
                     self.source_for(&action.id, "requirements"),
                     "Action requirements",
                 ) {
-                    self.result.status = "requirements_failed".into();
+                    self.result.status = CommandStatus::RequirementsFailed;
                     self.say(if action.failure_text.is_empty() {
                         "You cannot do that yet."
                     } else {
@@ -111,7 +111,7 @@ impl<'a> Run<'a> {
                     self.source_for(&exit.id, "available"),
                     "Exit availability",
                 ) {
-                    self.result.status = "requirements_failed".into();
+                    self.result.status = CommandStatus::RequirementsFailed;
                     self.say(if exit.blocked_text.is_empty() {
                         "That route is not available yet."
                     } else {

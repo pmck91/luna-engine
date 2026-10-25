@@ -25,7 +25,7 @@ fn print_description_uses_current_descriptions_for_every_entity_kind() {
     let (mut s, _) = Session::start(p, None).unwrap();
     let mut project = s.project().clone();
     project.objects[0].description = "A <green>gleaming</green> coin.".into();
-    s = Session::restore(project, s.state).unwrap();
+    s = Session::restore(project, s.into_state()).unwrap();
     assert_eq!(
         output(s.command("inspect the coin").unwrap()),
         "A gleaming coin."
@@ -40,7 +40,7 @@ fn print_description_uses_current_descriptions_for_every_entity_kind() {
     );
     let mut project = s.project().clone();
     project.objects[0].description.clear();
-    s = Session::restore(project, s.state).unwrap();
+    s = Session::restore(project, s.into_state()).unwrap();
     let result = s.command("inspect coin").unwrap();
     assert!(result.messages.is_empty());
     assert!(!result.state_changed);
@@ -100,7 +100,7 @@ fn messages_expand_live_variables_properties_and_sequences() {
     );
     assert_eq!(text::plain(&r.messages[1]), "1 / 5");
     assert_eq!(text::plain(&r.messages[2]), "Current chances: 1.");
-    let state = s.state.clone();
+    let state = s.state().clone();
     let mut restored =
         Session::restore_with_definition(s.definition().clone(), state.clone()).unwrap();
     assert_eq!(
@@ -118,7 +118,7 @@ fn messages_expand_live_variables_properties_and_sequences() {
         },
     ];
     assert!(GameDefinition::new(invalid).is_err());
-    assert_eq!(s.state, state);
+    assert_eq!(s.state(), &state);
 }
 #[test]
 fn optional_entity_words_apply_to_names_aliases_characters_and_locations() {
@@ -179,10 +179,12 @@ fn optional_entity_words_apply_to_names_aliases_characters_and_locations() {
         output(session.command("inspect the starting location").unwrap()),
         "Room"
     );
-    session.state.objects.get_mut("painting").unwrap().hidden = true;
+    let mut state = session.state().clone();
+    state.objects.get_mut("painting").unwrap().hidden = true;
+    session.replace_state(state).unwrap();
     assert_eq!(
         session.command("inspect the painting").unwrap().status,
-        "unmatched"
+        CommandStatus::Unmatched
     );
 }
 #[test]
@@ -242,7 +244,7 @@ fn optional_words_work_at_each_entity_boundary_without_removing_literals() {
     ] {
         assert_eq!(
             session.command(command).unwrap().status,
-            "unmatched",
+            CommandStatus::Unmatched,
             "{command}"
         );
     }
@@ -279,8 +281,12 @@ fn optional_words_apply_to_named_routes_and_explicit_destination_patterns() {
             "go the courtyard",
         ] {
             let (mut session, _) = Session::start(p.clone(), None).unwrap();
-            assert_eq!(session.command(command).unwrap().status, "ok", "{command}");
-            assert_eq!(session.state.location, "garden", "{command}");
+            assert_eq!(
+                session.command(command).unwrap().status,
+                CommandStatus::Ok,
+                "{command}"
+            );
+            assert_eq!(session.state().location, "garden", "{command}");
         }
     }
 }
@@ -295,13 +301,13 @@ fn configurable_ignored_words_preserve_ambiguity_and_host_control_text() {
     );
     assert_eq!(
         session.command("inspect the painting").unwrap().status,
-        "unmatched"
+        CommandStatus::Unmatched
     );
     p.game.ignored_words.clear();
     let (mut session, _) = Session::start(p, None).unwrap();
     assert_eq!(
         session.command("inspect this painting").unwrap().status,
-        "unmatched"
+        CommandStatus::Unmatched
     );
     assert_eq!(
         output(session.command("inspect painting").unwrap()),
@@ -327,12 +333,12 @@ fn configurable_ignored_words_preserve_ambiguity_and_host_control_text() {
     }];
     p.objects.push(other);
     let (mut session, _) = Session::start(p, None).unwrap();
-    let before = session.state.clone();
+    let before = session.state().clone();
     assert_eq!(
         session.command("inspect the painting").unwrap().status,
-        "ambiguous"
+        CommandStatus::Ambiguous
     );
-    assert_eq!(session.state, before);
+    assert_eq!(session.state(), &before);
 }
 #[test]
 fn named_exits_bind_destination_aliases_without_exposing_remote_objects() {
@@ -355,8 +361,11 @@ fn named_exits_bind_destination_aliases_without_exposing_remote_objects() {
     });
     let (mut s, _) = Session::start(p, None).unwrap();
     s.command("go sunlit garden").unwrap();
-    assert_eq!(s.state.location, "garden");
-    assert_eq!(s.command("examine painting").unwrap().status, "unmatched");
+    assert_eq!(s.state().location, "garden");
+    assert_eq!(
+        s.command("examine painting").unwrap().status,
+        CommandStatus::Unmatched
+    );
 }
 #[test]
 fn looping_and_fallback_sequences() {
@@ -381,7 +390,7 @@ fn looping_and_fallback_sequences() {
         for text in expected {
             assert_eq!(output(session.command("examine painting").unwrap()), text);
         }
-        Session::restore_with_definition(session.definition().clone(), session.state.clone())
+        Session::restore_with_definition(session.definition().clone(), session.state().clone())
             .unwrap();
     }
 }
@@ -420,20 +429,20 @@ fn combinations_preserve_or_consume_each_input() {
         });
         let (mut session, _) = Session::start(p, None).unwrap();
         session.command("use a on b").unwrap();
-        assert_eq!(session.state.objects["a"].consumed, consume_first);
-        assert!(session.state.objects["b"].consumed);
-        assert!(!session.state.objects["b"].exists);
+        assert_eq!(session.state().objects["a"].consumed, consume_first);
+        assert!(session.state().objects["b"].consumed);
+        assert!(!session.state().objects["b"].exists);
         assert_eq!(
-            session.state.objects["result"].placement,
+            session.state().objects["result"].placement,
             Placement::Inventory
         );
         let state: GameState =
-            serde_json::from_slice(&serde_json::to_vec(&session.state).unwrap()).unwrap();
+            serde_json::from_slice(&serde_json::to_vec(session.state()).unwrap()).unwrap();
         assert_eq!(
             Session::restore_with_definition(session.definition().clone(), state)
                 .unwrap()
-                .state,
-            session.state
+                .state(),
+            session.state()
         );
     }
 }
@@ -473,14 +482,14 @@ fn first_entries_repeat_entries_and_look() {
     }
     let (mut session, initial) = Session::start(p, None).unwrap();
     assert!(output(initial).contains("First visit"));
-    let state = session.state.clone();
+    let state = session.state().clone();
     assert!(!output(session.command("look").unwrap()).contains("visit"));
-    assert_eq!(session.state, state);
+    assert_eq!(session.state(), &state);
     session.command("go east").unwrap();
     let back = output(session.command("go west").unwrap());
     assert!(back.contains("Every visit"));
     assert!(!back.contains("First visit"));
-    assert_eq!(session.state.visits[&start], 2);
+    assert_eq!(session.state().visits[&start], 2);
 }
 #[test]
 fn parser_scope_priority_and_specificity() {
@@ -563,16 +572,16 @@ fn output(r: CommandResult) -> String {
 fn responses_restore_and_inspection() {
     let (mut s, _) = Session::start(world(), None).unwrap();
     assert_eq!(output(s.command("INSPECT, painting!").unwrap()), "First");
-    let saved = s.state.clone();
+    let saved = s.state().clone();
     let mut loaded = Session::restore_with_definition(s.definition().clone(), saved).unwrap();
     assert_eq!(
         output(loaded.command("look at old painting").unwrap()),
         "Second"
     );
     assert!(!loaded.command("examine painting").unwrap().state_changed);
-    let old = loaded.state.clone();
+    let old = loaded.state().clone();
     loaded.command("look").unwrap();
-    assert_eq!(old, loaded.state);
+    assert_eq!(&old, loaded.state());
 }
 #[test]
 fn ties_and_failures_have_no_side_effects() {
@@ -584,9 +593,12 @@ fn ties_and_failures_have_no_side_effects() {
     }];
     p.objects[0].actions.push(a);
     let (mut s, _) = Session::start(p, None).unwrap();
-    let before = s.state.clone();
-    assert_eq!(s.command("examine painting").unwrap().status, "ambiguous");
-    assert_eq!(before, s.state);
+    let before = s.state().clone();
+    assert_eq!(
+        s.command("examine painting").unwrap().status,
+        CommandStatus::Ambiguous
+    );
+    assert_eq!(&before, s.state());
     assert!(!s.command("unknown").unwrap().state_changed);
 }
 #[test]
@@ -630,9 +642,9 @@ fn cycles_roll_back_output_and_state() {
         },
     ];
     let (mut s, _) = Session::start(p, None).unwrap();
-    let old = s.state.clone();
+    let old = s.state().clone();
     assert!(s.command("examine painting").is_err());
-    assert_eq!(old, s.state);
+    assert_eq!(&old, s.state());
 }
 #[test]
 fn failed_requirements_do_not_fall_through() {
@@ -640,13 +652,17 @@ fn failed_requirements_do_not_fall_through() {
     p.objects[0].actions[0].requirements = Condition::False;
     p.objects[0].actions[0].failure_text = "No.".into();
     let (mut s, _) = Session::start(p, None).unwrap();
-    let old = s.state.clone();
+    let old = s.state().clone();
     assert_eq!(output(s.command("examine painting").unwrap()), "No.");
-    assert_eq!(old, s.state);
+    assert_eq!(&old, s.state());
 }
 #[test]
 fn full_state_validation() {
     let (mut s, _) = Session::start(world(), None).unwrap();
-    s.state.sequences.insert("replies".into(), usize::MAX);
-    assert!(validate_state(s.project(), &s.state).is_err())
+    let before = s.state().clone();
+    let mut state = before.clone();
+    state.sequences.insert("replies".into(), usize::MAX);
+    assert!(validate_state(s.project(), &state).is_err());
+    assert!(s.replace_state(state).is_err());
+    assert_eq!(s.state(), &before);
 }

@@ -1,4 +1,5 @@
 use super::*;
+use luna_core::CommandStatus;
 use sha2::{Digest, Sha256};
 
 pub(crate) struct EditorSession {
@@ -163,7 +164,7 @@ pub(crate) async fn start_playtest(
     let view = PlaytestView {
         session: id.clone(),
         result,
-        state: runtime.state.clone(),
+        state: runtime.state().clone(),
         source: source.clone(),
     };
     app.lock()?
@@ -189,13 +190,13 @@ pub(crate) async fn capture_setup(
     current
         .runtime
         .definition()
-        .validate_state(&current.runtime.state)?;
+        .validate_state(current.runtime.state())?;
     Ok(Json(PlaytestSetup {
         version: 1,
         id: new_id(),
         name: name.into(),
         source: current.source.clone(),
-        state: current.runtime.state.clone(),
+        state: current.runtime.state().clone(),
     }))
 }
 fn validate_check(project: &Project, check: &PlaytestCheck) -> Result<()> {
@@ -262,7 +263,7 @@ pub(crate) async fn run_check(
         let (runtime, result) = Session::start(project, location.as_deref())?;
         (runtime, result.messages)
     };
-    let initial_state = runtime.state.clone();
+    let initial_state = runtime.state().clone();
     let mut steps = vec![];
     for (index, step) in check.steps.iter().enumerate() {
         let mut failures = vec![];
@@ -290,7 +291,7 @@ pub(crate) async fn run_check(
             }
         };
         if let Some(result) = &result
-            && result.status != "error"
+            && result.status != CommandStatus::Error
         {
             if let Some(expected) = &step.transcript {
                 let actual = result
@@ -314,12 +315,12 @@ pub(crate) async fn run_check(
             }
             let completion_matches = match &step.completion {
                 None => true,
-                Some(CompletionExpectation::Playing) => runtime.state.ending.is_none(),
+                Some(CompletionExpectation::Playing) => runtime.state().ending.is_none(),
                 Some(CompletionExpectation::Ended { ending }) => {
-                    runtime.state.ending.is_some()
+                    runtime.state().ending.is_some()
                         && ending
                             .as_ref()
-                            .is_none_or(|id| runtime.state.ending.as_ref() == Some(id))
+                            .is_none_or(|id| runtime.state().ending.as_ref() == Some(id))
                 }
             };
             if !completion_matches {
@@ -345,7 +346,7 @@ pub(crate) async fn run_check(
         initial_messages,
         passed: steps.iter().all(|step| step.failures.is_empty()),
         steps,
-        state: runtime.state.clone(),
+        state: runtime.state().clone(),
     };
     app.lock()?
         .sessions

@@ -3,7 +3,7 @@
 //! Run `cargo bench -p luna-runner --bench scaling`, optionally followed by
 //! `-- 100 1000 5000` to select object counts. All saves use a temporary directory.
 use anyhow::{Context, Result, ensure};
-use luna_core::Session;
+use luna_core::{CommandStatus, Session};
 use luna_model::{
     Action, ArithmeticOperation, Effect, Exit, Location, NumericOperand, Object, PatternPart,
     Placement, Project, Value, starter_actions,
@@ -110,17 +110,20 @@ fn run_case(store: &Storage, objects: usize, crowded: bool) -> Result<()> {
     let mutation = measure(repetitions, || session.command("use counter"))?;
     let explained = measure(5, || {
         let result = session.command_explained("examine token 0");
-        ensure!(result.status == "ok", "Explained command failed");
+        ensure!(
+            result.status == CommandStatus::Ok,
+            "Explained command failed"
+        );
         Ok(result)
     })?;
-    let validation = measure(2, || session.definition().validate_state(&session.state))?;
+    let validation = measure(2, || session.definition().validate_state(session.state()))?;
     // Measure replacing an existing slot, including validation of its previous
     // state, JSON encoding/decoding, locking, atomic replacement, and syncing.
-    store.write_save(&record, session.definition(), &session.state, None)?;
+    store.write_save(&record, session.definition(), session.state(), None)?;
     let save = measure(3, || {
-        store.write_save(&record, session.definition(), &session.state, None)
+        store.write_save(&record, session.definition(), session.state(), None)
     })?;
-    let bytes = serde_json::to_vec(&session.state)?.len();
+    let bytes = serde_json::to_vec(session.state())?.len();
     let actions = session
         .project()
         .owners()

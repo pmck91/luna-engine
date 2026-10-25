@@ -1,6 +1,6 @@
 # Shared core and runner hardening
 
-Status: **In progress**, starting 25 October 2026. H1 is committed as `c2ad929`, H2 as `ed06e7e`; H3 is complete and H4 is next.
+Status: **In progress**, starting 25 October 2026. H1 is committed as `c2ad929`, H2 as `ed06e7e`, and H3 as `98c3eea`; H4 is complete and H5 is next.
 
 Branch: `feature/core-hardening`, created from `main` at `0dcb1be`.
 
@@ -64,11 +64,11 @@ Putting all 5,000 objects in the current room increased examination to about 38 
 
 ### H4 — Strengthen the public API
 
-Project/definition encapsulation was brought forward into H2 to make cached validation trustworthy. Mutable state encapsulation and typed command statuses remain in this milestone.
+Project/definition encapsulation was brought forward into H2 to make cached validation trustworthy. This milestone completes mutable state encapsulation and typed command statuses.
 
-- [ ] Make session internals private with read-only accessors and an explicit validated state replacement path for the editor. Keep authoring project edits separate from an executing game's definition.
-- [ ] Replace string command status with a serializable enum retaining the existing wire strings. Regenerate TypeScript contracts and adapt hosts/tests without changing player-facing replies.
-- [ ] Document and test the guarantees of start, restore, command, explained command, read-only inspection, and state replacement. Introduce typed errors only where callers need to distinguish recovery paths; retain useful contextual error messages.
+- [x] Make session internals private with read-only accessors and an explicit validated state replacement path for the editor. Keep authoring project edits separate from an executing game's definition.
+- [x] Replace string command status with a serializable enum retaining the existing wire strings. Regenerate TypeScript contracts and adapt hosts/tests without changing player-facing replies.
+- [x] Document and test the guarantees of start, restore, command, explained command, read-only inspection, and state replacement. Introduce typed errors only where callers need to distinguish recovery paths; retain useful contextual error messages.
 
 ### H5 — Optimize measured lookup and read-only costs
 
@@ -115,7 +115,7 @@ The crowded 5,000-object examination took 39.234 ms; its explained version took 
 
 `GameDefinition` now owns validated content and compact indexes for saved-state entity IDs, variable/property types, ending IDs, response cursor bounds, and hint stages. Clones share the immutable definition through a private `Arc`. `Session` keeps this definition private; `project()` exposes read-only authored content, and `definition()` lets hosts reuse the validated boundary. Existing untrusted-project start/restore/validation entry points still perform full validation. The additional `start_with_definition` / `restore_with_definition` entry points reuse the definition and check incoming state as required.
 
-Runner saves/loads now require a `GameDefinition`, preserving current/previous-state compatibility checks without re-running project diagnostics. The runner creates one definition per launch and shares it across named loads and autosaves. Editor state application and setup capture use their session's definition. Mutable state is still public until H4. The schema checker lives in `luna-core/src/definition.rs`; this focused extraction supports H2 without attempting the broader H3 module reorganization.
+Runner saves/loads now require a `GameDefinition`, preserving current/previous-state compatibility checks without re-running project diagnostics. The runner creates one definition per launch and shares it across named loads and autosaves. Editor state application and setup capture use their session's definition. Mutable state remained public at H2 and was encapsulated in H4. The schema checker lives in `luna-core/src/definition.rs`; this focused extraction supports H2 without attempting the broader H3 module reorganization.
 
 New regressions cover 32 malformed-state mutations, every response mode's cursor/exhaustion bounds, retained hint/sequence progress, restoring without replaying start/entry effects, immutable shared definitions, and valid/invalid changed content. Storage and actual-CLI tests verify good-slot preservation on invalid writes, preserved creation timestamps, replacement-content fingerprint warnings, compatible named resumes, incompatible load rejection without modifying files, and preserving an incompatible old autosave when a new game overwrites it. Tests that formerly mutated a running session's project now explicitly validate and restore a changed copy; runtime rollback remains covered using valid authored cycles and arithmetic failures.
 
@@ -133,10 +133,22 @@ H2 verification: workspace tests (including rustdoc/immutability examples), Clip
 
 ### H3 implementation and verification
 
-The runtime has been divided into private modules documented in the [architecture map](../architecture.md#shared-runtime-modules). `lib.rs` is now a 60-line public facade; `session.rs` is a 142-line lifecycle/transaction coordinator. Initial-state construction moved to the validated definition. Matching and dispatch, conditions, entity/value access, effects, events/watches, help, hints, presentation, and explanations each have an explicit home under `runtime/`. The original inline regression assertions moved unchanged into `tests.rs`; existing feature tests continue to exercise the same public API.
+The runtime has been divided into private modules documented in the [architecture map](../architecture.md#shared-runtime-modules). At H3, `lib.rs` became a 60-line public facade and `session.rs` a 142-line lifecycle/transaction coordinator. Initial-state construction moved to the validated definition. Matching and dispatch, conditions, entity/value access, effects, events/watches, help, hints, presentation, and explanations each have an explicit home under `runtime/`. The original inline regression assertions moved unchanged into `tests.rs`; existing feature tests continue to exercise the same public API.
 
 The extraction was verified with workspace tests before further cleanup. Shared borrowed helpers now own location/character/verb/ending lookup and global/property reads. Conditions, arithmetic, formatted messages, and explanations use the same value accessors. Presentation owns inventory/resume output, and ordinary events plus value watches share one operation/depth-entry gate. These changes retain candidate ordering, visibility rules, effect/event order, execution limits, finalization behaviour, trace sources, and command state/output rollback. Runtime helpers remain within the private transaction subtree; the host-facing API and serialized contracts are re-exported through the same crate-root names.
 
 The [H3 benchmark](core-hardening-h3.csv) uses the same compiler, fixtures, sample sizes, and tmpfs storage as H2. All six fixture/state-size comparisons match. At 5,000 distributed objects, examination measured 1.540 ms, the cached state check 1.323 ms, and overwrite autosave 9.393 ms (H2: 1.677 / 1.376 / 9.900 ms). The refactor retains the H2 performance improvement; these small timing differences are not claimed as a new optimization. Lookup indexes, read-only state borrowing, and snapshot costs remain H5 work.
 
 H3 verification: all 141 workspace tests/doc tests, Clippy with warnings denied, Rust formatting, generated TypeScript contract checks, the full default benchmark, Markdown plan formatting, and relative-link checks passed. The moved inline assertions were compared with H2 and match exactly. All ten focused Chromium/Firefox playtest and explanation checks passed, using the same installed Firefox 1532 executable override as H2. Content/save formats, generated contracts, examples, and historical fixtures are unchanged. Full package and branch acceptance checks remain in H6.
+
+### H4 implementation and verification
+
+`Session` now owns private state. `state()` borrows it read-only, `into_state()` consumes the session for transfer, and `replace_state()` checks a complete snapshot against the existing definition before atomically replacing it. Replacement preserves supplied progress and runs no messages, triggers, value watches, or entry/ending effects. The editor's state application and the runner's named-load path use this method. Authoring content still requires a new validated definition.
+
+`CommandStatus` replaces unrestricted Rust strings and generates a TypeScript union. Its serialized values remain `ok`, `control`, `unmatched`, `ambiguous`, `requirements_failed`, `ended`, and `error`; status is independent of whether state changed. Hosts and tests now use the enum. Normal rejections remain successful command results; execution failures retain contextual errors, and explained failures return `Error` with rollback details. No new error taxonomy was introduced because current hosts do not need to branch on error kinds.
+
+Source migration: replace `session.state` reads with `session.state()`, clone the borrowed snapshot before editing and call `replace_state(edited)?`, or consume it with `into_state()` when transferring ownership. Replace Rust string-status comparisons with `CommandStatus` variants. These are deliberate Rust API changes; content format 1, save format 2, player replies, and serialized command-result values are unchanged.
+
+Lifecycle rustdoc now states start/restore, transaction, inspection, and replacement guarantees. Executable examples cover immutable state access and validated edits. Regressions check every status's JSON encoding/decoding, command rejection/control/error behaviour, the 32 malformed-state replacements leaving the original session intact, and valid replacement retaining hint/sequence/inventory/ending progress without replaying events or watches. A direct editor HTTP check covers accepted state edits, rejected edits, and capturing the unchanged active state afterward. Existing CLI and editor/runner parity checks use the new APIs.
+
+H4 verification: all 147 workspace tests/doc tests, Clippy and core rustdoc with warnings denied, Rust formatting, generated-contract checks, the frontend production build, all 63 frontend tests, and frontend formatting passed. All ten focused Chromium/Firefox playtest and explanation checks passed with the installed Firefox 1532 override. This API change adds validation to the explicit replacement boundary and leaves the command execution algorithms unchanged; performance measurements resume in H5. Examples and historical fixtures are unchanged. Full package and branch acceptance checks remain in H6.

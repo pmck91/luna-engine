@@ -87,14 +87,14 @@ fn immutable_definitions_share_content_but_changed_projects_are_revalidated() {
     let (mut session, _) = Session::start_with_definition(definition.clone(), None).unwrap();
     session.command("use reply").unwrap();
     session.command("hint room").unwrap();
-    let before = session.state.clone();
+    let before = session.state().clone();
     let resumed = Session::restore_with_definition(definition.clone(), before.clone()).unwrap();
     assert!(std::ptr::eq(definition.project(), resumed.project()));
-    assert_eq!(resumed.state, before);
-    assert_eq!(resumed.state.variables["score"], Value::Integer(1));
-    assert_eq!(resumed.state.visits["room"], 1);
-    assert_eq!(resumed.state.sequences["responses"], 1);
-    assert_eq!(resumed.state.hints["clues"].clues_seen, 1);
+    assert_eq!(resumed.state(), &before);
+    assert_eq!(resumed.state().variables["score"], Value::Integer(1));
+    assert_eq!(resumed.state().visits["room"], 1);
+    assert_eq!(resumed.state().sequences["responses"], 1);
+    assert_eq!(resumed.state().hints["clues"].clues_seen, 1);
 
     let mut changed = definition.project().clone();
     changed.game.title = "Changed title".into();
@@ -125,7 +125,8 @@ fn immutable_definitions_share_content_but_changed_projects_are_revalidated() {
 #[test]
 fn cached_checks_reject_malformed_state_without_weakening_the_untrusted_entry_point() {
     let definition = GameDefinition::new(project()).unwrap();
-    let (session, _) = Session::start_with_definition(definition.clone(), None).unwrap();
+    let (mut session, _) = Session::start_with_definition(definition.clone(), None).unwrap();
+    let before = session.state().clone();
     type StateMutation = fn(&mut GameState);
     let cases: &[(&str, StateMutation)] = &[
         ("game identity", |s| s.game_id = "other".into()),
@@ -252,7 +253,7 @@ fn cached_checks_reject_malformed_state_without_weakening_the_untrusted_entry_po
         }),
     ];
     for (label, change) in cases {
-        let mut state = session.state.clone();
+        let mut state = session.state().clone();
         change(&mut state);
         assert!(
             definition.validate_state(&state).is_err(),
@@ -263,11 +264,113 @@ fn cached_checks_reject_malformed_state_without_weakening_the_untrusted_entry_po
             "Untrusted path accepted {label}"
         );
         assert!(
-            Session::restore_with_definition(definition.clone(), state).is_err(),
+            Session::restore_with_definition(definition.clone(), state.clone()).is_err(),
             "Restore accepted {label}"
         );
+        assert!(
+            session.replace_state(state).is_err(),
+            "Replacement accepted {label}"
+        );
+        assert_eq!(
+            session.state(),
+            &before,
+            "Rejected {label} changed current state"
+        );
     }
-    definition.validate_state(&session.state).unwrap();
+    definition.validate_state(session.state()).unwrap();
+}
+
+#[test]
+fn replacing_state_preserves_progress_without_replaying_events_or_watches() {
+    let mut project = project();
+    project
+        .game
+        .variables
+        .insert("health".into(), Value::Integer(10));
+    project.game.triggers.push(Trigger {
+        id: "health-watch".into(),
+        watch: Some(TriggerWatch {
+            target: ValueTarget::Variable {
+                name: "health".into(),
+            },
+            mode: WatchMode::BecomesTrue,
+        }),
+        condition: Condition::Variable {
+            name: "health".into(),
+            op: Comparison::Eq,
+            value: Value::Integer(0),
+        },
+        effects: vec![Effect::End {
+            ending: "finish".into(),
+        }],
+        ..Default::default()
+    });
+    project.game.triggers.push(Trigger {
+        id: "ending-score".into(),
+        event: Event::Ending,
+        effects: vec![Effect::UpdateVariable {
+            name: "score".into(),
+            op: ArithmeticOperation::Add,
+            operand: NumericOperand::Literal { value: 100 },
+        }],
+        ..Default::default()
+    });
+    for (name, value) in [("heal", 5), ("hurt", 0)] {
+        project.game.actions.push(Action {
+            id: name.into(),
+            verb: "use".into(),
+            pattern: vec![PatternPart::Literal { text: name.into() }],
+            effects: vec![Effect::SetVariable {
+                name: "health".into(),
+                value: Value::Integer(value),
+            }],
+            ..Default::default()
+        });
+    }
+    let (mut session, _) = Session::start(project, None).unwrap();
+    let mut edited = session.state().clone();
+    edited.variables.insert("health".into(), Value::Integer(0));
+    edited.sequences.insert("responses".into(), 2);
+    edited.hints.insert(
+        "clues".into(),
+        HintProgress {
+            clues_seen: 1,
+            solution_seen: false,
+        },
+    );
+    edited.objects.get_mut("key").unwrap().placement = Placement::Character {
+        character: "keeper".into(),
+    };
+    session.replace_state(edited.clone()).unwrap();
+    assert_eq!(session.state(), &edited);
+    session.description().unwrap();
+    session.resume_messages().unwrap();
+    assert!(session.test_condition(&Condition::Variable {
+        name: "health".into(),
+        op: Comparison::Eq,
+        value: Value::Integer(0)
+    }));
+    assert_eq!(session.state(), &edited);
+    assert_eq!(session.state().variables["score"], Value::Integer(1));
+    assert_eq!(session.state().visits["room"], 1);
+    assert!(session.state().ending.is_none());
+
+    let mut completed = edited.clone();
+    completed.ending = Some("finish".into());
+    session.replace_state(completed.clone()).unwrap();
+    assert_eq!(session.state(), &completed);
+    session.resume_messages().unwrap();
+    assert_eq!(session.state().variables["score"], Value::Integer(1));
+    session.replace_state(edited).unwrap();
+    session.command("use heal").unwrap();
+    session.command("use hurt").unwrap();
+    assert_eq!(session.state().ending.as_deref(), Some("finish"));
+    assert_eq!(session.state().variables["score"], Value::Integer(101));
+    let expected = session.state().clone();
+    let definition = session.definition().clone();
+    let consumed = session.into_state();
+    assert_eq!(consumed, expected);
+    definition.validate_state(&consumed).unwrap();
 }
 
 #[test]
@@ -291,16 +394,17 @@ fn cached_response_bounds_retain_every_mode_and_exhaustion_boundary() {
             if !follow_up {
                 on_exhausted.clear();
             }
-            let (mut session, _) = Session::start(project, None).unwrap();
+            let (session, _) = Session::start(project, None).unwrap();
             let maximum = if mode == SequenceMode::Fallback {
                 2 + usize::from(follow_up)
             } else {
                 1
             };
+            let mut state = session.state().clone();
             for cursor in 0..=maximum + 1 {
-                session.state.sequences.insert("responses".into(), cursor);
+                state.sequences.insert("responses".into(), cursor);
                 assert_eq!(
-                    session.definition().validate_state(&session.state).is_ok(),
+                    session.definition().validate_state(&state).is_ok(),
                     cursor <= maximum,
                     "{mode:?}, follow_up={follow_up}, cursor={cursor}"
                 );

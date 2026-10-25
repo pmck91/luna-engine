@@ -85,7 +85,7 @@ fn threshold_crossings_rearm_without_repeating_and_restore_without_replaying() {
     assert!(!text(s.command("use hurt").unwrap()).contains("Defeated."));
     assert!(text(s.command("use hurt").unwrap()).contains("Defeated."));
     assert!(!text(s.command("use hurt").unwrap()).contains("Defeated."));
-    let saved = serde_json::to_vec(&s.state).unwrap();
+    let saved = serde_json::to_vec(s.state()).unwrap();
     let mut restored = Session::restore(p, serde_json::from_slice(&saved).unwrap()).unwrap();
     assert!(!text(restored.command("look").unwrap()).contains("Defeated."));
     assert!(!text(restored.command("use hurt").unwrap()).contains("Defeated."));
@@ -156,15 +156,15 @@ fn watched_character_properties_work_remotely_and_do_not_fire_as_ordinary_events
         }],
     ));
     let (mut s, _) = Session::start(p, None).unwrap();
-    assert!(!s.state.characters["goblin"].hidden);
+    assert!(!s.state().characters["goblin"].hidden);
     s.command("use unrelated").unwrap();
-    assert!(!s.state.characters["goblin"].hidden);
+    assert!(!s.state().characters["goblin"].hidden);
     s.command("use attack").unwrap();
-    assert!(s.state.characters["goblin"].hidden);
+    assert!(s.state().characters["goblin"].hidden);
     s.command("use restore").unwrap();
-    assert!(!s.state.characters["goblin"].hidden);
+    assert!(!s.state().characters["goblin"].hidden);
     s.command("use finish").unwrap();
-    assert!(s.state.characters["goblin"].hidden);
+    assert!(s.state().characters["goblin"].hidden);
 }
 #[test]
 fn actual_changes_only_and_each_change_mode_support_boolean_and_text_values() {
@@ -234,8 +234,8 @@ fn death_ends_the_current_effect_chain_and_runs_ending_handlers_once() {
         .push(action("die", vec![set("health", -5), set("deaths", 99)]));
     let (mut s, _) = Session::start(p, None).unwrap();
     let output = text(s.command("use die").unwrap());
-    assert_eq!(s.state.ending.as_deref(), Some("death-ending"));
-    assert_eq!(s.state.variables["deaths"], Value::Integer(0));
+    assert_eq!(s.state().ending.as_deref(), Some("death-ending"));
+    assert_eq!(s.state().variables["deaths"], Value::Integer(0));
     assert_eq!(output.matches("Cleanup.").count(), 1);
     assert_eq!(output.matches("Game over.").count(), 1);
 }
@@ -297,14 +297,14 @@ fn priority_chains_and_errors_remain_transactional() {
     ];
     let (mut s, _) = Session::start(p, None).unwrap();
     s.command("use hurt").unwrap();
-    let before = s.state.clone();
+    let before = s.state().clone();
     assert!(
         s.command("use hurt")
             .unwrap_err()
             .to_string()
             .contains("zero")
     );
-    assert_eq!(s.state, before);
+    assert_eq!(s.state(), &before);
 }
 #[test]
 fn recursive_watchers_roll_back_and_old_trigger_content_defaults_safely() {
@@ -322,14 +322,14 @@ fn recursive_watchers_roll_back_and_old_trigger_content_defaults_safely() {
     t.watch.as_mut().unwrap().mode = WatchMode::EachChange;
     p.game.triggers.push(t);
     let (mut s, _) = Session::start(p, None).unwrap();
-    let before = s.state.clone();
+    let before = s.state().clone();
     assert!(
         s.command("use hurt")
             .unwrap_err()
             .to_string()
             .contains("rolled back")
     );
-    assert_eq!(s.state, before);
+    assert_eq!(s.state(), &before);
     let old: Trigger = serde_json::from_str(
         r#"{"id":"old","event":"start","condition":{"type":"true"},"effects":[]}"#,
     )
@@ -380,7 +380,7 @@ fn ending_reachability_includes_remote_watches_without_enabling_the_owners_actio
     let (mut s, _) = Session::start(p.clone(), None).unwrap();
     s.command("use hurt").unwrap();
     s.command("use hurt").unwrap();
-    assert_eq!(s.state.ending.as_deref(), Some("death"));
+    assert_eq!(s.state().ending.as_deref(), Some("death"));
     p.characters[0].triggers[0].effects.clear();
     p.characters[0].actions.push(action(
         "unreachable",

@@ -121,7 +121,9 @@ export type TraceStep = { parent: number | null, source: TraceSource | null, kin
 
 export type CommandExplanation = { command: string, normalized: string, committed: boolean, error: string | null, failed_step: number | null, steps: Array<TraceStep>, changes: Array<TraceChange>, discarded_messages: Array<Array<Span>>, truncated: boolean, };
 
-export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>, state_changed: boolean, status: string, control: HostControl | null, selected_flow: string | null, explanation?: CommandExplanation, };
+export type CommandStatus = "ok" | "control" | "unmatched" | "ambiguous" | "requirements_failed" | "ended" | "error";
+
+export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>, state_changed: boolean, status: CommandStatus, control: HostControl | null, selected_flow: string | null, explanation?: CommandExplanation, };
 
 export type Draft = { revision: string, project: Project, };
 

@@ -1,4 +1,4 @@
-use luna_core::Session;
+use luna_core::{CommandStatus, Session};
 use luna_model::*;
 
 #[test]
@@ -26,22 +26,22 @@ fn unknown_commands_format_live_values_without_changing_state_or_firing_triggers
     });
     let (mut session, _) = Session::start(project, None).unwrap();
     for (chances, charges) in [(3, 7), (5, 9)] {
-        session
-            .state
+        let mut state = session.state().clone();
+        state
             .variables
             .insert("chances".into(), Value::Integer(chances));
-        session
-            .state
+        state
             .properties
             .get_mut(&room)
             .unwrap()
             .insert("charges".into(), Value::Integer(charges));
-        let before = session.state.clone();
+        session.replace_state(state).unwrap();
+        let before = session.state().clone();
         let result = session.command("summon starlight").unwrap();
-        assert_eq!(result.status, "unmatched");
+        assert_eq!(result.status, CommandStatus::Unmatched);
         assert_eq!(result.selected_flow, None);
         assert!(!result.state_changed);
-        assert_eq!(session.state, before);
+        assert_eq!(session.state(), &before);
         assert_eq!(result.messages.len(), 1);
         assert_eq!(
             text::plain(&result.messages[0]),
@@ -49,10 +49,10 @@ fn unknown_commands_format_live_values_without_changing_state_or_firing_triggers
         );
         assert_eq!(result.messages[0][0].colour.as_deref(), Some("green"));
         let explained = session.command_explained("use nonexistent object");
-        assert_eq!(explained.status, "unmatched");
+        assert_eq!(explained.status, CommandStatus::Unmatched);
         assert_eq!(explained.messages, result.messages);
         assert!(explained.explanation.unwrap().changes.is_empty());
-        assert_eq!(session.state, before);
+        assert_eq!(session.state(), &before);
     }
 }
 
@@ -106,17 +106,19 @@ fn custom_unknown_replies_leave_builtins_matched_commands_and_endings_alone() {
         );
     }
     let blocked = session.command("use gate").unwrap();
-    assert_eq!(blocked.status, "requirements_failed");
+    assert_eq!(blocked.status, CommandStatus::RequirementsFailed);
     assert_eq!(
         text::plain(&blocked.messages[0]),
         "The gate remains locked."
     );
     let ambiguous = session.command("use path").unwrap();
-    assert_eq!(ambiguous.status, "ambiguous");
+    assert_eq!(ambiguous.status, CommandStatus::Ambiguous);
     assert!(text::plain(&ambiguous.messages[0]).contains("Please clarify"));
-    session.state.ending = Some("finish".into());
+    let mut state = session.state().clone();
+    state.ending = Some("finish".into());
+    session.replace_state(state).unwrap();
     let ended = session.command("summon starlight").unwrap();
-    assert_eq!(ended.status, "ended");
+    assert_eq!(ended.status, CommandStatus::Ended);
     assert!(text::plain(&ended.messages[0]).contains("This playthrough has ended."));
 }
 
@@ -136,9 +138,9 @@ fn legacy_projects_keep_the_standard_reply_and_explicit_empty_replies_stay_empty
     );
     let mut project = session.project().clone();
     project.game.unknown_command_text.clear();
-    session = Session::restore(project, session.state).unwrap();
+    session = Session::restore(project, session.into_state()).unwrap();
     let result = session.command("summon starlight").unwrap();
-    assert_eq!(result.status, "unmatched");
+    assert_eq!(result.status, CommandStatus::Unmatched);
     assert!(result.messages.is_empty());
     assert!(!result.state_changed);
 }

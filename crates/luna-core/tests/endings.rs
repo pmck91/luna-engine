@@ -1,4 +1,4 @@
-use luna_core::Session;
+use luna_core::{CommandStatus, Session};
 use luna_model::*;
 use serde_json::json;
 
@@ -69,9 +69,12 @@ fn endings_with_omitted_null_or_explicit_outcomes_finalize_and_restore() {
         let (mut session, _) = Session::start(p.clone(), None).unwrap();
         let result = session.command("use finish").unwrap();
         assert!(result.state_changed);
-        assert_eq!(session.state.ending.as_deref(), Some("finish"));
-        assert_eq!(session.state.variables["finalizations"], Value::Integer(1));
-        assert_eq!(session.state.variables["after_end"], Value::Bool(false));
+        assert_eq!(session.state().ending.as_deref(), Some("finish"));
+        assert_eq!(
+            session.state().variables["finalizations"],
+            Value::Integer(1)
+        );
+        assert_eq!(session.state().variables["after_end"], Value::Bool(false));
         let mut expected = vec!["Complete with 1.".to_owned()];
         expected.extend(outcome_text);
         assert_eq!(
@@ -88,9 +91,9 @@ fn endings_with_omitted_null_or_explicit_outcomes_finalize_and_restore() {
                 .any(|span| span.text == "1" && span.colour.as_deref() == Some("green"))
         );
 
-        let saved = serde_json::to_vec(&session.state).unwrap();
+        let saved = serde_json::to_vec(session.state()).unwrap();
         let mut restored = Session::restore(p, serde_json::from_slice(&saved).unwrap()).unwrap();
-        assert_eq!(restored.state, session.state);
+        assert_eq!(restored.state(), session.state());
         let presentation = restored.resume_messages().unwrap();
         assert_eq!(
             presentation[1..]
@@ -99,11 +102,11 @@ fn endings_with_omitted_null_or_explicit_outcomes_finalize_and_restore() {
                 .collect::<Vec<_>>(),
             expected
         );
-        assert_eq!(restored.state, session.state);
+        assert_eq!(restored.state(), session.state());
         let blocked = restored.command("use finish").unwrap();
-        assert_eq!(blocked.status, "ended");
+        assert_eq!(blocked.status, CommandStatus::Ended);
         assert!(!blocked.state_changed);
-        assert_eq!(restored.state, session.state);
+        assert_eq!(restored.state(), session.state());
         assert!(!restored.command("look").unwrap().state_changed);
     }
 }

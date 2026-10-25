@@ -29,12 +29,36 @@ pub enum HostControl {
     Saves,
     Quit,
 }
+
+/// The outcome of command dispatch, independent of whether game state changed.
+///
+/// Serialized names are part of the shared editor/runner contract.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum CommandStatus {
+    /// The command completed successfully, including read-only built-ins.
+    #[default]
+    Ok,
+    /// A runner-owned save/load/list/quit request was returned to the host.
+    Control,
+    /// No available authored command or requested entity matched.
+    Unmatched,
+    /// Multiple equally ranked commands or entity names matched.
+    Ambiguous,
+    /// The winning command or exit failed its current requirements.
+    RequirementsFailed,
+    /// An ordinary command was rejected because the playthrough has ended.
+    Ended,
+    /// Execution failed; the attempted state and output were rolled back.
+    Error,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct CommandResult {
     pub messages: Vec<Vec<text::Span>>,
     pub trace: Vec<String>,
     pub state_changed: bool,
-    pub status: String,
+    pub status: CommandStatus,
     pub control: Option<HostControl>,
     #[serde(default)]
     pub selected_flow: Option<String>,
@@ -48,7 +72,7 @@ impl Default for CommandResult {
             messages: vec![],
             trace: vec![],
             state_changed: false,
-            status: "ok".into(),
+            status: CommandStatus::Ok,
             control: None,
             selected_flow: None,
             explanation: None,

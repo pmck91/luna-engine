@@ -1,4 +1,4 @@
-use luna_core::{HintProgress, Session, validate_state};
+use luna_core::{CommandStatus, HintProgress, Session, validate_state};
 use luna_model::*;
 
 fn world() -> Project {
@@ -91,32 +91,32 @@ fn output(s: &mut Session, command: &str) -> (String, bool) {
 #[test]
 fn hints_advance_and_repeat_only_authored_clues_without_gameplay_side_effects() {
     let (mut s, _) = Session::start(world(), None).unwrap();
-    let before = s.state.clone();
+    let before = s.state().clone();
     assert!(output(&mut s, "hint").0.contains("oak door"));
-    assert_eq!(s.state, before);
+    assert_eq!(s.state(), &before);
     assert!(
         output(&mut s, "hint the door")
             .0
             .contains("Explore the room carefully.")
     );
-    assert_eq!(s.state.hints["find-key"].clues_seen, 1);
+    assert_eq!(s.state().hints["find-key"].clues_seen, 1);
     assert!(
         output(&mut s, "hint door")
             .0
             .contains("Something small may help.")
     );
-    assert_eq!(s.state.hints["find-key"].clues_seen, 2);
-    let second = s.state.clone();
+    assert_eq!(s.state().hints["find-key"].clues_seen, 2);
+    let second = s.state().clone();
     let (last, changed) = output(&mut s, "hint door");
     assert!(last.contains("Something small may help."));
     assert!(!changed);
-    assert_eq!(s.state, second);
-    assert_eq!(s.state.variables, before.variables);
-    assert_eq!(s.state.objects, before.objects);
-    assert_eq!(s.state.visits, before.visits);
-    assert_eq!(s.state.sequences, before.sequences);
+    assert_eq!(s.state(), &second);
+    assert_eq!(s.state().variables, before.variables);
+    assert_eq!(s.state().objects, before.objects);
+    assert_eq!(s.state().visits, before.visits);
+    assert_eq!(s.state().sequences, before.sequences);
     assert!(!output(&mut s, "hint door solution").1);
-    assert_eq!(s.state, second);
+    assert_eq!(s.state(), &second);
 }
 
 #[test]
@@ -141,21 +141,21 @@ fn stages_follow_live_progress_and_solutions_require_an_explicit_request() {
             .map(|m| text::plain(m))
             .any(|m| m.contains("3 chances"))
     );
-    assert_eq!(s.state.hints["find-key"].clues_seen, 1);
-    assert_eq!(s.state.hints["have-key"].clues_seen, 1);
+    assert_eq!(s.state().hints["find-key"].clues_seen, 1);
+    assert_eq!(s.state().hints["have-key"].clues_seen, 1);
     let (last, _) = output(&mut s, "hint door");
     assert!(last.contains("hint oak door solution"));
     assert!(!last.contains("use brass key on oak door"));
-    assert!(!s.state.hints["have-key"].solution_seen);
+    assert!(!s.state().hints["have-key"].solution_seen);
     let (solution, changed) = output(&mut s, "hint door solution");
     assert!(solution.contains("Try use brass key on oak door."));
     assert!(changed);
-    assert!(s.state.hints["have-key"].solution_seen);
+    assert!(s.state().hints["have-key"].solution_seen);
     assert!(!output(&mut s, "hint door solution").1);
-    let after = s.state.clone();
+    let after = s.state().clone();
     let mut restored =
         Session::restore_with_definition(s.definition().clone(), after.clone()).unwrap();
-    assert_eq!(restored.state, after);
+    assert_eq!(restored.state(), &after);
     assert!(!output(&mut restored, "hint door").1);
     restored.command("drop key").unwrap();
     assert!(
@@ -163,8 +163,8 @@ fn stages_follow_live_progress_and_solutions_require_an_explicit_request() {
             .0
             .contains("Something small may help.")
     );
-    assert_eq!(restored.state.hints["find-key"].clues_seen, 2);
-    assert!(restored.state.hints["have-key"].solution_seen);
+    assert_eq!(restored.state().hints["find-key"].clues_seen, 2);
+    assert!(restored.state().hints["have-key"].solution_seen);
     restored.command("take key").unwrap();
     assert!(!output(&mut restored, "hint door").1);
 }
@@ -183,7 +183,7 @@ fn hints_respect_scope_availability_solved_conditions_and_game_settings() {
     let mut project = s.project().clone();
     project.game.hints_enabled = true;
     project.objects[1].hints[0].available = Condition::False;
-    s = Session::restore(project, s.state).unwrap();
+    s = Session::restore(project, s.into_state()).unwrap();
     assert!(!output(&mut s, "hint").0.contains("oak door"));
     assert!(
         output(&mut s, "hint door")
@@ -192,19 +192,23 @@ fn hints_respect_scope_availability_solved_conditions_and_game_settings() {
     );
     let mut project = s.project().clone();
     project.objects[1].hints[0].available = Condition::True;
-    s = Session::restore(project, s.state).unwrap();
-    s.state.objects.get_mut("door").unwrap().hidden = true;
+    s = Session::restore(project, s.into_state()).unwrap();
+    let mut state = s.state().clone();
+    state.objects.get_mut("door").unwrap().hidden = true;
+    s.replace_state(state).unwrap();
     assert!(!output(&mut s, "hint").0.contains("oak door"));
     assert!(output(&mut s, "hint door").0.contains("can't find"));
-    s.state.objects.get_mut("door").unwrap().hidden = false;
-    s.state.variables.insert("solved".into(), Value::Bool(true));
+    let mut state = s.state().clone();
+    state.objects.get_mut("door").unwrap().hidden = false;
+    state.variables.insert("solved".into(), Value::Bool(true));
+    s.replace_state(state).unwrap();
     assert!(!output(&mut s, "hint").0.contains("oak door"));
     assert!(
         output(&mut s, "hint door")
             .0
             .contains("No puzzle hints are available")
     );
-    assert!(s.state.hints.is_empty());
+    assert!(s.state().hints.is_empty());
 }
 
 #[test]
@@ -231,9 +235,9 @@ fn hint_used_conditions_allow_authored_scoring_without_running_command_triggers(
     });
     let (mut s, _) = Session::start(p, None).unwrap();
     assert!(output(&mut s, "use check").0.contains("Unassisted"));
-    let before = s.state.variables.clone();
+    let before = s.state().variables.clone();
     output(&mut s, "hint door");
-    assert_eq!(s.state.variables, before);
+    assert_eq!(s.state().variables, before);
     assert!(output(&mut s, "use check").0.contains("Assisted"));
 }
 
@@ -248,20 +252,26 @@ fn unknown_and_ambiguous_hint_targets_never_advance_history() {
         ..Default::default()
     });
     let (mut s, _) = Session::start(p, None).unwrap();
-    assert_eq!(s.command("hint door").unwrap().status, "ambiguous");
-    assert_eq!(s.command("hint missing").unwrap().status, "unmatched");
+    assert_eq!(
+        s.command("hint door").unwrap().status,
+        CommandStatus::Ambiguous
+    );
+    assert_eq!(
+        s.command("hint missing").unwrap().status,
+        CommandStatus::Unmatched
+    );
     assert_eq!(
         s.command("hint missing solution").unwrap().status,
-        "unmatched"
+        CommandStatus::Unmatched
     );
-    assert!(s.state.hints.is_empty());
+    assert!(s.state().hints.is_empty());
     assert!(s.command(&format!("hint {}", "x".repeat(4096))).is_err());
 }
 
 #[test]
 fn saves_validate_hint_ids_cursors_and_solution_progress_and_accept_legacy_state() {
     let (s, _) = Session::start(world(), None).unwrap();
-    let mut old = serde_json::to_value(&s.state).unwrap();
+    let mut old = serde_json::to_value(s.state()).unwrap();
     old.as_object_mut().unwrap().remove("hints");
     let old = serde_json::from_value(old).unwrap();
     validate_state(s.project(), &old).unwrap();
@@ -288,7 +298,7 @@ fn saves_validate_hint_ids_cursors_and_solution_progress_and_accept_legacy_state
             },
         ),
     ] {
-        let mut state = s.state.clone();
+        let mut state = s.state().clone();
         state.hints.insert(id.into(), progress);
         assert!(validate_state(s.project(), &state).is_err());
     }

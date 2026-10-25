@@ -573,7 +573,7 @@ async fn command(
     let view = PlaytestView {
         session: id.clone(),
         result,
-        state: session.runtime.state.clone(),
+        state: session.runtime.state().clone(),
         source: session.source.clone(),
     };
     if quit {
@@ -591,15 +591,11 @@ async fn set_state(
         .sessions
         .get_mut(&id)
         .context("Playtest expired; restart it")?;
-    current
-        .runtime
-        .definition()
-        .validate_state(&request.state)?;
-    current.runtime.state = request.state;
+    current.runtime.replace_state(request.state)?;
     Ok(Json(PlaytestView {
         session: id,
         result: CommandResult::default(),
-        state: current.runtime.state.clone(),
+        state: current.runtime.state().clone(),
         source: current.source.clone(),
     }))
 }

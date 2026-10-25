@@ -1,6 +1,7 @@
 import { createContext } from 'react';
 import type {
   CommandExplanation,
+  CommandStatus,
   Condition,
   HelpMode,
   JsonValue,
@@ -21,7 +22,7 @@ export type ExplanationRecord = {
   source: PlaytestSource;
   contentKey: string;
   help: HelpMode | '';
-  status: string;
+  status: CommandStatus;
   origin?: string;
 };
 export const ExplanationFocus = createContext<ReferenceSite | null>(null);

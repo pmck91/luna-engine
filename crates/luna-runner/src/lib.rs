@@ -492,7 +492,7 @@ mod tests {
             .unwrap();
         let (session, _) = Session::start(p.clone(), None).unwrap();
         store
-            .write_save(&record, session.definition(), &session.state, None)
+            .write_save(&record, session.definition(), session.state(), None)
             .unwrap();
         let path = store
             .slot_path(&p.game.id, &p.game.content_version, None)
@@ -508,7 +508,7 @@ mod tests {
         let mut session = Session::restore(p.clone(), saved.state).unwrap();
         session.command("hint starting location").unwrap();
         store
-            .write_save(&record, session.definition(), &session.state, None)
+            .write_save(&record, session.definition(), session.state(), None)
             .unwrap();
         let saved = store
             .load_save(&record, session.definition(), None)
@@ -529,7 +529,7 @@ mod tests {
             .write_save(
                 &record,
                 session.definition(),
-                &session.state,
+                session.state(),
                 Some("solution"),
             )
             .unwrap();
@@ -581,7 +581,7 @@ mod tests {
         ] {
             session.command(command).unwrap();
         }
-        let before = session.state.clone();
+        let before = session.state().clone();
         store
             .write_save(
                 &record,
@@ -592,9 +592,9 @@ mod tests {
             .unwrap();
         session.command("go east").unwrap();
         session.command("examine rose").unwrap();
-        assert!(session.state.ending.is_some());
+        assert!(session.state().ending.is_some());
         store
-            .write_save(&record, session.definition(), &session.state, None)
+            .write_save(&record, session.definition(), session.state(), None)
             .unwrap();
         let saved = store
             .load_save(&record, session.definition(), Some("before garden"))
@@ -623,7 +623,7 @@ mod tests {
                 .write_save(
                     &record,
                     session.definition(),
-                    &session.state,
+                    session.state(),
                     Some(&format!("Slot {n}")),
                 )
                 .unwrap()
@@ -648,7 +648,7 @@ mod tests {
         }
         let (session, _) = Session::start(p.clone(), None).unwrap();
         store
-            .write_save(&record, session.definition(), &session.state, None)
+            .write_save(&record, session.definition(), session.state(), None)
             .unwrap();
         let path = store
             .slot_path(&record.game_id, &record.content_version, None)
@@ -661,7 +661,7 @@ mod tests {
         );
         assert_eq!(fs::read_to_string(&path).unwrap(), "broken");
         store
-            .write_save(&record, session.definition(), &session.state, None)
+            .write_save(&record, session.definition(), session.state(), None)
             .unwrap();
         assert!(fs::read_dir(path.parent().unwrap()).unwrap().any(|e| {
             e.unwrap()
@@ -676,7 +676,7 @@ mod tests {
         let (_temp, store, record, project) = setup();
         let (session, _) = Session::start(project.clone(), None).unwrap();
         store
-            .write_save(&record, session.definition(), &session.state, None)
+            .write_save(&record, session.definition(), session.state(), None)
             .unwrap();
         let path = store
             .slot_path(&record.game_id, &record.content_version, None)
@@ -686,7 +686,7 @@ mod tests {
             .load_save(&record, session.definition(), None)
             .unwrap();
 
-        let mut invalid = session.state.clone();
+        let mut invalid = session.state().clone();
         let object = invalid.objects.values_mut().next().unwrap();
         object.exists = !object.exists;
         assert!(
@@ -699,7 +699,7 @@ mod tests {
         foreign_record.game_id = "another-game".into();
         assert!(
             store
-                .write_save(&foreign_record, session.definition(), &session.state, None)
+                .write_save(&foreign_record, session.definition(), session.state(), None)
                 .is_err()
         );
         assert_eq!(fs::read(&path).unwrap(), original);
@@ -709,7 +709,7 @@ mod tests {
         compatible.game.title = "A new title".into();
         let compatible = GameDefinition::new(compatible).unwrap();
         store
-            .write_save(&record, &compatible, &session.state, None)
+            .write_save(&record, &compatible, session.state(), None)
             .unwrap();
         assert_eq!(
             store
@@ -734,7 +734,7 @@ mod tests {
         assert!(format!("{error:#}").contains("incompatible"));
         assert_eq!(fs::read(&path).unwrap(), previous);
         store
-            .write_save(&record, fresh.definition(), &fresh.state, None)
+            .write_save(&record, fresh.definition(), fresh.state(), None)
             .unwrap();
         let backup = fs::read_dir(path.parent().unwrap())
             .unwrap()
@@ -752,7 +752,7 @@ mod tests {
                 .load_save(&record, fresh.definition(), None)
                 .unwrap()
                 .state,
-            fresh.state
+            fresh.state().clone()
         );
     }
 }

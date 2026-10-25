@@ -69,6 +69,7 @@ fn main() -> Result<()> {
         TraceOutcome,
         TraceStep,
         CommandExplanation,
+        CommandStatus,
         CommandResult,
         Draft,
         PanelLayout,

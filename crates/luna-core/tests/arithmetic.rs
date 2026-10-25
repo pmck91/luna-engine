@@ -89,9 +89,9 @@ fn every_operation_target_and_operand_reads_integer_state() {
                 let (mut session, _) = Session::start(p, None).unwrap();
                 session.command("use math").unwrap();
                 let result = if target == "variable" {
-                    &session.state.variables["amount"]
+                    &session.state().variables["amount"]
                 } else {
-                    &session.state.properties[target]["amount"]
+                    &session.state().properties[target]["amount"]
                 };
                 assert_eq!(result, &Value::Integer(expected), "{op:?} {target}");
             }
@@ -117,7 +117,10 @@ fn signed_division_truncates_toward_zero_and_boundaries_are_supported() {
         )
         .unwrap();
         session.command("use math").unwrap();
-        assert_eq!(session.state.variables["amount"], Value::Integer(expected));
+        assert_eq!(
+            session.state().variables["amount"],
+            Value::Integer(expected)
+        );
     }
 }
 
@@ -173,7 +176,7 @@ fn zero_and_overflow_roll_back_the_entire_command() {
                 update(target, op, variable("source")),
             ];
             let (mut session, _) = Session::start(world(a, 42, effects), None).unwrap();
-            let before = session.state.clone();
+            let before = session.state().clone();
             assert!(
                 session
                     .command("use math")
@@ -181,7 +184,7 @@ fn zero_and_overflow_roll_back_the_entire_command() {
                     .to_string()
                     .contains(message)
             );
-            assert_eq!(session.state, before);
+            assert_eq!(session.state(), &before);
             let result = session.command("help").unwrap();
             assert!(
                 result

@@ -32,19 +32,18 @@ fn resuming_an_active_game_formats_current_values_without_replaying_entry() {
     });
     let (mut session, _) = Session::start(project, None).unwrap();
     // These are saved current values, deliberately different from the definition's defaults.
-    session
-        .state
-        .variables
-        .insert("score".into(), Value::Integer(7));
-    session
-        .state
+    let mut state = session.state().clone();
+    state.variables.insert("score".into(), Value::Integer(7));
+    state
         .properties
         .get_mut("room")
         .unwrap()
         .insert("health".into(), Value::Integer(4));
+    session.replace_state(state).unwrap();
     let session =
-        Session::restore_with_definition(session.definition().clone(), session.state).unwrap();
-    let before = session.state.clone();
+        Session::restore_with_definition(session.definition().clone(), session.into_state())
+            .unwrap();
+    let before = session.state().clone();
     let messages = session.resume_messages().unwrap();
     assert_eq!(
         plain(&messages),
@@ -59,9 +58,9 @@ fn resuming_an_active_game_formats_current_values_without_replaying_entry() {
             .iter()
             .any(|span| span.text == "7" && span.colour.as_deref() == Some("green"))
     );
-    assert_eq!(session.state.variables["entries"], Value::Integer(1));
-    assert_eq!(session.state.visits["room"], 1);
-    assert_eq!(session.state, before);
+    assert_eq!(session.state().variables["entries"], Value::Integer(1));
+    assert_eq!(session.state().visits["room"], 1);
+    assert_eq!(session.state(), &before);
     assert_eq!(session.resume_messages().unwrap(), messages);
 }
 
@@ -111,8 +110,9 @@ fn completed_resume_matches_live_presentation_and_keeps_substituted_text_literal
     let (mut session, _) = Session::start(project, None).unwrap();
     let live = session.command("use finish").unwrap();
     let session =
-        Session::restore_with_definition(session.definition().clone(), session.state).unwrap();
-    let before = session.state.clone();
+        Session::restore_with_definition(session.definition().clone(), session.into_state())
+            .unwrap();
+    let before = session.state().clone();
     let resumed = session.resume_messages().unwrap();
     assert_eq!(
         plain(&resumed),
@@ -129,6 +129,6 @@ fn completed_resume_matches_live_presentation_and_keeps_substituted_text_literal
             .any(|span| span.text == "<red>literal</red> & %score%"
                 && span.colour.as_deref() == Some("cyan"))
     );
-    assert_eq!(session.state, before);
+    assert_eq!(session.state(), &before);
     assert_eq!(session.resume_messages().unwrap(), resumed);
 }

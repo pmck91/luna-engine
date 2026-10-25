@@ -13,7 +13,7 @@ Follow the [core hardening plan](core-hardening.md) on `feature/core-hardening`,
 - [x] H1: Correct restored-session message formatting through shared core presentation, add runner regression coverage, and establish repeatable release benchmarks.
 - [x] H2: Separate immutable game-definition validation from saved-state compatibility checks, removing repeated project analysis from autosaves while preserving corruption/recovery protections.
 - [x] H3: Split runtime responsibilities into focused modules and centralize genuinely shared entity lookup/presentation.
-- [ ] H4: Encapsulate sessions, provide validated state replacement, and introduce typed command statuses with unchanged serialized values.
+- [x] H4: Encapsulate sessions, provide validated state replacement, and introduce typed command statuses with unchanged serialized values.
 - [ ] H5: Optimize measured lookup/normalization and read-only copying costs without weakening transactional rollback or deterministic ordering.
 - [ ] H6: Add API rustdoc and executable examples, update architecture notes, verify parity/compatibility and performance, and review the branch before merging.
 

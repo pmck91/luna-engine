@@ -16,7 +16,7 @@ The core's public imports remain available at the crate root. Its private implem
 
 | Module | Responsibility |
 | --- | --- |
-| [`lib.rs`](../crates/luna-core/src/lib.rs) | Public result/control types and API re-exports |
+| [`lib.rs`](../crates/luna-core/src/lib.rs) | Public result/status/control types and API re-exports |
 | [`definition.rs`](../crates/luna-core/src/definition.rs) | Validated immutable content, initial state, and indexed saved-state compatibility checks |
 | [`session.rs`](../crates/luna-core/src/session.rs) | Host lifecycle, creation/restoration, and committing or discarding a command attempt |
 | [`runtime/mod.rs`](../crates/luna-core/src/runtime/mod.rs) | One attempted transaction's state/output, shared operation/depth limits, and observation context |
@@ -58,6 +58,10 @@ The `print_description` effect stores an `entity` reference and reads that locat
 Drafts can have semantic validation errors and remain saveable. Export and new playtests require valid content. Runtime restores additionally validate every saved entity, property, visit counter, ending, and response cursor against the immutable game definition.
 
 `luna_core::GameDefinition` owns a validated `Project` and saved-state schema indexes behind a private shared `Arc`. Construction performs full authoring validation once; clones share immutable content and indexes. `Session::start` and `Session::restore` still accept untrusted projects and create a definition, while `start_with_definition` and `restore_with_definition` reuse one. Sessions expose authored content through `project()` and the validated definition through `definition()`; changing authored content requires validating a new definition.
+
+Session state is private. `state()` provides a read-only borrow, `into_state()` transfers ownership, and `replace_state()` validates a complete snapshot against the definition before replacing the current state. Rejected replacements leave the session intact. Accepted replacements run no events, effects, or messages; the supplied visits, sequences, hints, inventories, and ending remain exact. Editor state edits and runner named loads use this boundary. Commands retain their separate transactional execution path, while `description()`, `resume_messages()`, and `test_condition()` leave state unchanged.
+
+`CommandResult.status` is a `CommandStatus` enum, generated as a TypeScript union. JSON retains the strings `ok`, `control`, `unmatched`, `ambiguous`, `requirements_failed`, `ended`, and `error`. Status describes dispatch separately from `state_changed`. Normal command rejections return a result; runtime errors roll back attempted state/output and return contextual errors. Explained execution follows the same path and reports `error` plus discarded output in the explanation, with no committed state or ordinary transcript.
 
 `GameDefinition::validate_state` checks identity/version, exact entity/property/visit/sequence sets, value types and safe text, placements/consumption, endings, sequence-mode cursor bounds, and hint history against cached indexes. It does not rerun authoring diagnostics or reachability. Runner save/load methods require this definition, and editor state edits/captured setups use the session's definition. Current state and previous slots retain their compatibility checks, preservation rules, locking, and atomic writes. The standalone `validate_state(&Project, &GameState)` remains an explicitly slower boundary for arbitrary untrusted content; repeated runtime operations should reuse a definition.
 

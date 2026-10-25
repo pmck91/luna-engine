@@ -255,15 +255,15 @@ fn auto_save(
     session: &Session,
     last_saved: &mut Option<GameState>,
 ) {
-    match store.write_save(record, session.definition(), &session.state, None) {
-        Ok(()) => *last_saved = Some(session.state.clone()),
+    match store.write_save(record, session.definition(), session.state(), None) {
+        Ok(()) => *last_saved = Some(session.state().clone()),
         Err(e) => eprintln!(
             "Autosave failed: {e:#}. Your previous valid save remains available; use save to retry."
         ),
     }
 }
 fn dirty(session: &Session, last_saved: &Option<GameState>) -> bool {
-    last_saved.as_ref() != Some(&session.state)
+    last_saved.as_ref() != Some(session.state())
 }
 fn confirm_discard(input: &mut impl BufRead, interactive: bool) -> Result<bool> {
     if !interactive {
@@ -321,7 +321,7 @@ fn play(
         };
         let session = Session::restore_with_definition(definition, save.state)?;
         show_restored(&session, &name, colour)?;
-        let saved = session.state.clone();
+        let saved = session.state().clone();
         (session, Some(saved))
     } else {
         let (session, result) = Session::start_with_definition(definition, None)?;
@@ -365,11 +365,11 @@ fn play(
                 match store.write_save(
                     record,
                     session.definition(),
-                    &session.state,
+                    session.state(),
                     name.as_deref(),
                 ) {
                     Ok(()) => {
-                        last_saved = Some(session.state.clone());
+                        last_saved = Some(session.state().clone());
                         println!("Saved {}.", name.as_deref().unwrap_or("autosave"))
                     }
                     Err(e) => eprintln!("Could not save: {e:#}"),
@@ -389,11 +389,8 @@ fn play(
                                 "Warning: game content changed; saved state passed compatibility validation."
                             )
                         }
-                        session = Session::restore_with_definition(
-                            session.definition().clone(),
-                            saved.state,
-                        )?;
-                        last_saved = Some(session.state.clone());
+                        session.replace_state(saved.state)?;
+                        last_saved = Some(session.state().clone());
                         show_restored(&session, name.as_deref().unwrap_or("autosave"), colour)?;
                         // Resuming a named slot establishes the rolling autosave at that safe boundary.
                         auto_save(store, record, &session, &mut last_saved);
@@ -407,7 +404,7 @@ fn play(
             Some(HostControl::Quit) => {
                 if dirty(&session, &last_saved) {
                     if !interactive || eof {
-                        store.write_save(record,session.definition(),&session.state,None).context("Could not save remaining progress on exit; previous saves were preserved")?;
+                        store.write_save(record,session.definition(),session.state(),None).context("Could not save remaining progress on exit; previous saves were preserved")?;
                     } else {
                         print!("Save remaining progress before quitting? [Y/n/cancel] ");
                         io::stdout().flush()?;
@@ -419,7 +416,7 @@ fn play(
                                 if let Err(e) = store.write_save(
                                     record,
                                     session.definition(),
-                                    &session.state,
+                                    session.state(),
                                     None,
                                 ) {
                                     eprintln!("Could not save: {e:#}; still playing.");

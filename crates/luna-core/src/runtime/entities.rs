@@ -1,5 +1,6 @@
 //! Authored entity lookup, player command scope, and target resolution.
 use super::Run;
+use crate::CommandStatus;
 use luna_model::{Character, Ending, Location, PatternPart, Placement, Verb};
 
 impl<'a> Run<'a> {
@@ -64,7 +65,7 @@ impl<'a> Run<'a> {
         let entities = self.matching_entities(query);
         let [(entity, name)] = entities.as_slice() else {
             if entities.is_empty() {
-                self.result.status = "unmatched".into();
+                self.result.status = CommandStatus::Unmatched;
                 self.literal("I can't find that entity here. Try a visible object, character, or the current location.");
             } else {
                 let mut names = entities
@@ -72,7 +73,7 @@ impl<'a> Run<'a> {
                     .map(|(_, name)| name.as_str())
                     .collect::<Vec<_>>();
                 names.sort_unstable();
-                self.result.status = "ambiguous".into();
+                self.result.status = CommandStatus::Ambiguous;
                 self.literal(&format!(
                     "Which entity do you mean? {}. Use a more specific name or alias.",
                     names.join(", ")

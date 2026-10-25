@@ -164,6 +164,55 @@ fn step(command: &str) -> Json {
 }
 
 #[tokio::test]
+async fn state_edits_validate_atomically_without_replaying_playtest_events() {
+    let temp = tempfile::tempdir().unwrap();
+    let app = router(App::new(temp.path().join("config.json"), None, "test".into()).unwrap());
+    let started = ok(&app, "POST", "/playtests", json!({"project":world()})).await;
+    let id = started["session"].as_str().unwrap();
+    let prepared = ok(
+        &app,
+        "POST",
+        &format!("/playtests/{id}/commands"),
+        json!({"command":"use prepare"}),
+    )
+    .await;
+    let mut edited = prepared["state"].clone();
+    edited["variables"]["starts"] = json!(7);
+    edited["properties"]["keeper"]["health"] = json!(2);
+    let applied = ok(
+        &app,
+        "PUT",
+        &format!("/playtests/{id}/state"),
+        json!({"state":edited}),
+    )
+    .await;
+    assert_eq!(applied["state"], edited);
+    assert_eq!(applied["source"], started["source"]);
+    assert_eq!(applied["result"]["status"], "ok");
+    assert_eq!(applied["result"]["messages"], json!([]));
+
+    let mut invalid = edited.clone();
+    invalid["objects"]["key"]["placement"] = json!({"type":"character", "character":"missing"});
+    let (status, _) = call(
+        &app,
+        "PUT",
+        &format!("/playtests/{id}/state"),
+        json!({"state":invalid}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let captured = ok(
+        &app,
+        "POST",
+        &format!("/playtests/{id}/capture"),
+        json!({"name":"After rejected edit"}),
+    )
+    .await;
+    assert_eq!(captured["state"], edited);
+    assert_eq!(captured["source"], started["source"]);
+}
+
+#[tokio::test]
 async fn optional_explanations_preserve_exported_runner_transactions_and_player_saves() {
     let temp = tempfile::tempdir().unwrap();
     let app = router(App::new(temp.path().join("config.json"), None, "test".into()).unwrap());
@@ -202,7 +251,7 @@ async fn optional_explanations_preserve_exported_runner_transactions_and_player_
         assert_eq!(editor["source"], source);
         assert_eq!(
             editor["state"],
-            serde_json::to_value(&runner.state).unwrap()
+            serde_json::to_value(runner.state()).unwrap()
         );
         let trace = &editor["result"]["explanation"];
         assert!(!trace.to_string().contains("private-block-id"));
@@ -224,7 +273,7 @@ async fn optional_explanations_preserve_exported_runner_transactions_and_player_
             .write_save(
                 &installed,
                 runner.definition(),
-                &runner.state,
+                runner.state(),
                 Some("after command"),
             )
             .unwrap();
@@ -531,7 +580,7 @@ async fn setup_compatibility_is_explicit_and_metadata_survives_reopen_but_not_ex
         .write_save(
             &installed,
             runner.definition(),
-            &runner.state,
+            runner.state(),
             Some("checkpoint"),
         )
         .unwrap();
@@ -540,7 +589,9 @@ async fn setup_compatibility_is_explicit_and_metadata_survives_reopen_but_not_ex
         .unwrap();
     assert_eq!(loaded.state, state);
     assert_eq!(
-        Session::restore(exported, loaded.state).unwrap().state,
+        Session::restore(exported, loaded.state)
+            .unwrap()
+            .into_state(),
         state
     );
 }

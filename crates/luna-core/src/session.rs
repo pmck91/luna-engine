@@ -1,16 +1,31 @@
 //! Host-facing session lifecycle and the command commit/rollback boundary.
 use crate::{
-    CommandResult, GameDefinition,
+    CommandResult, CommandStatus, GameDefinition,
     runtime::{Run, explanation},
 };
 use anyhow::Result;
 use luna_model::{Condition, Event, GameState, Project, text};
 
+/// A playthrough with immutable authored content and validated mutable state.
+///
+/// Commands commit their state and messages together. Hosts can borrow a state
+/// snapshot or replace it through [`Self::replace_state`], which validates the
+/// complete snapshot before committing it.
 pub struct Session {
     definition: GameDefinition,
-    pub state: GameState,
+    state: GameState,
 }
 impl Session {
+    /// Validate authored content and start a fresh playthrough.
+    ///
+    /// Displays the title/opening, runs start triggers, and enters the starting
+    /// location unless those triggers already moved the player or ended the game.
+    /// Initial state assignment does not fire value watches.
+    ///
+    /// # Errors
+    ///
+    /// Rejects invalid content, an unknown starting location, or failed
+    /// opening/start/entry execution. No session is returned on failure.
     pub fn start(project: Project, location: Option<&str>) -> Result<(Self, CommandResult)> {
         Self::start_with_definition(GameDefinition::new(project)?, location)
     }
@@ -18,7 +33,7 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Rejects an unknown starting location or a failed opening/entry effect.
+    /// Rejects an unknown starting location or failed opening/start/entry execution.
     pub fn start_with_definition(
         definition: GameDefinition,
         location: Option<&str>,
@@ -38,6 +53,14 @@ impl Session {
         session.state = state;
         Ok((session, result))
     }
+    /// Validate authored content and restore a compatible saved snapshot.
+    ///
+    /// Restoring runs no opening text, triggers, or effects. Use
+    /// [`Self::resume_messages`] to present the restored game.
+    ///
+    /// # Errors
+    ///
+    /// Rejects invalid content or incompatible saved state.
     pub fn restore(project: Project, state: GameState) -> Result<Self> {
         Self::restore_with_definition(GameDefinition::new(project)?, state)
     }
@@ -58,6 +81,64 @@ impl Session {
     pub fn project(&self) -> &Project {
         self.definition.project()
     }
+
+    /// Borrow the current state without allowing unchecked mutation.
+    ///
+    /// ```compile_fail
+    /// use luna_core::Session;
+    /// use luna_model::Project;
+    /// let (mut session, _) = Session::start(Project::blank("Adventure"), None).unwrap();
+    /// session.state().variables.clear();
+    /// ```
+    pub fn state(&self) -> &GameState {
+        &self.state
+    }
+
+    /// Consume this session and return its complete state for storage or transfer.
+    pub fn into_state(self) -> GameState {
+        self.state
+    }
+
+    /// Validate and atomically replace the entire current state.
+    ///
+    /// Intended for host state editing and loading. Replacement runs no events,
+    /// effects, or messages and preserves the supplied progress exactly.
+    ///
+    /// # Errors
+    ///
+    /// Rejects any snapshot incompatible with this session's definition, leaving
+    /// the previous state intact.
+    ///
+    /// ```
+    /// use luna_core::Session;
+    /// use luna_model::{Project, Value};
+    /// # fn main() -> anyhow::Result<()> {
+    /// let mut project = Project::blank("Adventure");
+    /// project.game.variables.insert("health".into(), Value::Integer(10));
+    /// let (mut session, _) = Session::start(project, None)?;
+    /// let mut edited = session.state().clone();
+    /// edited.variables.insert("health".into(), Value::Integer(5));
+    /// session.replace_state(edited)?;
+    /// assert_eq!(session.state().variables["health"], Value::Integer(5));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn replace_state(&mut self, state: GameState) -> Result<()> {
+        self.definition.validate_state(&state)?;
+        self.state = state;
+        Ok(())
+    }
+
+    /// Execute one command, committing state and output together on success.
+    ///
+    /// Unmatched/ambiguous commands and failed requirements return an ordinary
+    /// result with the corresponding [`CommandStatus`]. Host controls are returned
+    /// for the caller to handle; the core performs no filesystem operations.
+    ///
+    /// # Errors
+    ///
+    /// Runtime failures, including invalid arithmetic and exhausted trigger
+    /// limits, discard the entire attempted state and transcript.
     pub fn command(&mut self, input: &str) -> Result<CommandResult> {
         let (result, error) = self.execute(input, false);
         if let Some(error) = error {
@@ -65,7 +146,11 @@ impl Session {
         }
         Ok(result)
     }
-    /// Execute once with optional observations, retaining failed attempts without committing them.
+    /// Execute once and retain a bounded explanation of the attempt.
+    ///
+    /// Uses the ordinary execution path. On failure, returns
+    /// [`CommandStatus::Error`] and diagnostic/discarded-output details in the
+    /// explanation while leaving state unchanged and ordinary messages empty.
     pub fn command_explained(&mut self, input: &str) -> CommandResult {
         self.execute(input, true).0
     }
@@ -93,12 +178,17 @@ impl Session {
             run.result.state_changed = run.state != self.state;
             self.state = run.state;
         } else {
-            run.result.status = "error".into();
+            run.result.status = CommandStatus::Error;
             run.result.state_changed = false;
             run.result.control = None;
         }
         (run.result, error)
     }
+    /// Describe the current location without entering it or advancing progress.
+    ///
+    /// # Errors
+    ///
+    /// Rejects a missing current location or invalid description formatting.
     pub fn description(&self) -> Result<Vec<Vec<text::Span>>> {
         let mut run = Run::new(self.definition.project(), self.state.clone());
         run.look()?;
@@ -123,10 +213,10 @@ impl Session {
     /// use luna_model::{Project, text};
     /// # fn main() -> anyhow::Result<()> {
     /// let (session, _) = Session::start(Project::blank("An adventure"), None)?;
-    /// let before = session.state.clone();
+    /// let before = session.state().clone();
     /// let messages = session.resume_messages()?;
     /// assert_eq!(text::plain(&messages[0]), "An adventure");
-    /// assert_eq!(session.state, before);
+    /// assert_eq!(session.state(), &before);
     /// # Ok(())
     /// # }
     /// ```

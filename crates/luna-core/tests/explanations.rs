@@ -1,4 +1,4 @@
-use luna_core::{Session, TraceKind, TraceOutcome};
+use luna_core::{CommandStatus, Session, TraceKind, TraceOutcome};
 use luna_model::*;
 fn rule(id: &str, effects: Vec<Effect>) -> Action {
     Action {
@@ -199,7 +199,7 @@ fn observations_preserve_gameplay_and_explain_requirements_branches_and_short_ci
     ] {
         let expected = normal.command(command).unwrap();
         let mut actual = traced.command_explained(command);
-        assert_eq!(normal.state, traced.state, "{command}");
+        assert_eq!(normal.state(), traced.state(), "{command}");
         let explanation = actual.explanation.take().unwrap();
         assert!(explanation.committed);
         assert!(explanation.error.is_none());
@@ -208,7 +208,7 @@ fn observations_preserve_gameplay_and_explain_requirements_branches_and_short_ci
             serde_json::to_value(expected).unwrap(),
             "{command}"
         );
-        if command == "use unlock" && actual.status == "requirements_failed" {
+        if command == "use unlock" && actual.status == CommandStatus::RequirementsFailed {
             assert!(explanation.steps.iter().any(|s| {
                 matches!(s.kind, TraceKind::Condition { value: false, .. })
                     && s.source
@@ -222,7 +222,7 @@ fn observations_preserve_gameplay_and_explain_requirements_branches_and_short_ci
                     .any(|s| matches!(s.kind, TraceKind::Effect { .. }))
             );
         }
-        if command == "use unlock" && actual.status == "ok" {
+        if command == "use unlock" && actual.status == CommandStatus::Ok {
             assert!(
                 explanation
                     .steps
@@ -252,7 +252,7 @@ fn observations_preserve_gameplay_and_explain_requirements_branches_and_short_ci
                     .is_some_and(|s| s.path == "effects.0.otherwise.0")
             }));
         }
-        if command == "use reply" && traced.state.sequences["replies"] == 2 {
+        if command == "use reply" && traced.state().sequences["replies"] == 2 {
             assert!(explanation.steps.iter().any(|s| {
                 s.source
                     .as_ref()
@@ -268,9 +268,9 @@ fn value_trigger_chains_retain_order_sources_and_before_after_values() {
     let (mut traced, _) = Session::start(p, None).unwrap();
     let plain_result = plain.command("use hurt").unwrap();
     let result = traced.command_explained("use hurt");
-    assert_eq!(plain.state, traced.state);
+    assert_eq!(plain.state(), traced.state());
     assert_eq!(plain_result.messages, result.messages);
-    assert_eq!(traced.state.ending.as_deref(), Some("done"));
+    assert_eq!(traced.state().ending.as_deref(), Some("done"));
     let explanation = result.explanation.unwrap();
     let fired = explanation
         .steps
@@ -313,11 +313,11 @@ fn failed_commands_retain_attempts_but_never_commit_output_or_state() {
     let p = world();
     let (mut normal, _) = Session::start(p.clone(), None).unwrap();
     let (mut traced, _) = Session::start(p, None).unwrap();
-    let before = traced.state.clone();
+    let before = traced.state().clone();
     let expected = normal.command("use broken").unwrap_err();
     let result = traced.command_explained("use broken");
-    assert_eq!(normal.state, before);
-    assert_eq!(traced.state, before);
+    assert_eq!(normal.state(), &before);
+    assert_eq!(traced.state(), &before);
     assert!(result.messages.is_empty());
     assert!(!result.state_changed);
     let explanation = result.explanation.unwrap();
@@ -342,7 +342,7 @@ fn failed_commands_retain_attempts_but_never_commit_output_or_state() {
     );
     let next = traced.command_explained("use short");
     assert!(next.explanation.unwrap().committed);
-    assert_eq!(traced.state, before);
+    assert_eq!(traced.state(), &before);
 }
 
 #[test]
@@ -364,7 +364,7 @@ fn a_large_matching_record_is_bounded_without_stopping_execution() {
     let trace = result.explanation.unwrap();
     assert!(trace.committed && trace.truncated);
     assert!(trace.steps.len() <= 8192);
-    assert_eq!(session.state.variables["count"], Value::Integer(1));
+    assert_eq!(session.state().variables["count"], Value::Integer(1));
     assert!(
         trace
             .changes

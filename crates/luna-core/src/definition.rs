@@ -264,8 +264,8 @@ impl GameDefinition {
     /// # fn main() -> anyhow::Result<()> {
     /// let game = GameDefinition::new(Project::blank("Adventure"))?;
     /// let (session, _) = Session::start_with_definition(game.clone(), None)?;
-    /// game.validate_state(&session.state)?;
-    /// let resumed = Session::restore_with_definition(game, session.state)?;
+    /// game.validate_state(session.state())?;
+    /// let resumed = Session::restore_with_definition(game, session.into_state())?;
     /// # Ok(())
     /// # }
     /// ```
