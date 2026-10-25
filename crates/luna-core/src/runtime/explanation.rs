@@ -175,6 +175,11 @@ impl Recorder {
     }
 }
 fn state_changes(before: &GameState, after: &GameState) -> (Vec<TraceChange>, bool) {
+    // Read-only commands and effects need no JSON snapshots for a diff. Comparing
+    // typed state first also avoids serializing an unchanged large world twice.
+    if before == after {
+        return (vec![], false);
+    }
     fn walk(
         before: &Json,
         after: &Json,
@@ -252,7 +257,7 @@ impl Run<'_> {
             .recording
             .as_mut()
             .and_then(|r| r.push(kind, source.clone(), self.trace_parent));
-        let before = (changes && index.is_some()).then(|| self.state.clone());
+        let before = (changes && index.is_some()).then(|| self.state.as_ref().clone());
         let old_source = std::mem::replace(&mut self.source, source);
         let old_parent = self.trace_parent;
         self.trace_parent = index;

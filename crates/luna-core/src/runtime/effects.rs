@@ -59,7 +59,6 @@ impl<'a> Run<'a> {
             }
             Effect::PrintDescription { entity } => {
                 let description = self
-                    .p
                     .entity_description(entity)
                     .context("Unknown description entity")?;
                 self.say(description)?;
@@ -86,7 +85,7 @@ impl<'a> Run<'a> {
                     {
                         // Mark before executing: nested triggers must not run a once-only
                         // follow-up twice, and an explicit reset in the flow must persist.
-                        self.state.sequences.insert(id.clone(), len + 1);
+                        self.state.to_mut().sequences.insert(id.clone(), len + 1);
                         let flow =
                             self.effects_at(on_exhausted, self.child_source("on_exhausted"))?;
                         if flow != Flow::Continue {
@@ -102,11 +101,12 @@ impl<'a> Run<'a> {
                     SequenceMode::Loop => (cursor + 1) % len,
                     SequenceMode::Fallback => (cursor + 1).min(len),
                 };
-                self.state.sequences.insert(id.clone(), next);
+                self.state.to_mut().sequences.insert(id.clone(), next);
             }
             Effect::ResetResponses { sequence } => {
                 *self
                     .state
+                    .to_mut()
                     .sequences
                     .get_mut(sequence)
                     .context("Unknown response sequence")? = 0;
@@ -148,6 +148,7 @@ impl<'a> Run<'a> {
             Effect::Give { object } => {
                 let o = self
                     .state
+                    .to_mut()
                     .objects
                     .get_mut(object)
                     .context("Unknown object")?;
@@ -166,6 +167,7 @@ impl<'a> Run<'a> {
                 );
                 let o = self
                     .state
+                    .to_mut()
                     .objects
                     .get_mut(object)
                     .context("Unknown object")?;
@@ -182,6 +184,7 @@ impl<'a> Run<'a> {
             Effect::Remove { object } | Effect::Consume { object } => {
                 let o = self
                     .state
+                    .to_mut()
                     .objects
                     .get_mut(object)
                     .context("Unknown object")?;
@@ -198,6 +201,7 @@ impl<'a> Run<'a> {
                 ensure!(self.location(&loc).is_some(), "Unknown object destination");
                 let o = self
                     .state
+                    .to_mut()
                     .objects
                     .get_mut(object)
                     .context("Unknown object")?;
@@ -211,9 +215,9 @@ impl<'a> Run<'a> {
             }
             Effect::Reveal { entity } | Effect::Hide { entity } => {
                 let hidden = matches!(effect, Effect::Hide { .. });
-                if let Some(o) = self.state.objects.get_mut(entity) {
+                if let Some(o) = self.state.to_mut().objects.get_mut(entity) {
                     o.hidden = hidden
-                } else if let Some(c) = self.state.characters.get_mut(entity) {
+                } else if let Some(c) = self.state.to_mut().characters.get_mut(entity) {
                     c.hidden = hidden
                 } else {
                     bail!("Unknown visibility target")
@@ -223,6 +227,7 @@ impl<'a> Run<'a> {
                 let open = matches!(effect, Effect::Open { .. });
                 let o = self
                     .state
+                    .to_mut()
                     .objects
                     .get_mut(object)
                     .context("Unknown object")?;
@@ -248,6 +253,7 @@ impl<'a> Run<'a> {
                     "Unknown character destination"
                 );
                 self.state
+                    .to_mut()
                     .characters
                     .get_mut(character)
                     .context("Unknown character")?
@@ -319,7 +325,7 @@ impl<'a> Run<'a> {
                     return Ok(Flow::End);
                 }
                 let end = self.ending(ending).context("Unknown ending")?;
-                self.state.ending = Some(ending.clone());
+                self.state.to_mut().ending = Some(ending.clone());
                 self.finalizing = true;
                 self.fire(Event::Ending, &self.p.game.id)?;
                 self.finalizing = false;

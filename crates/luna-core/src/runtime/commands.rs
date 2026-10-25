@@ -56,7 +56,7 @@ impl<'a> Run<'a> {
                 .trace
                 .push(format!("Candidate '{}' [{}]: literal specificity {}, bound targets {}, scope {}, priority {}", m.name,m.id,m.rank.0,m.rank.1,match m.rank.2 { 2 => "object/character", 1 => "location", _ => "global" },m.rank.3))
         }
-        let Some(best) = matches.first().cloned() else {
+        let Some(best) = matches.first().copied() else {
             self.result.status = CommandStatus::Unmatched;
             return self.say(&self.p.game.unknown_command_text);
         };
@@ -66,19 +66,19 @@ impl<'a> Run<'a> {
             .collect::<Vec<_>>();
         if tied.len() > 1 {
             self.result.status = CommandStatus::Ambiguous;
-            self.literal(&format!("Please clarify your command: {}. Type a more specific command; nothing has changed.",tied.iter().map(|m|m.name.as_str()).collect::<Vec<_>>().join(" or ")));
+            self.literal(&format!("Please clarify your command: {}. Type a more specific command; nothing has changed.",tied.iter().map(|m|m.name).collect::<Vec<_>>().join(" or ")));
             return Ok(());
         }
         self.result.trace.push(format!(
             "Selected '{}' [{}] for normalized command '{normalized}'",
             best.name, best.id
         ));
-        self.result.selected_flow = Some(best.id.clone());
+        self.result.selected_flow = Some(best.id.to_owned());
         self.observe(
             TraceKind::Selected {
-                name: best.name.clone(),
+                name: best.name.to_owned(),
             },
-            self.source_for(&best.id, ""),
+            self.source_for(best.id, ""),
         );
         match best.handler {
             Handler::Action(action) => {
@@ -98,10 +98,10 @@ impl<'a> Run<'a> {
                 self.effects_at(&action.effects, self.source_for(&action.id, "effects"))?;
                 if self.state.ending.is_none() {
                     if let Some(event) = self.verb(&action.verb).and_then(|v| v.event) {
-                        self.fire(event, &best.owner)?
+                        self.fire(event, best.owner)?
                     }
                     if self.state.ending.is_none() {
-                        self.fire(Event::Command, &best.owner)?
+                        self.fire(Event::Command, best.owner)?
                     }
                 }
             }
@@ -132,7 +132,7 @@ impl<'a> Run<'a> {
                     )?;
                 }
                 if self.state.ending.is_none() {
-                    self.fire(Event::Command, &best.owner)?
+                    self.fire(Event::Command, best.owner)?
                 }
             }
         }

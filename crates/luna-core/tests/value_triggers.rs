@@ -390,3 +390,133 @@ fn ending_reachability_includes_remote_watches_without_enabling_the_owners_actio
     ));
     assert!(has_errors(&validate(&p)));
 }
+
+#[test]
+fn watch_targets_keep_variable_property_and_dotted_owner_identities_separate() {
+    let mut p = world();
+    p.game
+        .variables
+        .insert("keeper.health".into(), Value::Integer(0));
+    let room = p.game.starting_location.clone();
+    p.characters = ["keeper", "keeper.part"]
+        .into_iter()
+        .map(|id| Character {
+            id: id.into(),
+            name: id.into(),
+            location: room.clone(),
+            state: [
+                ("health".into(), Value::Integer(0)),
+                ("part.health".into(), Value::Integer(0)),
+            ]
+            .into(),
+            ..Default::default()
+        })
+        .collect();
+    let targets = [
+        target("keeper.health"),
+        ValueTarget::Property {
+            entity: "keeper".into(),
+            name: "health".into(),
+        },
+        ValueTarget::Property {
+            entity: "keeper".into(),
+            name: "part.health".into(),
+        },
+        ValueTarget::Property {
+            entity: "keeper.part".into(),
+            name: "health".into(),
+        },
+    ];
+    for (i, target) in targets.into_iter().enumerate() {
+        let mut trigger = watch(
+            &format!("watch-{i}"),
+            target.clone(),
+            Condition::True,
+            vec![Effect::Say {
+                text: format!("Target {i} changed."),
+            }],
+        );
+        trigger.watch.as_mut().unwrap().mode = WatchMode::EachChange;
+        p.characters[i % 2].triggers.push(trigger);
+        let effect = match target {
+            ValueTarget::Variable { name } => set(&name, 1),
+            ValueTarget::Property { entity, name } => Effect::SetProperty {
+                entity,
+                name,
+                value: Value::Integer(1),
+            },
+        };
+        p.game
+            .actions
+            .push(action(&format!("change-{i}"), vec![effect]));
+    }
+    let (mut s, _) = Session::start(p, None).unwrap();
+    for i in 0..4 {
+        let result = s.command_explained(&format!("use change-{i}"));
+        assert_eq!(text(result.clone()), format!("Target {i} changed."));
+        let watches = result
+            .explanation
+            .unwrap()
+            .steps
+            .into_iter()
+            .filter_map(|step| {
+                matches!(step.kind, luna_core::TraceKind::Watch { .. })
+                    .then(|| step.source.unwrap().subject)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(watches, [format!("watch-{i}")]);
+    }
+}
+
+#[test]
+fn long_watch_chains_complete_and_over_depth_chains_roll_back_every_change() {
+    for length in [48, 65] {
+        let mut p = world();
+        for i in 0..length {
+            let name = format!("link-{i}");
+            p.game.variables.insert(name.clone(), Value::Integer(0));
+            let previous = if i == 0 {
+                "health".into()
+            } else {
+                format!("link-{}", i - 1)
+            };
+            let mut trigger = watch(
+                &format!("watch-{i}"),
+                target(&previous),
+                Condition::True,
+                vec![set(&name, 1)],
+            );
+            trigger.watch.as_mut().unwrap().mode = WatchMode::EachChange;
+            p.game.triggers.push(trigger);
+        }
+        let (mut ordinary, _) = Session::start(p, None).unwrap();
+        let mut explained = Session::restore_with_definition(
+            ordinary.definition().clone(),
+            ordinary.state().clone(),
+        )
+        .unwrap();
+        let before = ordinary.state().clone();
+        let result = ordinary.command("use hurt");
+        let explanation = explained.command_explained("use hurt");
+        assert_eq!(ordinary.state(), explained.state());
+        if length == 48 {
+            assert!(result.is_ok());
+            assert_eq!(ordinary.state().variables["link-47"], Value::Integer(1));
+            let fired = explanation
+                .explanation
+                .unwrap()
+                .steps
+                .into_iter()
+                .filter(|step| {
+                    matches!(step.kind, luna_core::TraceKind::Trigger { fired: true, .. })
+                })
+                .count();
+            assert_eq!(fired, length);
+        } else {
+            assert!(result.unwrap_err().to_string().contains("64 nested events"));
+            assert_eq!(ordinary.state(), &before);
+            assert_eq!(explanation.status, luna_core::CommandStatus::Error);
+            assert!(!explanation.explanation.unwrap().committed);
+        }
+    }
+}

@@ -1,26 +1,50 @@
 //! Authored entity lookup, player command scope, and target resolution.
-use super::Run;
+use super::{Run, index::Owner};
 use crate::CommandStatus;
-use luna_model::{Character, Ending, Location, PatternPart, Placement, Verb};
+use luna_model::{Character, Ending, Location, Placement, Verb};
 
 impl<'a> Run<'a> {
     pub(super) fn location(&self, id: &str) -> Option<&'a Location> {
-        self.p.locations.iter().find(|location| location.id == id)
+        match self.index.entities.get(id)? {
+            Owner::Location(i) => Some(&self.p.locations[*i]),
+            _ => None,
+        }
     }
 
     pub(super) fn character(&self, id: &str) -> Option<&'a Character> {
-        self.p
-            .characters
-            .iter()
-            .find(|character| character.id == id)
+        match self.index.entities.get(id)? {
+            Owner::Character(i) => Some(&self.p.characters[*i]),
+            _ => None,
+        }
     }
 
     pub(super) fn verb(&self, id: &str) -> Option<&'a Verb> {
-        self.p.vocabulary.iter().find(|verb| verb.id == id)
+        self.index
+            .verbs
+            .get(id)
+            .map(|verb| &self.p.vocabulary[verb.position])
     }
 
     pub(super) fn ending(&self, id: &str) -> Option<&'a Ending> {
-        self.p.game.endings.iter().find(|ending| ending.id == id)
+        self.index.endings.get(id).map(|&i| &self.p.game.endings[i])
+    }
+
+    pub(super) fn entity_name(&self, id: &str) -> Option<&'a str> {
+        Some(match self.index.entities.get(id)? {
+            Owner::Location(i) => &self.p.locations[*i].name,
+            Owner::Object(i) => &self.p.objects[*i].name,
+            Owner::Character(i) => &self.p.characters[*i].name,
+            Owner::Game => return None,
+        })
+    }
+
+    pub(super) fn entity_description(&self, id: &str) -> Option<&'a str> {
+        Some(match self.index.entities.get(id)? {
+            Owner::Location(i) => &self.p.locations[*i].description,
+            Owner::Object(i) => &self.p.objects[*i].description,
+            Owner::Character(i) => &self.p.characters[*i].description,
+            Owner::Game => return None,
+        })
     }
 
     pub(super) fn available(&self, id: &str) -> bool {
@@ -45,18 +69,14 @@ impl<'a> Run<'a> {
 
     pub(super) fn matching_entities(&self, query: &str) -> Vec<(String, String)> {
         let tokens = query.split_whitespace().collect::<Vec<_>>();
-        self.p
-            .owners()
-            .into_iter()
-            .filter_map(|(id, _, _)| {
-                let name = self.p.entity_name(id)?;
-                self.pattern_matches(
-                    &tokens,
-                    &[PatternPart::Entity { entity: id.into() }],
-                    None,
-                    false,
-                )
-                .then(|| (id.to_owned(), name.to_owned()))
+        self.index
+            .owners
+            .iter()
+            .filter_map(|owner| {
+                let id = owner.id(self.p);
+                let name = self.entity_name(id)?;
+                self.entity_matches(&tokens, id)
+                    .then(|| (id.to_owned(), name.to_owned()))
             })
             .collect()
     }

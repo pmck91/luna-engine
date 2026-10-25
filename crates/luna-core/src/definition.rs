@@ -1,4 +1,5 @@
 //! Immutable, validated content and the schema needed to check saved state.
+use crate::runtime::RuntimeIndex;
 use anyhow::{Context, Result, ensure};
 use luna_model::*;
 use std::{
@@ -9,7 +10,8 @@ use std::{
 /// A validated game definition shared by sessions and save storage.
 ///
 /// Construction runs full authoring validation once and builds saved-state
-/// indexes. Clones share that immutable content and those indexes. To edit a
+/// and runtime lookup indexes, including normalized command vocabulary/patterns.
+/// Clones share that immutable content and those indexes. To edit a
 /// definition, clone its [`Project`] and validate the changed copy with [`Self::new`].
 #[derive(Clone)]
 pub struct GameDefinition(Arc<Definition>);
@@ -17,6 +19,7 @@ pub struct GameDefinition(Arc<Definition>);
 struct Definition {
     project: Project,
     schema: StateSchema,
+    runtime: RuntimeIndex,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -235,7 +238,16 @@ impl GameDefinition {
                 })
                 .collect(),
         };
-        Ok(Self(Arc::new(Definition { project, schema })))
+        let runtime = RuntimeIndex::new(&project);
+        Ok(Self(Arc::new(Definition {
+            project,
+            schema,
+            runtime,
+        })))
+    }
+
+    pub(crate) fn runtime(&self) -> &RuntimeIndex {
+        &self.0.runtime
     }
 
     /// Borrow the validated content. Mutation requires a newly validated copy.

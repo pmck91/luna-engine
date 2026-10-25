@@ -40,7 +40,7 @@ impl Session {
     ) -> Result<(Self, CommandResult)> {
         let state = definition.initial_state(location)?;
         let mut session = Self { definition, state };
-        let mut run = Run::new(session.definition.project(), session.state.clone());
+        let mut run = Run::new(&session.definition, session.state.clone());
         run.say(&session.definition.project().game.title)?;
         run.say(&session.definition.project().game.opening_text)?;
         run.fire(Event::Start, &session.definition.project().game.id)?;
@@ -50,7 +50,7 @@ impl Session {
         }
         run.result.state_changed = true;
         let Run { state, result, .. } = run;
-        session.state = state;
+        session.state = state.into_owned();
         Ok((session, result))
     }
     /// Validate authored content and restore a compatible saved snapshot.
@@ -155,7 +155,7 @@ impl Session {
         self.execute(input, true).0
     }
     fn execute(&mut self, input: &str, explain: bool) -> (CommandResult, Option<anyhow::Error>) {
-        let mut run = Run::new(self.definition.project(), self.state.clone());
+        let mut run = Run::new(&self.definition, self.state.clone());
         if explain {
             run.recording = Some(explanation::Recorder::default());
         }
@@ -175,8 +175,8 @@ impl Session {
             ));
         }
         if error.is_none() {
-            run.result.state_changed = run.state != self.state;
-            self.state = run.state;
+            run.result.state_changed = *run.state != self.state;
+            self.state = run.state.into_owned();
         } else {
             run.result.status = CommandStatus::Error;
             run.result.state_changed = false;
@@ -190,7 +190,7 @@ impl Session {
     ///
     /// Rejects a missing current location or invalid description formatting.
     pub fn description(&self) -> Result<Vec<Vec<text::Span>>> {
-        let mut run = Run::new(self.definition.project(), self.state.clone());
+        let mut run = Run::view(&self.definition, &self.state);
         run.look()?;
         Ok(run.result.messages)
     }
@@ -221,12 +221,12 @@ impl Session {
     /// # }
     /// ```
     pub fn resume_messages(&self) -> Result<Vec<Vec<text::Span>>> {
-        let mut run = Run::new(self.definition.project(), self.state.clone());
+        let mut run = Run::view(&self.definition, &self.state);
         run.resume()?;
         Ok(run.result.messages)
     }
     /// Read-only evaluation for author checks. Uses the same rules as gameplay.
     pub fn test_condition(&self, condition: &Condition) -> bool {
-        Run::new(self.definition.project(), self.state.clone()).condition(condition)
+        Run::view(&self.definition, &self.state).condition(condition)
     }
 }

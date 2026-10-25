@@ -3,10 +3,11 @@
 //! Run `cargo bench -p luna-runner --bench scaling`, optionally followed by
 //! `-- 100 1000 5000` to select object counts. All saves use a temporary directory.
 use anyhow::{Context, Result, ensure};
-use luna_core::{CommandStatus, Session};
+use luna_core::{CommandStatus, GameDefinition, Session};
 use luna_model::{
-    Action, ArithmeticOperation, Effect, Exit, Location, NumericOperand, Object, PatternPart,
-    Placement, Project, Value, starter_actions,
+    Action, ArithmeticOperation, Comparison, Condition, Effect, Exit, Location, NumericOperand,
+    Object, PatternPart, Placement, Project, Trigger, TriggerWatch, Value, ValueTarget, WatchMode,
+    starter_actions,
 };
 use luna_runner::{Installed, Storage};
 use std::{hint::black_box, time::Instant};
@@ -87,8 +88,70 @@ fn measure<T>(repetitions: usize, mut operation: impl FnMut() -> Result<T>) -> R
     Ok(start.elapsed().as_secs_f64() * 1000.0 / repetitions as f64)
 }
 
-fn run_case(store: &Storage, objects: usize, crowded: bool) -> Result<()> {
-    let project = world(objects, crowded);
+fn run_case(store: &Storage, objects: usize, layout: &str) -> Result<()> {
+    let mut project = world(objects, layout == "crowded");
+    let probe = if layout == "global-commands" {
+        for index in 0..objects {
+            project.game.actions.push(Action {
+                id: format!("choice-{index}"),
+                name: format!("Choice {index}"),
+                verb: "use".into(),
+                pattern: vec![PatternPart::Literal {
+                    text: format!("choice {index}"),
+                }],
+                ..Default::default()
+            });
+        }
+        format!("use choice {}", objects - 1)
+    } else {
+        "examine token 0".into()
+    };
+    if layout == "watch-chain" {
+        // Keep the explained chain visible within the bounded recorder, even
+        // when thousands of unrelated objects and watches exist elsewhere.
+        for object in project.objects.iter_mut().skip(1) {
+            object.actions.clear();
+        }
+        for index in 0..objects {
+            project.game.triggers.push(Trigger {
+                id: format!("unrelated-watch-{index}"),
+                watch: Some(TriggerWatch {
+                    target: ValueTarget::Property {
+                        entity: format!("object-{index}"),
+                        name: "charge".into(),
+                    },
+                    mode: WatchMode::EachChange,
+                }),
+                ..Default::default()
+            });
+        }
+        for index in 0..48 {
+            let name = format!("link-{index}");
+            project
+                .game
+                .variables
+                .insert(name.clone(), Value::Integer(0));
+            project.game.triggers.push(Trigger {
+                id: format!("chain-watch-{index}"),
+                watch: Some(TriggerWatch {
+                    target: ValueTarget::Variable {
+                        name: if index == 0 {
+                            "count".into()
+                        } else {
+                            format!("link-{}", index - 1)
+                        },
+                    },
+                    mode: WatchMode::EachChange,
+                }),
+                effects: vec![Effect::UpdateVariable {
+                    name,
+                    op: ArithmeticOperation::Add,
+                    operand: NumericOperand::Literal { value: 1 },
+                }],
+                ..Default::default()
+            });
+        }
+    }
     let record = Installed {
         game_id: project.game.id.clone(),
         content_version: project.game.content_version.clone(),
@@ -97,25 +160,60 @@ fn run_case(store: &Storage, objects: usize, crowded: bool) -> Result<()> {
         fingerprint: "scaling".into(),
     };
     let start = Instant::now();
-    let (mut session, _) = Session::start(project, None)?;
+    let definition = GameDefinition::new(project)?;
+    let definition_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let session_start = Instant::now();
+    let (mut session, _) = Session::start_with_definition(definition, None)?;
+    let session_start_ms = session_start.elapsed().as_secs_f64() * 1000.0;
     let start_ms = start.elapsed().as_secs_f64() * 1000.0;
     // Warm command execution before collecting averages. Explanations use a
     // smaller sample because they intentionally inspect the complete world.
     session.command("look")?;
     session.command("examine token 0")?;
-    let repetitions = if crowded || objects >= 5000 { 30 } else { 200 };
+    ensure!(
+        session.command(&probe)?.status == CommandStatus::Ok,
+        "Probe did not match"
+    );
+    let repetitions = if layout != "distributed" || objects >= 5000 {
+        30
+    } else {
+        200
+    };
     let look = measure(repetitions, || session.command("look"))?;
     let unknown = measure(repetitions, || session.command("nonsense"))?;
     let examine = measure(repetitions, || session.command("examine token 0"))?;
     let mutation = measure(repetitions, || session.command("use counter"))?;
+    let probe_ms = measure(repetitions, || session.command(&probe))?;
+    let explained_command = if layout == "watch-chain" {
+        "use counter"
+    } else {
+        &probe
+    };
     let explained = measure(5, || {
-        let result = session.command_explained("examine token 0");
+        let result = session.command_explained(explained_command);
         ensure!(
             result.status == CommandStatus::Ok,
             "Explained command failed"
         );
         Ok(result)
     })?;
+    let description = measure(repetitions, || session.description())?;
+    let condition = Condition::Variable {
+        name: "count".into(),
+        op: Comparison::Eq,
+        value: Value::Integer(-1),
+    };
+    let condition_ms = measure(repetitions, || {
+        Ok(black_box(&session).test_condition(black_box(&condition)))
+    })?;
+    let clone_state = measure(repetitions, || Ok(session.state().clone()))?;
+    let snapshot_json = measure(5, || Ok(serde_json::to_value(session.state())?))?;
+    if layout == "watch-chain" {
+        ensure!(
+            session.state().variables["link-47"] == session.state().variables["count"],
+            "Watch chain did not complete"
+        );
+    }
     let validation = measure(2, || session.definition().validate_state(session.state()))?;
     // Measure replacing an existing slot, including validation of its previous
     // state, JSON encoding/decoding, locking, atomic replacement, and syncing.
@@ -131,9 +229,8 @@ fn run_case(store: &Storage, objects: usize, crowded: bool) -> Result<()> {
         .map(|(_, actions, _)| actions.len())
         .sum::<usize>();
     let rooms = session.project().locations.len();
-    let layout = if crowded { "crowded" } else { "distributed" };
     println!(
-        "{layout},{objects},{rooms},{actions},{bytes},{start_ms:.3},{look:.3},{unknown:.3},{examine:.3},{mutation:.3},{explained:.3},{validation:.3},{save:.3}"
+        "{layout},{objects},{rooms},{actions},{bytes},{start_ms:.3},{look:.3},{unknown:.3},{examine:.3},{mutation:.3},{explained:.3},{validation:.3},{save:.3},{definition_ms:.3},{session_start_ms:.3},{description:.6},{condition_ms:.6},{clone_state:.6},{snapshot_json:.6},{probe_ms:.3}"
     );
     Ok(())
 }
@@ -155,13 +252,15 @@ fn main() -> Result<()> {
         "Object counts must be positive"
     );
     let temp = tempfile::tempdir()?;
-    let store = Storage::new(temp.path().join("games"), temp.path().join("saves"))?;
     println!(
-        "layout,objects,rooms,actions,state_bytes,start_ms,look_ms,unknown_ms,examine_ms,mutation_ms,explained_ms,validate_state_ms,overwrite_save_ms"
+        "layout,objects,rooms,actions,state_bytes,start_ms,look_ms,unknown_ms,examine_ms,mutation_ms,explained_ms,validate_state_ms,overwrite_save_ms,definition_ms,session_start_ms,description_ms,condition_ms,clone_state_ms,snapshot_json_ms,probe_ms"
     );
     for size in sizes {
-        run_case(&store, size, false)?;
-        run_case(&store, size, true)?;
+        for layout in ["distributed", "crowded", "global-commands", "watch-chain"] {
+            let case = temp.path().join(format!("{layout}-{size}"));
+            let store = Storage::new(case.join("games"), case.join("saves"))?;
+            run_case(&store, size, layout)?;
+        }
     }
     Ok(())
 }

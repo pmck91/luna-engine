@@ -17,7 +17,9 @@ impl<'a> Run<'a> {
             let mut verbs = BTreeMap::new();
             // Basic help describes authored possibilities, independent of puzzle requirements
             // and the presence of other targets. It never exposes a command's other entities.
-            for (owner, actions, _) in self.p.owners() {
+            for address in &self.index.owners {
+                let owner = address.id(self.p);
+                let actions = address.actions(self.p);
                 for action in actions {
                     if Self::concerns_entity(owner, &action.pattern, &entity)
                         && let Some(verb) = self.verb(&action.verb)
@@ -52,7 +54,9 @@ impl<'a> Run<'a> {
         }
         let mut phrases = std::collections::BTreeSet::new();
         if self.state.ending.is_none() {
-            for (owner, actions, _) in self.p.owners() {
+            for address in &self.index.owners {
+                let owner = address.id(self.p);
+                let actions = address.actions(self.p);
                 if !self.available(owner) {
                     continue;
                 }
@@ -95,11 +99,11 @@ impl<'a> Run<'a> {
             }
             let usable = match &best.handler {
                 Handler::Action(action) => {
-                    Self::concerns_entity(&best.owner, &action.pattern, &entity)
+                    Self::concerns_entity(best.owner, &action.pattern, &entity)
                         && self.condition(&action.requirements)
                 }
                 Handler::Exit(exit) => {
-                    Self::concerns_entity(&best.owner, &exit.pattern, &entity)
+                    Self::concerns_entity(best.owner, &exit.pattern, &entity)
                         && self.condition(&exit.available)
                 }
             };

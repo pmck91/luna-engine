@@ -1,6 +1,6 @@
 # Shared core and runner hardening
 
-Status: **In progress**, starting 25 October 2026. H1 is committed as `c2ad929`, H2 as `ed06e7e`, and H3 as `98c3eea`; H4 is complete and H5 is next.
+Status: **In progress**, starting 25 October 2026. H1 is committed as `c2ad929`, H2 as `ed06e7e`, H3 as `98c3eea`, and H4 as `556e752`; H5 is complete and H6 is next.
 
 Branch: `feature/core-hardening`, created from `main` at `0dcb1be`.
 
@@ -72,10 +72,10 @@ Project/definition encapsulation was brought forward into H2 to make cached vali
 
 ### H5 — Optimize measured lookup and read-only costs
 
-- [ ] Index immutable entity IDs, verbs/aliases, and watched values where baseline/profile evidence supports it. Preserve deterministic ranking and dispatch order.
-- [ ] Avoid repeatedly cloning full action/trigger trees and normalizing unchanged vocabulary during matching/dispatch where borrowed definitions or compiled data suffice.
-- [ ] Make read-only presentation/condition evaluation borrow state. Measure whole-state command cloning and explanation snapshots separately; preserve transactional rollback unless a measured replacement is justified.
-- [ ] Extend benchmark cases to many global commands and long trigger/watch chains. Report initialization, ordinary execution, explanations, and durable saving separately; avoid machine-dependent timing assertions in functional CI.
+- [x] Index immutable entity IDs, verbs/aliases, and watched values where baseline/profile evidence supports it. Preserve deterministic ranking and dispatch order.
+- [x] Avoid repeatedly cloning full action/trigger trees and normalizing unchanged vocabulary during matching/dispatch where borrowed definitions or compiled data suffice.
+- [x] Make read-only presentation/condition evaluation borrow state. Measure whole-state command cloning and explanation snapshots separately; preserve transactional rollback unless a measured replacement is justified.
+- [x] Extend benchmark cases to many global commands and long trigger/watch chains. Report initialization, ordinary execution, explanations, and durable saving separately; avoid machine-dependent timing assertions in functional CI.
 
 ### H6 — Documentation and final acceptance
 
@@ -152,3 +152,41 @@ Source migration: replace `session.state` reads with `session.state()`, clone th
 Lifecycle rustdoc now states start/restore, transaction, inspection, and replacement guarantees. Executable examples cover immutable state access and validated edits. Regressions check every status's JSON encoding/decoding, command rejection/control/error behaviour, the 32 malformed-state replacements leaving the original session intact, and valid replacement retaining hint/sequence/inventory/ending progress without replaying events or watches. A direct editor HTTP check covers accepted state edits, rejected edits, and capturing the unchanged active state afterward. Existing CLI and editor/runner parity checks use the new APIs.
 
 H4 verification: all 147 workspace tests/doc tests, Clippy and core rustdoc with warnings denied, Rust formatting, generated-contract checks, the frontend production build, all 63 frontend tests, and frontend formatting passed. All ten focused Chromium/Firefox playtest and explanation checks passed with the installed Firefox 1532 override. This API change adds validation to the explicit replacement boundary and leaves the command execution algorithms unchanged; performance measurements resume in H5. Examples and historical fixtures are unchanged. Full package and branch acceptance checks remain in H6.
+
+### H5 implementation and measurements
+
+The validated definition now owns a private `RuntimeIndex`. Entity, verb, and ending IDs resolve to positions in the immutable project; entity names/aliases, verb phrases, literal patterns, specificity, and default exit alternatives are normalized once. Ordinary matching uses the first verb word to select possible actions, then applies the complete pattern, ignored-prefix rules, and live entity availability. Explanations continue to visit every authored action in order, including unavailable or nonmatching candidates. Hash maps provide keyed lookup only; ordered vectors and the existing rank/scope/priority/ID sorts determine execution order.
+
+Action candidates and event/watch handlers borrow definitions instead of cloning effect trees. Event indexes group ordinary handlers by event. Watch indexes keep variables and entity/property pairs separate, including dotted imported IDs and property names. Handler membership is collected before dispatch, while conditions and watch rechecks use live attempted state. Existing execution budgets, event-depth limits, finalization, rollback, trace paths, and player replies remain intact.
+
+Description, resume, and condition inspection now borrow state through `Cow`; ordinary commands still own a full attempted state copy. Explanation snapshots remain independent owned copies. An unchanged typed state avoids JSON diff construction, which removes unnecessary serialization from read-only explanations without changing their recorded results. A mutation journal or a replacement explanation recorder would require a separate measured design; neither is needed to keep ordinary commands responsive at the measured sizes.
+
+Five new regressions cover multiword verb aliases sharing a head, exact word boundaries, ignored entity prefixes, refreshed definitions, stable tie ordering, negative explanation candidates, event membership captured before earlier handlers change placement, live conditions, distinct variable/property identities, successful 48-step watch chains, and atomic rejection beyond the 64-event depth limit. The new command tests and expanded watch tests also pass against the committed H4 implementation in an isolated checkout, confirming the asserted behaviour predates the optimization.
+
+The benchmark command is unchanged. It now runs four layouts per requested object count:
+
+- `distributed` and `crowded` retain the original world/action counts and core measurements.
+- `global-commands` adds one global literal command per object. `probe_ms` and explained execution select the last global command (`use choice N`), alongside the ordinary counter/examination measurements.
+- `watch-chain` retains the first object's starter actions, adds one unrelated property watch per object, and connects 48 variable watches. Ordinary `use counter` runs the entire chain; explained execution measures that same mutation. `probe_ms` remains examination of the first token. The final chain value is checked against the initiating counter.
+
+The CSV adds definition construction and session initialization separately, plus read-only description/condition evaluation, cloning/dropping one complete state, encoding/dropping one JSON snapshot, and the layout-specific probe. The condition benchmark uses `black_box` on its inputs. A JSON snapshot measurement is one encoding, not the complete pair of snapshots and tree comparison used by a changing explanation step. Ordinary commands/views/clones average 200 repetitions for smaller distributed worlds and 30 otherwise; explanations and JSON snapshots average five, compatibility checks two, and overwrite saves three. Each fixture has an isolated temporary save directory. Formatting, locking, atomic replacement, and sync calls remain in the save measurement.
+
+The [H4 comparison baseline](core-hardening-h5-before.csv) uses committed H4 (`556e752`) with the extended benchmark copied into an isolated checkout. The [H5 results](core-hardening-h5.csv) use exactly the same benchmark source. These final runs were sequential, without concurrent builds/browser tests, on Linux x86_64 with `rustc 1.96.0` and the bench/release profile. Temporary storage remains tmpfs; physical-disk durability latency is excluded. All twelve before/after fixture sizes and serialized state sizes match, as do the six original H3 fixture/state sizes. Startup is one observation and other columns are small sample averages, so these are measured comparisons rather than timing guarantees.
+
+| 5,000-object operation                                     |        H4 |          H5 |
+| :--------------------------------------------------------- | --------: | ----------: |
+| Crowded-room examination                                   | 28.967 ms |    2.804 ms |
+| Crowded-room unknown command                               |  5.720 ms |    0.824 ms |
+| Last of 5,000 added global commands                        |  2.709 ms |    1.100 ms |
+| Ordinary 48-step watch chain, with 5,000 unrelated watches |  3.346 ms |    0.844 ms |
+| Distributed read-only description                          |  1.184 ms |    0.448 ms |
+| Distributed read-only variable condition                   |  0.586 ms | 0.000032 ms |
+| Distributed explained examination                          | 14.371 ms |    4.484 ms |
+| Crowded explained examination                              | 40.196 ms |    5.905 ms |
+| Distributed overwrite autosave                             |  9.493 ms |    9.907 ms |
+
+The crowded examination is approximately ten times faster in this comparison. Distributed examination remains around 1.4 ms; ordinary commands still pay for a complete attempted state copy. At 5,000 distributed objects, cloning/dropping state alone measured 0.620 ms and encoding/dropping one JSON snapshot 4.208 ms. Read-only condition checks avoid that work, while descriptions still scan current entity state to build their visible lists. Saves retain H2's improvement and remain around 10 ms on tmpfs (H1: 1,205 ms).
+
+There are explicit remaining costs. Definition construction now compiles indexes and retains normalized words/addresses alongside authored content. At 5,000 objects it measured 501 ms distributed and 534 ms with global commands (H4: 462 / 471 ms); this startup work is shared by sessions, restores, and saves through the definition. Changing-state explanation chains remain expensive: the 48-step, 5,000-object case measured 1,239 ms versus H4's 1,147 ms. That diagnostic path still clones and serializes full worlds at many steps; this pass does not claim an improvement there. Its ordinary gameplay equivalent measured below 1 ms. Startup validation, visible-entity scans, transaction copies, and changing explanation diffs are retained limits to profile again if real games need more scale.
+
+H5 verification: all 152 workspace tests/doc tests, Clippy and core rustdoc with warnings denied, Rust formatting, generated-contract checks, workspace builds, both complete twelve-case benchmarks, Markdown formatting, and relative-link checks passed. All ten focused Chromium/Firefox playtest and explanation checks passed with the installed Firefox 1532 override. The new behaviour regressions also pass on H4. Content/save versions, public APIs, generated contracts, examples, and historical fixtures are unchanged. Full browser/package acceptance and the final branch review remain in H6.

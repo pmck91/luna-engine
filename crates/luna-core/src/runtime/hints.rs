@@ -95,7 +95,7 @@ impl<'a> Run<'a> {
             }
         }
         if next != previous {
-            self.state.hints.insert(stage.id.clone(), next);
+            self.state.to_mut().hints.insert(stage.id.clone(), next);
         }
         Ok(())
     }

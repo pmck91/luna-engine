@@ -5,24 +5,41 @@ use anyhow::{Context, Result, ensure};
 use luna_model::{Event, Placement, Value, ValueTarget, WatchMode};
 
 impl<'a> Run<'a> {
+    fn event_scope(&self, event: Event, owner: &str, id: &str) -> Option<u8> {
+        if id == owner {
+            return Some(0);
+        }
+        if id == self.p.game.id {
+            return Some(2);
+        }
+        if id == self.state.location || matches!(event, Event::Start | Event::Ending) {
+            return Some(1);
+        }
+        if !matches!(event, Event::Enter | Event::FirstEnter | Event::Leave) {
+            return None;
+        }
+        let object_in_room = self.state.objects.get(id).is_some_and(|object| {
+            object.exists && matches!(&object.placement, Placement::Location { location } if location == owner)
+        });
+        let character_in_room = self
+            .state
+            .characters
+            .get(id)
+            .is_some_and(|character| character.location == owner);
+        (object_in_room || character_in_room).then_some(1)
+    }
+
     pub(crate) fn fire(&mut self, event: Event, owner: &str) -> Result<()> {
         self.begin_event()?;
+        // Membership is captured before any handler runs. Conditions are still
+        // evaluated at execution time, after earlier handlers may change state.
         let mut triggers = self
-            .p
-            .owners()
-            .into_iter()
-            .filter(|(id, _, _)| {
-                *id == owner || *id == self.p.game.id || *id == self.state.location
-                    || matches!(event, Event::Start | Event::Ending)
-                    || (matches!(event, Event::Enter | Event::FirstEnter | Event::Leave)
-                        && (self.state.objects.get(*id).is_some_and(|o| o.exists && matches!(&o.placement, Placement::Location { location } if location == owner))
-                            || self.state.characters.get(*id).is_some_and(|c| c.location == owner)))
-            })
-            .flat_map(|(id, _, ts)| {
-                let scope = if id == owner { 0 } else if id == self.p.game.id { 2 } else { 1 };
-                ts.iter()
-                    .filter(move |t| t.watch.is_none() && t.event == event)
-                    .map(move |t| (scope, t.clone()))
+            .index
+            .events(event)
+            .iter()
+            .filter_map(|address| {
+                self.event_scope(event, owner, address.owner.id(self.p))
+                    .map(|scope| (scope, address.trigger(self.p)))
             })
             .collect::<Vec<_>>();
         triggers.sort_by(|a, b| {
@@ -64,7 +81,12 @@ impl<'a> Run<'a> {
     }
 
     pub(crate) fn enter(&mut self, id: &str) -> Result<()> {
-        let count = self.state.visits.get_mut(id).context("Unknown location")?;
+        let count = self
+            .state
+            .to_mut()
+            .visits
+            .get_mut(id)
+            .context("Unknown location")?;
         *count = count.checked_add(1).context("Visit count overflow")?;
         let first = *count == 1;
         if first {
@@ -84,7 +106,7 @@ impl<'a> Run<'a> {
         let old = self.state.location.clone();
         self.fire(Event::Leave, &old)?;
         if self.state.ending.is_none() {
-            self.state.location = id.into();
+            self.state.to_mut().location = id.into();
             self.enter(id)?
         }
         Ok(())
@@ -100,20 +122,11 @@ impl<'a> Run<'a> {
             return Ok(());
         }
         let watchers = self
-            .p
-            .owners()
-            .into_iter()
-            .flat_map(|(_, _, triggers)| triggers)
-            .filter(|trigger| {
-                trigger
-                    .watch
-                    .as_ref()
-                    .is_some_and(|watch| watch.target == *target)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+            .index
+            .watchers(target)
+            .iter()
+            .map(|address| address.trigger(self.p));
         let mut eligible = watchers
-            .into_iter()
             .map(|trigger| {
                 let before = self.checked_condition(
                     &trigger.condition,
@@ -126,10 +139,11 @@ impl<'a> Run<'a> {
         let changed_to = value.clone();
         match target {
             ValueTarget::Variable { name } => {
-                self.state.variables.insert(name.clone(), value);
+                self.state.to_mut().variables.insert(name.clone(), value);
             }
             ValueTarget::Property { entity, name } => {
                 self.state
+                    .to_mut()
                     .properties
                     .get_mut(entity)
                     .context("Unknown entity")?
