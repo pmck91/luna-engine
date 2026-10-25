@@ -70,7 +70,7 @@ test('response follow-up blocks run after the last reply, reset, and survive reo
   await selectBlock(page, 'RESPONSE SEQUENCE');
   await inspector.getByLabel('Follow-up effects', { exact: true }).selectOption('repeat');
   await expect(sequence).toContainText('each time');
-  await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  await page.getByRole('button', { name: 'Fresh start', exact: true }).click();
   for (let i = 0; i < 5; i++) await command('examine painting');
   await expect(log.getByText('The painting falls.', { exact: true })).toHaveCount(2);
   await sequence.locator(':scope > .blocklyDropdownField').click();
@@ -92,7 +92,7 @@ test('response follow-up blocks run after the last reply, reset, and survive reo
   );
   await page.getByRole('treeitem', { name: 'Responses', exact: true }).press('Escape');
   await page.getByRole('button', { name: 'Expand playtest', exact: true }).click();
-  await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  await page.getByRole('button', { name: 'Fresh start', exact: true }).click();
   for (let i = 0; i < 4; i++) await command('examine painting');
   await command('use painting');
   await command('examine painting');

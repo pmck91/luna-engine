@@ -46,6 +46,13 @@ fn main() -> Result<()> {
         TemplateContent,
         BlockTemplate,
         EditorLayout,
+        PlaytestSource,
+        PlaytestSetup,
+        CheckStart,
+        CompletionExpectation,
+        CheckStep,
+        PlaytestCheck,
+        PlaytestLibrary,
         Project,
         Severity,
         Diagnostic,
@@ -72,7 +79,13 @@ fn main() -> Result<()> {
         StartPlaytest,
         CommandRequest,
         StateRequest,
-        PlaytestView
+        PlaytestView,
+        CaptureSetup,
+        SetupStatusRequest,
+        SetupStatus,
+        RunCheck,
+        CheckStepResult,
+        CheckRun
     );
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web/src/contracts.ts");
     if std::env::args().any(|a| a == "--check") {

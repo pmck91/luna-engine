@@ -5,40 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
-pub struct ObjectState {
-    pub placement: Placement,
-    pub exists: bool,
-    pub consumed: bool,
-    pub hidden: bool,
-    pub open: bool,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
-pub struct CharacterState {
-    pub location: String,
-    pub hidden: bool,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
-#[serde(deny_unknown_fields)]
-pub struct HintProgress {
-    pub clues_seen: usize,
-    pub solution_seen: bool,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
-pub struct GameState {
-    pub game_id: String,
-    pub content_version: String,
-    pub location: String,
-    pub ending: Option<String>,
-    pub variables: BTreeMap<String, Value>,
-    pub objects: BTreeMap<String, ObjectState>,
-    pub characters: BTreeMap<String, CharacterState>,
-    pub properties: BTreeMap<String, BTreeMap<String, Value>>,
-    pub visits: BTreeMap<String, u32>,
-    pub sequences: BTreeMap<String, usize>,
-    #[serde(default)]
-    pub hints: BTreeMap<String, HintProgress>,
-}
+// Preserve the public core API while sharing the exact serialized state contract
+// with typed editor-only playtest setups.
+pub use luna_model::{CharacterState, GameState, HintProgress, ObjectState};
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum HostControl {
@@ -54,6 +23,8 @@ pub struct CommandResult {
     pub state_changed: bool,
     pub status: String,
     pub control: Option<HostControl>,
+    #[serde(default)]
+    pub selected_flow: Option<String>,
 }
 impl Default for CommandResult {
     fn default() -> Self {
@@ -63,6 +34,7 @@ impl Default for CommandResult {
             state_changed: false,
             status: "ok".into(),
             control: None,
+            selected_flow: None,
         }
     }
 }
@@ -181,6 +153,10 @@ impl Session {
         let mut run = Run::new(&self.project, self.state.clone());
         run.look()?;
         Ok(run.result.messages)
+    }
+    /// Read-only evaluation for author checks. Uses the same rules as gameplay.
+    pub fn test_condition(&self, condition: &Condition) -> bool {
+        Run::new(&self.project, self.state.clone()).condition(condition)
     }
 }
 pub fn validate_state(p: &Project, s: &GameState) -> Result<()> {
@@ -1499,6 +1475,7 @@ impl<'a> Run<'a> {
             "Selected '{}' [{}] for normalized command '{normalized}'",
             best.name, best.id
         ));
+        self.result.selected_flow = Some(best.id.clone());
         match best.handler {
             Handler::Action(action) => {
                 if !self.condition(&action.requirements) {

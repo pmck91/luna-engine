@@ -78,7 +78,7 @@ test('the optional tutorial supports a first adventure, branch checks, keyboard 
   await expect(page.getByRole('log')).toContainText('True branch.');
   await page.getByRole('button', { name: /^Select TRUE · Effects/ }).click();
   await inspector.getByLabel('Condition', { exact: true }).selectOption('false');
-  await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  await page.getByRole('button', { name: 'Fresh start', exact: true }).click();
   await command(page, 'pull bell');
   await expect(page.getByRole('log')).toContainText('False branch.');
   await page
@@ -97,7 +97,7 @@ test('the optional tutorial supports a first adventure, branch checks, keyboard 
   await page.getByRole('button', { name: 'Actions', exact: true }).click();
   await chooseFlow(page, /pull bell/);
   await insert(page, 'END GAME', /^After IF \/ ELSE/);
-  await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  await page.getByRole('button', { name: 'Fresh start', exact: true }).click();
   await command(page, 'pull bell');
   await expect(page.getByRole('log')).toContainText('Your little adventure is complete.');
   const download = page.waitForEvent('download');

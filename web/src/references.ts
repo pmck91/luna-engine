@@ -12,13 +12,15 @@ export type ReferenceTarget =
 export type ReferenceSite = {
   subject: string;
   path: string;
-  scope: 'content' | 'message' | 'template' | 'draft' | 'metadata';
+  scope: 'content' | 'message' | 'template' | 'draft' | 'metadata' | 'setup' | 'check';
   ownerId?: string;
   flowId?: string;
   blockId?: string;
   puzzleId?: string;
   stageId?: string;
   templateId?: string;
+  setupId?: string;
+  checkId?: string;
 };
 export type ReferenceUse = ReferenceSite & {
   key: string;
@@ -95,7 +97,13 @@ export function referenceContext(p: Project, use: ReferenceSite): string {
       ? (p.game.endings.find((ending) => ending.id === use.subject)?.name ??
         p.vocabulary.find((verb) => verb.id === use.subject)?.canonical)
       : undefined;
+  const playtestContent = use.setupId
+    ? `Setup · ${p.editor.playtest?.setups.find((s) => s.id === use.setupId)?.name ?? use.setupId}`
+    : use.checkId
+      ? `Check · ${p.editor.playtest?.checks.find((c) => c.id === use.checkId)?.name ?? use.checkId}`
+      : undefined;
   return [
+    playtestContent,
     title,
     source,
     namedContent,
@@ -433,6 +441,103 @@ function scan(
         block.type === 'luna_flow' || (block.type === 'hint_puzzle' && block.id === hint?.hint),
       );
   }
+  for (const setup of p.editor.playtest?.setups ?? []) {
+    const site: ReferenceSite = {
+      subject: setup.id,
+      setupId: setup.id,
+      scope: 'setup',
+      path: 'state',
+    };
+    const state = setup.state as RecordValue;
+    reference(state, 'location', { kind: 'entity', id: state.location }, site, {
+      allowed: ['location'],
+    });
+    if (state.ending) reference(state, 'ending', { kind: 'ending', id: state.ending }, site);
+    const keys = (
+      values: RecordValue,
+      at: ReferenceSite,
+      target: (key: string) => ReferenceTarget,
+    ) => {
+      for (const key of Object.keys(values)) {
+        const next = emit(target(key), child(at, key));
+        const name = 'name' in next ? next.name : next.id;
+        if (name !== key) {
+          values[name] = values[key];
+          delete values[key];
+        }
+      }
+    };
+    keys(state.variables, child(site, 'variables'), (name) => ({ kind: 'variable', name }));
+    for (const [id, values] of Object.entries(state.properties) as [string, RecordValue][]) {
+      emit({ kind: 'entity', id }, child(site, `properties.${id}`));
+      keys(values, child(site, `properties.${id}`), (name) => ({
+        kind: 'property',
+        entity: id,
+        name,
+      }));
+    }
+    for (const [id, object] of Object.entries(state.objects) as [string, RecordValue][]) {
+      emit({ kind: 'entity', id }, child(site, `objects.${id}`), { allowed: ['object'] });
+      if (object.placement.type === 'location')
+        reference(
+          object.placement,
+          'location',
+          { kind: 'entity', id: object.placement.location },
+          child(site, `objects.${id}.placement`),
+          { allowed: ['location'] },
+        );
+      if (object.placement.type === 'character')
+        reference(
+          object.placement,
+          'character',
+          { kind: 'entity', id: object.placement.character },
+          child(site, `objects.${id}.placement`),
+          { allowed: ['character'] },
+        );
+    }
+    for (const [id, character] of Object.entries(state.characters) as [string, RecordValue][]) {
+      emit({ kind: 'entity', id }, child(site, `characters.${id}`), { allowed: ['character'] });
+      reference(
+        character,
+        'location',
+        { kind: 'entity', id: character.location },
+        child(site, `characters.${id}`),
+        { allowed: ['location'] },
+      );
+    }
+    for (const id of Object.keys(state.visits))
+      emit({ kind: 'entity', id }, child(site, `visits.${id}`), { allowed: ['location'] });
+    for (const id of Object.keys(state.sequences))
+      emit({ kind: 'sequence', id }, child(site, `sequences.${id}`));
+    for (const id of Object.keys(state.hints)) {
+      const puzzle = entities(resolve)
+        .flatMap((e) => e.hints)
+        .find((h) => h.stages.some((s) => s.id === id));
+      if (puzzle) emit({ kind: 'puzzle', id: puzzle.id }, child(site, `hints.${id}`));
+    }
+  }
+  for (const check of p.editor.playtest?.checks ?? []) {
+    const site: ReferenceSite = { subject: check.id, checkId: check.id, scope: 'check', path: '' };
+    if (check.start.type === 'fresh' && check.start.location)
+      reference(
+        check.start,
+        'location',
+        { kind: 'entity', id: check.start.location },
+        child(site, 'start'),
+        { allowed: ['location'] },
+      );
+    check.steps.forEach((step, index) => {
+      if (step.condition)
+        node(step.condition, 'condition', child(site, `steps.${index}.condition`));
+      if (step.completion?.type === 'ended' && step.completion.ending)
+        reference(
+          step.completion,
+          'ending',
+          { kind: 'ending', id: step.completion.ending },
+          child(site, `steps.${index}.completion`),
+        );
+    });
+  }
   return uses;
 }
 export function projectReferences(p: Project): ReferenceUse[] {
@@ -646,6 +751,10 @@ export function referencePlan(
   if (!rename && ownedTargets(p, source).some((target) => uses.some((use) => matches(use, target))))
     errors.push(
       'This content owns a puzzle or response sequence used elsewhere. Update those references before deleting it.',
+    );
+  if (!rename && uses.some((use) => use.scope === 'setup'))
+    errors.push(
+      'Saved setups capture this content. Remove the affected setups before deleting it; captured state cannot be merged into another entity or value.',
     );
   if (errors.length) return { project: next, uses, errors };
   const removedSite = (use: ReferenceUse) =>

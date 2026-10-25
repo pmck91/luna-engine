@@ -230,7 +230,7 @@ test('project undo orders form, block, map and deletion changes across saves', a
   await page.mouse.move(before.x + before.width / 2 + 100, before.y + 70, { steps: 10 });
   await page.mouse.up();
   const moved = (await room.boundingBox())!;
-  await expect(playtest).not.toContainText('Restart to apply edits');
+  await expect(playtest).not.toContainText('Edits need restart');
   expect(moved.x).toBeGreaterThan(before.x + 50);
   await hierarchy.getByRole('button', { name: /◇ Key/ }).click();
   page.once('dialog', (dialog) => dialog.accept());

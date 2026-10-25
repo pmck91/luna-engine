@@ -8,15 +8,16 @@ import {
 } from 'react';
 import type {
   ConfigView,
+  CheckStart,
   Diagnostic,
   DiskView,
   GameState,
   HelpMode,
   PlaytestView,
+  PlaytestSetup,
   Project,
   ProjectListItem,
   ProjectView,
-  Span,
 } from './contracts';
 import { ApiError, bundle, request } from './api';
 import logoUrl from '../../assets/logo-transparent.png';
@@ -58,7 +59,8 @@ import Modal from './Modal';
 import ExitCreation from './ExitCreation';
 import Tutorial from './Tutorial';
 import AuthoringHelp from './AuthoringHelp';
-type Log = { command?: string; spans?: Span[] };
+import PlaytestTools from './PlaytestTools';
+import { historyCanReplay, playContentKey, runLogs, stateKey, type PlaytestLog } from './playtest';
 export default function App() {
   const [config, setConfig] = useState<ConfigView | null>(null);
   const [root, setRoot] = useState('');
@@ -118,7 +120,12 @@ export default function App() {
   const [newFolder, setNewFolder] = useState('my-adventure');
   const [example, setExample] = useState(false);
   const [play, setPlay] = useState<PlaytestView | null>(null);
-  const [logs, setLogs] = useState<Log[]>([]);
+  const [logs, setLogs] = useState<PlaytestLog[]>([]);
+  const [playStart, setPlayStart] = useState<CheckStart>({ type: 'fresh', location: null });
+  const [playInitialState, setPlayInitialState] = useState<string | null>(null);
+  const [playtestTools, setPlaytestTools] = useState<{ setupId?: string; checkId?: string } | null>(
+    null,
+  );
   const [input, setInput] = useState('');
   const [plain, setPlain] = useState(false);
   const [showState, setShowState] = useState(false);
@@ -150,7 +157,7 @@ export default function App() {
   const transcript = useRef<HTMLDivElement>(null);
   const inspectorContent = useRef<HTMLDivElement>(null);
   const editingVersion = doc ? JSON.stringify(doc) : '';
-  const playVersion = `${playHelpMode}:${doc ? JSON.stringify({ ...doc, editor: undefined }) : ''}`;
+  const playVersion = doc ? playContentKey(doc, playHelpMode) : '';
   const error = useCallback((e: unknown) => {
     const text = e instanceof Error ? e.message : String(e);
     setMessage(text);
@@ -221,6 +228,9 @@ export default function App() {
     setMessage('');
     setStatus('Saved');
     setPlay(null);
+    setPlaytestTools(null);
+    setPlayStart({ type: 'fresh', location: null });
+    setPlayInitialState(null);
     setPlayProject(null);
     setLogs([]);
     setMode(navigation.mode);
@@ -476,7 +486,7 @@ export default function App() {
   useEffect(() => {
     transcript.current?.scrollTo({ top: transcript.current.scrollHeight, behavior: 'smooth' });
   }, [logs]);
-  const start = async (at?: string) => {
+  const start = async (at?: string, setup?: PlaytestSetup) => {
     if (!doc) return;
     setBusy(true);
     try {
@@ -484,7 +494,9 @@ export default function App() {
         project: doc,
         location: at ?? null,
         help_mode: playHelpMode || null,
+        setup: setup ?? null,
       });
+      if (current.current.view?.handle !== view?.handle) return;
       setPlay(result);
       setPlayProject(structuredClone(doc));
       setPlaySource(playVersion);
@@ -492,6 +504,12 @@ export default function App() {
       setShowState(false);
       setHistory([]);
       setHistoryAt(0);
+      setPlayStart(
+        setup ? { type: 'setup', setup: setup.id } : { type: 'fresh', location: at ?? null },
+      );
+      setPlayInitialState(stateKey(result.state));
+      setInput('');
+      return result;
     } catch (e) {
       error(e);
     } finally {
@@ -600,6 +618,11 @@ export default function App() {
   };
   const reveal = (site: ReferenceSite) => {
     if (!doc) return;
+    if (site.setupId || site.checkId) {
+      setShowDiagnostics(false);
+      setPlaytestTools({ setupId: site.setupId, checkId: site.checkId });
+      return;
+    }
     navigation.beginTransition();
     setShowDiagnostics(false);
     setInspectorCollapsed(false);
@@ -1657,20 +1680,24 @@ export default function App() {
                 )}
                 <span className="session-status">
                   {play
-                    ? `● ${play.state.ending ? 'Ended' : playSource !== playVersion ? 'Restart to apply edits' : 'Running'}`
+                    ? `● ${busy ? 'Command running' : playSource !== playVersion ? 'Edits need restart' : play.state.ending ? 'Ended' : 'Running'}`
                     : 'Ready to start'}
                 </span>
                 <div className="playtest-controls" hidden={playtestCollapsed}>
+                  <button disabled={busy} onClick={() => setPlaytestTools({})}>
+                    Setups &amp; checks
+                  </button>
                   <button
                     disabled={busy || countErrors > 0}
                     onClick={() => {
                       void start();
                     }}
                   >
-                    {play ? 'Restart' : 'Start playtest'}
+                    {play ? 'Fresh start' : 'Start playtest'}
                   </button>
                   <select
                     aria-label="Start at location"
+                    disabled={busy || countErrors > 0}
                     value=""
                     onChange={(e) => {
                       if (e.target.value) void start(e.target.value);
@@ -1710,6 +1737,29 @@ export default function App() {
                 </button>
               </div>
               <div id="playtest-content" className="playtest-content" hidden={playtestCollapsed}>
+                {play && (
+                  <div className="playtest-revision">
+                    <span>
+                      {play.source.title} · {play.source.content_version} · snapshot{' '}
+                      {play.source.revision.slice(0, 8)} ·{' '}
+                      {playSource === playVersion ? 'Up to date' : 'Earlier game content'}
+                    </span>
+                    {playSource !== playVersion && (
+                      <div className="playtest-restart" role="note">
+                        <span>
+                          Your game has changed. This session keeps its original game and state.
+                        </span>
+                        <button disabled={busy || countErrors > 0} onClick={() => void start()}>
+                          Restart with latest edits
+                        </button>
+                        <span>
+                          Continue here, or capture a setup before restarting. Restarting begins a
+                          fresh game.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div
                   className="transcript"
                   ref={transcript}
@@ -2063,6 +2113,7 @@ export default function App() {
                   state,
                 }).then((v) => {
                   setPlay(v);
+                  if (stateKey(v.state) !== stateKey(play.state)) setPlayInitialState(null);
                   setShowState(false);
                   setLogs((old) => [
                     ...old,
@@ -2073,6 +2124,61 @@ export default function App() {
             />
           </section>
         </div>
+      )}
+      {playtestTools && doc && (
+        <PlaytestTools
+          key={view?.handle}
+          project={doc}
+          play={play}
+          history={history}
+          historyUsable={historyCanReplay(playStart, playInitialState, doc.editor.playtest)}
+          initialStart={playStart}
+          helpMode={playHelpMode}
+          initialSelection={playtestTools}
+          isCurrent={playSource === playVersion}
+          edit={edit}
+          close={() => setPlaytestTools(null)}
+          revealFlow={(id) =>
+            reveal({
+              subject: id,
+              flowId: id,
+              ownerId: flowOwner(doc, id)?.id,
+              path: '',
+              scope: 'content',
+            })
+          }
+          restore={async (setup) => {
+            const restored = await start(undefined, setup);
+            if (!restored)
+              throw new Error('Setup was not restored. Check the project and try again.');
+          }}
+          openRun={(run, snapshot, check) => {
+            setPlay({
+              session: run.session,
+              state: run.state,
+              source: run.source,
+              result: run.steps.at(-1)?.result ?? {
+                messages: [],
+                trace: [],
+                state_changed: false,
+                status: 'ok',
+                control: null,
+                selected_flow: null,
+              },
+            });
+            setPlayProject(snapshot);
+            setPlayHelpMode(check.help_mode ?? '');
+            setPlaySource(playContentKey(snapshot, check.help_mode ?? ''));
+            setPlayStart(check.start);
+            setPlayInitialState(stateKey(run.initial_state));
+            setLogs(runLogs(run));
+            setHistory(run.steps.map((step) => step.command));
+            setHistoryAt(run.steps.length);
+            setInput('');
+            setShowState(false);
+            setPlaytestCollapsed(false);
+          }}
+        />
       )}
       {comparison && doc && (
         <div className="modal-backdrop">

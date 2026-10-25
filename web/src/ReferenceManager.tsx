@@ -161,7 +161,7 @@ export default function ReferenceManager({
             belongs elsewhere and will be retained.
           </p>
         )}
-        {['content', 'message', 'draft', 'template'].map((scope) => {
+        {['content', 'message', 'draft', 'template', 'setup', 'check'].map((scope) => {
           const group = uses.filter((use) => use.scope === scope);
           return group.length ? (
             <section key={scope} className="reference-uses">
@@ -173,6 +173,8 @@ export default function ReferenceManager({
                       message: 'Messages',
                       draft: 'Saved drafts',
                       template: 'Saved templates',
+                      setup: 'Saved playtest setups',
+                      check: 'Playtest check expectations',
                     } as Record<string, string>
                   )[scope]
                 }

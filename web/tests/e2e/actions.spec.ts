@@ -158,7 +158,7 @@ test('entity actions support verbs, conditional flows, and extensible flat chain
   const trueBox = (await canvas.locator('.luna_if .condition_true').boundingBox())!;
   await dragBlock('Logic', 'FALSE', trueBox.x + 20, trueBox.y + 12);
   await expect(canvas.locator('.condition_false')).toBeVisible();
-  await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  await page.getByRole('button', { name: 'Fresh start', exact: true }).click();
   await expect(command).toBeEnabled();
   await command.fill('talk the keeper');
   await page.getByRole('button', { name: 'Run ↵', exact: true }).click();

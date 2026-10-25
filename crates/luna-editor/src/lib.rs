@@ -22,6 +22,8 @@ use std::{
 use ts_rs::TS;
 mod preferences;
 pub use preferences::*;
+mod playtests;
+pub use playtests::*;
 
 #[derive(Clone)]
 pub struct App {
@@ -32,7 +34,7 @@ struct Workspace {
     root: Option<PathBuf>,
     config: PathBuf,
     projects: BTreeMap<String, OpenProject>,
-    sessions: BTreeMap<String, Session>,
+    sessions: BTreeMap<String, playtests::EditorSession>,
     preferences: BTreeMap<String, EditorPreferences>,
 }
 #[derive(Clone)]
@@ -100,6 +102,7 @@ pub struct StartPlaytest {
     pub location: Option<String>,
     #[serde(default)]
     pub help_mode: Option<HelpMode>,
+    pub setup: Option<PlaytestSetup>,
 }
 #[derive(Deserialize, TS)]
 pub struct CommandRequest {
@@ -114,6 +117,7 @@ pub struct PlaytestView {
     pub session: String,
     pub result: CommandResult,
     pub state: GameState,
+    pub source: PlaytestSource,
 }
 #[derive(Deserialize)]
 struct AssetQuery {
@@ -264,6 +268,9 @@ pub fn router(app: App) -> Router {
         .route("/validate", post(diagnostics))
         .route("/templates/object-actions", post(object_actions))
         .route("/playtests", post(start_playtest))
+        .route("/playtests/setup-status", post(setup_status))
+        .route("/playtests/checks", post(run_check))
+        .route("/playtests/{id}/capture", post(capture_setup))
         .route("/playtests/{id}/commands", post(command))
         .route("/playtests/{id}/state", put(set_state))
         .layer(DefaultBodyLimit::max(storage::MAX_FILE as usize))
@@ -542,24 +549,6 @@ async fn diagnostics(Json(p): Json<Project>) -> Json<Vec<Diagnostic>> {
 async fn object_actions(Json(o): Json<Object>) -> Json<Vec<Action>> {
     Json(starter_actions(&o))
 }
-async fn start_playtest(
-    State(app): State<App>,
-    Json(request): Json<StartPlaytest>,
-) -> Api<Json<PlaytestView>> {
-    let mut project = request.project;
-    if let Some(mode) = request.help_mode {
-        project.game.help_mode = mode;
-    }
-    let (session, result) = Session::start(project, request.location.as_deref())?;
-    let id = new_id();
-    let view = PlaytestView {
-        session: id.clone(),
-        result,
-        state: session.state.clone(),
-    };
-    app.lock()?.sessions.insert(id, session);
-    Ok(Json(view))
-}
 async fn command(
     State(app): State<App>,
     Path(id): Path<String>,
@@ -570,15 +559,16 @@ async fn command(
         .sessions
         .get_mut(&id)
         .context("Playtest expired; restart it")?;
-    let mut result = session.command(&request.command)?;
+    let mut result = session.runtime.command(&request.command)?;
     let quit = matches!(&result.control, Some(luna_core::HostControl::Quit));
     if result.control.is_some() {
-        result.messages.push(vec![text::Span{text:if quit { "Playtest ended. Start a new playtest to continue." } else { "Player save files are managed by the runner. Use Restart or the state inspector for editor playtests." }.into(),colour:None}]);
+        result.messages.push(vec![text::Span{text:if quit { "Playtest ended. Start a new playtest to continue." } else { "Player save files are managed by the runner. Use Fresh start, a saved setup, or the state inspector for editor playtests." }.into(),colour:None}]);
     }
     let view = PlaytestView {
         session: id.clone(),
         result,
-        state: session.state.clone(),
+        state: session.runtime.state.clone(),
+        source: session.source.clone(),
     };
     if quit {
         w.sessions.remove(&id);
@@ -595,12 +585,13 @@ async fn set_state(
         .sessions
         .get_mut(&id)
         .context("Playtest expired; restart it")?;
-    luna_core::validate_state(&current.project, &request.state)?;
-    current.state = request.state;
+    luna_core::validate_state(&current.runtime.project, &request.state)?;
+    current.runtime.state = request.state;
     Ok(Json(PlaytestView {
         session: id,
         result: CommandResult::default(),
-        state: current.state.clone(),
+        state: current.runtime.state.clone(),
+        source: current.source.clone(),
     }))
 }
 #[derive(rust_embed::RustEmbed)]

@@ -506,6 +506,16 @@ fn contains_control(value: &serde_json::Value) -> bool {
         _ => false,
     }
 }
+/// Validate an editor check's condition against the ordinary game schema.
+pub fn validate_condition(p: &Project, condition: &Condition) -> Vec<Diagnostic> {
+    let mut check = Check {
+        p,
+        diagnostics: vec![],
+        ids: BTreeSet::new(),
+    };
+    check.condition(&p.game.id, "expectation", condition);
+    check.diagnostics
+}
 pub fn validate(p: &Project) -> Vec<Diagnostic> {
     let mut c = Check {
         p,

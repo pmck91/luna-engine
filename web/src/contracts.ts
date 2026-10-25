@@ -73,7 +73,21 @@ export type TemplateContent = { "type": "action", action: Action, } | { "type": 
 
 export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, content: TemplateContent, };
 
-export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, };
+export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, playtest?: PlaytestLibrary, };
+
+export type PlaytestSource = { revision: string, title: string, content_version: string, help_mode: HelpMode, };
+
+export type PlaytestSetup = { version: number, id: string, name: string, source: PlaytestSource, state: GameState, };
+
+export type CheckStart = { "type": "fresh", location: string | null, } | { "type": "setup", setup: string, };
+
+export type CompletionExpectation = { "type": "playing" } | { "type": "ended", ending: string | null, };
+
+export type CheckStep = { command: string, transcript: string | null, condition: Condition | null, completion: CompletionExpectation | null, };
+
+export type PlaytestCheck = { id: string, name: string, start: CheckStart, help_mode: HelpMode | null, steps: Array<CheckStep>, };
+
+export type PlaytestLibrary = { setups: Array<PlaytestSetup>, checks: Array<PlaytestCheck>, };
 
 export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, editor: EditorLayout, };
 
@@ -93,7 +107,7 @@ export type GameState = { game_id: string, content_version: string, location: st
 
 export type HostControl = { "type": "save", name: string | null, } | { "type": "load", name: string | null, } | { "type": "saves" } | { "type": "quit" };
 
-export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>, state_changed: boolean, status: string, control: HostControl | null, };
+export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>, state_changed: boolean, status: string, control: HostControl | null, selected_flow: string | null, };
 
 export type Draft = { revision: string, project: Project, };
 
@@ -121,11 +135,23 @@ export type ProjectListItem = { folder: string, title: string, };
 
 export type DiskView = { revision: string, project: Project, };
 
-export type StartPlaytest = { project: Project, location: string | null, help_mode: HelpMode | null, };
+export type StartPlaytest = { project: Project, location: string | null, help_mode: HelpMode | null, setup: PlaytestSetup | null, };
 
 export type CommandRequest = { command: string, };
 
 export type StateRequest = { state: GameState, };
 
-export type PlaytestView = { session: string, result: CommandResult, state: GameState, };
+export type PlaytestView = { session: string, result: CommandResult, state: GameState, source: PlaytestSource, };
+
+export type CaptureSetup = { name: string, };
+
+export type SetupStatusRequest = { project: Project, setup: PlaytestSetup, help_mode: HelpMode | null, };
+
+export type SetupStatus = { compatible: boolean, exact: boolean, reason: string | null, source: PlaytestSource, };
+
+export type RunCheck = { project: Project, check: PlaytestCheck, };
+
+export type CheckStepResult = { index: number, command: string, result: CommandResult | null, failures: Array<string>, };
+
+export type CheckRun = { session: string, source: PlaytestSource, initial_state: GameState, initial_messages: Array<Array<Span>>, steps: Array<CheckStepResult>, state: GameState, passed: boolean, };
 

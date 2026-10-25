@@ -2030,6 +2030,85 @@ dialog.modal {
 .playtest-content {
   overflow: auto;
 }
+.playtest-revision {
+  font-size: 11px;
+  color: #c4c1ce;
+  margin-bottom: 6px;
+}
+.playtest-restart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  margin-top: 6px;
+  border: 1px solid #c49850;
+  border-radius: 6px;
+  color: #f1d39e;
+}
+.playtest-tools {
+  width: min(860px, calc(100vw - 32px));
+}
+.playtest-tools .field {
+  min-width: 0;
+}
+.playtest-tools-body {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.playtest-tabs,
+.capture-setup,
+.playtest-tools .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 12px 0;
+}
+.capture-setup > .field {
+  flex: 1;
+  min-width: min(220px, 100%);
+  margin: 0;
+}
+.playtest-tabs [aria-selected='true'] {
+  background: #635099;
+  border-color: #aa94e3;
+}
+.playtest-summary,
+.check-step,
+.check-results {
+  padding: 12px;
+  border: 1px solid #545064;
+  border-radius: 7px;
+  margin: 12px 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.playtest-summary p,
+.check-results p {
+  margin: 6px 0;
+}
+.playtest-summary details {
+  margin-top: 10px;
+}
+.playtest-tools textarea {
+  min-height: 60px;
+}
+.check-results li {
+  padding: 8px;
+  margin: 8px 0;
+  border-left: 3px solid #79bca9;
+}
+.check-results .check-failed {
+  border-color: #e9ad6d;
+}
+.playtest-notice {
+  padding: 8px;
+  border: 1px solid #8c7baf;
+  border-radius: 6px;
+}
 .playtest-focused .canvas-section {
   display: none;
 }

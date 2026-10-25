@@ -491,10 +491,12 @@ export function ConditionEditor({
   value: c,
   project: p,
   onChange,
+  allowCreation = true,
 }: {
   value: Condition;
   project: Project;
   onChange: (c: Condition) => void;
+  allowCreation?: boolean;
 }) {
   const entities = [...p.objects, ...p.characters, ...p.locations];
   const patch = (v: Partial<Condition>) => onChange({ ...c, ...v } as Condition);
@@ -531,6 +533,7 @@ export function ConditionEditor({
           {c.conditions.map((child, i) => (
             <div key={i}>
               <ConditionEditor
+                allowCreation={allowCreation}
                 project={p}
                 value={child}
                 onChange={(next) =>
@@ -549,6 +552,7 @@ export function ConditionEditor({
       )}
       {c.type === 'not' && (
         <ConditionEditor
+          allowCreation={allowCreation}
           project={p}
           value={c.condition}
           onChange={(condition) => onChange({ type: 'not', condition })}
@@ -597,7 +601,11 @@ export function ConditionEditor({
       {c.type === 'variable' && (
         <Select
           label="Variable"
-          create={{ kind: 'variable', onCreated: (name, value) => onChange({ ...c, name, value }) }}
+          create={
+            allowCreation
+              ? { kind: 'variable', onCreated: (name, value) => onChange({ ...c, name, value }) }
+              : undefined
+          }
           value={c.name}
           items={Object.keys(p.game.variables).map((id) => ({ id, name: id }))}
           onChange={(name) => onChange({ ...c, name, value: p.game.variables[name] ?? false })}
@@ -606,11 +614,15 @@ export function ConditionEditor({
       {c.type === 'property' && (
         <Select
           label="Property"
-          create={{
-            kind: 'property',
-            ownerId: c.entity,
-            onCreated: (name, value) => onChange({ ...c, name, value }),
-          }}
+          create={
+            allowCreation
+              ? {
+                  kind: 'property',
+                  ownerId: c.entity,
+                  onCreated: (name, value) => onChange({ ...c, name, value }),
+                }
+              : undefined
+          }
           value={c.name}
           items={Object.keys(entities.find((e) => e.id === c.entity)?.state ?? {}).map((id) => ({
             id,
@@ -647,10 +659,12 @@ export function StateInspector({
   state,
   project,
   onApply,
+  savedSetup = false,
 }: {
   state: GameState;
   project: Project;
   onApply: (s: GameState) => void | Promise<void>;
+  savedSetup?: boolean;
 }) {
   const [draft, setDraft] = useState(() => structuredClone(state));
   const [message, setMessage] = useState('');
@@ -662,7 +676,11 @@ export function StateInspector({
     });
   return (
     <div className="state-editor">
-      <p>Changes apply only to this playtest.</p>
+      <p>
+        {savedSetup
+          ? 'Changes apply only to this saved setup. The active playtest is unchanged.'
+          : 'Changes apply only to this playtest.'}
+      </p>
       <Select
         label="Current location"
         value={draft.location}
@@ -874,7 +892,7 @@ export function StateInspector({
             }
           }}
         >
-          Apply test state
+          {savedSetup ? 'Save setup state' : 'Apply test state'}
         </button>
         <button onClick={() => setDraft(structuredClone(state))}>Reset form</button>
       </div>

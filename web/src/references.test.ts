@@ -7,6 +7,7 @@ import { loadEffectBlocks, makeCondition, registerBlocks } from './Blocks';
 import { projectReferences, referencePlan, resolveMessageReference, usedBy } from './references';
 import { connectedFindings, prepareDraftValidation } from './diagnostics';
 import { nearestBlock } from './Blocks';
+import { playContentKey } from './playtest';
 
 function fixture(): Project {
   const room = location('Study');
@@ -45,6 +46,102 @@ function fixture(): Project {
     editor: { positions: {}, routes: {}, templates: [], blocks: {} },
   };
 }
+it('includes captured state and check expectations in checked renames and blocks snapshot merges', () => {
+  const p = fixture();
+  p.editor.playtest = {
+    setups: [
+      {
+        version: 1,
+        id: 'setup',
+        name: 'Keeper injured',
+        source: {
+          title: 'References',
+          revision: 'captured',
+          content_version: '0.1.0',
+          help_mode: 'basic',
+        },
+        state: {
+          game_id: p.game.id,
+          content_version: '0.1.0',
+          location: 'study',
+          ending: null,
+          variables: { ...p.game.variables, chances: 1 },
+          objects: {},
+          characters: { 'keeper.old': { location: 'study', hidden: false } },
+          properties: { study: {}, 'keeper.old': { health: 2 } },
+          visits: { study: 3 },
+          sequences: {},
+          hints: {},
+        },
+      },
+    ],
+    checks: [
+      {
+        id: 'check',
+        name: 'Check Keeper',
+        start: { type: 'fresh', location: 'study' },
+        help_mode: null,
+        steps: [
+          {
+            command: 'look',
+            transcript: 'chances is a literal reply',
+            completion: null,
+            condition: {
+              type: 'all',
+              conditions: [
+                { type: 'variable', name: 'chances', op: 'eq', value: 1 },
+                { type: 'property', entity: 'keeper.old', name: 'health', op: 'eq', value: 2 },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  };
+  const before = structuredClone(p);
+  const key = playContentKey(p);
+  const variable = { kind: 'variable' as const, name: 'chances' };
+  expect(usedBy(p, variable).map((use) => use.scope)).toEqual(['setup', 'check']);
+  const renamed = referencePlan(p, variable, { ...variable, name: 'attempts' }, true);
+  expect(renamed.errors).toEqual([]);
+  const property = referencePlan(
+    renamed.project,
+    { kind: 'property', entity: 'keeper.old', name: 'health' },
+    { kind: 'property', entity: 'keeper.old', name: 'vitality' },
+    true,
+  );
+  expect(property.errors).toEqual([]);
+  const library = property.project.editor.playtest!;
+  expect(library.setups[0].state.variables).toEqual({
+    attempts: 1,
+    literal: '%keeper.old.health%',
+  });
+  expect(library.setups[0].state.properties['keeper.old']).toEqual({ vitality: 2 });
+  expect(library.setups[0].source.revision).toBe('captured');
+  expect(library.checks[0].steps[0].condition).toEqual({
+    type: 'all',
+    conditions: [
+      { type: 'variable', name: 'attempts', op: 'eq', value: 1 },
+      { type: 'property', entity: 'keeper.old', name: 'vitality', op: 'eq', value: 2 },
+    ],
+  });
+  expect(library.checks[0].steps[0].transcript).toBe('chances is a literal reply');
+  expect(referencePlan(p, { kind: 'entity', id: 'keeper.old' }).errors.join(' ')).toContain(
+    'Saved setups',
+  );
+  expect(p).toEqual(before);
+  const layout = structuredClone(p);
+  layout.editor.positions.study = { x: 25, y: 100 };
+  layout.editor.playtest!.checks[0].name = 'Renamed check';
+  expect(playContentKey(layout)).toBe(key);
+  layout.game.opening_text = 'New opening';
+  expect(playContentKey(layout)).not.toBe(key);
+  expect(playContentKey(p, 'basic')).toBe(key);
+  expect(playContentKey(p, 'full')).not.toBe(key);
+  const reordered = structuredClone(p);
+  reordered.game.variables = Object.fromEntries(Object.entries(p.game.variables).reverse());
+  expect(playContentKey(reordered)).toBe(key);
+});
 it('renames exact property uses across logic, watches, speech, hints, drafts and templates without changing identities or literals', () => {
   const p = fixture();
   const keeper = p.characters[0];
