@@ -507,7 +507,12 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handler);
   }, []);
   useEffect(() => {
-    transcript.current?.scrollTo({ top: transcript.current.scrollHeight, behavior: 'smooth' });
+    transcript.current?.scrollTo({
+      top: transcript.current.scrollHeight,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'instant'
+        : 'smooth',
+    });
   }, [logs]);
   const start = async (at?: string, setup?: PlaytestSetup) => {
     if (!doc) return;
@@ -2188,31 +2193,29 @@ export default function App() {
         </Modal>
       )}
       {showState && play && playProject && (
-        <div className="modal-backdrop">
-          <section className="modal wide" role="dialog" aria-modal="true" aria-label="World state">
-            <div className="section-heading">
-              <h2>World state</h2>
-              <button onClick={() => setShowState(false)}>Close</button>
-            </div>
-            <StateInspector
-              state={play.state}
-              project={playProject}
-              onApply={(state) => {
-                return request<PlaytestView>(`/playtests/${play.session}/state`, 'PUT', {
-                  state,
-                }).then((v) => {
-                  setPlay(v);
-                  if (stateKey(v.state) !== stateKey(play.state)) setPlayInitialState(null);
-                  setShowState(false);
-                  setLogs((old) => [
-                    ...old,
-                    { spans: [{ text: 'Test state applied.', colour: null }] },
-                  ]);
-                });
-              }}
-            />
-          </section>
-        </div>
+        <Modal title="World state" close={() => setShowState(false)} className="wide">
+          <div className="section-heading">
+            <h2>World state</h2>
+            <button onClick={() => setShowState(false)}>Close</button>
+          </div>
+          <StateInspector
+            state={play.state}
+            project={playProject}
+            onApply={(state) => {
+              return request<PlaytestView>(`/playtests/${play.session}/state`, 'PUT', {
+                state,
+              }).then((v) => {
+                setPlay(v);
+                if (stateKey(v.state) !== stateKey(play.state)) setPlayInitialState(null);
+                setShowState(false);
+                setLogs((old) => [
+                  ...old,
+                  { spans: [{ text: 'Test state applied.', colour: null }] },
+                ]);
+              });
+            }}
+          />
+        </Modal>
       )}
       {playtestTools && doc && (
         <PlaytestTools
@@ -2311,46 +2314,43 @@ export default function App() {
         />
       )}
       {comparison && doc && (
-        <div className="modal-backdrop">
-          <section
-            className="modal compare"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Compare external changes"
+        <Modal
+          title="Compare external changes"
+          close={() => setComparison(null)}
+          className="compare"
+        >
+          <div className="section-heading">
+            <h2>Compare project changes</h2>
+            <button onClick={() => setComparison(null)}>Close</button>
+          </div>
+          <div className="comparison">
+            <div>
+              <h3>In-memory draft</h3>
+              <pre>{JSON.stringify(doc, null, 2)}</pre>
+            </div>
+            <div>
+              <h3>Current files on disk</h3>
+              <pre>{JSON.stringify(comparison.project, null, 2)}</pre>
+            </div>
+          </div>
+          <button
+            className="danger"
+            onClick={() => {
+              if (window.confirm('Replace the disk content with your in-memory draft?')) {
+                const v = { ...view!, revision: comparison.revision };
+                current.current.view = v;
+                current.current.conflict = false;
+                setView(v);
+                setConflict(false);
+                setComparison(null);
+                saved.current = '';
+                void save().catch(error);
+              }
+            }}
           >
-            <div className="section-heading">
-              <h2>Compare project changes</h2>
-              <button onClick={() => setComparison(null)}>Close</button>
-            </div>
-            <div className="comparison">
-              <div>
-                <h3>In-memory draft</h3>
-                <pre>{JSON.stringify(doc, null, 2)}</pre>
-              </div>
-              <div>
-                <h3>Current files on disk</h3>
-                <pre>{JSON.stringify(comparison.project, null, 2)}</pre>
-              </div>
-            </div>
-            <button
-              className="danger"
-              onClick={() => {
-                if (window.confirm('Replace the disk content with your in-memory draft?')) {
-                  const v = { ...view!, revision: comparison.revision };
-                  current.current.view = v;
-                  current.current.conflict = false;
-                  setView(v);
-                  setConflict(false);
-                  setComparison(null);
-                  saved.current = '';
-                  void save().catch(error);
-                }
-              }}
-            >
-              Save draft over this disk revision
-            </button>
-          </section>
-        </div>
+            Save draft over this disk revision
+          </button>
+        </Modal>
       )}
     </div>
   );

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { BlockTemplate, Diagnostic, Effect, Project, TemplateContent } from './contracts';
 import { allEffects, flow, owner } from './model';
 import { Field, Select, Text } from './Forms';
 import { request } from './api';
 import { ReferenceButton, useReferenceActions } from './ReferenceManager';
 import Recipes, { recipeNames } from './Recipes';
+import Modal from './Modal';
 import type { RecipeKind } from './recipes';
 import {
   defaultTemplateMapping,
@@ -55,45 +56,6 @@ export default function Templates({
   const [targetOwner, setTargetOwner] = useState(context.ownerId);
   const [message, setMessage] = useState('');
   const [recipe, setRecipe] = useState<RecipeKind | null>(null);
-  const dialog = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement;
-    dialog.current?.focus();
-    const handler = (event: KeyboardEvent) => {
-      if (document.querySelector('dialog[open]')) return;
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        close();
-      }
-      if (event.key === 'Tab') {
-        const controls = [
-          ...dialog.current!.querySelectorAll<HTMLElement>(
-            'button:not(:disabled), input:not(:disabled), select:not(:disabled)',
-          ),
-        ];
-        const first = controls[0],
-          last = controls.at(-1);
-        if (
-          event.shiftKey &&
-          (document.activeElement === first || document.activeElement === dialog.current)
-        ) {
-          event.preventDefault();
-          last?.focus();
-        } else if (
-          !event.shiftKey &&
-          (document.activeElement === last || document.activeElement === dialog.current)
-        ) {
-          event.preventDefault();
-          first?.focus();
-        }
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => {
-      document.removeEventListener('keydown', handler);
-      if (previous instanceof HTMLElement) previous.focus();
-    };
-  }, []);
   const template = p.editor.templates.find((t) => t.id === selected);
   const canSave =
     !!source &&
@@ -101,174 +63,161 @@ export default function Templates({
     (scope === 'action' ||
       (scope === 'selection' ? context.selectedEffects?.length : source.effects.length));
   return (
-    <div className="modal-backdrop">
-      <section
-        ref={dialog}
-        className="modal template-library"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Block templates"
-        tabIndex={-1}
-      >
-        <div className="section-heading">
-          <h2>Block templates</h2>
-          <button onClick={close}>Close</button>
-        </div>
-        <p className="muted">
-          Save reusable actions and effect blocks in this project. Each insertion creates an
-          independent copy.
-        </p>
-        <details className="starter-recipes">
-          <summary>Starter recipes</summary>
-          <p>Ready-to-edit interactions with explicit references and independent copies.</p>
-          {(Object.keys(recipeNames) as RecipeKind[]).map((kind) => (
-            <button key={kind} onClick={() => setRecipe(kind)}>
-              {recipeNames[kind]}
-            </button>
-          ))}
-        </details>
-        {source && (
-          <section aria-label="Save a template" className="template-save">
-            <h3>Save a template</h3>
-            <Text label="Template name" value={name} onChange={setName} />
+    <Modal title="Block templates" close={close} className="template-library">
+      <div className="section-heading">
+        <h2>Block templates</h2>
+        <button onClick={close}>Close</button>
+      </div>
+      <p className="muted">
+        Save reusable actions and effect blocks in this project. Each insertion creates an
+        independent copy.
+      </p>
+      <details className="starter-recipes">
+        <summary>Starter recipes</summary>
+        <p>Ready-to-edit interactions with explicit references and independent copies.</p>
+        {(Object.keys(recipeNames) as RecipeKind[]).map((kind) => (
+          <button key={kind} onClick={() => setRecipe(kind)}>
+            {recipeNames[kind]}
+          </button>
+        ))}
+      </details>
+      {source && (
+        <section aria-label="Save a template" className="template-save">
+          <h3>Save a template</h3>
+          <Text label="Template name" value={name} onChange={setName} />
+          <Select
+            label="Save from"
+            value={scope}
+            items={[
+              ...('requirements' in source ? [{ id: 'action', name: 'Whole command action' }] : []),
+              ...(context.selectedEffects?.length
+                ? [{ id: 'selection', name: 'Selected block and following chain' }]
+                : []),
+              { id: 'effects', name: 'All effect blocks in this flow' },
+            ]}
+            onChange={setScope}
+          />
+          <button
+            disabled={!canSave}
+            onClick={() => {
+              const content: TemplateContent =
+                scope === 'action' && 'requirements' in source
+                  ? { type: 'action', action: source }
+                  : {
+                      type: 'effects',
+                      effects: scope === 'selection' ? context.selectedEffects! : source.effects,
+                    };
+              const created = makeTemplate(p, name, context.ownerId, content);
+              edit((next) => {
+                next.editor.templates.push(created);
+              });
+              setSelected(created.id);
+              setMessage('Template saved.');
+            }}
+          >
+            Save template
+          </button>
+          {message && <p role="status">{message}</p>}
+        </section>
+      )}
+      <div className="template-columns">
+        <section aria-label="Saved templates">
+          <h3>Saved templates</h3>
+          <ul className="template-list" aria-label="Saved block templates">
+            {p.editor.templates.map((t) => (
+              <li key={t.id}>
+                <button
+                  className={`action-item ${selected === t.id ? 'active' : ''}`}
+                  aria-pressed={selected === t.id}
+                  onClick={() => {
+                    setSelected(t.id);
+                    setMessage('');
+                  }}
+                >
+                  <strong>{t.name || 'Unnamed template'}</strong>
+                  <span>
+                    {t.content.type === 'action' ? 'Command action' : 'Effect blocks'} ·{' '}
+                    {allEffects(effectsOf(t.content)).length} blocks
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {!p.editor.templates.length && (
+            <p className="muted">
+              Open an action or select a block chain to save your first template.
+            </p>
+          )}
+        </section>
+        {template && (
+          <section aria-label="Use template">
+            <Text
+              label="Saved template name"
+              value={template.name}
+              onChange={(name) =>
+                edit((next) => {
+                  next.editor.templates.find((t) => t.id === template.id)!.name = name;
+                })
+              }
+            />
             <Select
-              label="Save from"
-              value={scope}
+              label="Target owner"
+              value={targetOwner}
               items={[
-                ...('requirements' in source
-                  ? [{ id: 'action', name: 'Whole command action' }]
-                  : []),
-                ...(context.selectedEffects?.length
-                  ? [{ id: 'selection', name: 'Selected block and following chain' }]
-                  : []),
-                { id: 'effects', name: 'All effect blocks in this flow' },
+                { id: p.game.id, name: `Game · ${p.game.title}` },
+                ...templateEntities(p).map((entity) => ({
+                  id: entity.id,
+                  name: `${entity.kind} · ${entity.name}`,
+                })),
               ]}
-              onChange={setScope}
+              onChange={setTargetOwner}
+            />
+            <TemplateUse
+              key={`${template.id}:${targetOwner}`}
+              project={p}
+              template={template}
+              context={context}
+              targetOwner={targetOwner}
+              edit={edit}
+              select={select}
+              append={append}
+              close={close}
             />
             <button
-              disabled={!canSave}
+              className="danger"
               onClick={() => {
-                const content: TemplateContent =
-                  scope === 'action' && 'requirements' in source
-                    ? { type: 'action', action: source }
-                    : {
-                        type: 'effects',
-                        effects: scope === 'selection' ? context.selectedEffects! : source.effects,
-                      };
-                const created = makeTemplate(p, name, context.ownerId, content);
+                if (references) {
+                  references({ target: { kind: 'template', id: template.id }, action: 'delete' });
+                  setSelected(p.editor.templates.find((t) => t.id !== template.id)?.id ?? '');
+                  setMessage('Template deleted. Inserted copies are unchanged.');
+                  return;
+                }
                 edit((next) => {
-                  next.editor.templates.push(created);
+                  next.editor.templates = next.editor.templates.filter((t) => t.id !== template.id);
                 });
-                setSelected(created.id);
-                setMessage('Template saved.');
+                setSelected(p.editor.templates.find((t) => t.id !== template.id)?.id ?? '');
+                setMessage('Template deleted.');
               }}
             >
-              Save template
+              Delete template
             </button>
-            {message && <p role="status">{message}</p>}
+            <ReferenceButton target={{ kind: 'template', id: template.id }} />
           </section>
         )}
-        <div className="template-columns">
-          <section aria-label="Saved templates">
-            <h3>Saved templates</h3>
-            <ul className="template-list" aria-label="Saved block templates">
-              {p.editor.templates.map((t) => (
-                <li key={t.id}>
-                  <button
-                    className={`action-item ${selected === t.id ? 'active' : ''}`}
-                    aria-pressed={selected === t.id}
-                    onClick={() => {
-                      setSelected(t.id);
-                      setMessage('');
-                    }}
-                  >
-                    <strong>{t.name || 'Unnamed template'}</strong>
-                    <span>
-                      {t.content.type === 'action' ? 'Command action' : 'Effect blocks'} ·{' '}
-                      {allEffects(effectsOf(t.content)).length} blocks
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {!p.editor.templates.length && (
-              <p className="muted">
-                Open an action or select a block chain to save your first template.
-              </p>
-            )}
-          </section>
-          {template && (
-            <section aria-label="Use template">
-              <Text
-                label="Saved template name"
-                value={template.name}
-                onChange={(name) =>
-                  edit((next) => {
-                    next.editor.templates.find((t) => t.id === template.id)!.name = name;
-                  })
-                }
-              />
-              <Select
-                label="Target owner"
-                value={targetOwner}
-                items={[
-                  { id: p.game.id, name: `Game · ${p.game.title}` },
-                  ...templateEntities(p).map((entity) => ({
-                    id: entity.id,
-                    name: `${entity.kind} · ${entity.name}`,
-                  })),
-                ]}
-                onChange={setTargetOwner}
-              />
-              <TemplateUse
-                key={`${template.id}:${targetOwner}`}
-                project={p}
-                template={template}
-                context={context}
-                targetOwner={targetOwner}
-                edit={edit}
-                select={select}
-                append={append}
-                close={close}
-              />
-              <button
-                className="danger"
-                onClick={() => {
-                  if (references) {
-                    references({ target: { kind: 'template', id: template.id }, action: 'delete' });
-                    setSelected(p.editor.templates.find((t) => t.id !== template.id)?.id ?? '');
-                    setMessage('Template deleted. Inserted copies are unchanged.');
-                    return;
-                  }
-                  edit((next) => {
-                    next.editor.templates = next.editor.templates.filter(
-                      (t) => t.id !== template.id,
-                    );
-                  });
-                  setSelected(p.editor.templates.find((t) => t.id !== template.id)?.id ?? '');
-                  setMessage('Template deleted.');
-                }}
-              >
-                Delete template
-              </button>
-              <ReferenceButton target={{ kind: 'template', id: template.id }} />
-            </section>
-          )}
-        </div>
-        {recipe && (
-          <Recipes
-            project={p}
-            kind={recipe}
-            edit={edit}
-            select={(id) => {
-              select(id);
-              close();
-            }}
-            close={() => setRecipe(null)}
-          />
-        )}
-      </section>
-    </div>
+      </div>
+      {recipe && (
+        <Recipes
+          project={p}
+          kind={recipe}
+          edit={edit}
+          select={(id) => {
+            select(id);
+            close();
+          }}
+          close={() => setRecipe(null)}
+        />
+      )}
+    </Modal>
   );
 }
 

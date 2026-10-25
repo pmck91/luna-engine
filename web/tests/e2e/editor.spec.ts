@@ -173,7 +173,11 @@ test('author, inspect, play, and export The Locked Study', async ({ page }, info
     page.getByText('Project files changed outside Luna. Autosave is paused.'),
   ).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: 'Compare changes' }).click();
-  await expect(page.getByRole('dialog', { name: 'Compare external changes' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  const comparison = page.getByRole('dialog', { name: 'Compare external changes' });
+  await expect(comparison).toBeVisible();
+  await page.getByRole('button', { name: 'Compare changes' }).focus();
+  expect(await comparison.evaluate((e) => e.contains(document.activeElement))).toBe(true);
+  await comparison.press('Escape');
+  await expect(page.getByRole('button', { name: 'Compare changes' })).toBeFocused();
   expect(browserErrors).toEqual([]);
 });

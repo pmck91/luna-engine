@@ -44,6 +44,7 @@ export default function Modal({
       aria-label={title}
       onCancel={(event) => {
         event.preventDefault();
+        event.stopPropagation();
         close();
       }}
     >

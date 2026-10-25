@@ -52,13 +52,13 @@ select:disabled {
   cursor: default;
 }
 button.primary {
-  background: #8a76e8;
-  border-color: #8a76e8;
+  background: #6b55c5;
+  border-color: #6b55c5;
   color: white;
   font-weight: 650;
 }
 button.primary:hover {
-  background: #9c87f7;
+  background: #7862d4;
 }
 button.danger {
   color: #f0a1ad;
@@ -956,7 +956,7 @@ summary {
 .stable-id {
   font-family: monospace;
   font-size: 9px;
-  color: #69768d;
+  color: var(--muted);
   overflow-wrap: anywhere;
   margin-top: 28px;
 }
