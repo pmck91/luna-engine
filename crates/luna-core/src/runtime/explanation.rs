@@ -1,13 +1,28 @@
 //! Optional observations of the ordinary transactional execution path.
-use super::*;
+//!
+//! The recorder never dispatches gameplay itself. Sources refer to canonical
+//! authored data, and changes describe attempted state even when execution rolls
+//! back. Recording is capped at 8,192 steps and 256 changes per diff; truncation
+//! limits diagnostics without changing execution or its transaction limits.
+use super::Run;
+use anyhow::Result;
+use luna_model::{
+    ArithmeticOperation, Condition, Effect, Event, GameState, Value, ValueTarget, WatchMode,
+    normalize, text,
+};
+use serde::{Deserialize, Serialize};
 use serde_json::Value as Json;
+use ts_rs::TS;
 
 const MAX_STEPS: usize = 8192;
 const MAX_CHANGES: usize = 256;
 
+/// A stable authored subject and a path within its canonical action/trigger/exit.
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
 pub struct TraceSource {
+    /// Stable content ID, independent of display names and Blockly block IDs.
     pub subject: String,
+    /// Dot-separated field/index path, such as `effects.0.then.1`.
     pub path: String,
 }
 impl TraceSource {
@@ -22,92 +37,162 @@ impl TraceSource {
         }
     }
 }
+/// One attempted state difference, including changes later rolled back.
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 pub struct TraceChange {
+    /// Literal map keys from the state root; dots inside a key are not separators.
     pub path: Vec<String>,
+    /// Prior JSON value; null also represents a previously absent map entry.
     pub before: Json,
+    /// Attempted JSON value; null also represents a removed map entry.
     pub after: Json,
 }
+/// The operation or observation represented by an explanation step.
+///
+/// A completed condition can be false, and a completed trigger can be skipped.
+/// Consult variant fields rather than treating completion as puzzle success.
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TraceKind {
+    /// A potential command handler, including negative matches during explanation.
     Candidate {
+        /// Authored action or exit display name.
         name: String,
+        /// Whether its command pattern and current scope matched.
         matched: bool,
+        /// Human-readable scope, pattern, or visibility explanation.
         reason: String,
+        /// Literal-token specificity used in candidate ranking.
         literals: usize,
+        /// Number of bound entity references used in candidate ranking.
         targets: usize,
+        /// Ranking scope: `global`, `location`, or `object/character`.
         scope: String,
+        /// Authored priority, applied after pattern specificity and scope.
         priority: i32,
     },
+    /// The unique highest-ranked candidate, before checking its requirements.
     Selected {
+        /// Chosen action or exit display name.
         name: String,
     },
+    /// A condition evaluated against live attempted state.
     Condition {
+        /// Context such as action requirements, IF, or a watch recheck.
         label: String,
+        /// Authored condition, with nested evaluations represented by child steps.
         condition: Condition,
+        /// Actual Boolean result, preserving short-circuit evaluation.
         value: bool,
+        /// A relevant observed leaf value when available; absent for other checks.
         observed: Option<Json>,
     },
+    /// The selected arm of an IF effect.
     Branch {
+        /// `THEN` or `ELSE`, independent of whether that arm has effects.
         taken: String,
     },
+    /// Execution of an authored effect, possibly containing nested steps.
     Effect {
+        /// Human-readable operation label such as `SAY` or `UPDATE VARIABLE`.
         effect: String,
     },
+    /// A checked integer calculation before writing through value watches.
     Arithmetic {
+        /// Global variable or entity property being updated.
         target: ValueTarget,
+        /// Checked arithmetic operation.
         op: ArithmeticOperation,
+        /// Target value read before calculation.
         before: Value,
+        /// Resolved live operand, including references to the target itself.
         operand: i32,
+        /// Calculated value, absent when arithmetic failed.
         result: Option<Value>,
     },
+    /// An ordinary event handler or an eligible value-watch handler.
     Trigger {
+        /// Authored trigger display name.
         name: String,
+        /// Ordinary event, absent for a value watch.
         event: Option<Event>,
+        /// Watched value, absent for an ordinary event.
         target: Option<ValueTarget>,
+        /// Whether the live condition passed and its effect chain was entered.
         fired: bool,
     },
+    /// Before/after eligibility for a watch on an actual value change.
     Watch {
+        /// Value that changed.
         target: ValueTarget,
+        /// Value before the initiating assignment.
         before: Value,
+        /// Value assigned before running any eligible watches.
         after: Value,
+        /// False-to-true or each-matching-change policy.
         mode: WatchMode,
+        /// Whether this watch entered the dispatch queue, before its live recheck.
         eligible: bool,
     },
+    /// Host-control, travel, or other explanatory context.
     Notice {
+        /// Human-readable information, separate from the player's transcript.
         text: String,
     },
 }
+/// Whether recording this step completed normally or propagated an error.
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TraceOutcome {
+    /// No error, including false conditions or skipped handlers.
     Completed,
+    /// Execution failed in this step or one of its descendants.
     Failed,
 }
+/// An indexed node in an explanation's ordered step list.
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 pub struct TraceStep {
+    /// Index of an earlier parent step; null for a root observation.
     pub parent: Option<usize>,
+    /// Authored source when applicable; absent for some built-in observations.
     pub source: Option<TraceSource>,
+    /// Evaluated operation and its observed inputs/result.
     pub kind: TraceKind,
+    /// Completion or propagated failure, independently of condition truth.
     pub outcome: TraceOutcome,
+    /// Attempted differences across this step, which can include child changes.
     pub changes: Vec<TraceChange>,
+    /// Contextual error text when this step failed.
     pub error: Option<String>,
 }
+/// Bounded diagnostics from one real command execution, including failed attempts.
+///
+/// A successful read-only command has `committed = true` and no state changes.
+/// On failure, all differences and discarded messages describe an attempt that
+/// was rolled back. Truncation affects observations, never command execution.
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 pub struct CommandExplanation {
+    /// Original input before parser normalization.
     pub command: String,
+    /// Lowercased, punctuation-separated command used by the matcher.
     pub normalized: String,
+    /// Whether execution returned without error, including normal player rejections.
     pub committed: bool,
+    /// Final contextual execution error; null for committed attempts.
     pub error: Option<String>,
+    /// Index of the first recorded failure, or null if none was recorded.
     pub failed_step: Option<usize>,
+    /// Ordered observations; parent indices refer to this list.
     pub steps: Vec<TraceStep>,
+    /// Differences between the prior and attempted final state, before rollback.
     pub changes: Vec<TraceChange>,
+    /// Buffered player output discarded because execution failed.
     pub discarded_messages: Vec<Vec<text::Span>>,
+    /// Whether the step limit or any per-diff change limit omitted observations.
     pub truncated: bool,
 }
 #[derive(Default)]
-pub(super) struct Recorder {
+pub(crate) struct Recorder {
     steps: Vec<TraceStep>,
     failed_step: Option<usize>,
     truncated: bool,
@@ -144,7 +229,7 @@ impl Recorder {
             None,
         );
     }
-    pub(super) fn finish(
+    pub(crate) fn finish(
         mut self,
         command: &str,
         before: &GameState,
@@ -168,6 +253,11 @@ impl Recorder {
     }
 }
 fn state_changes(before: &GameState, after: &GameState) -> (Vec<TraceChange>, bool) {
+    // Read-only commands and effects need no JSON snapshots for a diff. Comparing
+    // typed state first also avoids serializing an unchanged large world twice.
+    if before == after {
+        return (vec![], false);
+    }
     fn walk(
         before: &Json,
         after: &Json,
@@ -245,7 +335,7 @@ impl Run<'_> {
             .recording
             .as_mut()
             .and_then(|r| r.push(kind, source.clone(), self.trace_parent));
-        let before = (changes && index.is_some()).then(|| self.state.clone());
+        let before = (changes && index.is_some()).then(|| self.state.as_ref().clone());
         let old_source = std::mem::replace(&mut self.source, source);
         let old_parent = self.trace_parent;
         self.trace_parent = index;
@@ -300,15 +390,10 @@ impl Run<'_> {
         }
         let observed = match condition {
             Condition::Variable { name, .. } => self
-                .state
-                .variables
-                .get(name)
+                .variable(name)
                 .and_then(|v| serde_json::to_value(v).ok()),
             Condition::Property { entity, name, .. } => self
-                .state
-                .properties
-                .get(entity)
-                .and_then(|p| p.get(name))
+                .property(entity, name)
                 .and_then(|v| serde_json::to_value(v).ok()),
             Condition::Carrying { object }
             | Condition::CharacterCarrying { object, .. }

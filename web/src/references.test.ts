@@ -8,6 +8,7 @@ import { projectReferences, referencePlan, resolveMessageReference, usedBy } fro
 import { connectedFindings, prepareDraftValidation } from './diagnostics';
 import { nearestBlock } from './Blocks';
 import { playContentKey } from './playtest';
+import { searchIndex, searchProject } from './projectSearch';
 import {
   changeTitle,
   detailedStep,
@@ -37,6 +38,7 @@ function fixture(): Project {
       starting_location: room.id,
       opening_text: '',
       help_text: '',
+      unknown_command_text: '',
       help_mode: 'basic',
       hints_enabled: true,
       ignored_words: [],
@@ -54,6 +56,40 @@ function fixture(): Project {
     editor: { positions: {}, routes: {}, templates: [], blocks: {} },
   };
 }
+it('finds unknown-command messages and preserves their references through checked renames', () => {
+  const p = fixture();
+  p.game.unknown_command_text =
+    'An unheard whisper: <green>%chances%</green> / %keeper.old.health% / %%chances%%';
+  expect(usedBy(p, { kind: 'variable', name: 'chances' })).toContainEqual(
+    expect.objectContaining({
+      subject: p.game.id,
+      path: 'unknown_command_text.value0',
+      scope: 'message',
+    }),
+  );
+  const variable = referencePlan(
+    p,
+    { kind: 'variable', name: 'chances' },
+    { kind: 'variable', name: 'attempts' },
+    true,
+  );
+  expect(variable.errors).toEqual([]);
+  const property = referencePlan(
+    variable.project,
+    { kind: 'property', entity: 'keeper.old', name: 'health' },
+    { kind: 'property', entity: 'keeper.old', name: 'stamina' },
+    true,
+  );
+  expect(property.errors).toEqual([]);
+  expect(property.project.game.unknown_command_text).toBe(
+    'An unheard whisper: <green>%attempts%</green> / %keeper.old.stamina% / %%chances%%',
+  );
+  expect(searchProject(searchIndex(property.project), 'unheard whisper')).toEqual([
+    expect.objectContaining({
+      site: expect.objectContaining({ subject: p.game.id, path: 'unknown_command_text' }),
+    }),
+  ]);
+});
 it('keeps explanation links tied to runtime content while mapping value names and matching details', () => {
   const p = fixture();
   const record: ExplanationRecord = {

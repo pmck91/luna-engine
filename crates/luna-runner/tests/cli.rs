@@ -1,3 +1,4 @@
+use luna_core::GameDefinition;
 use luna_runner::{ExistingPolicy, Storage};
 use std::{
     fs,
@@ -33,7 +34,7 @@ fn optional_outcomes_survive_export_completion_and_named_save_restore() {
         Some(Outcome::Neutral),
     ] {
         let temp = tempfile::tempdir().unwrap();
-        let mut p = Project::blank("Optional outcome CLI");
+        let mut p = Project::blank("Optional outcome CLI: %finalizations%");
         p.game.require_ending = true;
         p.game
             .variables
@@ -41,7 +42,7 @@ fn optional_outcomes_survive_export_completion_and_named_save_restore() {
         p.game.endings.push(Ending {
             id: "finish".into(),
             name: "Finish".into(),
-            text: "A story worth remembering.".into(),
+            text: "A story worth remembering: <green>%finalizations%</green>.".into(),
             outcome: outcome.clone(),
         });
         p.game.triggers.push(Trigger {
@@ -93,7 +94,10 @@ fn optional_outcomes_survive_export_completion_and_named_save_restore() {
             String::from_utf8_lossy(&output.stderr)
         );
         let output = String::from_utf8(output.stdout).unwrap();
-        assert_eq!(output.matches("A story worth remembering.").count(), 2);
+        assert!(output.contains("Optional outcome CLI: 0"));
+        assert!(output.contains("Optional outcome CLI: 1"));
+        assert_eq!(output.matches("A story worth remembering: 1.").count(), 2);
+        assert!(!output.contains("%finalizations%"));
         assert_eq!(output.matches("End handler ran.").count(), 1);
         assert!(output.contains("This playthrough has ended."));
         assert_eq!(
@@ -106,12 +110,13 @@ fn optional_outcomes_survive_export_completion_and_named_save_restore() {
 
         let store = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
         let record = store.records().unwrap().pop().unwrap();
+        let definition = GameDefinition::new(p.clone()).unwrap();
         assert_eq!(
             store.load_game(&record).unwrap().game.endings[0].outcome,
             outcome
         );
         for slot in [None, Some("completed")] {
-            let saved = store.load_save(&record, &p, slot).unwrap();
+            let saved = store.load_save(&record, &definition, slot).unwrap();
             assert_eq!(saved.state.ending.as_deref(), Some("finish"));
             assert_eq!(saved.state.variables["finalizations"], Value::Integer(1));
         }
@@ -122,13 +127,33 @@ fn optional_outcomes_survive_export_completion_and_named_save_restore() {
         );
         assert!(resumed.status.success());
         let resumed = String::from_utf8(resumed.stdout).unwrap();
-        assert!(resumed.contains("A story worth remembering."));
+        assert!(resumed.contains("Optional outcome CLI: 1"));
+        assert!(resumed.contains("A story worth remembering: 1."));
+        assert!(!resumed.contains("%finalizations%"));
         assert!(resumed.contains("This playthrough has ended."));
         assert!(!resumed.contains("End handler ran."));
         assert_eq!(
             resumed.matches("Outcome:").count(),
             usize::from(outcome.is_some())
         );
+
+        let coloured = command(
+            temp.path(),
+            &[
+                "--color",
+                "always",
+                "run",
+                &p.game.id,
+                "--load",
+                "completed",
+            ],
+            b"quit\n",
+        );
+        assert!(coloured.status.success());
+        let coloured = String::from_utf8(coloured.stdout).unwrap();
+        assert!(coloured.contains("\u{1b}[32m1\u{1b}[39m"));
+        assert!(!coloured.contains("%finalizations%"));
+        assert!(!coloured.contains("End handler ran."));
     }
 }
 #[test]
@@ -201,9 +226,10 @@ fn response_follow_ups_resume_before_and_after_completion_and_can_be_reset() {
     assert!(text.find("Last warning.").unwrap() < text.find("Punch 1.").unwrap());
     let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
     let installed = storage.records().unwrap().pop().unwrap();
+    let definition = GameDefinition::new(p.clone()).unwrap();
     assert_eq!(
         storage
-            .load_save(&installed, &p, Some("before punch"))
+            .load_save(&installed, &definition, Some("before punch"))
             .unwrap()
             .state
             .sequences["warnings"],
@@ -212,7 +238,7 @@ fn response_follow_ups_resume_before_and_after_completion_and_can_be_reset() {
     for slot in [Some("after punch"), None] {
         assert_eq!(
             storage
-                .load_save(&installed, &p, slot)
+                .load_save(&installed, &definition, slot)
                 .unwrap()
                 .state
                 .sequences["warnings"],
@@ -237,7 +263,7 @@ fn response_follow_ups_resume_before_and_after_completion_and_can_be_reset() {
     let text = String::from_utf8(resumed.stdout).unwrap();
     assert_eq!(text.matches("Punch 1.").count(), 1);
     assert!(text.contains("First warning."));
-    let auto = storage.load_save(&installed, &p, None).unwrap();
+    let auto = storage.load_save(&installed, &definition, None).unwrap();
     assert_eq!(auto.state.sequences["warnings"], 1);
     assert_eq!(auto.state.variables["punches"], Value::Integer(1));
 }
@@ -292,11 +318,12 @@ fn puzzle_hints_autosave_and_named_loads_resume_clues_without_revealing_solution
     assert!(text.contains("The final answer."));
     let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
     let installed = storage.records().unwrap().pop().unwrap();
-    let auto = storage.load_save(&installed, &p, None).unwrap();
+    let definition = GameDefinition::new(p.clone()).unwrap();
+    let auto = storage.load_save(&installed, &definition, None).unwrap();
     assert_eq!(auto.save_format, 2);
     assert!(auto.state.hints["room-stage"].solution_seen);
     let named = storage
-        .load_save(&installed, &p, Some("first clue"))
+        .load_save(&installed, &definition, Some("first clue"))
         .unwrap();
     assert_eq!(named.state.hints["room-stage"].clues_seen, 1);
     assert!(!named.state.hints["room-stage"].solution_seen);
@@ -487,6 +514,7 @@ fn character_inventory_cli_keeps_ownership_through_autosave_and_named_loads() {
     assert!(text.contains("Keeper takes the key."));
     let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
     let installed = storage.records().unwrap().pop().unwrap();
+    let definition = GameDefinition::new(p.clone()).unwrap();
     for (slot, expected) in [
         (
             Some("keeper"),
@@ -510,7 +538,7 @@ fn character_inventory_cli_keeps_ownership_through_autosave_and_named_loads() {
     ] {
         assert_eq!(
             storage
-                .load_save(&installed, &p, slot)
+                .load_save(&installed, &definition, slot)
                 .unwrap()
                 .state
                 .objects["key"]
@@ -634,7 +662,8 @@ fn arithmetic_cli_exports_saves_restores_and_recovers_from_failed_commands() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("rolled back: Cannot divide by zero"));
     let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
     let installed = storage.records().unwrap().pop().unwrap();
-    let saved = storage.load_save(&installed, &project, None).unwrap();
+    let definition = GameDefinition::new(project.clone()).unwrap();
+    let saved = storage.load_save(&installed, &definition, None).unwrap();
     assert_eq!(saved.state.variables["chances"], Value::Integer(455));
     assert_eq!(saved.state.variables["divisor"], Value::Integer(2));
     assert_eq!(saved.state.properties[&room]["charges"], Value::Integer(35));
@@ -681,6 +710,121 @@ fn cli_walkthrough_restores_named_saves_and_prints_plain_transcripts() {
     let ambiguous = command(temp.path(), &["run", &record.game_id], b"");
     assert!(!ambiguous.status.success());
 }
+#[test]
+fn replaced_content_loads_compatible_state_and_preserves_incompatible_slots() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut project = Project::blank("Revision one");
+    project
+        .game
+        .variables
+        .insert("starts".into(), Value::Integer(0));
+    project.game.triggers.push(Trigger {
+        id: "count-starts".into(),
+        event: Event::Start,
+        effects: vec![Effect::UpdateVariable {
+            name: "starts".into(),
+            op: ArithmeticOperation::Add,
+            operand: NumericOperand::Literal { value: 1 },
+        }],
+        ..Default::default()
+    });
+    let bundle = temp.path().join("replaced.luna");
+    let install = |project: &Project| {
+        fs::write(
+            &bundle,
+            luna_project::export_bundle(temp.path(), project).unwrap(),
+        )
+        .unwrap();
+        let result = command(
+            temp.path(),
+            &[
+                "import",
+                bundle.to_str().unwrap(),
+                "--on-existing",
+                "replace",
+            ],
+            b"",
+        );
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    };
+    install(&project);
+    let initial = command(
+        temp.path(),
+        &["run", &project.game.id, "--new"],
+        b"save checkpoint\nquit\n",
+    );
+    assert!(initial.status.success());
+    let slots = temp
+        .path()
+        .join("saves")
+        .join(&project.game.id)
+        .join(&project.game.content_version);
+    let named = slots.join(format!(
+        "named-{}.json",
+        luna_project::digest(b"checkpoint")
+    ));
+    let named_before = fs::read(&named).unwrap();
+    let auto_before = fs::read(slots.join("autosave.json")).unwrap();
+
+    project.game.title = "Revision two".into();
+    install(&project);
+    let compatible = command(
+        temp.path(),
+        &["run", &project.game.id, "--load", "checkpoint"],
+        b"quit\n",
+    );
+    assert!(
+        compatible.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compatible.stderr)
+    );
+    assert!(String::from_utf8_lossy(&compatible.stdout).contains("Revision two"));
+    assert!(String::from_utf8_lossy(&compatible.stderr).contains("content was replaced"));
+    let store = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let record = store.records().unwrap().pop().unwrap();
+    let definition = GameDefinition::new(project.clone()).unwrap();
+    let saved = store
+        .load_save(&record, &definition, Some("checkpoint"))
+        .unwrap();
+    assert_eq!(saved.state.variables["starts"], Value::Integer(1));
+    assert_eq!(fs::read(&named).unwrap(), named_before);
+
+    project
+        .game
+        .variables
+        .insert("extension".into(), Value::Bool(false));
+    install(&project);
+    let incompatible = command(
+        temp.path(),
+        &["run", &project.game.id, "--load", "checkpoint"],
+        b"quit\n",
+    );
+    assert!(!incompatible.status.success());
+    assert!(String::from_utf8_lossy(&incompatible.stderr).contains("incompatible"));
+    assert_eq!(fs::read(&named).unwrap(), named_before);
+    assert_eq!(fs::read(slots.join("autosave.json")).unwrap(), auto_before);
+
+    let fresh = command(temp.path(), &["run", &project.game.id, "--new"], b"quit\n");
+    assert!(fresh.status.success());
+    let preserved = fs::read_dir(&slots)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("corrupt-")
+        })
+        .expect("Starting over must preserve the previous incompatible autosave");
+    assert_eq!(fs::read(preserved).unwrap(), auto_before);
+    assert_eq!(fs::read(named).unwrap(), named_before);
+}
+
 #[test]
 fn multiple_versions_and_reimport_are_explicit() {
     let temp = tempfile::tempdir().unwrap();

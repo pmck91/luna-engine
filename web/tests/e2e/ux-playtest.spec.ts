@@ -198,6 +198,7 @@ test('history after manual state edits requires a captured start before it can s
   const state = page.getByRole('dialog', { name: 'World state', exact: true });
   await state.getByLabel('coins value', { exact: true }).fill('9');
   await state.getByRole('button', { name: 'Apply test state', exact: true }).click();
+  await expect(state).not.toBeVisible();
   await command(page, 'use reward');
   await page.getByRole('button', { name: 'Setups & checks', exact: true }).click();
   let dialog = tools(page);

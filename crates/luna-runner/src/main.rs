@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
-use luna_core::{CommandResult, GameState, HostControl, Session};
+use luna_core::{CommandResult, GameDefinition, GameState, HostControl, Session};
 use luna_model::{Project, text};
 use luna_runner::{ExistingPolicy, Installed, Storage};
 use serde::Deserialize;
@@ -221,26 +221,8 @@ fn print_messages(result: &CommandResult, colour: bool) -> Result<()> {
     Ok(())
 }
 fn show_restored(session: &Session, label: &str, colour: bool) -> Result<()> {
+    let messages = session.resume_messages()?;
     println!("Loaded {label}.");
-    let mut messages = vec![text::parse(&session.project.game.title)?];
-    if let Some(ending) = &session.state.ending {
-        let end = session
-            .project
-            .game
-            .endings
-            .iter()
-            .find(|e| e.id == *ending)
-            .context("Saved ending no longer exists")?;
-        messages.push(text::parse(&end.text)?);
-        if let Some(outcome) = &end.outcome {
-            messages.push(vec![text::Span {
-                text: format!("Outcome: {outcome:?}"),
-                colour: None,
-            }]);
-        }
-    } else {
-        messages.extend(session.description()?);
-    }
     print_messages(
         &CommandResult {
             messages,
@@ -273,15 +255,15 @@ fn auto_save(
     session: &Session,
     last_saved: &mut Option<GameState>,
 ) {
-    match store.write_save(record, &session.project, &session.state, None) {
-        Ok(()) => *last_saved = Some(session.state.clone()),
+    match store.write_save(record, session.definition(), session.state(), None) {
+        Ok(()) => *last_saved = Some(session.state().clone()),
         Err(e) => eprintln!(
             "Autosave failed: {e:#}. Your previous valid save remains available; use save to retry."
         ),
     }
 }
 fn dirty(session: &Session, last_saved: &Option<GameState>) -> bool {
-    last_saved.as_ref() != Some(&session.state)
+    last_saved.as_ref() != Some(session.state())
 }
 fn confirm_discard(input: &mut impl BufRead, interactive: bool) -> Result<bool> {
     if !interactive {
@@ -303,6 +285,7 @@ fn play(
     mut load: Option<String>,
     colour: bool,
 ) -> Result<()> {
+    let definition = GameDefinition::new(project)?;
     let stdin = io::stdin();
     let interactive = stdin.is_terminal();
     let mut input = stdin.lock();
@@ -330,18 +313,18 @@ fn play(
         } else {
             Some(name.as_str())
         };
-        let save = store.load_save(record, &project, slot)?;
+        let save = store.load_save(record, &definition, slot)?;
         if save.fingerprint != record.fingerprint {
             eprintln!(
                 "Warning: content was replaced under this version. The restored state passed compatibility validation."
             )
         };
-        let session = Session::restore(project, save.state)?;
+        let session = Session::restore_with_definition(definition, save.state)?;
         show_restored(&session, &name, colour)?;
-        let saved = session.state.clone();
+        let saved = session.state().clone();
         (session, Some(saved))
     } else {
-        let (session, result) = Session::start(project, None)?;
+        let (session, result) = Session::start_with_definition(definition, None)?;
         let mut saved = None;
         auto_save(store, record, &session, &mut saved);
         print_messages(&result, colour)?;
@@ -379,9 +362,14 @@ fn play(
         };
         match result.control {
             Some(HostControl::Save { name }) => {
-                match store.write_save(record, &session.project, &session.state, name.as_deref()) {
+                match store.write_save(
+                    record,
+                    session.definition(),
+                    session.state(),
+                    name.as_deref(),
+                ) {
                     Ok(()) => {
-                        last_saved = Some(session.state.clone());
+                        last_saved = Some(session.state().clone());
                         println!("Saved {}.", name.as_deref().unwrap_or("autosave"))
                     }
                     Err(e) => eprintln!("Could not save: {e:#}"),
@@ -394,15 +382,15 @@ fn play(
                 let slot = name
                     .as_deref()
                     .filter(|n| !n.eq_ignore_ascii_case("autosave"));
-                match store.load_save(record, &session.project, slot) {
+                match store.load_save(record, session.definition(), slot) {
                     Ok(saved) => {
                         if saved.fingerprint != record.fingerprint {
                             eprintln!(
                                 "Warning: game content changed; saved state passed compatibility validation."
                             )
                         }
-                        session = Session::restore(session.project.clone(), saved.state)?;
-                        last_saved = Some(session.state.clone());
+                        session.replace_state(saved.state)?;
+                        last_saved = Some(session.state().clone());
                         show_restored(&session, name.as_deref().unwrap_or("autosave"), colour)?;
                         // Resuming a named slot establishes the rolling autosave at that safe boundary.
                         auto_save(store, record, &session, &mut last_saved);
@@ -416,7 +404,7 @@ fn play(
             Some(HostControl::Quit) => {
                 if dirty(&session, &last_saved) {
                     if !interactive || eof {
-                        store.write_save(record,&session.project,&session.state,None).context("Could not save remaining progress on exit; previous saves were preserved")?;
+                        store.write_save(record,session.definition(),session.state(),None).context("Could not save remaining progress on exit; previous saves were preserved")?;
                     } else {
                         print!("Save remaining progress before quitting? [Y/n/cancel] ");
                         io::stdout().flush()?;
@@ -425,9 +413,12 @@ fn play(
                             "cancel" | "c" => continue,
                             "n" | "no" => {}
                             _ => {
-                                if let Err(e) =
-                                    store.write_save(record, &session.project, &session.state, None)
-                                {
+                                if let Err(e) = store.write_save(
+                                    record,
+                                    session.definition(),
+                                    session.state(),
+                                    None,
+                                ) {
                                     eprintln!("Could not save: {e:#}; still playing.");
                                     continue;
                                 }

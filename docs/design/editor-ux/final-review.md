@@ -1,8 +1,10 @@
 # Final UX review
 
-Status: **M9 complete; the owner reviewed and accepted the tested editor on 25 October 2026.** M0–M7 are the implemented scope, approved for the coordinated merge from `feature/editor-ux` to `main`. [Portable templates](../../plans/portable-templates-extension.md), originally M8 / UX-13, remain a deferred potential extension.
+Status: **M9 complete; the owner reviewed and accepted the tested editor, and the coordinated merge reached `main` as `1608340` on 25 October 2026.** M0–M7 are the implemented scope. [Portable templates](../../plans/portable-templates-extension.md), originally M8 / UX-13, remain a deferred potential extension.
 
 After reviewing the UI test coverage, the owner confirmed: “I completed the review, Im happy with whats there”. This closes final owner acceptance for the current scope. Separate human screen-reader and new-author sessions were not reported; retain them as follow-up evaluation rather than claiming they ran.
+
+This report records the M9 checkpoint, including its example contents and verification counts. Subsequent features and example edits are tracked in the [current TODO list](../../plans/todo.md); the later Dev room/Tom edits require a fresh example export.
 
 ## Findings and fixes
 
@@ -20,7 +22,7 @@ The author's current Locked Study also validates, with its existing vocabulary-o
 
 Content format remains 1 and player-save format remains 2. Shared state types moved into the model without changing serialized player state. Optional setup/check metadata stays in editor files; personal layout/preferences stay in user configuration. Structured explanations are optional runtime results. Existing project, workspace, export, legacy-save, autosave, and named-save compatibility checks cover these boundaries.
 
-Remote main was fetched again after owner acceptance and remains at `92b3ab6`, already an ancestor of this branch. There are no upstream changes to reconcile and no implementation changes since the recorded verification. The coordinated merge preserves the reviewed feature commits and the owner's example edits.
+At integration review, remote main was fetched and confirmed at `92b3ab6`, already an ancestor of the UX branch, with no upstream changes to reconcile. The coordinated merge was completed as `1608340`, preserving the reviewed feature commits and the owner's example edits.
 
 ## Verification record
 

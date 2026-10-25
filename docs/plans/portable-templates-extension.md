@@ -1,8 +1,8 @@
 # Portable templates — potential extension
 
-Status: **Deferred; not scheduled or required to complete the current editor UX work.** The owner chose to preserve this proposal for possible future use instead of implementing it now. No template-exchange functionality has been implemented.
+Status: **Deferred and not scheduled. The editor UX work was completed without this extension.** The owner chose to preserve this proposal for possible future use instead of implementing it now. No template-exchange functionality has been implemented.
 
-Originally proposed as M8 / UX-13 in the [editor UX plan](editor-ux.md). Keep those identifiers for reference; M9 testing and final review is now the next active milestone. Scheduling and the implementation branch can be agreed if this extension is picked up.
+Originally proposed as M8 / UX-13 in the [editor UX plan](editor-ux.md). Keep those identifiers for reference; M9 testing, final review, and the coordinated UX merge are complete. Scheduling and the implementation branch can be agreed if this extension is picked up. See the [current TODO list](todo.md) for active priorities.
 
 ## Summary and agreed choices
 

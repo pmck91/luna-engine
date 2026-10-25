@@ -1,4 +1,4 @@
-use luna_core::{Session, validate_state};
+use luna_core::{CommandStatus, Session, validate_state};
 use luna_model::*;
 
 fn movement(location: &str) -> Effect {
@@ -68,44 +68,61 @@ fn world(effects: Vec<Effect>) -> Project {
 fn movement_changes_command_scope_preserves_ownership_and_restores_without_events() {
     let p = world(vec![movement("garden")]);
     let (mut session, _) = Session::start(p, None).unwrap();
-    assert_eq!(session.command("examine Keeper").unwrap().status, "ok");
-    let player = session.state.location.clone();
-    let visits = session.state.visits.clone();
-    let key = session.state.objects["key"].clone();
+    assert_eq!(
+        session.command("examine Keeper").unwrap().status,
+        CommandStatus::Ok
+    );
+    let player = session.state().location.clone();
+    let visits = session.state().visits.clone();
+    let key = session.state().objects["key"].clone();
     let result = session.command("use scene").unwrap();
     assert!(result.state_changed);
     assert!(result.messages.is_empty());
-    assert_eq!(session.state.characters["keeper"].location, "garden");
-    assert_eq!(session.state.location, player);
-    assert_eq!(session.state.visits, visits);
-    assert_eq!(session.state.objects["key"], key);
+    assert_eq!(session.state().characters["keeper"].location, "garden");
+    assert_eq!(session.state().location, player);
+    assert_eq!(session.state().visits, visits);
+    assert_eq!(session.state().objects["key"], key);
     assert_eq!(
         session.command("examine Keeper").unwrap().status,
-        "unmatched"
+        CommandStatus::Unmatched
     );
-    assert_eq!(session.command("take key").unwrap().status, "unmatched");
+    assert_eq!(
+        session.command("take key").unwrap().status,
+        CommandStatus::Unmatched
+    );
     assert!(!session.command("use scene").unwrap().state_changed);
 
-    let encoded = serde_json::to_vec(&session.state).unwrap();
+    let encoded = serde_json::to_vec(session.state()).unwrap();
     let saved = serde_json::from_slice(&encoded).unwrap();
-    validate_state(&session.project, &saved).unwrap();
-    session = Session::restore(session.project, saved).unwrap();
-    assert_eq!(session.state.characters["keeper"].location, "garden");
-    assert_eq!(session.state.objects["key"], key);
+    validate_state(session.project(), &saved).unwrap();
+    session = Session::restore_with_definition(session.definition().clone(), saved).unwrap();
+    assert_eq!(session.state().characters["keeper"].location, "garden");
+    assert_eq!(session.state().objects["key"], key);
     session.command("use follow").unwrap();
-    assert_eq!(session.command("examine Keeper").unwrap().status, "ok");
-    assert_eq!(session.command("take key").unwrap().status, "unmatched");
+    assert_eq!(
+        session.command("examine Keeper").unwrap().status,
+        CommandStatus::Ok
+    );
+    assert_eq!(
+        session.command("take key").unwrap().status,
+        CommandStatus::Unmatched
+    );
 
     // @current is resolved when the effect executes, including earlier player moves.
-    session.project.game.actions[0].effects = vec![
+    let mut project = session.project().clone();
+    project.game.actions[0].effects = vec![
         Effect::Move {
             location: player.clone(),
         },
         movement("@current"),
     ];
+    session = Session::restore(project, session.into_state()).unwrap();
     session.command("use scene").unwrap();
-    assert_eq!(session.state.characters["keeper"].location, player);
-    assert_eq!(session.command("examine Keeper").unwrap().status, "ok");
+    assert_eq!(session.state().characters["keeper"].location, player);
+    assert_eq!(
+        session.command("examine Keeper").unwrap().status,
+        CommandStatus::Ok
+    );
 }
 
 #[test]
@@ -144,8 +161,8 @@ fn movement_and_speech_do_not_fire_player_movement_inventory_or_speak_events() {
         });
     }
     let (mut session, _) = Session::start(p, None).unwrap();
-    let events = session.state.variables["events"].clone();
-    let visits = session.state.visits.clone();
+    let events = session.state().variables["events"].clone();
+    let visits = session.state().visits.clone();
     let result = session.command("use scene").unwrap();
     assert_eq!(
         result
@@ -155,17 +172,19 @@ fn movement_and_speech_do_not_fire_player_movement_inventory_or_speak_events() {
             .collect::<Vec<_>>(),
         ["Keeper says: Goodbye."]
     );
-    assert_eq!(session.state.variables["events"], events);
-    assert_eq!(session.state.visits, visits);
+    assert_eq!(session.state().variables["events"], events);
+    assert_eq!(session.state().visits, visits);
     assert!(
         result
             .trace
             .iter()
             .all(|line| !line.starts_with("Trigger "))
     );
-    session.state.characters.get_mut("keeper").unwrap().hidden = true;
+    let mut state = session.state().clone();
+    state.characters.get_mut("keeper").unwrap().hidden = true;
+    session.replace_state(state).unwrap();
     session.command("use scene").unwrap();
-    assert!(session.state.characters["keeper"].hidden);
+    assert!(session.state().characters["keeper"].hidden);
 }
 
 #[test]
@@ -217,7 +236,9 @@ fn speech_uses_literal_current_names_independent_colours_and_live_message_values
             "Keeper <&> %chances% says: 5 chances; 9; <red>& %chances%</red> %name%."
         );
         assert!(!text::render(spans, false).contains('\x1b'));
-        session.project.characters[0].name = "Renamed Keeper".into();
+        let mut project = session.project().clone();
+        project.characters[0].name = "Renamed Keeper".into();
+        session = Session::restore(project, session.into_state()).unwrap();
         assert!(
             text::plain(&session.command("use scene").unwrap().messages[0])
                 .starts_with("Renamed Keeper says: ")
@@ -246,7 +267,7 @@ fn failed_later_effects_roll_back_character_movement_speech_and_values() {
     let mut p = p;
     p.game.variables.insert("zero".into(), Value::Integer(0));
     let (mut session, _) = Session::start(p, None).unwrap();
-    let before = session.state.clone();
+    let before = session.state().clone();
     assert!(
         session
             .command("use scene")
@@ -254,7 +275,7 @@ fn failed_later_effects_roll_back_character_movement_speech_and_values() {
             .to_string()
             .contains("zero")
     );
-    assert_eq!(session.state, before);
+    assert_eq!(session.state(), &before);
 }
 
 #[test]
@@ -323,6 +344,6 @@ fn moving_a_remote_character_can_make_an_ending_reachable_without_visiting_their
     let (mut session, _) = Session::start(p, None).unwrap();
     session.command("use scene").unwrap();
     session.command("examine Keeper").unwrap();
-    assert_eq!(session.state.ending.as_deref(), Some("finish"));
-    assert_eq!(session.state.visits["garden"], 0);
+    assert_eq!(session.state().ending.as_deref(), Some("finish"));
+    assert_eq!(session.state().visits["garden"], 0);
 }

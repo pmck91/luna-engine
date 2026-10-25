@@ -144,6 +144,7 @@ test('author, inspect, play, and export The Locked Study', async ({ page }, info
   await expect(page.getByLabel('door_unlocked value')).toHaveValue('true');
   await page.getByLabel('door_unlocked value').selectOption('false');
   await page.getByRole('button', { name: 'Apply test state', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'World state', exact: true })).not.toBeVisible();
   await command('go east');
   await expect(log.locator('p').last()).toHaveText('The door is locked.');
   await command('use key on door');

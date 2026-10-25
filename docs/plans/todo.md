@@ -1,14 +1,83 @@
 # Project todo
 
-Prioritise the user-facing first-game tutorial over the deeper developer architecture documents.
+Last reviewed: **25 October 2026**, against the implementation, tests, and accepted plans.
 
-## Editor UX
+The editor UX work (M0–M7 and M9) is accepted and merged into `main` as `1608340`. Custom unknown-command messages and warning acknowledgements are also implemented and committed. Completed work is recorded below; human screen-reader/new-author evaluation remains open.
 
-Improve the complete authoring flow: create a project, build places and entities, add interactions and puzzles, playtest, then export. Proposed priorities below use P1 for a consistent and reliable editing flow, P2 for faster authoring, and P3 for larger follow-up features.
+Shared-core and runner hardening on `feature/core-hardening` has completed H1–H6 implementation and automated acceptance and is ready for owner review and branch closeout. User-facing documentation follows: refresh the example, establish the Astro Starlight site on GitHub Pages, and publish a complete first-adventure tutorial before expanding the deeper developer documentation. Existing README, [development guide](../development.md), architecture notes, and in-editor guidance provide starting material; the standalone documentation site has not been built.
 
-Design and implementation were completed on `feature/editor-ux`, with one coordinated merge back to main after the agreed scope was tested and accepted. See the [design review guide and decision log](../design/editor-ux/README.md), [clickable wireframes](../design/editor-ux/wireframes.html), and [detailed implementation plan](editor-ux.md). The owner accepted the design direction with an explicit requirement to preserve the current Blockly appearance, connectors, inline fields, and displayed content; wireframe cards are schematic placeholders. The delivered UX items below are complete following final owner acceptance on 25 October 2026.
+## Shared core and runner — ready for owner review
 
-Completion checkpoint: M0–M7 and M9 are tested and accepted. The delivered scope includes selection/navigation/history, contextual authoring, findings/reference management, remembered resizable panels, project-wide search, optional guidance, recipes, keyboard controls, named setups and isolated command checks, and [completed-command explanations](../design/editor-ux/command-explanations.md). M8 template exchange is deferred as a [potential extension](portable-templates-extension.md). M9 checks cover the complete authoring/export journey, actual browser zoom, final accessibility fixes, and packaging. After reviewing the UI test coverage, the owner confirmed completion of the final review and acceptance of the tested editor. The [final review record](../design/editor-ux/final-review.md) records that acceptance; separate human screen-reader/new-author sessions remain follow-up evaluation below.
+Follow the [core hardening plan](core-hardening.md) on `feature/core-hardening`, preserving game/save formats and existing execution semantics.
+
+- [x] H1: Correct restored-session message formatting through shared core presentation, add runner regression coverage, and establish repeatable release benchmarks.
+- [x] H2: Separate immutable game-definition validation from saved-state compatibility checks, removing repeated project analysis from autosaves while preserving corruption/recovery protections.
+- [x] H3: Split runtime responsibilities into focused modules and centralize genuinely shared entity lookup/presentation.
+- [x] H4: Encapsulate sessions, provide validated state replacement, and introduce typed command statuses with unchanged serialized values.
+- [x] H5: Optimize measured lookup/normalization and read-only copying costs without weakening transactional rollback or deterministic ordering.
+- [x] H6: Add API rustdoc and executable examples, update architecture/developer notes, complete automated parity/compatibility and package acceptance, and review the branch diff.
+- [ ] Owner review and branch closeout: review `feature/core-hardening` on GitHub, then merge/push when requested. Performance limits and the acceptance record are in the plan.
+
+## Documentation — after core hardening
+
+Use Astro Starlight for a user-facing documentation site hosted on GitHub Pages, with Markdown content maintained in this repository. Organise the navigation into Getting started, Editor guide, Game logic, Playing and sharing, Reference, and Developer documentation.
+
+- [ ] Refresh [the checked-in Locked Study export](../../examples/locked-study.luna) from the current [editable project](../../examples/locked-study), then update [the example README](../../examples/README.md) for the current story and supported walkthroughs. The export currently has two rooms and older Tom behaviour; the editable project also has Dev room and moves Tom there after receiving his toy. Keep the fixed historical `.fixtures/locked-study.luna` regression fixture separate and unchanged.
+- [ ] Set up the documentation site with the existing Luna logo, a branded landing page, search, sidebar navigation, and light/dark themes. Provide a local preview command.
+- [ ] Add documentation build checks on pull requests and publish documentation changes from the default branch to GitHub Pages. Support the project's `/luna-engine/` base path. The existing application CI already builds/tests/packages the engine and editor; documentation build/deployment is the missing workflow.
+- [ ] Write Getting started instructions for installation, launching the editor, and choosing a projects directory. Prioritise a complete "Build your first adventure" tutorial using The Locked Study, with screenshots from the current editor, exact UI labels, block examples, expected results, and a playable project/export. Pin the walkthrough to a reviewed example revision so the instructions and game stay in sync; expand the existing in-editor guidance into a standalone tutorial.
+- [ ] Write the Editor guide covering the current hierarchy, world map and exits, objects, characters, inventories, Actions, Hints, the separate Triggers workspace, selected-block inspection, insertion/reordering, undo/redo, search, layouts, project-local templates, and warning acknowledgements. Include playtest setups, repeatable checks, and command explanations.
+- [ ] Write the Game logic guide covering variables versus properties, initial versus current state, requirements versus IF / ELSE, actions versus triggers, arithmetic, response sequences, saved block templates, hints, and optional ending outcomes. Explain game-wide messages, player help modes, and the custom unknown-command response.
+- [ ] Add task-focused guides such as "Create a locked door", "Give an item to a character", and "End the game when health reaches zero". Include step-by-step instructions, screenshots of the relevant blocks, and playtest checks.
+- [ ] Write Playing and sharing instructions for playtesting, exporting and sharing games, importing and running games in the terminal, player commands/help/hints, saving/loading, and recovery from common errors.
+- [ ] Create a Reference section with a block catalogue, command syntax and ignored words, message formatting and variable/property placeholders, and troubleshooting. Reuse the existing in-editor help where appropriate.
+- [ ] Shorten the README to a project introduction, installation instructions, and prominent documentation links once the corresponding guides are available. Move detailed authoring guidance into the site and development instructions into Developer documentation.
+- [ ] Expand and publish Developer documentation for building, checks, packaging, and contributing, using the existing README, [development guide](../development.md), and [architecture notes](../architecture.md). Keep implementation details separate from the author and player guides.
+- [ ] Expand the parser architecture documentation under Developer documentation with command matching, scope, priority, ambiguity, aliases, and ignored words.
+- [ ] Expand the game-file architecture documentation under Developer documentation with schemas, stable references, editor metadata, bundles, versions, and compatibility rules.
+- [ ] Expand the runner architecture documentation under Developer documentation with command execution, rendering, save storage, and recovery/error handling.
+
+## Editor UX — follow-up evaluation
+
+These are follow-up sessions, not unresolved gates for the already accepted and merged UX implementation.
+
+- [ ] Run a separate human screen-reader session through core authoring, findings, dialog focus, and the transcript. Record practical usability issues; automated role/focus checks do not establish human assistive-technology usability.
+- [ ] Observe someone unfamiliar with the editor completing the first-adventure journey. Record confusing context changes, repeated setup, and recovery from mistakes. This session was not separately reported during final owner acceptance.
+
+## Conversations and quests — deferred engine update
+
+Design is documented in [Conversations and quests](conversations-and-quests.md); the model, runtime, and authoring UI are not implemented. Core hardening and documentation remain ahead of this update; UX evaluation is tracked separately above. Implement the combined update on a separate `feature/conversations-and-quests` branch when work begins.
+
+- [ ] Prototype the conversation graph and quest authoring flow, then confirm the proposed reply presentation, interruption/checkpoint behaviour, quest progression, and version/command compatibility contract.
+- [ ] Add shared conversation/quest definitions, stable references, progress state, validation, generated contracts, transactional project/bundle storage, and explicit content/save-format compatibility paths.
+- [ ] Implement conversations with replies scoped to the active node, phrase aliases, progress conditions, once-only effects, conditional entry points, saved checkpoints, and consistent editor/runner command handling. Prevent guessed future topics from bypassing the graph.
+- [ ] Implement quest statuses, prerequisite stages, idempotent progress/reward hooks, historical journal entries, read-only player log commands, and quest conditions usable by actions, conversations, triggers, and hints.
+- [ ] Build Conversations and Quests workspaces under Game data, character shortcuts, graph/stage navigation, selected-node/reply condition/effect blocks, and playtest conversation/quest-log views. Share speaker formatting with CHARACTER SAYS.
+- [ ] Extend reference/text/effect visitors, response-sequence discovery, templates, duplication, and usage navigation to the new content. Cover current-node gating, rollback, save/resume without replay, legacy compatibility, and Chromium/Firefox authoring/export/runner parity with a complete Keeper quest example before merging the feature branch.
+
+## Potential extensions — not scheduled
+
+- [Portable template import/export](portable-templates-extension.md), formerly M8 / UX-13: preserve independent copies, explicit reference binding at insertion, and basic editable creation for missing entities. Project-local templates are implemented; exchanging template files remains deferred and is outside the completed UX scope.
+
+## Continuing development standards
+
+These apply to future changes; the implemented baseline is recorded under Completed.
+
+- Extend core tests, editor/runner parity, export, and autosave/named-save checks when adding engine behaviour. Add meaningful browser coverage when changing authoring workflows. Keep generated contracts, build/format checks, and package smoke checks passing in CI.
+- Define compatibility explicitly for each content/state change. Supply safe defaults or an explicit migration/version error, retain stable references, and preserve incompatible player saves rather than silently dropping state.
+- Keep editor-only data, such as layout, setups/checks, templates, and warning acknowledgements, out of exported runtime content and player saves.
+- Preserve the current Blockly shapes, colours, connectors, inline fields, and displayed content. Use the recorded design references and request feedback on concrete working UI changes.
+
+## Completed
+
+### Recent additions
+
+- [x] Add a custom **Unknown command message** in Game settings, with colour and live variable/property formatting. Preserve the standard reply for older games, include authored replies in exports, and cover reopening, reference renames/search, playtesting, runner playback, and named saves.
+- [x] Add warning acknowledgements with an optional reason, project persistence, undo/redo, an Acknowledged warnings view, and Restore warning. Exclude exact acknowledgements from active counts and inline/block highlights, retain changed/resolved records, and require fresh review for changed causes. Keep errors actionable and acknowledgement metadata out of exports/player saves. The Locked Study's intentional Dev room warning is acknowledged with the author's reason.
+
+### Editor UX — M0–M7 and M9
+
+Accepted on 25 October 2026 and merged to `main` as `1608340`. See the [design review and decision log](../design/editor-ux/README.md), [clickable wireframes](../design/editor-ux/wireframes.html), [implementation plan](editor-ux.md), and [final review record](../design/editor-ux/final-review.md). M8 remains deferred. The original P1–P3 priorities below are retained as a completion record.
 
 - [x] P1: Define consistent roles for menus, forms, blocks, and the inspector. Menus choose content; forms edit entity settings and rich text; blocks show conditions, order, and branching. Make the action/trigger inspector follow the selected block, as hints already do, with a clear route back to the action or trigger settings. Keep inline block fields and inspector fields synchronised.
 - [x] P1: Add breadcrumbs and navigation history showing the current entity, action/trigger/puzzle, and selected block. Preserve selection, owner filters, canvas position/zoom, and inspector scroll position when moving between views or returning to earlier work.
@@ -24,59 +93,21 @@ Completion checkpoint: M0–M7 and M9 are tested and accepted. The delivered sco
 - [x] P3: Add a playtest explanation view showing how a command matched, which requirements passed or failed, which branches and triggers ran, and which values changed. Link results to the authored flow; start with a completed-command trace before considering stepping or breakpoints. This requires runtime tracing as well as UI work.
 - [x] Check UX changes against a repeatable authoring walkthrough: create two rooms, add a key and locked exit, author a hint and ending, playtest both success and failure, then export and run the game. Automated pointer/no-drag walkthroughs and final owner review are complete; evaluation with a new author remains a follow-up below.
 
-### Follow-up evaluation
-
-- [ ] Run a separate human screen-reader session through core authoring, findings, dialog focus, and the transcript. Record practical usability issues; automated role/focus checks do not establish human assistive-technology usability.
-- [ ] Observe someone unfamiliar with the editor completing the first-adventure journey. Record confusing context changes, repeated setup, and recovery from mistakes. This session was not separately reported during final owner acceptance.
-
 Design references: [Node-RED quick-add, properties, and error indicators](https://nodered.org/docs/user-guide/editor/workspace/nodes), [MakeCode simulation and highlighted debugging](https://makecode.microbit.org/courses/csintro/iteration/activity), and [Scratch's reusable backpack](https://www.scratchfoundation.org/learn/learning-library/scratch-backpack). Adapt these patterns to text-game authoring and evaluate Blockly support against the version used by this project.
 
-## Potential extensions — not scheduled
+### Validation and compatibility baseline
 
-- [Portable template import/export](portable-templates-extension.md), formerly M8 / UX-13: preserve independent copies, explicit reference binding at insertion, and basic editable creation for missing entities. The owner deferred implementation; this is not a requirement for completing or merging the current editor UX work.
+- [x] Cover implemented engine features with editor/runner parity, export, and save/load checks, including character inventory ownership, character movement/speech, response-sequence completion, hints, arithmetic, and optional ending outcomes. Evidence includes [editor parity tests](../../crates/luna-editor/tests/parity.rs), [runner CLI tests](../../crates/luna-runner/tests/cli.rs), and Chromium/Firefox authoring tests.
+- [x] Document and enforce the current compatibility contract: content format 1; player saves written as format 2 with supported format-1 reads; defaults for older content/editor metadata; and explicit version/state-schema errors that preserve saves. Character ownership, sequence completion, hints, optional outcomes, and editor-only metadata have regression coverage. See [architecture and persistence](../architecture.md).
 
-## Acceptance and compatibility
-
-- [ ] Include editor/runner parity, export, and save/load checks for each engine feature. In particular, test inventory ownership, character movement, and sequence completion state through a full save/load cycle.
-- [ ] Define compatibility rules when content or saved-state formats change. Supply defaults for older content where appropriate, or report a clear version/compatibility error; do not silently lose state. Apply these rules to character inventories, sequence completion, and optional ending outcomes.
-
-## Docs
-
-Use Astro Starlight for a user-facing documentation site hosted on GitHub Pages, with Markdown content maintained in this repository. Organise the navigation into Getting started, Editor guide, Game logic, Playing and sharing, Reference, and Developer documentation.
-
-- [ ] Set up the documentation site with the Luna logo, a branded landing page, search, sidebar navigation, and light/dark themes. Provide a local preview command.
-- [ ] Configure GitHub Actions to check documentation builds on pull requests and publish documentation changes from the default branch to GitHub Pages. Support the project's `/luna-engine/` base path.
-- [ ] Write Getting started instructions for installation, launching the editor, and choosing a projects directory. Prioritise a complete "Build your first adventure" tutorial using The Locked Study, with screenshots, exact UI labels, block examples, expected results, and a playable project/export.
-- [ ] Write the Editor guide covering the interface, locations and exits, objects, characters, inventories, actions, and block authoring.
-- [ ] Write the Game logic guide covering variables versus properties, initial versus current state, requirements versus IF / ELSE, actions versus triggers, response sequences, saved block templates, hints, and endings.
-- [ ] Add task-focused guides such as "Create a locked door", "Give an item to a character", and "End the game when health reaches zero". Include step-by-step instructions, screenshots of the relevant blocks, and playtest checks.
-- [ ] Write Playing and sharing instructions for playtesting, exporting and sharing games, importing and running games in the terminal, player commands, saving/loading, and recovery from common errors.
-- [ ] Create a Reference section with a block catalogue, command syntax, message formatting and variable/property placeholders, and troubleshooting.
-- [ ] Shorten the README to a project introduction, installation instructions, and prominent documentation links once the corresponding guides are available. Move detailed authoring guidance into the site and development instructions into Developer documentation.
-- [ ] Add Developer documentation for building, checks, packaging, and contributing. Keep implementation details separate from the author and player guides.
-- [ ] Expand the parser architecture documentation under Developer documentation with command matching, scope, priority, ambiguity, aliases, and ignored words.
-- [ ] Expand the game-file architecture documentation under Developer documentation with schemas, stable references, editor metadata, bundles, versions, and compatibility rules.
-- [ ] Expand the runner architecture documentation under Developer documentation with command execution, rendering, save storage, and recovery/error handling.
-
-## Conversations and quests — future engine update
-
-Deferred work, planned in [Conversations and quests](conversations-and-quests.md). Keep the documentation and current editor UX priorities ahead of this update. Implement the combined update on a separate `feature/conversations-and-quests` branch when work begins.
-
-- [ ] Prototype the conversation graph and quest authoring flow, then confirm the proposed reply presentation, interruption/checkpoint behaviour, quest progression, and version/command compatibility contract.
-- [ ] Add shared conversation/quest definitions, stable references, progress state, validation, generated contracts, transactional project/bundle storage, and explicit content/save-format compatibility paths.
-- [ ] Implement conversations with replies scoped to the active node, phrase aliases, progress conditions, once-only effects, conditional entry points, saved checkpoints, and consistent editor/runner command handling. Prevent guessed future topics from bypassing the graph.
-- [ ] Implement quest statuses, prerequisite stages, idempotent progress/reward hooks, historical journal entries, read-only player log commands, and quest conditions usable by actions, conversations, triggers, and hints.
-- [ ] Build Conversations and Quests workspaces under Game data, character shortcuts, graph/stage navigation, selected-node/reply condition/effect blocks, and playtest conversation/quest-log views. Share speaker formatting with CHARACTER SAYS.
-- [ ] Extend reference/text/effect visitors, response-sequence discovery, templates, duplication, and usage navigation to the new content. Cover current-node gating, rollback, save/resume without replay, legacy compatibility, and Chromium/Firefox authoring/export/runner parity with a complete Keeper quest example before merging the feature branch.
-
-## Completed
+### Earlier editor and engine work
 
 - [x] Add MOVE CHARACTER to action/trigger blocks and synchronized inspector controls, selecting a destination or the player's current room. Preserve hidden state and canonical inventory ownership; movement changes command scope without moving the player, incrementing visits, or emitting player movement/inventory events. Cover structural ending reachability, rollback, nested blocks/templates, authoring/reopen, export, editor/runner parity, and autosave/named-save restoration in format 2.
 - [x] Add CHARACTER SAYS alongside SAY, selecting a speaker by stable entity reference and printing their literal current name followed by "says:" and a formatted message. Add an optional character name colour from the existing palette, defaulting safely for older projects. Support independent message colours and live variable/property placeholders, synchronized blocks/inspector controls, template remapping, rename-safe references, plain/coloured terminal output, and editor/runner/save-load checks.
 - [x] Make ending outcomes optional across the editor, content model, validation, and runner. New endings default to No outcome; explicit victory/loss/neutral outcomes remain available. Unset outcomes serialize as null, and omitted outcomes are accepted. END GAME still finalizes once, stops later effects, and preserves the ending ID in format-2 autosaves/named saves. Cover clearing/reopening/exporting endings, editor/runner playback, save restoration without replay, malformed outcomes, and existing explicit outcomes.
 - [x] Add the Luna Engine logo to the README and editor header/welcome pages. Use a transparent background so the logo fits the editor's dark theme, with descriptive alt text and compact display sizes.
 - [x] Add a dedicated Triggers workspace under Game data, grouping command, state, and value triggers with owner filters, names, entity shortcuts, condition/effect blocks, and stable layout/IDs when changing owners. Add watches on global variables and entity properties with false-to-true or every-matching-change modes, immediate SET/arithmetic dispatch, deterministic priorities, chained events, rollback/loop limits, and no replay on save restoration. Cover player death and character defeat with core tests and Chromium/Firefox authoring, legacy trigger navigation, export, and runner named-save checks. Existing trigger files default safely; player saves stay in format 2.
-- [x] Remove the duplicate Logic tab and use Actions for command actions, triggers, and exit flows. List each kind separately, preserve the last selected flow per owner, and keep condition blocks, inspector navigation, templates, map-selected routes, and saved flow IDs working. Covered by Chromium/Firefox navigation, editing/playback, reopening, and compact layout checks.
+- [x] Remove the duplicate Logic tab. Actions contains command actions and exits; Triggers has its own workspace under Game data. Preserve the last selected flow per owner, and keep condition blocks, inspector navigation, templates, map-selected routes, and saved flow IDs working. Covered by Chromium/Firefox navigation, editing/playback, reopening, and compact layout checks.
 - [x] Add Blockly hint authoring with an entity puzzle list, typed puzzle/stage/clue/solution blocks, all existing conditions including HINT USED, and a right-hand inspector for formatted clue/solution messages. Keep Forms and Blocks synchronized through canonical content, preserve puzzle/stage IDs and saved layout, retain disconnected drafts, and give duplicated stages independent valid IDs. Covered by condition/serialization/layout tests, Chromium/Firefox dragging, undo, forms/reopen and puzzle-priority checks, plus editor playback and exported runner named-save restoration with independent stage history.
 - [x] Group Variables, Command vocabulary, and Endings under Game data in the hierarchy, with clear selection states and automatic inspector expansion. Give endings a dedicated editor for names, formatted messages, outcomes, and the reachable-ending requirement, plus a Game settings shortcut. Preserve ending IDs and existing END GAME references. Covered by Chromium/Firefox navigation, authoring/reopen, export, terminal playback, and ending autosave checks.
 - [x] Add saved block templates for whole command actions, all effects in a flow, or a selected block chain. Insert independent actions or append blocks with entity replacements, including property placeholders and typed references. Give actions and nested response sequences fresh IDs and remap their internal reset references. Preserve existing Blockly positions and undo/redo metadata; persist, rename, and delete project-local templates independently of inserted copies. Keep the library in editor metadata and export inserted logic as ordinary effects. Covered by storage/legacy compatibility, nested-reference and copy tests, Chromium/Firefox authoring/reopen/undo checks, and exported runner save/load with independent response progress.

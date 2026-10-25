@@ -69,7 +69,7 @@ fn output(result: CommandResult) -> String {
 fn exhaust(s: &mut Session) {
     for reply in ["First warning.", "Second warning.", "Last warning."] {
         assert_eq!(output(s.command("poke keeper").unwrap()), reply);
-        assert_eq!(s.state.variables["punches"], Value::Integer(0));
+        assert_eq!(s.state().variables["punches"], Value::Integer(0));
     }
 }
 
@@ -83,11 +83,11 @@ fn fourth_poke_runs_once_or_repeating_follow_ups_and_preserves_completion() {
         );
         let (mut s, _) = Session::start(p, None).unwrap();
         exhaust(&mut s);
-        assert_eq!(s.state.sequences["replies"], 3);
+        assert_eq!(s.state().sequences["replies"], 3);
         for interaction in 1..=3 {
             // Exercise serialization on both sides of the first follow-up.
-            let state = serde_json::from_slice(&serde_json::to_vec(&s.state).unwrap()).unwrap();
-            s = Session::restore(s.project.clone(), state).unwrap();
+            let state = serde_json::from_slice(&serde_json::to_vec(s.state()).unwrap()).unwrap();
+            s = Session::restore_with_definition(s.definition().clone(), state).unwrap();
             let result = s.command("poke keeper").unwrap();
             let should_run = interaction == 1 || exhaustion == ExhaustionMode::Repeat;
             assert_eq!(result.state_changed, should_run);
@@ -99,9 +99,9 @@ fn fourth_poke_runs_once_or_repeating_follow_ups_and_preserves_completion() {
                     "Enough!"
                 }
             );
-            assert_eq!(s.state.sequences["replies"], 4);
+            assert_eq!(s.state().sequences["replies"], 4);
             assert_eq!(
-                s.state.variables["punches"],
+                s.state().variables["punches"],
                 Value::Integer(if exhaustion == ExhaustionMode::Once {
                     1
                 } else {
@@ -123,9 +123,9 @@ fn repeat_last_and_loop_never_run_follow_ups() {
             if mode == SequenceMode::RepeatLast {
                 assert_eq!(result, "Last warning.");
             }
-            assert_eq!(s.state.variables["punches"], Value::Integer(0));
+            assert_eq!(s.state().variables["punches"], Value::Integer(0));
         }
-        Session::restore(s.project.clone(), s.state.clone()).unwrap();
+        Session::restore_with_definition(s.definition().clone(), s.state().clone()).unwrap();
     }
 }
 
@@ -137,16 +137,16 @@ fn reset_rearms_once_only_follow_ups_and_a_new_session_resets_everything() {
         for _ in 0..3 {
             s.command("poke keeper").unwrap();
         }
-        assert_eq!(s.state.variables["punches"], Value::Integer(count - 1));
+        assert_eq!(s.state().variables["punches"], Value::Integer(count - 1));
         s.command("poke keeper").unwrap();
-        assert_eq!(s.state.variables["punches"], Value::Integer(count));
+        assert_eq!(s.state().variables["punches"], Value::Integer(count));
         s.command("use reset").unwrap();
-        assert_eq!(s.state.sequences["replies"], 0);
-        s = Session::restore(s.project.clone(), s.state.clone()).unwrap();
+        assert_eq!(s.state().sequences["replies"], 0);
+        s = Session::restore_with_definition(s.definition().clone(), s.state().clone()).unwrap();
     }
-    let (restarted, _) = Session::start(s.project, None).unwrap();
-    assert_eq!(restarted.state.sequences["replies"], 0);
-    assert_eq!(restarted.state.variables["punches"], Value::Integer(0));
+    let (restarted, _) = Session::start_with_definition(s.definition().clone(), None).unwrap();
+    assert_eq!(restarted.state().sequences["replies"], 0);
+    assert_eq!(restarted.state().variables["punches"], Value::Integer(0));
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn a_follow_up_can_reset_its_own_sequence() {
     let (mut s, _) = Session::start(p, None).unwrap();
     exhaust(&mut s);
     s.command("poke keeper").unwrap();
-    assert_eq!(s.state.sequences["replies"], 0);
+    assert_eq!(s.state().sequences["replies"], 0);
     assert_eq!(output(s.command("poke keeper").unwrap()), "First warning.");
 }
 
@@ -192,22 +192,23 @@ fn nested_sequences_and_conditions_use_live_state_and_independent_progress() {
         }],
     );
     let (mut s, _) = Session::start(p, None).unwrap();
-    assert_eq!(s.state.sequences["inner"], 0);
+    assert_eq!(s.state().sequences["inner"], 0);
     exhaust(&mut s);
     assert_eq!(
         output(s.command("poke keeper").unwrap()),
         "Enough!\nAn extra warning."
     );
-    s = Session::restore(s.project.clone(), s.state.clone()).unwrap();
+    s = Session::restore_with_definition(s.definition().clone(), s.state().clone()).unwrap();
     s.command("poke keeper").unwrap();
-    assert_eq!(s.state.variables["punches"], Value::Integer(1));
+    assert_eq!(s.state().variables["punches"], Value::Integer(1));
     assert_eq!(
         output(s.command("poke keeper").unwrap()),
         "Enough!\nYou have already been punched 1 times."
     );
     s.command("use reset").unwrap();
     assert_eq!(
-        s.state.sequences["inner"], 2,
+        s.state().sequences["inner"],
+        2,
         "Reset affects only the selected sequence"
     );
 }
@@ -258,7 +259,7 @@ fn nested_trigger_reentry_does_not_repeat_a_once_only_follow_up() {
         output(s.command("poke keeper").unwrap()),
         "Opened.\nEnough!\nOpened.\nEnough!"
     );
-    assert_eq!(s.state.variables["punches"], Value::Integer(1));
+    assert_eq!(s.state().variables["punches"], Value::Integer(1));
 }
 
 #[test]
@@ -280,21 +281,21 @@ fn failed_follow_ups_roll_back_output_changes_and_completion_before_retry() {
     p.game.variables.insert("divisor".into(), Value::Integer(0));
     let (mut s, _) = Session::start(p, None).unwrap();
     exhaust(&mut s);
-    let before = s.state.clone();
+    let before = s.state().clone();
     assert!(
         s.command("poke keeper")
             .unwrap_err()
             .to_string()
             .contains("zero")
     );
-    assert_eq!(s.state, before);
-    s.state
-        .variables
-        .insert("divisor".into(), Value::Integer(1));
+    assert_eq!(s.state(), &before);
+    let mut state = s.state().clone();
+    state.variables.insert("divisor".into(), Value::Integer(1));
+    s.replace_state(state).unwrap();
     assert_eq!(output(s.command("poke keeper").unwrap()), "Enough!");
-    assert_eq!(s.state.variables["punches"], Value::Integer(1));
+    assert_eq!(s.state().variables["punches"], Value::Integer(1));
     s.command("poke keeper").unwrap();
-    assert_eq!(s.state.variables["punches"], Value::Integer(1));
+    assert_eq!(s.state().variables["punches"], Value::Integer(1));
 }
 
 #[test]
@@ -330,12 +331,12 @@ fn follow_up_stop_and_end_propagate_to_the_enclosing_action() {
         }
         let out = output(s.command("poke keeper").unwrap());
         assert!(!out.contains("Must not print"));
-        assert_eq!(s.state.variables["punches"], Value::Integer(1));
-        assert_eq!(s.state.ending.is_some(), end);
+        assert_eq!(s.state().variables["punches"], Value::Integer(1));
+        assert_eq!(s.state().ending.is_some(), end);
         if end {
             assert!(out.contains("Game over."));
         }
-        Session::restore(s.project.clone(), s.state.clone()).unwrap();
+        Session::restore_with_definition(s.definition().clone(), s.state().clone()).unwrap();
     }
 }
 
@@ -361,10 +362,10 @@ fn old_responses_default_safely_and_saved_cursors_remain_strict() {
         );
         let (s, _) = Session::start(p, None).unwrap();
         for cursor in [0, 2, 3, 4, 5, usize::MAX] {
-            let mut state = s.state.clone();
+            let mut state = s.state().clone();
             state.sequences.insert("replies".into(), cursor);
             assert_eq!(
-                Session::restore(s.project.clone(), state).is_ok(),
+                Session::restore_with_definition(s.definition().clone(), state).is_ok(),
                 cursor <= 3 || (with_follow_up && cursor == 4)
             );
         }

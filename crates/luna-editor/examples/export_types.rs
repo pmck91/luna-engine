@@ -46,6 +46,7 @@ fn main() -> Result<()> {
         TemplateContent,
         BlockTemplate,
         EditorLayout,
+        WarningAcknowledgement,
         PlaytestSource,
         PlaytestSetup,
         CheckStart,
@@ -68,6 +69,7 @@ fn main() -> Result<()> {
         TraceOutcome,
         TraceStep,
         CommandExplanation,
+        CommandStatus,
         CommandResult,
         Draft,
         PanelLayout,
@@ -93,6 +95,13 @@ fn main() -> Result<()> {
         CheckStepResult,
         CheckRun
     );
+    // Field documentation can leave spaces before newlines in ts-rs output.
+    let output = output
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web/src/contracts.ts");
     if std::env::args().any(|a| a == "--check") {
         ensure!(

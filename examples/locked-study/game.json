@@ -8,6 +8,7 @@
   "starting_location": "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca",
   "opening_text": "Find a way to the garden.",
   "help_text": "Try examine the room, and interacting with what you see! ",
+  "unknown_command_text": "I couldn't match that command. Try help, or use a visible object's name.",
   "help_mode": "basic",
   "hints_enabled": true,
   "ignored_words": [

@@ -55,7 +55,7 @@ export type Outcome = "victory" | "loss" | "neutral";
 
 export type Ending = { id: string, name: string, text: string, outcome: Outcome | null, };
 
-export type Game = { id: string, title: string, description: string, author: string, format_version: number, content_version: string, starting_location: string, opening_text: string, help_text: string, help_mode: HelpMode, hints_enabled: boolean, ignored_words: Array<string>, require_ending: boolean, variables: { [key in string]?: Value }, endings: Array<Ending>, actions: Array<Action>, triggers: Array<Trigger>, assets: Array<string>, };
+export type Game = { id: string, title: string, description: string, author: string, format_version: number, content_version: string, starting_location: string, opening_text: string, help_text: string, unknown_command_text: string, help_mode: HelpMode, hints_enabled: boolean, ignored_words: Array<string>, require_ending: boolean, variables: { [key in string]?: Value }, endings: Array<Ending>, actions: Array<Action>, triggers: Array<Trigger>, assets: Array<string>, };
 
 export type Point = { x: number, y: number, };
 
@@ -73,7 +73,9 @@ export type TemplateContent = { "type": "action", action: Action, } | { "type": 
 
 export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, content: TemplateContent, };
 
-export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, playtest?: PlaytestLibrary, };
+export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, warning_acknowledgements?: Array<WarningAcknowledgement>, playtest?: PlaytestLibrary, };
+
+export type WarningAcknowledgement = { warning_key: string, subject: string, field: string, message: string, reason: string, };
 
 export type PlaytestSource = { revision: string, title: string, content_version: string, help_mode: HelpMode, };
 
@@ -93,7 +95,7 @@ export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Lo
 
 export type Severity = "error" | "warning";
 
-export type Diagnostic = { severity: Severity, subject: string, field: string, message: string, };
+export type Diagnostic = { severity: Severity, subject: string, field: string, message: string, warning_key?: string, };
 
 export type Span = { text: string, colour: string | null, };
 
@@ -105,21 +107,255 @@ export type HintProgress = { clues_seen: number, solution_seen: boolean, };
 
 export type GameState = { game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, hints: { [key in string]?: HintProgress }, };
 
-export type HostControl = { "type": "save", name: string | null, } | { "type": "load", name: string | null, } | { "type": "saves" } | { "type": "quit" };
+export type HostControl = { "type": "save",
+/**
+ * The trimmed label, preserving its original case and punctuation.
+ */
+name: string | null, } | { "type": "load",
+/**
+ * The trimmed label, preserving its original case and punctuation.
+ */
+name: string | null, } | { "type": "saves" } | { "type": "quit" };
 
-export type TraceSource = { subject: string, path: string, };
+export type TraceSource = {
+/**
+ * Stable content ID, independent of display names and Blockly block IDs.
+ */
+subject: string,
+/**
+ * Dot-separated field/index path, such as `effects.0.then.1`.
+ */
+path: string, };
 
-export type TraceChange = { path: Array<string>, before: JsonValue, after: JsonValue, };
+export type TraceChange = {
+/**
+ * Literal map keys from the state root; dots inside a key are not separators.
+ */
+path: Array<string>,
+/**
+ * Prior JSON value; null also represents a previously absent map entry.
+ */
+before: JsonValue,
+/**
+ * Attempted JSON value; null also represents a removed map entry.
+ */
+after: JsonValue, };
 
-export type TraceKind = { "type": "candidate", name: string, matched: boolean, reason: string, literals: number, targets: number, scope: string, priority: number, } | { "type": "selected", name: string, } | { "type": "condition", label: string, condition: Condition, value: boolean, observed: JsonValue | null, } | { "type": "branch", taken: string, } | { "type": "effect", effect: string, } | { "type": "arithmetic", target: ValueTarget, op: ArithmeticOperation, before: Value, operand: number, result: Value | null, } | { "type": "trigger", name: string, event: Event | null, target: ValueTarget | null, fired: boolean, } | { "type": "watch", target: ValueTarget, before: Value, after: Value, mode: WatchMode, eligible: boolean, } | { "type": "notice", text: string, };
+export type TraceKind = { "type": "candidate",
+/**
+ * Authored action or exit display name.
+ */
+name: string,
+/**
+ * Whether its command pattern and current scope matched.
+ */
+matched: boolean,
+/**
+ * Human-readable scope, pattern, or visibility explanation.
+ */
+reason: string,
+/**
+ * Literal-token specificity used in candidate ranking.
+ */
+literals: number,
+/**
+ * Number of bound entity references used in candidate ranking.
+ */
+targets: number,
+/**
+ * Ranking scope: `global`, `location`, or `object/character`.
+ */
+scope: string,
+/**
+ * Authored priority, applied after pattern specificity and scope.
+ */
+priority: number, } | { "type": "selected",
+/**
+ * Chosen action or exit display name.
+ */
+name: string, } | { "type": "condition",
+/**
+ * Context such as action requirements, IF, or a watch recheck.
+ */
+label: string,
+/**
+ * Authored condition, with nested evaluations represented by child steps.
+ */
+condition: Condition,
+/**
+ * Actual Boolean result, preserving short-circuit evaluation.
+ */
+value: boolean,
+/**
+ * A relevant observed leaf value when available; absent for other checks.
+ */
+observed: JsonValue | null, } | { "type": "branch",
+/**
+ * `THEN` or `ELSE`, independent of whether that arm has effects.
+ */
+taken: string, } | { "type": "effect",
+/**
+ * Human-readable operation label such as `SAY` or `UPDATE VARIABLE`.
+ */
+effect: string, } | { "type": "arithmetic",
+/**
+ * Global variable or entity property being updated.
+ */
+target: ValueTarget,
+/**
+ * Checked arithmetic operation.
+ */
+op: ArithmeticOperation,
+/**
+ * Target value read before calculation.
+ */
+before: Value,
+/**
+ * Resolved live operand, including references to the target itself.
+ */
+operand: number,
+/**
+ * Calculated value, absent when arithmetic failed.
+ */
+result: Value | null, } | { "type": "trigger",
+/**
+ * Authored trigger display name.
+ */
+name: string,
+/**
+ * Ordinary event, absent for a value watch.
+ */
+event: Event | null,
+/**
+ * Watched value, absent for an ordinary event.
+ */
+target: ValueTarget | null,
+/**
+ * Whether the live condition passed and its effect chain was entered.
+ */
+fired: boolean, } | { "type": "watch",
+/**
+ * Value that changed.
+ */
+target: ValueTarget,
+/**
+ * Value before the initiating assignment.
+ */
+before: Value,
+/**
+ * Value assigned before running any eligible watches.
+ */
+after: Value,
+/**
+ * False-to-true or each-matching-change policy.
+ */
+mode: WatchMode,
+/**
+ * Whether this watch entered the dispatch queue, before its live recheck.
+ */
+eligible: boolean, } | { "type": "notice",
+/**
+ * Human-readable information, separate from the player's transcript.
+ */
+text: string, };
 
 export type TraceOutcome = "completed" | "failed";
 
-export type TraceStep = { parent: number | null, source: TraceSource | null, kind: TraceKind, outcome: TraceOutcome, changes: Array<TraceChange>, error: string | null, };
+export type TraceStep = {
+/**
+ * Index of an earlier parent step; null for a root observation.
+ */
+parent: number | null,
+/**
+ * Authored source when applicable; absent for some built-in observations.
+ */
+source: TraceSource | null,
+/**
+ * Evaluated operation and its observed inputs/result.
+ */
+kind: TraceKind,
+/**
+ * Completion or propagated failure, independently of condition truth.
+ */
+outcome: TraceOutcome,
+/**
+ * Attempted differences across this step, which can include child changes.
+ */
+changes: Array<TraceChange>,
+/**
+ * Contextual error text when this step failed.
+ */
+error: string | null, };
 
-export type CommandExplanation = { command: string, normalized: string, committed: boolean, error: string | null, failed_step: number | null, steps: Array<TraceStep>, changes: Array<TraceChange>, discarded_messages: Array<Array<Span>>, truncated: boolean, };
+export type CommandExplanation = {
+/**
+ * Original input before parser normalization.
+ */
+command: string,
+/**
+ * Lowercased, punctuation-separated command used by the matcher.
+ */
+normalized: string,
+/**
+ * Whether execution returned without error, including normal player rejections.
+ */
+committed: boolean,
+/**
+ * Final contextual execution error; null for committed attempts.
+ */
+error: string | null,
+/**
+ * Index of the first recorded failure, or null if none was recorded.
+ */
+failed_step: number | null,
+/**
+ * Ordered observations; parent indices refer to this list.
+ */
+steps: Array<TraceStep>,
+/**
+ * Differences between the prior and attempted final state, before rollback.
+ */
+changes: Array<TraceChange>,
+/**
+ * Buffered player output discarded because execution failed.
+ */
+discarded_messages: Array<Array<Span>>,
+/**
+ * Whether the step limit or any per-diff change limit omitted observations.
+ */
+truncated: boolean, };
 
-export type CommandResult = { messages: Array<Array<Span>>, trace: Array<string>, state_changed: boolean, status: string, control: HostControl | null, selected_flow: string | null, explanation?: CommandExplanation, };
+export type CommandStatus = "ok" | "control" | "unmatched" | "ambiguous" | "requirements_failed" | "ended" | "error";
+
+export type CommandResult = {
+/**
+ * Transcript lines, each represented as literal text with semantic colours.
+ */
+messages: Array<Array<Span>>,
+/**
+ * Human-readable candidate/handler notes, including an attempted failed run.
+ */
+trace: Array<string>,
+/**
+ * Whether command state differs from its prior snapshot; always true at startup.
+ */
+state_changed: boolean,
+/**
+ * Dispatch outcome, independent of state changes or player-message presence.
+ */
+status: CommandStatus,
+/**
+ * An unexecuted save/load/list/quit request for the embedding host.
+ */
+control: HostControl | null,
+/**
+ * Chosen action/exit ID, including when its requirements or effects fail.
+ */
+selected_flow: string | null,
+/**
+ * Structured observations, present only for explained execution.
+ */
+explanation?: CommandExplanation, };
 
 export type Draft = { revision: string, project: Project, };
 

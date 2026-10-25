@@ -1120,6 +1120,31 @@ summary {
   font-size: 9px;
   overflow-wrap: anywhere;
 }
+.finding-entry {
+  margin: 10px 0;
+}
+.finding-entry .diagnostic {
+  margin-bottom: 0;
+}
+.finding-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+.finding-entry.acknowledged {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.finding-entry.acknowledged .diagnostic strong {
+  color: var(--muted);
+}
+.acknowledgement-reason {
+  margin: 10px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .modal-backdrop {
   position: fixed;
   inset: 0;

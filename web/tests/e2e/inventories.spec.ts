@@ -102,6 +102,7 @@ test('character inventories share object placement and author transfers and requ
   await state.getByText('Keeper', { exact: true }).click();
   await expect(state).toContainText('Carrying: key');
   await state.getByRole('button', { name: 'Apply test state', exact: true }).click();
+  await expect(state).not.toBeVisible();
   await command('talk Keeper');
   await command('inventory');
   await expect(page.getByRole('log').locator('p').last()).toHaveText('You are carrying: key.');

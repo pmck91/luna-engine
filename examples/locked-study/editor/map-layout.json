@@ -4,6 +4,10 @@
       "x": 416.0367998120952,
       "y": 103.25000970612189
     },
+    "a9c27ad9-0a96-4d57-bc8f-3bf75a78079f": {
+      "x": 658.6362839614374,
+      "y": 22.7239263803681
+    },
     "e6fd4ce0-cd22-4b7a-b9f1-17c3a38141ca": {
       "x": 92.0,
       "y": 89.0
@@ -504,13 +508,28 @@
         "blocks": [
           {
             "deletable": false,
-            "id": "uYj-ElRt4-@-7rZE*O_.",
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "K(UI}P`DrJc),$fqFQI/",
             "inputs": {
               "DO": {
                 "block": {
-                  "data": "{\"type\":\"respond\",\"id\":\"c8003608-5e34-43b2-85de-54ce3affca84\",\"responses\":[\"New response\"],\"mode\":\"repeat_last\",\"fallback\":\"\"}",
-                  "id": "Mr~~*rCx6f4LQH[]0r7j",
+                  "data": "{\"type\":\"respond\",\"id\":\"c8003608-5e34-43b2-85de-54ce3affca84\",\"responses\":[\"Tom purrs <yellow>happily</yellow> as he flops around enjoying the pets.\",\"Tom rolls onto his back exposing his fluffy tummy for more scratches\",\"Tom meows, happy for the attention!\"],\"mode\":\"loop\",\"fallback\":\"\",\"exhaustion\":\"once\",\"on_exhausted\":[]}",
+                  "fields": {
+                    "exhaustion": "once"
+                  },
+                  "id": "78|*3UcwZF%#n$.d3yrQ",
                   "type": "luna_respond"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": ",(Ig[Q$6*UCtDjmTxlxr",
+                  "type": "condition_true"
                 }
               }
             },
@@ -661,6 +680,45 @@
         "languageVersion": 0
       }
     },
+    "97b12bd3-9536-4561-9939-75bbc97c1b2e": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "3/iRc;,7hAS4Q[;,NKqI",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"print_description\",\"entity\":\"a9c27ad9-0a96-4d57-bc8f-3bf75a78079f\"}",
+                  "fields": {
+                    "entity": "a9c27ad9-0a96-4d57-bc8f-3bf75a78079f"
+                  },
+                  "id": "hilB`wIDub+{7p=M/IQ4",
+                  "type": "luna_print_description"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "#)*e/n|@jWQg!SHrW=MH",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
     "987f3c45-f313-4f6a-ab2c-ba8f8a9b91a0": {
       "blocks": {
         "blocks": [
@@ -794,29 +852,21 @@
                       "next": {
                         "block": {
                           "fields": {
-                            "entity": "e6259d7c-f192-455d-a151-0e4ab3c9c14b"
+                            "name": "tom_has_toy",
+                            "value": "true"
                           },
-                          "id": "FfS)zuY?XW(/m;c/H?Zo",
+                          "id": ";k~q5G~,~;JV)[fM6srP",
                           "next": {
                             "block": {
                               "fields": {
-                                "entity": "27a10baa-e8bc-4cc2-bf51-44c1870a6198"
+                                "character": "e6259d7c-f192-455d-a151-0e4ab3c9c14b",
+                                "location": "a9c27ad9-0a96-4d57-bc8f-3bf75a78079f"
                               },
-                              "id": "EbDvMhX8AxYu!{^#tyHX",
-                              "next": {
-                                "block": {
-                                  "fields": {
-                                    "name": "tom_has_toy",
-                                    "value": "true"
-                                  },
-                                  "id": ";k~q5G~,~;JV)[fM6srP",
-                                  "type": "luna_set_variable"
-                                }
-                              },
-                              "type": "luna_hide"
+                              "id": "uNdq5Y]E7~c{p$O9wapq",
+                              "type": "luna_move_character"
                             }
                           },
-                          "type": "luna_hide"
+                          "type": "luna_set_variable"
                         }
                       },
                       "type": "luna_give_character"
@@ -1359,6 +1409,15 @@
     }
   },
   "templates": [],
+  "warning_acknowledgements": [
+    {
+      "warning_key": "57ca23972a66887c8f644a3dc6a12022aee3c0ba1a15994dd6cba60458db58a4",
+      "subject": "a9c27ad9-0a96-4d57-bc8f-3bf75a78079f",
+      "field": "exits",
+      "message": "Location is structurally unreachable from the start",
+      "reason": "Room is used to store characters no longer needed on map"
+    }
+  ],
   "playtest": {
     "setups": [
       {

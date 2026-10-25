@@ -49,6 +49,7 @@ import {
   type Finding,
 } from './diagnostics';
 import { FindingContext, FindingsList, FindingSubject, InlineFindings } from './FindingContext';
+import { activeFindings, validationKey } from './warnings';
 import { ProjectHistory, type EditContext } from './projectHistory';
 import Actions from './Actions';
 import Hints from './Hints';
@@ -177,6 +178,7 @@ export default function App() {
   const transcript = useRef<HTMLDivElement>(null);
   const inspectorContent = useRef<HTMLDivElement>(null);
   const editingVersion = doc ? JSON.stringify(doc) : '';
+  const validationVersion = doc ? validationKey(doc) : '';
   const playVersion = doc ? playContentKey(doc, playHelpMode) : '';
   const error = useCallback((e: unknown) => {
     const text = e instanceof Error ? e.message : String(e);
@@ -468,9 +470,13 @@ export default function App() {
           : Promise.resolve([]),
       ])
         .then(([runtime, draft]) => {
-          if (active && JSON.stringify(current.current.doc) === editingVersion)
+          if (
+            active &&
+            current.current.doc &&
+            validationKey(current.current.doc) === validationVersion
+          )
             setValidation({
-              version: editingVersion,
+              version: validationVersion,
               findings: [...connectedFindings(doc, runtime), ...drafts.findings(draft)],
             });
         })
@@ -482,7 +488,7 @@ export default function App() {
       active = false;
       clearTimeout(timer);
     };
-  }, [editingVersion, error]);
+  }, [validationVersion, error]);
   useEffect(() => {
     if (!view) return;
     const timer = setInterval(() => {
@@ -988,7 +994,8 @@ export default function App() {
     document.addEventListener('keydown', shortcut);
     return () => document.removeEventListener('keydown', shortcut);
   }, [!!doc]);
-  const diagnostics = validation.version === editingVersion ? validation.findings : [];
+  const rawDiagnostics = validation.version === validationVersion ? validation.findings : [];
+  const diagnostics = doc ? activeFindings(doc, rawDiagnostics) : rawDiagnostics;
   const countErrors = diagnostics.filter(
     (d) => d.scope !== 'draft' && d.severity === 'error',
   ).length;
@@ -2141,10 +2148,11 @@ export default function App() {
       {showDiagnostics && doc && (
         <FindingsList
           project={doc}
-          findings={diagnostics}
+          findings={rawDiagnostics}
+          edit={edit}
           filter={findingFilter}
           setFilter={setFindingFilter}
-          pending={validation.version !== editingVersion}
+          pending={validation.version !== validationVersion}
           close={() => setShowDiagnostics(false)}
           reveal={reveal}
         />

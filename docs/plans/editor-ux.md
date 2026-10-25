@@ -1,10 +1,12 @@
 # Editor UX implementation plan
 
-Status: **M0–M7 and M9 complete; the owner reviewed and accepted the tested editor on 25 October 2026.** The agreed scope is approved for the coordinated merge from `feature/editor-ux` to `main`; M8 remains deferred. The accepted block-preservation requirement remains in force. See the [final review record and walkthrough](../design/editor-ux/final-review.md).
+Status: **M0–M7 and M9 complete, accepted, and merged to `main` as `1608340` on 25 October 2026.** M8 remains deferred. The accepted block-preservation requirement remains in force. See the [final review record and walkthrough](../design/editor-ux/final-review.md) and [current TODO list](todo.md).
 
 Branch: `feature/editor-ux`, created from main at `92b3ab6` on 24 October 2026. This document records the accepted design direction and delivered Editor UX scope; the agreed automated checks and final owner review are complete. Separate human screen-reader and new-author sessions were not reported and remain follow-up evaluation. The original M8 template-exchange proposal is now a [deferred potential extension](portable-templates-extension.md), outside the current completion requirements. See the [design review guide](../design/editor-ux/README.md), [interaction specification](../design/editor-ux/interaction-design.md), and [wireframes](../design/editor-ux/wireframes.html).
 
 ## Working agreement
+
+This agreement governed the completed UX branch. Its block-preservation and feedback requirements remain relevant to future UI work; the coordinated merge is complete.
 
 Keep design changes, prototypes, and later approved implementation on the UX branch. Use small reviewable commits within it. Do not merge partial UX milestones into main. Merge the agreed complete scope once the authoring walkthrough, compatibility checks, automated checks, and owner testing pass.
 
@@ -47,7 +49,11 @@ Current dependency order: M0 → M1 → M2 → M3/M4 → M5 → M6 → M7 → M9
 - M6: immutable content snapshot identities, an explicit restart banner, named setup capture/validated restore/editing, and isolated repeatable command checks are implemented and accepted. Setups preserve the full state without replaying start/entry events; checks report the first failure and can be explicitly opened as the interactive session. Editor metadata persists setups/checks, stays out of exports/player saves, and participates in history and checked reference renames. See the [accepted checkpoint](../design/editor-ux/playtest-setups-and-checks.md).
 - M7: optional structured completed-command records explain candidate selection, requirements, short-circuit conditions, branches, effects, arithmetic, value watches, and trigger order. Committed state changes and attempted rolled-back work are distinguished; discarded output stays out of the transcript. Exact content snapshots gate source links and a read-only outline on existing blocks. Interactive commands and isolated checks share the same engine execution. The owner accepted the [working checkpoint](../design/editor-ux/command-explanations.md), calling it “really REALLY fantastic work” and later asking to continue the UX work.
 - M8: deferred at the owner's request. Preserve the full proposal and selected import/creation preferences in [Portable templates — potential extension](portable-templates-extension.md); implementation is not part of the current UX scope.
-- M9: automated verification, agent review, and final owner review are complete. Final fixes improve primary/stable-ID text contrast, native dialog focus and nested Escape handling, and reduced-motion transcript scrolling. The shipped example bundle now matches the validated editable project. The owner confirmed completion of the review and acceptance of the tested editor, closing the active UX checklist and approving the coordinated merge. Separate human screen-reader/new-author sessions remain follow-up evaluation, not claimed verification. See the [review record](../design/editor-ux/final-review.md).
+- M9: automated verification, agent review, and final owner review are complete. Final fixes improve primary/stable-ID text contrast, native dialog focus and nested Escape handling, and reduced-motion transcript scrolling. The shipped example bundle was refreshed to match the project at this checkpoint. The owner accepted the tested editor and the coordinated merge was completed as `1608340`. Separate human screen-reader/new-author sessions remain follow-up evaluation, not claimed verification. Later example edits and their export-refresh task are tracked in the [current TODO list](todo.md). See the [review record](../design/editor-ux/final-review.md).
+
+### Historical verification records
+
+The records below describe each implementation checkpoint at the time it was reviewed. References to then-pending M9 gates are historical; final owner acceptance and the merge are complete as recorded above.
 
 The foundation checkpoint passed its 43 frontend tests, 44-test Chromium/Firefox suite, Rust workspace tests, Rust formatting/Clippy and generated-contract checks. Its follow-up navigation checks covered native text undo, layout-only playtest edits, and returning to a surviving room when undo removes the selected entity.
 

@@ -101,7 +101,7 @@ async fn character_movement_and_coloured_speech_match_exports_and_saved_restorat
         json!({"project":p,"location":null}),
     )
     .await;
-    let visits = runner.state.visits.clone();
+    let visits = runner.state().visits.clone();
     for command in ["use send", "use recall", "use send"] {
         let result = runner.command(command).unwrap();
         editor = post(
@@ -119,7 +119,7 @@ async fn character_movement_and_coloured_speech_match_exports_and_saved_restorat
         );
         assert_eq!(
             editor["state"],
-            serde_json::to_value(&runner.state).unwrap()
+            serde_json::to_value(runner.state()).unwrap()
         );
         assert_eq!(
             text::plain(&result.messages[0]),
@@ -127,25 +127,25 @@ async fn character_movement_and_coloured_speech_match_exports_and_saved_restorat
         );
         assert_eq!(result.messages[0][0].colour.as_deref(), Some("yellow"));
         assert_eq!(result.messages[0][2].colour.as_deref(), Some("green"));
-        assert_eq!(runner.state.location, room);
-        assert_eq!(runner.state.visits, visits);
+        assert_eq!(runner.state().location, room);
+        assert_eq!(runner.state().visits, visits);
         assert_eq!(
-            runner.state.objects["key"].placement,
+            runner.state().objects["key"].placement,
             Placement::Character {
                 character: "keeper".into()
             }
         );
         for slot in [None, Some("character checkpoint")] {
             storage
-                .write_save(&installed, &runner.project, &runner.state, slot)
+                .write_save(&installed, runner.definition(), runner.state(), slot)
                 .unwrap();
             let save = storage
-                .load_save(&installed, &runner.project, slot)
+                .load_save(&installed, runner.definition(), slot)
                 .unwrap();
             runner = Session::restore(storage.load_game(&installed).unwrap(), save.state).unwrap();
         }
     }
-    assert_eq!(runner.state.characters["keeper"].location, "garden");
+    assert_eq!(runner.state().characters["keeper"].location, "garden");
 }
 
 #[tokio::test]
@@ -254,7 +254,7 @@ async fn response_follow_ups_match_exported_runner_and_survive_every_save_bounda
         );
         assert_eq!(
             editor["state"],
-            serde_json::to_value(&runner.state).unwrap(),
+            serde_json::to_value(runner.state()).unwrap(),
             "{command}"
         );
         assert_eq!(
@@ -263,19 +263,19 @@ async fn response_follow_ups_match_exported_runner_and_survive_every_save_bounda
         );
         for slot in [None, Some("checkpoint")] {
             storage
-                .write_save(&installed, &runner.project, &runner.state, slot)
+                .write_save(&installed, runner.definition(), runner.state(), slot)
                 .unwrap();
             let save = storage
-                .load_save(&installed, &runner.project, slot)
+                .load_save(&installed, runner.definition(), slot)
                 .unwrap();
             runner = Session::restore(storage.load_game(&installed).unwrap(), save.state).unwrap();
         }
     }
     assert_eq!(
-        runner.state.variables["punches"],
+        runner.state().variables["punches"],
         luna_model::Value::Integer(2)
     );
-    assert_eq!(runner.state.sequences["warnings"], 4);
+    assert_eq!(runner.state().sequences["warnings"], 4);
 }
 
 #[tokio::test]
@@ -409,7 +409,7 @@ async fn authored_hints_match_runner_exports_and_resume_saved_progress() {
         );
         assert_eq!(
             editor["state"],
-            serde_json::to_value(&runner.state).unwrap(),
+            serde_json::to_value(runner.state()).unwrap(),
             "{command}"
         );
         assert_eq!(
@@ -418,17 +418,17 @@ async fn authored_hints_match_runner_exports_and_resume_saved_progress() {
         );
         for slot in [None, Some("hint checkpoint")] {
             storage
-                .write_save(&installed, &runner.project, &runner.state, slot)
+                .write_save(&installed, runner.definition(), runner.state(), slot)
                 .unwrap();
             let saved = storage
-                .load_save(&installed, &runner.project, slot)
+                .load_save(&installed, runner.definition(), slot)
                 .unwrap();
             assert_eq!(saved.save_format, 2);
             runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();
         }
     }
-    assert!(runner.state.hints["door-stage"].solution_seen);
-    assert_eq!(runner.state.hints["door-stage"].clues_seen, 2);
+    assert!(runner.state().hints["door-stage"].solution_seen);
+    assert_eq!(runner.state().hints["door-stage"].clues_seen, 2);
     assert_eq!(p.game.help_mode, HelpMode::Basic);
 }
 
@@ -524,10 +524,10 @@ async fn entity_help_matches_exported_runner_without_changing_state() {
         "help Keeper",
         "help missing",
     ] {
-        let before = runner.state.clone();
+        let before = runner.state().clone();
         let result = runner.command(command).unwrap();
         if command.starts_with("help") {
-            assert_eq!(runner.state, before);
+            assert_eq!(runner.state(), &before);
             assert!(!result.state_changed);
         }
         let id = editor["session"].as_str().unwrap();
@@ -542,14 +542,18 @@ async fn entity_help_matches_exported_runner_without_changing_state() {
             serde_json::to_value(&result.messages).unwrap(),
             "{command}"
         );
-        assert_eq!(editor["result"]["status"], result.status, "{command}");
+        assert_eq!(
+            editor["result"]["status"],
+            serde_json::to_value(result.status).unwrap(),
+            "{command}"
+        );
         assert_eq!(
             editor["result"]["state_changed"], result.state_changed,
             "{command}"
         );
         assert_eq!(
             editor["state"],
-            serde_json::to_value(&runner.state).unwrap(),
+            serde_json::to_value(runner.state()).unwrap(),
             "{command}"
         );
     }
@@ -670,20 +674,24 @@ async fn character_inventory_transfers_export_and_restore_with_editor_runner_par
             serde_json::to_value(result.messages).unwrap(),
             "{command}"
         );
-        assert_eq!(editor["result"]["status"], result.status, "{command}");
+        assert_eq!(
+            editor["result"]["status"],
+            serde_json::to_value(result.status).unwrap(),
+            "{command}"
+        );
         assert_eq!(
             editor["state"],
-            serde_json::to_value(&runner.state).unwrap(),
+            serde_json::to_value(runner.state()).unwrap(),
             "{command}"
         );
         for slot in [None, Some("ownership")] {
             storage
-                .write_save(&installed, &runner.project, &runner.state, slot)
+                .write_save(&installed, runner.definition(), runner.state(), slot)
                 .unwrap();
             let saved = storage
-                .load_save(&installed, &runner.project, slot)
+                .load_save(&installed, runner.definition(), slot)
                 .unwrap();
-            assert_eq!(saved.state, runner.state);
+            assert_eq!(&saved.state, runner.state());
             runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();
         }
     }
@@ -788,20 +796,20 @@ async fn arithmetic_exports_and_resumes_identically_in_editor_and_runner() {
         );
         assert_eq!(
             editor["state"],
-            serde_json::to_value(&runner.state).unwrap()
+            serde_json::to_value(runner.state()).unwrap()
         );
         storage
             .write_save(
                 &installed,
-                &runner.project,
-                &runner.state,
+                runner.definition(),
+                runner.state(),
                 Some("calculated"),
             )
             .unwrap();
         let saved = storage
-            .load_save(&installed, &runner.project, Some("calculated"))
+            .load_save(&installed, runner.definition(), Some("calculated"))
             .unwrap();
-        assert_eq!(saved.state, runner.state);
+        assert_eq!(&saved.state, runner.state());
         runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();
     }
 }
@@ -866,7 +874,7 @@ async fn editor_http_and_installed_runner_have_identical_gameplay() {
         );
         assert_eq!(
             editor["state"],
-            serde_json::to_value(&runner.state).unwrap(),
+            serde_json::to_value(runner.state()).unwrap(),
             "{command}"
         );
     }
@@ -964,7 +972,7 @@ async fn exported_description_and_value_messages_match_editor_playtesting() {
         );
         assert_eq!(
             editor["state"],
-            serde_json::to_value(&runner.state).unwrap()
+            serde_json::to_value(runner.state()).unwrap()
         );
     }
 }

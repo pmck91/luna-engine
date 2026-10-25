@@ -513,6 +513,46 @@ mod tests {
         let layout: EditorLayout = serde_json::from_str(r#"{"positions":{},"blocks":{}}"#).unwrap();
         assert!(layout.routes.is_empty());
         assert!(layout.templates.is_empty());
+        assert!(layout.warning_acknowledgements.is_none());
+    }
+    #[test]
+    fn warning_acknowledgements_persist_but_never_enter_exported_content() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut project = Project::blank("Acknowledged storage");
+        project.locations.push(Location {
+            id: "storage".into(),
+            name: "Dev room".into(),
+            ..Default::default()
+        });
+        let finding = validate(&project)
+            .into_iter()
+            .find(|finding| finding.subject == "storage")
+            .unwrap();
+        project.editor.warning_acknowledgements = Some(vec![WarningAcknowledgement {
+            warning_key: finding.warning_key.unwrap(),
+            subject: finding.subject,
+            field: finding.field,
+            message: finding.message,
+            reason: "Intentional storage for Tom.\nReviewed by the author.".into(),
+        }]);
+        let revision = save_project(temp.path(), &project, None).unwrap();
+        let restored = load_project(temp.path()).unwrap();
+        assert_eq!(restored, project);
+        assert_eq!(
+            save_project(temp.path(), &restored, Some(&revision)).unwrap(),
+            revision
+        );
+        let bundle = export_bundle(temp.path(), &restored).unwrap();
+        let stage = tempfile::tempdir().unwrap();
+        let exported = extract_bundle(&bundle, stage.path()).unwrap();
+        assert!(exported.editor.warning_acknowledgements.is_none());
+        assert_eq!(exported.game, restored.game);
+        assert!(!stage.path().join("editor").exists());
+        assert!(
+            validate(&exported)
+                .iter()
+                .any(|finding| finding.subject == "storage")
+        );
     }
     #[test]
     fn templates_persist_as_editor_metadata_and_do_not_block_or_enter_exports() {

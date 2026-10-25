@@ -1,4 +1,4 @@
-use luna_core::{CommandResult, Session};
+use luna_core::{CommandResult, CommandStatus, Session};
 use luna_model::*;
 
 fn target(entity: &str) -> PatternPart {
@@ -100,9 +100,9 @@ fn lines(result: &CommandResult) -> Vec<String> {
     result.messages.iter().map(|m| text::plain(m)).collect()
 }
 fn help(session: &mut Session, input: &str) -> CommandResult {
-    let before = session.state.clone();
+    let before = session.state().clone();
     let result = session.command(input).unwrap();
-    assert_eq!(session.state, before, "Help must be read-only: {input}");
+    assert_eq!(session.state(), &before, "Help must be read-only: {input}");
     assert!(!result.state_changed);
     assert!(result.control.is_none());
     assert!(result.trace.is_empty());
@@ -149,7 +149,7 @@ fn entity_help_lists_complete_current_commands_across_action_owners() {
         ]
     );
     s.command("give the key to the keeper").unwrap();
-    assert_eq!(help(&mut s, "help key").status, "unmatched");
+    assert_eq!(help(&mut s, "help key").status, CommandStatus::Unmatched);
     assert_eq!(
         lines(&help(&mut s, "help Keeper")),
         [
@@ -173,7 +173,7 @@ fn names_aliases_ignored_words_and_ambiguity_follow_entity_scope() {
     });
     let (mut s, _) = Session::start(p, None).unwrap();
     let ambiguous = help(&mut s, "help the key");
-    assert_eq!(ambiguous.status, "ambiguous");
+    assert_eq!(ambiguous.status, CommandStatus::Ambiguous);
     assert_eq!(
         lines(&ambiguous),
         ["Which entity do you mean? brass key, silver key. Use a more specific name or alias."]
@@ -183,17 +183,27 @@ fn names_aliases_ignored_words_and_ambiguity_follow_entity_scope() {
         "Available commands for brass key:"
     );
     for query in ["help missing", "help Garden", "help brass key extra"] {
-        assert_eq!(help(&mut s, query).status, "unmatched");
+        assert_eq!(help(&mut s, query).status, CommandStatus::Unmatched);
     }
-    s.state.objects.get_mut("silver").unwrap().hidden = true;
+    let mut state = s.state().clone();
+    state.objects.get_mut("silver").unwrap().hidden = true;
+    s.replace_state(state).unwrap();
     assert_eq!(
         lines(&help(&mut s, "help key"))[0],
         "Available commands for brass key:"
     );
-    assert_eq!(help(&mut s, "help silver key").status, "unmatched");
-    s.project.game.ignored_words.clear();
-    assert_eq!(help(&mut s, "help the brass key").status, "unmatched");
-    assert_eq!(help(&mut s, "help brass key").status, "ok");
+    assert_eq!(
+        help(&mut s, "help silver key").status,
+        CommandStatus::Unmatched
+    );
+    let mut project = s.project().clone();
+    project.game.ignored_words.clear();
+    s = Session::restore(project, s.into_state()).unwrap();
+    assert_eq!(
+        help(&mut s, "help the brass key").status,
+        CommandStatus::Unmatched
+    );
+    assert_eq!(help(&mut s, "help brass key").status, CommandStatus::Ok);
 }
 
 #[test]
@@ -226,8 +236,8 @@ fn help_never_executes_effects_triggers_or_response_sequences() {
     for query in ["help key", "help key", "help", "help missing", "help Study"] {
         help(&mut s, query);
     }
-    assert_eq!(s.state.sequences["replies"], 0);
-    assert_eq!(s.state.variables["visits"], Value::Integer(0));
+    assert_eq!(s.state().sequences["replies"], 0);
+    assert_eq!(s.state().variables["visits"], Value::Integer(0));
     assert_eq!(lines(&s.command("examine key").unwrap()), ["First"]);
 }
 
@@ -249,16 +259,20 @@ fn blocked_hidden_remote_and_held_targets_are_not_advertised() {
             "  examine brass key"
         ]
     );
-    assert_eq!(help(&mut s, "help Keeper").status, "unmatched");
-    assert_eq!(help(&mut s, "help door").status, "unmatched");
-    s.state.objects.get_mut("key").unwrap().placement = Placement::Character {
+    assert_eq!(help(&mut s, "help Keeper").status, CommandStatus::Unmatched);
+    assert_eq!(help(&mut s, "help door").status, CommandStatus::Unmatched);
+    let mut state = s.state().clone();
+    state.objects.get_mut("key").unwrap().placement = Placement::Character {
         character: "keeper".into(),
     };
-    assert_eq!(help(&mut s, "help key").status, "unmatched");
-    s.state.objects.get_mut("key").unwrap().placement = Placement::Absent;
-    s.state.objects.get_mut("key").unwrap().exists = false;
-    s.state.objects.get_mut("key").unwrap().consumed = true;
-    assert_eq!(help(&mut s, "help key").status, "unmatched");
+    s.replace_state(state).unwrap();
+    assert_eq!(help(&mut s, "help key").status, CommandStatus::Unmatched);
+    let mut state = s.state().clone();
+    state.objects.get_mut("key").unwrap().placement = Placement::Absent;
+    state.objects.get_mut("key").unwrap().exists = false;
+    state.objects.get_mut("key").unwrap().consumed = true;
+    s.replace_state(state).unwrap();
+    assert_eq!(help(&mut s, "help key").status, CommandStatus::Unmatched);
 }
 
 #[test]
@@ -285,14 +299,22 @@ fn priorities_ambiguity_and_duplicate_phrases_use_the_actual_command_winner() {
             "  take brass key"
         ]
     );
-    assert_eq!(s.command("push key").unwrap().status, "requirements_failed");
-    assert_eq!(s.command("pull key").unwrap().status, "ambiguous");
-    s.project.objects[0]
+    assert_eq!(
+        s.command("push key").unwrap().status,
+        CommandStatus::RequirementsFailed
+    );
+    assert_eq!(
+        s.command("pull key").unwrap().status,
+        CommandStatus::Ambiguous
+    );
+    let mut project = s.project().clone();
+    project.objects[0]
         .actions
         .iter_mut()
         .find(|a| a.id == "push-high")
         .unwrap()
         .requirements = Condition::True;
+    s = Session::restore(project, s.into_state()).unwrap();
     assert_eq!(
         lines(&help(&mut s, "help key"))
             .iter()
@@ -328,7 +350,9 @@ fn location_help_includes_only_available_routes_and_literal_owned_commands() {
             "  push the switch"
         ]
     );
-    s.project.locations[0].exits[2].available = Condition::True;
+    let mut project = s.project().clone();
+    project.locations[0].exits[2].available = Condition::True;
+    s = Session::restore(project, s.into_state()).unwrap();
     assert!(lines(&help(&mut s, "help Study")).contains(&"  go south".into()));
 }
 
@@ -347,7 +371,9 @@ fn empty_help_and_ended_games_report_no_available_commands() {
         lines(&help(&mut s, "help Keeper")),
         ["No commands are available for Keeper right now."]
     );
-    s.state.ending = Some("done".into());
+    let mut state = s.state().clone();
+    state.ending = Some("done".into());
+    s.replace_state(state).unwrap();
     assert_eq!(
         lines(&help(&mut s, "help key")),
         ["No commands are available for brass key right now."]
@@ -376,7 +402,9 @@ fn basic_help_lists_verbs_without_targets_or_puzzle_readiness_changes() {
     assert!(!before.iter().any(|line| line.contains("brass key")));
     s.command("take key").unwrap();
     assert_eq!(lines(&help(&mut s, "help Keeper")), before);
-    s.state.objects.get_mut("key").unwrap().hidden = true;
+    let mut state = s.state().clone();
+    state.objects.get_mut("key").unwrap().hidden = true;
+    s.replace_state(state).unwrap();
     assert_eq!(lines(&help(&mut s, "help Keeper")), before);
 }
 

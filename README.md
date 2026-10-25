@@ -60,6 +60,10 @@ Response sequences can run follow-up logic after their replies run out. Choose *
 
 On the World map toolbar, enable **Exit tool**, then click a source room and a target room. Each click creates an exit point at the nearest free position on that room's border. Click the tool again to return to moving rooms; Escape cancels an unfinished connection. Drag an exit point around any of the four borders to adjust its route, or drag its label independently. Detached labels have a faint dashed guide to the closest point on their arrow. Double-click a label to restore automatic placement. Anchor positions and label offsets are saved with the project.
 
+In **Game settings**, edit **Unknown command message** to give unrecognised commands a reply that matches your game's tone. The field supports colours and variable/property placeholders, just like **SAY**. It applies in playtesting and exported games; existing games keep the standard reply until you change it.
+
+Open **Validate** and choose **Acknowledge warning** for an intentional design choice, such as an unreachable room used to store characters and unused items. Add an optional reason, then confirm. The warning leaves active counts and highlights; choose **Acknowledged warnings** in **Filter findings** to read the reason or **Restore warning**. Acknowledgements are saved with the project and support Undo/Redo. Changed causes need fresh review, while unrelated edits keep acknowledgements intact. Errors cannot be acknowledged.
+
 Use **UPDATE VARIABLE** and **UPDATE PROPERTY** in **World & state** for integer arithmetic. Choose **+**, **−**, **×**, or **÷**; the block updates its selected value using the number in its input. The input starts with an editable **1**. Drag **Variable value** or **Property value** from **Values** into it to read another current value, or use a **Number** block for a fixed integer. For example, subtract `1` from `chances`, or add a character's `friendliness` property to a score. Numeric dropdowns offer integer values; **SET VARIABLE** and **SET PROPERTY** still assign fixed values of any supported type.
 
 Calculations read the current state in block order, so a later block sees earlier updates. Values range from −2,147,483,648 to 2,147,483,647, and negative results are allowed. Division discards the fractional part toward zero (`7 ÷ 2 = 3`, `−7 ÷ 2 = −3`). Division by zero or a result outside that range fails the whole command and rolls back its state and messages. Validation catches a fixed zero divisor; a variable or property divisor is checked when the block runs. Save/load preserves calculated values normally.
@@ -146,6 +150,7 @@ Saves require the exact game ID and content version. Replacing content under the
 ```sh
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc -p luna-core --no-deps
 cargo test --workspace
 cargo run -p luna-editor --example export_types -- --check
 npm --prefix web test
@@ -159,6 +164,8 @@ LUNA_TEST_FIREFOX=1 npm run test:e2e
 The browser tests launch a temporary local service and write only temporary projects. They exercise visual authoring, Rust playtesting, export, and external-change handling. Rust tests compare the editor HTTP session with an installed runner session and test the real CLI with piped commands.
 
 Regenerate shared TypeScript types with `cargo run -p luna-editor --example export_types`. To use Vite during frontend development, launch the Rust service on its default port, run `npm --prefix web run dev`, and open the Vite URL with the same `#token=...` fragment printed by the Rust service.
+
+See the [development guide](docs/development.md) for embedding the shared core, API documentation, test coverage, and repeatable scaling benchmarks. Run `cargo doc -p luna-core --no-deps --open` to browse the API and executable examples.
 
 ## Package
 

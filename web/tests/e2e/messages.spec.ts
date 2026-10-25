@@ -80,6 +80,7 @@ test('new entities print live descriptions with variable and property messages',
   await state.getByText('coin', { exact: true }).click();
   await state.getByLabel('polish value').fill('9');
   await state.getByRole('button', { name: 'Apply test state', exact: true }).click();
+  await expect(state).not.toBeVisible();
   await command('examine coin');
   await expect(page.getByRole('log').locator('p').last()).toHaveText(
     'A gleaming coin. You have 5 chances left. Polish: 9.',

@@ -28,6 +28,7 @@ const base: Project = {
     starting_location: 'study',
     opening_text: '',
     help_text: '',
+    unknown_command_text: '',
     help_mode: 'basic',
     hints_enabled: true,
     ignored_words: ['a', 'an', 'the'],

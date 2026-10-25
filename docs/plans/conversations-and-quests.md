@@ -1,6 +1,6 @@
 # Conversations and quests
 
-Status: proposed design for a future engine update. This document plans the work; these features are not implemented. Documentation and the existing editor UX priorities remain ahead of this update.
+Status: proposed design for a future engine update. This document plans the work; these features are not implemented. The editor UX implementation is accepted and merged; user-facing documentation remains ahead of this update. See the [current TODO list](todo.md) for priorities and follow-up evaluation.
 
 Implementation branch: `feature/conversations-and-quests`, created from the current validated default branch when implementation begins. Keep the model, runtime, format changes, editor, runner, and acceptance example together on that branch until they work end to end. The planning document and todo entries can be reviewed before that work starts.
 
@@ -61,12 +61,12 @@ Future milestones, their conditions, and the reward are absent from the player's
 
 Use a directed graph with stable node and reply IDs. Branches can merge, and intentional loops can return to earlier topics.
 
-| Definition | Proposed contents |
-| --- | --- |
+| Definition   | Proposed contents                                                                                                                       |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Conversation | ID, authoring name, character reference, start condition, ordered conditional entry points, default entry node, reply presentation mode |
-| Node | ID, authoring name, character's formatted dialogue, entry effect blocks, ordered replies |
-| Reply | ID, player-facing label, accepted phrases/aliases, availability condition, repeat policy, effect blocks, destination node or end |
-| Entry point | Condition and destination node; first matching entry wins, otherwise use the default |
+| Node         | ID, authoring name, character's formatted dialogue, entry effect blocks, ordered replies                                                |
+| Reply        | ID, player-facing label, accepted phrases/aliases, availability condition, repeat policy, effect blocks, destination node or end        |
+| Entry point  | Condition and destination node; first matching entry wins, otherwise use the default                                                    |
 
 Dialogue lines support the existing colours and variable/property placeholders. Reuse CHARACTER SAYS's `text::speech` formatter, including the character's current name and configured name colour.
 
@@ -89,17 +89,17 @@ A terminal destination closes the conversation. A nonterminal node with no eligi
 
 ### Commands and interruption
 
-| Input | Proposed behaviour |
-| --- | --- |
-| `talk Keeper` | Run the ordinary authored action; its START CONVERSATION effect starts or resumes the referenced conversation |
-| `reply yes` | Always route to the active node; never fall through to ordinary world actions |
-| `yes` / `no` / another matching short phrase | Prefer an eligible reply in the active conversation; retain ordinary command behaviour outside conversations |
-| `ask about key` while conversing | Resolve as a reply to the current node; unavailable topics produce a neutral response without falling through to global topic commands |
-| A displayed reply number/button | Resolve to its offered stable reply ID, then validate the expected conversation/node and current eligibility again |
-| `bye` while conversing | Pause the exchange at its current checkpoint without awarding completion effects |
-| `look`, `inventory`, `help`, quest-log commands, `save`, `load`, `saves`, `quit` | Preserve their session-control roles; help and inspection do not replay conversation effects |
-| `hint` / `hint <entity>` | Retain existing clue progression/autosave rules; refresh any affected reply availability without replaying node entry effects |
-| Another successfully matched world action | Pause the conversation before running that action, in the same transaction; failed, ambiguous, or unmatched commands leave it active |
+| Input                                                                            | Proposed behaviour                                                                                                                     |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `talk Keeper`                                                                    | Run the ordinary authored action; its START CONVERSATION effect starts or resumes the referenced conversation                          |
+| `reply yes`                                                                      | Always route to the active node; never fall through to ordinary world actions                                                          |
+| `yes` / `no` / another matching short phrase                                     | Prefer an eligible reply in the active conversation; retain ordinary command behaviour outside conversations                           |
+| `ask about key` while conversing                                                 | Resolve as a reply to the current node; unavailable topics produce a neutral response without falling through to global topic commands |
+| A displayed reply number/button                                                  | Resolve to its offered stable reply ID, then validate the expected conversation/node and current eligibility again                     |
+| `bye` while conversing                                                           | Pause the exchange at its current checkpoint without awarding completion effects                                                       |
+| `look`, `inventory`, `help`, quest-log commands, `save`, `load`, `saves`, `quit` | Preserve their session-control roles; help and inspection do not replay conversation effects                                           |
+| `hint` / `hint <entity>`                                                         | Retain existing clue progression/autosave rules; refresh any affected reply availability without replaying node entry effects          |
+| Another successfully matched world action                                        | Pause the conversation before running that action, in the same transaction; failed, ambiguous, or unmatched commands leave it active   |
 
 Reserve a `reply` prefix in the new content format. Within conversations, explicit replies and conversation controls take precedence over colliding short world commands. Make that precedence visible in help and validation. Do not add a globally reserved `ask` verb; existing authored ask actions outside conversations continue to work.
 
@@ -119,10 +119,10 @@ Help and reply lists show current permitted information only. Existing Full enti
 
 ## Quest definitions and journal
 
-| Definition | Proposed contents |
-| --- | --- |
-| Quest | ID, title, aliases, introduction, completion/failure messages, stages, and effect hooks for start/completion/failure |
-| Stage | ID, authoring name, player journal text, prerequisite stage IDs, optional world-state condition, required-for-completion flag, and effect blocks when recorded |
+| Definition | Proposed contents                                                                                                                                              |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Quest      | ID, title, aliases, introduction, completion/failure messages, stages, and effect hooks for start/completion/failure                                           |
+| Stage      | ID, authoring name, player journal text, prerequisite stage IDs, optional world-state condition, required-for-completion flag, and effect blocks when recorded |
 
 Quest status is **undiscovered**, **active**, **completed**, or **failed**. Undiscovered quests are absent from player-facing lists. Starting a quest makes it active and records its introduction. Stages are milestones that can have prerequisites; this supports a simple chain or several objectives completed in either order. Reject prerequisite cycles and references to stages belonging to another quest.
 
