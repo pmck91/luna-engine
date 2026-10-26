@@ -208,11 +208,23 @@ impl Session {
         self.execute(input, true).0
     }
     fn execute(&mut self, input: &str, explain: bool) -> (CommandResult, Option<anyhow::Error>) {
+        self.execute_with(input, explain, |run| run.command(input))
+    }
+
+    // Keep one commit/rollback/explanation boundary when a resolver supplies an
+    // already selected handler. P1's test-only interaction proof uses this seam;
+    // public commands still enter through the existing explicit matcher.
+    pub(crate) fn execute_with(
+        &mut self,
+        input: &str,
+        explain: bool,
+        command: impl FnOnce(&mut Run<'_>) -> Result<()>,
+    ) -> (CommandResult, Option<anyhow::Error>) {
         let mut run = Run::new(&self.definition, self.state.clone());
         if explain {
             run.recording = Some(explanation::Recorder::default());
         }
-        let error = run.command(input).err();
+        let error = command(&mut run).err();
         if let Some(recorder) = run.recording.take() {
             let discarded = if error.is_some() {
                 std::mem::take(&mut run.result.messages)

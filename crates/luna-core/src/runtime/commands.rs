@@ -1,5 +1,8 @@
 //! Built-in controls and authored command dispatch within one transaction.
-use super::{Flow, Run, matching::Handler};
+use super::{
+    Flow, Run,
+    matching::{Candidate, Handler},
+};
 use crate::{CommandStatus, HostControl, TraceKind};
 use anyhow::{Result, ensure};
 use luna_model::{Event, normalize, reserved};
@@ -69,6 +72,12 @@ impl<'a> Run<'a> {
             self.literal(&format!("Please clarify your command: {}. Type a more specific command; nothing has changed.",tied.iter().map(|m| match m.item { Some(id) => format!("{} ({})", m.name, self.entity_name(id).unwrap_or(id)), None => m.name.to_owned() }).collect::<Vec<_>>().join(" or ")));
             return Ok(());
         }
+        self.dispatch(best, &normalized)
+    }
+
+    // Resolution selects once; this shared path retains ordinary requirement,
+    // effect, event, exit, and explanation semantics for that selected handler.
+    pub(super) fn dispatch(&mut self, best: Candidate<'a>, normalized: &str) -> Result<()> {
         self.result.trace.push(format!(
             "Selected '{}' [{}] for normalized command '{normalized}'",
             best.name, best.id

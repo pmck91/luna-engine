@@ -1,7 +1,7 @@
 //! Command patterns, candidate ranking, and the same matching rules used by full help.
 use super::{
     Run, explanation,
-    index::{Part, Pattern},
+    index::{Owner, Part, Pattern},
 };
 use crate::TraceKind;
 use anyhow::{Context, Result};
@@ -11,6 +11,12 @@ use luna_model::{Action, Exit, PatternPart};
 #[cfg(test)]
 #[path = "container_proof.rs"]
 mod container_proof;
+
+// The assisted interaction is exercised here before adding settings or a live
+// session API. The normal dispatcher still calls matching without a reference.
+#[cfg(test)]
+#[path = "parser_proof.rs"]
+mod parser_proof;
 
 #[derive(Clone, Copy)]
 pub(super) enum Handler<'a> {
@@ -35,9 +41,10 @@ impl<'a> Run<'a> {
         pattern: &Pattern,
         route_destination: Option<&str>,
         named_route: bool,
+        reference: Option<&str>,
     ) -> bool {
         !self
-            .pattern_bindings(tokens, pattern, route_destination, named_route)
+            .pattern_bindings(tokens, pattern, route_destination, named_route, reference)
             .is_empty()
     }
     fn pattern_bindings(
@@ -46,6 +53,7 @@ impl<'a> Run<'a> {
         pattern: &Pattern,
         route_destination: Option<&str>,
         named_route: bool,
+        reference: Option<&str>,
     ) -> Vec<Option<&'a str>> {
         let mut positions = std::collections::BTreeSet::from([(0usize, None)]);
         for part in &pattern.parts {
@@ -58,6 +66,15 @@ impl<'a> Run<'a> {
                                 let id = self.p.objects[index].id.as_str();
                                 if self.available(id) && bound.is_none_or(|prior| prior == id) {
                                     next.insert((end, Some(id)));
+                                }
+                            }
+                            if tokens.get(start) == Some(&"it")
+                                && let Some(Owner::Object(index)) =
+                                    reference.and_then(|id| self.index.entities.get(id))
+                            {
+                                let id = self.p.objects[*index].id.as_str();
+                                if self.available(id) && bound.is_none_or(|prior| prior == id) {
+                                    next.insert((start + 1, Some(id)));
                                 }
                             }
                         }
@@ -77,6 +94,18 @@ impl<'a> Run<'a> {
                 Part::ObjectInput => unreachable!(),
             };
             let mut next = std::collections::BTreeSet::new();
+            if let Part::Entity(entity) = part
+                && reference == Some(entity.as_str())
+                && matches!(self.index.entities.get(entity), Some(Owner::Object(_)))
+            {
+                for &(position, bound) in &positions {
+                    for start in self.entity_words.starts(tokens, position) {
+                        if tokens.get(start) == Some(&"it") {
+                            next.insert((start + 1, bound));
+                        }
+                    }
+                }
+            }
             for words in alternatives {
                 if words.is_empty() {
                     continue;
@@ -110,6 +139,7 @@ impl<'a> Run<'a> {
         tokens: &[&str],
         verb: &str,
         pattern: &Pattern,
+        reference: Option<&str>,
     ) -> Vec<Option<&'a str>> {
         let mut bindings = std::collections::BTreeSet::new();
         if let Some(verb) = self.index.verbs.get(verb) {
@@ -120,6 +150,7 @@ impl<'a> Run<'a> {
                         pattern,
                         None,
                         false,
+                        reference,
                     ));
                 }
             }
@@ -147,6 +178,7 @@ impl<'a> Run<'a> {
         pattern: &Pattern,
         route_destination: Option<&str>,
         named_route: bool,
+        reference: Option<&str>,
     ) -> bool {
         self.index.verbs.get(verb).is_some_and(|verb| {
             verb.phrases.iter().any(|phrase| {
@@ -156,6 +188,7 @@ impl<'a> Run<'a> {
                         pattern,
                         route_destination,
                         named_route,
+                        reference,
                     )
             })
         })
@@ -193,7 +226,19 @@ impl<'a> Run<'a> {
     pub(super) fn candidates(
         &self,
         input: &str,
+        recorder: Option<&mut explanation::Recorder>,
+    ) -> Result<Vec<Candidate<'a>>> {
+        self.candidates_with_reference(input, recorder, None)
+    }
+
+    // Only noun slots can consume the supplied object reference. Callers must
+    // prefer ordinary matches first so literal/name matches keep their meaning.
+    // P1 exercises this seam in tests; live commands do not supply a reference.
+    fn candidates_with_reference(
+        &self,
+        input: &str,
         mut recorder: Option<&mut explanation::Recorder>,
+        reference: Option<&str>,
     ) -> Result<Vec<Candidate<'a>>> {
         let tokens = input.split_whitespace().collect::<Vec<_>>();
         let mut matches = vec![];
@@ -206,7 +251,7 @@ impl<'a> Run<'a> {
             }
             let scope = entry.owner.scope();
             let bindings = if available {
-                self.match_bindings(&tokens, &a.verb, &entry.pattern)
+                self.match_bindings(&tokens, &a.verb, &entry.pattern, reference)
             } else {
                 vec![]
             };
@@ -289,6 +334,7 @@ impl<'a> Run<'a> {
                     pattern,
                     Some(&exit.destination),
                     exit.pattern.is_empty(),
+                    reference,
                 ) {
                     let (literals, entities) = pattern.specificity;
                     matches.push(Candidate {

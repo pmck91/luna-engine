@@ -1,6 +1,6 @@
 # Containers — accepted design and working authoring review
 
-Status: **C0 accepted; C1 committed; C2 implemented and accepted**, 26 October 2026. The owner accepted the original preview with “looks great” and the working C2 slice with “looks great lets commit.” The production editor now supports Details → Contents → Actions, independent inside/on capabilities, explicit possession/reachability, standard-action review, the existing block appearance, and **Command item**. The [shared contract](shared-contract.md) records the foundation. The feature remains on `feature/containers-and-surfaces` through C3 acceptance.
+Status: **C0–C3 complete, accepted, and merged**, 26 October 2026. The owner accepted the original preview with “looks great” and the working C2 slice with “looks great lets commit.” The production editor now supports Details → Contents → Actions, independent inside/on capabilities, explicit possession/reachability, standard-action review, the existing block appearance, and **Command item**. The [shared contract](shared-contract.md) records the foundation. The complete feature is merged as `3b34bc5` (PR #2).
 
 See the [feature plan](../../plans/containers-and-surfaces.md), [gameplay roadmap](../../plans/gameplay-feature-roadmap.md), and [accepted editor UX foundations](../editor-ux/README.md).
 
@@ -128,4 +128,4 @@ The owner accepted the working screens with “looks great” on 25 October 2026
 
 C1's persistence/binding contract is recorded separately. The owner accepted C2's working authoring/player slice on 26 October 2026 with “looks great lets commit”; no changes were requested. This acceptance does not replace C3's final feature review.
 
-C3's [review record](final-review.md) maps the permanent Packing the Study fixture, full regression/package checks, matched performance measurements, and developer notes to the acceptance matrix. The owner accepted the complete feature on 26 October 2026 with “great looks good” and requested its commit. Push and merge remain open. Public author/player documentation stays deferred to the documentation-site work.
+C3's [review record](final-review.md) maps the permanent Packing the Study fixture, full regression/package checks, matched performance measurements, and developer notes to the acceptance matrix. The owner accepted the complete feature on 26 October 2026 with “great looks good” and requested its commit. The branch is pushed and merged as `3b34bc5` (PR #2). Public author/player documentation stays deferred to the documentation-site work.

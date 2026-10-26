@@ -1,0 +1,16 @@
+objects,measurement,milliseconds
+100,explicit_match,0.025392
+100,explicit_assisted_match,0.024398
+100,reference_match,0.050797
+100,ambiguous_match,0.038317
+100,bounded_question_transaction,0.138176
+1000,explicit_match,0.372640
+1000,explicit_assisted_match,0.375544
+1000,reference_match,0.736468
+1000,ambiguous_match,0.493711
+1000,bounded_question_transaction,0.650887
+5000,explicit_match,2.087975
+5000,explicit_assisted_match,2.127929
+5000,reference_match,4.094556
+5000,ambiguous_match,2.571661
+5000,bounded_question_transaction,3.392291

@@ -63,7 +63,7 @@ impl Standard<'_> {
                 specificity: (0, 1),
             };
             return run
-                .matches(&tokens, "open", &pattern, None, false)
+                .matches(&tokens, "open", &pattern, None, false, None)
                 .then_some(Binding {
                     owner: &owner.id,
                     item: None,
@@ -94,7 +94,7 @@ impl Standard<'_> {
                     ],
                     specificity: (1, 2),
                 };
-                run.matches(&tokens, verb, &pattern, None, false)
+                run.matches(&tokens, verb, &pattern, None, false, None)
             })
             .map(|item| Binding {
                 owner: &owner.id,

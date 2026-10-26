@@ -1,6 +1,6 @@
 # Container feature acceptance
 
-Status: **C3 complete and accepted** on `feature/containers-and-surfaces`, 26 October 2026. The owner reviewed the permanent example, confirmed the Locked Study is unchanged, replied “great looks good,” and requested the C3 commit. C0 design and C2 working authoring reviews are also accepted. Push and merge remain pending the owner's instruction. User guides and public reference pages are deferred to the full documentation-site milestone.
+Status: **C3 complete, accepted, and merged**, 26 October 2026. The owner reviewed the permanent example, confirmed the Locked Study is unchanged, replied “great looks good,” and requested the C3 commit. C0 design and C2 working authoring reviews are also accepted. C3 is committed as `9f681ab`; the complete branch is pushed and merged as `3b34bc5` (PR #2). User guides and public reference pages are deferred to the full documentation-site milestone.
 
 ## Delivered boundaries
 
