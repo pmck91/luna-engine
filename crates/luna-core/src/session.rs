@@ -334,3 +334,7 @@ impl Session {
 #[cfg(test)]
 #[path = "input_tests.rs"]
 mod input_tests;
+
+#[cfg(test)]
+#[path = "procedure_tests.rs"]
+mod procedure_tests;

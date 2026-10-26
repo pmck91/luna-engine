@@ -79,7 +79,7 @@ impl<'a> Run<'a> {
                         this.result
                             .trace
                             .push(format!("Trigger {} ({event:?})", t.id));
-                        this.effects_at(&t.effects, this.source_for(&t.id, "effects"))?;
+                        this.flow_effects(&t.id, &t.effects)?;
                     }
                     Ok(())
                 },
@@ -211,7 +211,7 @@ impl<'a> Run<'a> {
                         this.result
                             .trace
                             .push(format!("Trigger {} (value change)", trigger.id));
-                        this.effects_at(&trigger.effects, this.source_for(&trigger.id, "effects"))?;
+                        this.flow_effects(&trigger.id, &trigger.effects)?;
                     }
                     Ok(())
                 },

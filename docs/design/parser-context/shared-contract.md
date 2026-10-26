@@ -8,7 +8,7 @@ Status: **Implemented and owner accepted in P2**, 26 October 2026. The owner acc
 
 The former P1 test coordinator has been retired. Its [21 regression scenarios](../../../crates/luna-core/src/input_tests.rs) call production Session APIs; [public integration coverage](../../../crates/luna-core/tests/command_assistance.rs) checks result metadata, formatting, help/hints, restoration, legacy omission, and post-ending cancellation. Scenarios include fixed nouns, Command item, multiple slots, repeated aliases/names, scope changes, ranking, duplicate flows, literal/name collisions, requirements, once-only events, controls, rollback, independent switches, and bounds.
 
-P2 additionally implements authored validation/messages, versioned persistence, help/hint recent-reference handling, and host presentation. P3 now supplies the permanent fixture, production measurements, and final technical checks in the [acceptance record](final-review.md); final owner acceptance is recorded, and branch closeout remains pending.
+P2 additionally implements authored validation/messages, versioned persistence, help/hint recent-reference handling, and host presentation. P3 now supplies the permanent fixture, production measurements, and final technical checks in the [acceptance record](final-review.md); the feature is accepted and merged as `d3c7860` (PR #3).
 
 ## Authored settings and versions
 

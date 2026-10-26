@@ -27,6 +27,9 @@ mod relations;
 pub(crate) mod resolution;
 mod values;
 
+#[cfg(test)]
+pub(crate) mod procedure_proof;
+
 pub use commands::host_control;
 pub(crate) use index::RuntimeIndex;
 
@@ -49,6 +52,8 @@ pub(crate) struct Run<'a> {
     item_input: Option<&'a str>,
     relations: RefCell<HashMap<usize, relations::Relation>>,
     mutation_events: Vec<(luna_model::Event, String)>,
+    #[cfg(test)]
+    pub(crate) procedures: Option<procedure_proof::Execution>,
 }
 #[derive(PartialEq)]
 enum Flow {
@@ -82,6 +87,8 @@ impl<'a> Run<'a> {
             item_input: None,
             relations: RefCell::new(HashMap::new()),
             mutation_events: vec![],
+            #[cfg(test)]
+            procedures: None,
         }
     }
     fn world_mut(&mut self) -> &mut GameState {

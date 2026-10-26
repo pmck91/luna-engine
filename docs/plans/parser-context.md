@@ -1,6 +1,6 @@
 # Parser context and clarification
 
-Status: **P0–P3 accepted; merge pending**, 26 October 2026. The owner accepted the interactive design and live P2 feature; P1 is committed as `25b634c` and P2 as `5c89b70`. P3 adds the permanent Gallery, production measurements, final compatibility/browser/package evidence, and the minimum-format message fix. See the [final review](../design/parser-context/final-review.md). The owner accepted the complete feature on 26 October 2026 with “very happy,” with no changes requested. The owner requested the final commit and push on 26 October 2026; merge remains pending.
+Status: **P0–P3 complete, accepted, and merged**, 26 October 2026. The owner accepted the interactive design and live P2 feature; P1 is committed as `25b634c` and P2 as `5c89b70`. P3 adds the permanent Gallery, production measurements, final compatibility/browser/package evidence, and the minimum-format message fix. See the [final review](../design/parser-context/final-review.md). The owner accepted the complete feature on 26 October 2026 with “very happy,” with no changes requested. P3 is committed as `c7faf75`; the complete feature is merged as `d3c7860` (PR #3), confirmed on 26 October 2026.
 
 Branch: `feature/parser-context`, created from merged `main` at `3b34bc5` after the container feature. This is F2 in the [gameplay roadmap](gameplay-feature-roadmap.md). The owner chose gameplay work before the public documentation milestone. Later gameplay features remain separate branches; this plan does not make F3–F6 v1 requirements.
 
@@ -181,11 +181,11 @@ Context changes share the command's commit boundary. Core runtime errors must no
 - [x] Restore named/autosave/captured snapshots and separate runner processes: no pending question or referent returns, and starts/rewards/progress are not replayed. Repeat the permanent fixture through the packaged editor/exported runner.
 - [x] Complete 215 Rust tests/doctests, 74 frontend tests, 101 Chromium/Firefox workflows (one existing skip), contracts, lint, formatting, build, rustdoc, package smoke, branch review, and [111 production measurement rows](parser-context-p3-scaling.csv). Fix the save guard to report the actual required format. See the [acceptance record](../design/parser-context/final-review.md) for methodology, evidence, and limits. Public guides remain deferred.
 - [x] Record final owner acceptance: the owner reviewed the complete feature on 26 October 2026 and replied “very happy,” with no changes requested.
-- [ ] Merge the whole feature before starting the next feature branch. The owner requested the final commit and push on 26 October 2026.
+- [x] Commit/push/merge closeout: P3 is `c7faf75`; the complete feature merged as `d3c7860` (PR #3), confirmed on 26 October 2026.
 
 ## P3 verification
 
-The [final review](../design/parser-context/final-review.md) records the complete technical acceptance and branch comparison against fetched `origin/main` at `3b34bc5`. The owner accepted the complete feature after reviewing the working slice and final handoff. The owner requested the final commit and push for GitHub review on 26 October 2026. Merge remains pending.
+The [final review](../design/parser-context/final-review.md) records the complete technical acceptance and branch comparison against fetched `origin/main` at `3b34bc5`. The owner accepted the complete feature after reviewing the working slice and final handoff. The final branch was committed/pushed and merged as `d3c7860` (PR #3), confirmed on 26 October 2026.
 
 ## P2 verification
 

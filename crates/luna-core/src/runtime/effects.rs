@@ -5,6 +5,50 @@ use anyhow::{Context, Result, bail, ensure};
 use luna_model::{Effect, Event, ExhaustionMode, Placement, SequenceMode, ValueTarget, text};
 
 impl<'a> Run<'a> {
+    // Root identity is independent of optional explanation recording. R1's
+    // test-only CALL coordinator enters through the same action/exit/event path.
+    pub(super) fn flow_effects(&mut self, id: &str, effects: &[Effect]) -> Result<Flow> {
+        #[cfg(test)]
+        if self.procedures.is_some() {
+            return self.proof_flow(id, effects);
+        }
+        self.effects_at(effects, self.source_for(id, "effects"))
+    }
+
+    fn response_cursor(&self, id: &str) -> Result<usize> {
+        #[cfg(test)]
+        if self
+            .procedures
+            .as_ref()
+            .is_some_and(|execution| execution.in_procedure())
+        {
+            return self.proof_response_cursor(id);
+        }
+        self.state
+            .sequences
+            .get(id)
+            .copied()
+            .context("Unknown response sequence")
+    }
+
+    fn set_response_cursor(&mut self, id: &str, cursor: usize) -> Result<()> {
+        #[cfg(test)]
+        if self
+            .procedures
+            .as_ref()
+            .is_some_and(|execution| execution.in_procedure())
+        {
+            return self.proof_set_response_cursor(id, cursor);
+        }
+        *self
+            .state
+            .to_mut()
+            .sequences
+            .get_mut(id)
+            .context("Unknown response sequence")? = cursor;
+        Ok(())
+    }
+
     pub(super) fn effects_at(
         &mut self,
         effects: &[Effect],
@@ -85,11 +129,7 @@ impl<'a> Run<'a> {
                 exhaustion,
                 on_exhausted,
             } => {
-                let cursor = *self
-                    .state
-                    .sequences
-                    .get(id)
-                    .context("Unknown response sequence")?;
+                let cursor = self.response_cursor(id)?;
                 let len = responses.len();
                 ensure!(len > 0, "Empty response sequence");
                 if *mode == SequenceMode::Fallback && cursor >= len {
@@ -99,7 +139,7 @@ impl<'a> Run<'a> {
                     {
                         // Mark before executing: nested triggers must not run a once-only
                         // follow-up twice, and an explicit reset in the flow must persist.
-                        self.state.to_mut().sequences.insert(id.clone(), len + 1);
+                        self.set_response_cursor(id, len + 1)?;
                         let flow =
                             self.effects_at(on_exhausted, self.child_source("on_exhausted"))?;
                         if flow != Flow::Continue {
@@ -115,15 +155,10 @@ impl<'a> Run<'a> {
                     SequenceMode::Loop => (cursor + 1) % len,
                     SequenceMode::Fallback => (cursor + 1).min(len),
                 };
-                self.state.to_mut().sequences.insert(id.clone(), next);
+                self.set_response_cursor(id, next)?;
             }
             Effect::ResetResponses { sequence } => {
-                *self
-                    .state
-                    .to_mut()
-                    .sequences
-                    .get_mut(sequence)
-                    .context("Unknown response sequence")? = 0;
+                self.set_response_cursor(sequence, 0)?;
             }
             Effect::SetVariable { name, value } => {
                 self.set_value(&ValueTarget::Variable { name: name.clone() }, value.clone())?;
