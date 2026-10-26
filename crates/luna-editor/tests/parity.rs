@@ -27,6 +27,64 @@ async fn post(app: axum::Router, path: &str, body: Value) -> Value {
 }
 
 #[tokio::test]
+async fn container_setup_templates_execute_as_the_same_editable_shared_actions() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut project = Project::blank("Container setup API");
+    project.objects = vec![
+        Object {
+            id: "bag".into(),
+            name: "bag".into(),
+            open: true,
+            storage: Some(ObjectStorage {
+                container: Some(ContainerOpening::Openable),
+                surface: false,
+            }),
+            placement: Placement::Location {
+                location: project.game.starting_location.clone(),
+            },
+            ..Default::default()
+        },
+        Object {
+            id: "key".into(),
+            name: "key".into(),
+            portable: true,
+            placement: Placement::Inventory,
+            ..Default::default()
+        },
+    ];
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let result = post(app, "/api/v1/templates/container-actions", json!({"object":project.objects[0],"interactions":[{"interaction":"put_inside","verb":"use"},{"interaction":"look_inside","verb":"examine"}]})).await;
+    let actions: Vec<Action> = serde_json::from_value(result).unwrap();
+    assert_eq!(actions.len(), 2);
+    assert!(project.objects[0].actions.is_empty());
+    project.objects[0].actions = actions;
+    let (mut session, _) = Session::start(project, None).unwrap();
+    let result = session.command("use the key in the bag").unwrap();
+    assert_eq!(result.status, luna_core::CommandStatus::Ok);
+    assert_eq!(
+        session.state().objects["key"].placement,
+        Placement::Inside {
+            object: "bag".into()
+        }
+    );
+    let result = session.command("examine bag").unwrap();
+    assert!(
+        result
+            .messages
+            .iter()
+            .any(|spans| text::plain(spans) == "Inside bag: key.")
+    );
+}
+
+#[tokio::test]
 async fn nested_containers_match_editor_exports_and_every_save_boundary() {
     use luna_model::*;
     let temp = tempfile::tempdir().unwrap();

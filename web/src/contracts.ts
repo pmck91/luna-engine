@@ -395,6 +395,10 @@ export type ConfigView = { projects_root: string | null, reserved: Array<string>
 
 export type Configure = { projects_root: string, };
 
+export type ContainerActionChoice = { interaction: StandardInteraction, verb: string, };
+
+export type ContainerActionsRequest = { object: Object, interactions: Array<ContainerActionChoice>, };
+
 export type NewProject = { folder: string, title: string, };
 
 export type OpenRequest = { folder: string, };

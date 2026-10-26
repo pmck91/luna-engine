@@ -1,4 +1,19 @@
-import type { BlockTemplate, Condition, Effect, Placement, Project, Value } from './contracts';
+import type {
+  BlockTemplate,
+  Condition,
+  ContentRelation,
+  Effect,
+  Placement,
+  Project,
+  Value,
+} from './contracts';
+import {
+  localMessage,
+  placementKey,
+  placementValue,
+  targetKey,
+  targetValue,
+} from './containerModel';
 import { allEffects, entity, flow, flowOwner, flows } from './model';
 import { decode, mapMessage } from './templates';
 
@@ -27,6 +42,7 @@ export type ReferenceUse = ReferenceSite & {
   target: ReferenceTarget;
   numeric?: boolean;
   allowed?: string[];
+  relation?: ContentRelation;
 };
 type RecordValue = Record<string, any>;
 type Transform = (use: ReferenceUse) => ReferenceTarget | undefined;
@@ -148,7 +164,7 @@ function scan(
   const emit = (
     target: ReferenceTarget,
     site: ReferenceSite,
-    details: Pick<ReferenceUse, 'allowed' | 'numeric'> = {},
+    details: Pick<ReferenceUse, 'allowed' | 'numeric' | 'relation'> = {},
   ) => {
     const use = {
       ...site,
@@ -164,7 +180,7 @@ function scan(
     key: string,
     target: ReferenceTarget,
     site: ReferenceSite,
-    details?: Pick<ReferenceUse, 'allowed' | 'numeric'>,
+    details?: Pick<ReferenceUse, 'allowed' | 'numeric' | 'relation'>,
   ) => {
     const next = emit(target, child(site, key), details);
     if (next.kind === 'variable') v[key] = next.name;
@@ -182,7 +198,12 @@ function scan(
   ) => {
     const record = v as RecordValue;
     if (typeof record[key] !== 'string') return;
-    visitMessage?.(child(site, String(key)), record[key]);
+    visitMessage?.(
+      child(site, String(key)),
+      record.type === 'say_with_inputs' && record.references
+        ? localMessage(resolve, record.references).display(record[key])
+        : record[key],
+    );
     let index = 0;
     record[key] = mapMessage(record[key], (raw) => {
       if (localNames.includes(decode(raw))) return raw;
@@ -207,7 +228,10 @@ function scan(
   const placement = (value: RecordValue, site: ReferenceSite) => {
     const key = value.type === 'inside' || value.type === 'on' ? 'object' : value.type;
     if (['object', 'location', 'character'].includes(key) && value[key] !== '@current')
-      reference(value, key, { kind: 'entity', id: value[key] }, site, { allowed: [key] });
+      reference(value, key, { kind: 'entity', id: value[key] }, site, {
+        allowed: [key],
+        ...(value.type === 'inside' || value.type === 'on' ? { relation: value.type } : {}),
+      });
   };
   const node = (
     v: RecordValue,
@@ -251,7 +275,10 @@ function scan(
     };
     for (const [key, allowed] of Object.entries(refs[type] ?? {}))
       if (v[key] !== '@current')
-        reference(v, key, { kind: 'entity', id: v[key] }, site, { allowed });
+        reference(v, key, { kind: 'entity', id: v[key] }, site, {
+          allowed,
+          ...(type === 'list_contents' ? { relation: v.relation } : {}),
+        });
     if (['possesses', 'reachable', 'in_object', 'can_transfer', 'transfer'].includes(type)) {
       if (typeof v.object === 'string')
         reference(v, 'object', { kind: 'entity', id: v.object }, site, { allowed: ['object'] });
@@ -260,7 +287,10 @@ function scan(
           allowed: ['character'],
         });
       if (type === 'in_object')
-        reference(v, 'parent', { kind: 'entity', id: v.parent }, site, { allowed: ['object'] });
+        reference(v, 'parent', { kind: 'entity', id: v.parent }, site, {
+          allowed: ['object'],
+          relation: v.relation,
+        });
       if (v.placement) placement(v.placement, child(site, 'placement'));
     }
     if (type === 'say_with_inputs') {
@@ -404,10 +434,37 @@ function scan(
         ? 'operand'
         : 'effect';
     const fields = { ...block.fields, type: type.replace(/^(luna_|condition_|number_)/, '') };
+    if (type === 'luna_say_with_inputs') {
+      try {
+        const data = JSON.parse(block.data ?? '{}');
+        fields.references = data.references ?? {};
+        fields.text = localMessage(resolve, fields.references).encode(fields.text ?? '');
+      } catch {
+        /* Incomplete draft metadata remains editable. */
+      }
+    }
+    const structuredTarget = [
+      'luna_transfer',
+      'condition_possesses',
+      'condition_reachable',
+      'condition_in_object',
+      'condition_can_transfer',
+    ].includes(type);
+    if (structuredTarget && typeof fields.object === 'string')
+      fields.object = targetValue(fields.object);
+    if (typeof fields.placement === 'string') fields.placement = placementValue(fields.placement);
     if (/^(luna_|condition_|number_)/.test(type) && type !== 'luna_flow') {
       node(fields, kind, at);
       for (const key of Object.keys(block.fields ?? {}))
-        if (key in fields) block.fields[key] = fields[key];
+        if (key in fields)
+          block.fields[key] =
+            key === 'placement'
+              ? placementKey(fields[key])
+              : key === 'text' && type === 'luna_say_with_inputs'
+                ? localMessage(p, fields.references ?? {}).display(fields[key])
+                : structuredTarget && key === 'object'
+                  ? targetKey(fields[key])
+                  : fields[key];
       if (typeof block.data === 'string') {
         try {
           const data = JSON.parse(block.data);
@@ -690,7 +747,7 @@ export type ReferencePlan = { project: Project; uses: ReferenceUse[]; errors: st
 
 // Replacements are one transaction: validate the resulting graph, including
 // references in templates, rather than approving each changed ID in isolation.
-function containerReferenceErrors(p: Project): string[] {
+export function containerReferenceErrors(p: Project): string[] {
   const errors = new Set<string>();
   const objects = new Map(p.objects.map((o) => [o.id, o]));
   const holder = (id: string, relation: 'inside' | 'on') => {
@@ -715,7 +772,15 @@ function containerReferenceErrors(p: Project): string[] {
   };
   const effects = (chain: Effect[]) => {
     for (const { effect: e } of allEffects(chain)) {
-      if (e.type === 'transfer') placement(e.placement);
+      if (e.type === 'transfer') {
+        placement(e.placement);
+        if (
+          typeof e.object === 'string' &&
+          (e.placement.type === 'inside' || e.placement.type === 'on') &&
+          e.object === e.placement.object
+        )
+          errors.add('An object cannot be placed inside or on itself.');
+      }
       if (e.type === 'list_contents') holder(e.object, e.relation);
       if (e.type === 'if') condition(e.condition);
       if (e.type === 'say_with_inputs')
@@ -770,6 +835,25 @@ function containerReferenceErrors(p: Project): string[] {
     path.forEach((id) => done.add(id));
   }
   return [...errors];
+}
+export function storageUses(p: Project, holder: string, relation: ContentRelation) {
+  return projectReferences(p).filter(
+    (use) => use.target.kind === 'entity' && use.target.id === holder && use.relation === relation,
+  );
+}
+export function retargetStorageReferences(
+  p: Project,
+  holder: string,
+  relation: ContentRelation,
+  destination: string,
+): Project {
+  const next = structuredClone(p);
+  scan(next, p, (use) =>
+    use.target.kind === 'entity' && use.target.id === holder && use.relation === relation
+      ? { kind: 'entity', id: destination }
+      : use.target,
+  );
+  return next;
 }
 export function referencePlan(
   p: Project,

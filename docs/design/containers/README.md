@@ -1,10 +1,24 @@
-# Containers — accepted C0 design review
+# Containers — accepted design and working authoring review
 
-Status: **C0 accepted**, 25 October 2026. The owner reviewed the working preview and replied “looks great.” Keep Details → Contents → Actions, independent inside/on capabilities, explicit possession/reachability, standard-action review, the existing block appearance, and **Command item**. The [C1 shared contract](shared-contract.md) now records the implemented engine/persistence foundation. Production controls remain C2 work on `feature/containers-and-surfaces`.
+Status: **C0 accepted; C1 committed; C2 implemented and accepted**, 26 October 2026. The owner accepted the original preview with “looks great” and the working C2 slice with “looks great lets commit.” The production editor now supports Details → Contents → Actions, independent inside/on capabilities, explicit possession/reachability, standard-action review, the existing block appearance, and **Command item**. The [shared contract](shared-contract.md) records the foundation. The feature remains on `feature/containers-and-surfaces` through C3 acceptance.
 
 See the [feature plan](../../plans/containers-and-surfaces.md), [gameplay roadmap](../../plans/gameplay-feature-roadmap.md), and [accepted editor UX foundations](../editor-ux/README.md).
 
-## Open the preview
+## Try the production controls
+
+Build/start the normal editor using the [development instructions](../../development.md). Create a separate project for the review.
+
+1. Add an object named Chest. In the inspector's **Storage**, enable **Can contain items** and **Items can be placed on top**. Leave **Initially open** unchecked. For a format-1 project, first choose **Enable container features…** and review the upgrade.
+2. Choose **View contents**. Use **Add item inside…** to create a Key, and **Add item on top…** to create a Letter. New contents default to **Can be taken**; you can change this before creation or later in Details. Try moving an existing object instead, cancel with Escape, and compare project Undo/Redo after applying.
+3. Choose **Set up standard interactions…**. Review the verbs, command phrases, missing vocabulary, and refusal text, then add the chosen actions. Existing custom matches are reported and remain in charge even when their requirements fail. Reopening setup does not duplicate standards.
+4. In **Actions**, choose **Put an item inside Chest**. Select PUT OBJECT using Flow outline; switch **Object** between **Command item** and Key. Select SAY WITH NAMES and edit its response using the labelled name insertions. Use **Flow settings** to return to action requirements and enable/disable the standard handler.
+5. Play `look`, `open chest`, `take key from chest`, `put key in chest`, and `close chest`. The closed interior conceals Key while Letter stays visible on top. Save, reopen, and export to try the same commands in the runner.
+6. Add a portable Bag and an always-open Box inside it. A key inside Box moves with Bag. On an opening action, the **Can use carried item preset** adds visible HAS ITEM + CAN REACH requirements: closing Bag blocks use of the key without changing possession. Inspect the full path/access blocker in the author-only World state inspector.
+7. Try disabling containment. Review affected contents, actions, and references before choosing a compatible replacement holder. Cancel preserves the project; applying is one undoable operation. Captured playtest setups must be replaced/removed separately if they would become incompatible.
+
+The in-editor **Authoring guide → Containers and surfaces** describes these controls. At 900 px, collapse the existing inspector drawer to expose the complete Contents workspace; reopen it for editing. No precision dragging is required. The three production browser scenarios in [containers.spec.ts](../../../web/tests/e2e/containers.spec.ts) exercise these workflows against the real engine and exported runner.
+
+## Open the accepted C0 preview
 
 The current review server is [http://127.0.0.1:5174/container-design.html](http://127.0.0.1:5174/container-design.html). To start it again from the repository:
 
@@ -52,7 +66,7 @@ Extend ordinary Actions with a small standard-behaviour marker and a single type
 - Production matching should capture input IDs in the existing token-walk paths. Deduplicate identical bindings reached through aliases without collapsing distinct items into one match. Preserve command-length/execution bounds and deterministic ordering; do not manufacture an item-by-holder registry of actions.
 - Scoped name insertion uses explicit `say_with_inputs` metadata. Preserve existing `%variable%`/property resolution, escaping, colour formatting, and literal substituted names. The review label **Command item name** must not silently repurpose `%item%` or shadow a declared global.
 
-The separate C0 page remains a scripted prototype. C1 implements the typed contract in Rust; C2 connects the accepted controls to it.
+The separate C0 page remains a scripted prototype. C1 implements the typed contract in Rust; C2 now connects the accepted controls to it in the production editor.
 
 ## What the Rust proof establishes
 
@@ -112,4 +126,4 @@ The original C0 checkpoint changed no version numbers, schemas, generated contra
 
 The owner accepted the working screens with “looks great” on 25 October 2026. Retain **Details → Contents → Actions**, one standard-interaction review, **Command item** beside named fixed objects, independent inside/on capabilities, and explicit possession/reachability.
 
-C1's persistence/binding contract is recorded separately. The next feedback checkpoint is C2's complete working authoring/player slice, including locks, custom responses, keyboard use, and reopening; this acceptance does not replace final feature review.
+C1's persistence/binding contract is recorded separately. The owner accepted C2's working authoring/player slice on 26 October 2026 with “looks great lets commit”; no changes were requested. This acceptance does not replace C3's final feature review.

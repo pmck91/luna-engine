@@ -4,6 +4,7 @@ import type { BlockSelection, BlockValue } from './Blocks';
 import { Check, ConditionEditor, Field, Select, Text } from './Forms';
 import { EffectText } from './Inspector';
 import { entity, valueFrom } from './model';
+import { hasCommandItem } from './containerModel';
 import { InlineFindings } from './FindingContext';
 
 export default function BlockInspector({
@@ -23,9 +24,16 @@ export default function BlockInspector({
   const update = (value: BlockValue) => change(selection, value);
   const rich =
     selection.kind === 'effect' &&
-    ['say', 'character_says', 'move_character', 'respond', 'print_description'].includes(
-      value.type,
-    );
+    [
+      'say',
+      'say_with_inputs',
+      'transfer',
+      'list_contents',
+      'character_says',
+      'move_character',
+      'respond',
+      'print_description',
+    ].includes(value.type);
   return (
     <>
       <div className="section-heading">
@@ -47,7 +55,12 @@ export default function BlockInspector({
         blockId={selection.blockId}
       />
       {selection.kind === 'condition' ? (
-        <ConditionEditor project={project} value={value as Condition} onChange={update} />
+        <ConditionEditor
+          project={project}
+          value={value as Condition}
+          allowCommandItem={hasCommandItem(project, selection.flowId)}
+          onChange={update}
+        />
       ) : selection.kind === 'operand' ? (
         <OperandEditor project={project} value={value as NumericOperand} onChange={update} />
       ) : (
@@ -58,6 +71,7 @@ export default function BlockInspector({
               effect={value as Effect}
               onChange={update}
               path={selection.address}
+              allowCommandItem={hasCommandItem(project, selection.flowId)}
             />
           ) : (
             selection.fields.map((field) => {
@@ -151,6 +165,7 @@ export default function BlockInspector({
           )}
           {value.type === 'if' && (
             <ConditionEditor
+              allowCommandItem={hasCommandItem(project, selection.flowId)}
               project={project}
               value={value.condition}
               onChange={(condition) => update({ ...value, condition })}

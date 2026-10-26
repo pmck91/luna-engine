@@ -1,5 +1,23 @@
 import { cloneElement, useContext, useId, useLayoutEffect, useRef, useState } from 'react';
-import type { Condition, Project, Value, Comparison, GameState, Placement } from './contracts';
+import type {
+  Condition,
+  Project,
+  Value,
+  Comparison,
+  GameState,
+  Placement,
+  ObjectTarget,
+} from './contracts';
+import {
+  accessNote,
+  commandItemKey,
+  objectPath,
+  placementChoices,
+  placementKey,
+  placementValue,
+  targetKey,
+  targetValue,
+} from './containerModel';
 import { colourNames, literal, messageValues, preview, hintChoices } from './model';
 import { CreateReferenceButton, type ReferenceSpec } from './ReferenceCreation';
 import { ReferenceButton, useReferenceActions } from './ReferenceManager';
@@ -57,14 +75,21 @@ export function Check({
   label,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className="check">
-      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
+      <input
+        type="checkbox"
+        disabled={disabled}
+        checked={value}
+        onChange={(e) => onChange(e.target.checked)}
+      />
       {label}
     </label>
   );
@@ -107,24 +132,22 @@ export function PlacementSelect({
   value,
   project,
   onChange,
+  source,
+  state,
+  current = false,
+  absent = true,
 }: {
   label: string;
   value: Placement;
   project: Project;
   onChange: (value: Placement) => void;
+  source?: string;
+  state?: GameState;
+  current?: boolean;
+  absent?: boolean;
 }) {
-  const key =
-    value.type === 'character'
-      ? `character:${value.character}`
-      : value.type === 'location'
-        ? `location:${value.location}`
-        : value.type;
-  const items = [
-    { id: 'inventory', name: 'Player inventory' },
-    { id: 'absent', name: 'Not yet present' },
-    ...project.locations.map((l) => ({ id: `location:${l.id}`, name: l.name })),
-    ...project.characters.map((c) => ({ id: `character:${c.id}`, name: `${c.name} · inventory` })),
-  ];
+  const key = placementKey(value);
+  const items = placementChoices(project, source, state, current, absent);
   if (!items.some((item) => item.id === key))
     items.push({ id: key, name: `Missing ${value.type}: ${key.slice(key.indexOf(':') + 1)}` });
   return (
@@ -133,15 +156,35 @@ export function PlacementSelect({
       path="placement"
       value={key}
       items={items}
-      onChange={(v) =>
-        onChange(
-          v.startsWith('character:')
-            ? { type: 'character', character: v.slice(10) }
-            : v.startsWith('location:')
-              ? { type: 'location', location: v.slice(9) }
-              : { type: v as 'inventory' | 'absent' },
-        )
-      }
+      onChange={(v) => onChange(placementValue(v))}
+    />
+  );
+}
+export function ObjectTargetSelect({
+  project,
+  value,
+  onChange,
+  allowCommandItem = false,
+  label = 'Object',
+}: {
+  project: Project;
+  value: ObjectTarget;
+  onChange: (value: ObjectTarget) => void;
+  allowCommandItem?: boolean;
+  label?: string;
+}) {
+  return (
+    <Select
+      label={label}
+      value={targetKey(value)}
+      items={[
+        ...(allowCommandItem ? [{ id: commandItemKey, name: 'Command item' }] : []),
+        ...(typeof value !== 'string' && !allowCommandItem
+          ? [{ id: commandItemKey, name: 'Command item · unavailable in this flow' }]
+          : []),
+        ...project.objects.map((o) => ({ id: o.id, name: objectPath(project, o.id) })),
+      ]}
+      onChange={(key) => onChange(targetValue(key))}
     />
   );
 }
@@ -182,17 +225,19 @@ export function RichText({
   onChange,
   project,
   path,
+  extraValues = [],
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   project?: Project;
   path?: string;
+  extraValues?: Array<{ token: string; label: string }>;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const insertionCursor = useRef<number | null>(null);
   const [plain, setPlain] = useState(false);
-  const inserts = project ? messageValues(project) : [];
+  const inserts = [...extraValues, ...(project ? messageValues(project) : [])];
   const insert = (text: string) => {
     const area = ref.current!;
     insertionCursor.current = area.selectionStart + text.length;
@@ -451,6 +496,10 @@ const kinds: Array<Condition['type']> = [
   'visited',
   'opened',
   'visible',
+  'possesses',
+  'reachable',
+  'in_object',
+  'can_transfer',
 ];
 const comparisons = ['eq', 'ne', 'gt', 'ge', 'lt', 'le'];
 export function defaultCondition(type: Condition['type'], p: Project): Condition {
@@ -490,7 +539,12 @@ export function defaultCondition(type: Condition['type'], p: Project): Condition
     case 'reachable':
       return { type, object };
     case 'in_object':
-      return { type, object, parent: object, relation: 'inside' };
+      return {
+        type,
+        object,
+        parent: p.objects.find((o) => o.storage?.container)?.id ?? '',
+        relation: 'inside',
+      };
     case 'can_transfer':
       return { type, object, placement: { type: 'inventory' } };
   }
@@ -500,11 +554,13 @@ export function ConditionEditor({
   project: p,
   onChange,
   allowCreation = true,
+  allowCommandItem = false,
 }: {
   value: Condition;
   project: Project;
   onChange: (c: Condition) => void;
   allowCreation?: boolean;
+  allowCommandItem?: boolean;
 }) {
   const entities = [...p.objects, ...p.characters, ...p.locations];
   const patch = (v: Partial<Condition>) => onChange({ ...c, ...v } as Condition);
@@ -533,7 +589,24 @@ export function ConditionEditor({
       <Select
         label="Condition"
         value={c.type}
-        items={kinds.map((id) => ({ id, name: id.replaceAll('_', ' ') }))}
+        items={kinds
+          .filter(
+            (id) =>
+              p.game.format_version >= 2 ||
+              !['possesses', 'reachable', 'in_object', 'can_transfer'].includes(id),
+          )
+          .map((id) => ({
+            id,
+            name:
+              (
+                {
+                  possesses: 'has item (including nested contents)',
+                  reachable: 'can reach',
+                  in_object: 'is inside / on',
+                  can_transfer: 'can transfer',
+                } as Record<string, string>
+              )[id] ?? id.replaceAll('_', ' '),
+          }))}
         onChange={(type) => onChange(defaultCondition(type as Condition['type'], p))}
       />
       {(c.type === 'all' || c.type === 'any') && (
@@ -541,6 +614,7 @@ export function ConditionEditor({
           {c.conditions.map((child, i) => (
             <div key={i}>
               <ConditionEditor
+                allowCommandItem={allowCommandItem}
                 allowCreation={allowCreation}
                 project={p}
                 value={child}
@@ -560,13 +634,22 @@ export function ConditionEditor({
       )}
       {c.type === 'not' && (
         <ConditionEditor
+          allowCommandItem={allowCommandItem}
           allowCreation={allowCreation}
           project={p}
           value={c.condition}
           onChange={(condition) => onChange({ type: 'not', condition })}
         />
       )}
-      {'object' in c &&
+      {'object' in c && ['possesses', 'reachable', 'in_object', 'can_transfer'].includes(c.type) ? (
+        <ObjectTargetSelect
+          project={p}
+          value={c.object}
+          allowCommandItem={allowCommandItem}
+          onChange={(object) => patch({ object })}
+        />
+      ) : (
+        'object' in c &&
         (typeof c.object === 'string' ? (
           <Select
             label="Object"
@@ -576,7 +659,54 @@ export function ConditionEditor({
           />
         ) : (
           <span>Command item</span>
-        ))}
+        ))
+      )}
+      {c.type === 'possesses' && (
+        <Select
+          label="Owner"
+          value={c.character ?? ''}
+          items={[{ id: '', name: 'Player' }, ...p.characters]}
+          onChange={(character) => patch({ character: character || null })}
+        />
+      )}
+      {c.type === 'in_object' && (
+        <>
+          <Select
+            label="Relationship"
+            value={c.relation}
+            items={[
+              { id: 'inside', name: 'Inside' },
+              { id: 'on', name: 'On top' },
+            ]}
+            onChange={(relation) => patch({ relation: relation as 'inside' | 'on' })}
+          />
+          <Select
+            label="Holder"
+            value={c.parent}
+            items={p.objects.filter((o) =>
+              c.relation === 'inside' ? !!o.storage?.container : o.storage?.surface,
+            )}
+            onChange={(parent) => patch({ parent })}
+          />
+        </>
+      )}
+      {c.type === 'can_transfer' && (
+        <PlacementSelect
+          label="Destination"
+          value={c.placement}
+          project={p}
+          current
+          absent={false}
+          source={typeof c.object === 'string' ? c.object : undefined}
+          onChange={(placement) => patch({ placement })}
+        />
+      )}
+      {['carrying', 'character_carrying'].includes(c.type) && (
+        <p className="muted">
+          Directly held only. HAS ITEM includes nested contents; combine it with CAN REACH when the
+          item must be usable.
+        </p>
+      )}
       {c.type === 'character_carrying' && (
         <Select
           label="Character"
@@ -758,6 +888,8 @@ export function StateInspector({
                 label="Placement"
                 value={current.placement}
                 project={project}
+                source={o.id}
+                state={draft}
                 onChange={(placement) =>
                   edit((s) => {
                     const object = s.objects[o.id]!;
@@ -767,10 +899,14 @@ export function StateInspector({
                   })
                 }
               />
+              <p className="muted">
+                {objectPath(project, o.id, draft)} · {accessNote(project, o.id, draft)}
+              </p>
               {(['exists', 'consumed', 'hidden', 'open'] as const).map((key) => (
                 <Check
                   key={key}
                   label={key}
+                  disabled={key === 'open' && o.storage?.container === 'always_open'}
                   value={current[key]}
                   onChange={(v) =>
                     edit((s) => {

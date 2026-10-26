@@ -23,7 +23,8 @@ async function insert(page: Page, name: string, point?: RegExp) {
   await picker.getByLabel('Search blocks').fill(name);
   await picker
     .getByRole('group', { name: 'Compatible blocks' })
-    .getByRole('button', { name: new RegExp(`^${name}`) })
+    .getByRole('button')
+    .filter({ has: page.getByText(name, { exact: true }) })
     .click();
   await picker.getByLabel('Search blocks').press('Enter');
 }

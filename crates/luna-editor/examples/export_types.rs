@@ -86,6 +86,8 @@ fn main() -> Result<()> {
         ProjectView,
         ConfigView,
         Configure,
+        ContainerActionChoice,
+        ContainerActionsRequest,
         NewProject,
         OpenRequest,
         SaveRequest,

@@ -1,5 +1,6 @@
 import type { PatternPart, Project } from './contracts';
 import { entity, flowOwner } from './model';
+import { ancestry } from './containerModel';
 
 /** Resolve initial authored placement, never the location of a running playtest. */
 export function authoringRoom(project: Project, selected: string): string {
@@ -12,6 +13,12 @@ export function authoringRoom(project: Project, selected: string): string {
     if (placement.type === 'location') room = placement.location;
     if (placement.type === 'character')
       room = project.characters.find((c) => c.id === placement.character)?.location;
+    if (placement.type === 'inside' || placement.type === 'on') {
+      const root = ancestry(project, context.id)[0];
+      room =
+        project.locations.find((l) => l.id === root)?.id ??
+        project.characters.find((c) => c.id === root)?.location;
+    }
   }
   return (
     project.locations.find((location) => location.id === room)?.id ??

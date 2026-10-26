@@ -1,5 +1,6 @@
 import type { Project } from './contracts';
 import { gameDataPages } from './model';
+import { placementLabel } from './containerModel';
 import { messageOccurrences, referenceContext, type ReferenceSite } from './references';
 export type SearchEntry = {
   key: string;
@@ -27,7 +28,7 @@ export function searchIndex(p: Project): SearchEntry[] {
       'title' in owner ? owner.title : owner.name,
       at,
       'aliases' in owner
-        ? `${p.locations.some((room) => room.id === owner.id) ? 'Location' : p.objects.some((item) => item.id === owner.id) ? 'Object' : 'Character'} · ${owner.aliases.join(' ')}`
+        ? `${p.locations.some((room) => room.id === owner.id) ? 'Location' : p.objects.some((item) => item.id === owner.id) ? 'Object' : 'Character'} · ${owner.aliases.join(' ')}${'placement' in owner ? ` · ${placementLabel(p, owner.placement)}` : ''}`
         : 'Game settings',
     );
     for (const flow of [

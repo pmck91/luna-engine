@@ -18,6 +18,42 @@ import { defaultCondition } from './Forms';
 import BlockPicker from './BlockPicker';
 import { FindingContext } from './FindingContext';
 import { ExplanationFocus } from './explanations';
+import {
+  commandItemKey,
+  hasCommandItem,
+  localMessage,
+  objectPath,
+  placementChoices,
+  placementKey,
+  placementValue,
+  targetKey,
+  targetValue,
+} from './containerModel';
+const workspaceFlows = new WeakMap<Blockly.Workspace, string>();
+export function registerBlockScope(workspace: Blockly.Workspace, flowId: string) {
+  workspaceFlows.set(workspace, flowId);
+}
+function hasScopedItem(block: Blockly.Block | null) {
+  let ws: Blockly.Workspace | null = block?.workspace ?? null;
+  while (ws) {
+    const flowId = workspaceFlows.get(ws);
+    if (flowId) return hasCommandItem(project, flowId);
+    ws = ws instanceof Blockly.WorkspaceSvg ? ws.targetWorkspace : null;
+  }
+  return false;
+}
+const structuredTargets = ['transfer', 'possesses', 'reachable', 'in_object', 'can_transfer'];
+const newBlocks = [
+  'luna_say_with_inputs',
+  'luna_transfer',
+  'luna_list_contents',
+  'condition_possesses',
+  'condition_reachable',
+  'condition_in_object',
+  'condition_can_transfer',
+];
+export const blockAvailable = (p: Project, type: string) =>
+  p.game.format_version >= 2 || !newBlocks.includes(type);
 export function nearestBlock(addresses: Map<string, string>, path: string): string | undefined {
   return [...addresses.entries()]
     .filter(([, address]) => address && (path === address || path.startsWith(`${address}.`)))
@@ -31,6 +67,9 @@ Blockly.setLocale(
 let project: Project;
 export const effectFields: Record<string, string[]> = {
   say: ['text'],
+  say_with_inputs: ['text'],
+  transfer: ['object', 'placement'],
+  list_contents: ['object', 'relation'],
   character_says: ['character', 'text'],
   print_description: ['entity'],
   respond: [],
@@ -67,9 +106,22 @@ const conditionFields: Record<string, string[]> = {
   visited: ['location', 'op', 'count'],
   opened: ['object'],
   visible: ['entity'],
+  possesses: ['object', 'character'],
+  reachable: ['object'],
+  in_object: ['object', 'relation', 'parent'],
+  can_transfer: ['object', 'placement'],
+};
+const conditionNames: Record<string, string> = {
+  possesses: 'HAS ITEM',
+  reachable: 'CAN REACH',
+  in_object: 'IS INSIDE / ON',
+  can_transfer: 'CAN TRANSFER',
 };
 export const labels: Record<string, string> = {
   say: 'SAY',
+  say_with_inputs: 'SAY WITH NAMES',
+  transfer: 'PUT OBJECT',
+  list_contents: 'LIST CONTENTS',
   character_says: 'CHARACTER SAYS',
   print_description: 'PRINT DESCRIPTION',
   respond: 'RESPONSE SEQUENCE',
@@ -122,6 +174,36 @@ function field(name: string, type: string): Blockly.Field {
           options.push([`Missing: ${value}`, value]);
       return options;
     });
+  if (name === 'object' && structuredTargets.includes(type))
+    return dropdown((block) => [
+      ...(hasScopedItem(block) ? [{ id: commandItemKey, name: 'Command item' }] : []),
+      ...project.objects.map((o) => ({ id: o.id, name: objectPath(project, o.id) })),
+    ]);
+  if (name === 'placement')
+    return dropdown((block) =>
+      placementChoices(
+        project,
+        block?.getFieldValue('object') === commandItemKey
+          ? undefined
+          : block?.getFieldValue('object'),
+        undefined,
+        true,
+        false,
+      ),
+    );
+  if (name === 'relation')
+    return new Blockly.FieldDropdown([
+      ['inside', 'inside'],
+      ['on top', 'on'],
+    ]);
+  if (name === 'parent')
+    return dropdown((block) =>
+      project.objects.filter((o) =>
+        block?.getFieldValue('relation') === 'on' ? o.storage?.surface : !!o.storage?.container,
+      ),
+    );
+  if (name === 'character' && type === 'possesses')
+    return dropdown(() => [{ id: '', name: 'Player' }, ...project.characters]);
   if (['object', 'first', 'second', 'result'].includes(name))
     return dropdown(() => project.objects);
   if (name === 'character') return dropdown(() => project.characters);
@@ -298,9 +380,14 @@ export const blockCatalogue: CatalogueBlock[] = [
     type: `luna_${type}`,
     name: labels[type],
     kind: 'effect',
-    category: ['say', 'character_says', 'print_description', 'respond', 'reset_responses'].includes(
-      type,
-    )
+    category: [
+      'say',
+      'say_with_inputs',
+      'character_says',
+      'print_description',
+      'respond',
+      'reset_responses',
+    ].includes(type)
       ? 'Responses'
       : type === 'if'
         ? 'Logic'
@@ -319,7 +406,7 @@ export const blockCatalogue: CatalogueBlock[] = [
   })),
   ...[...Object.keys(conditionFields), 'not', 'all', 'any'].map((type): CatalogueBlock => ({
     type: `condition_${type}`,
-    name: type.replaceAll('_', ' ').toUpperCase(),
+    name: conditionNames[type] ?? type.replaceAll('_', ' ').toUpperCase(),
     kind: 'condition',
     category: 'Conditions',
     aliases:
@@ -546,9 +633,14 @@ function register() {
         this.setPreviousStatement(true);
         this.setNextStatement(true);
         this.setColour(
-          ['say', 'character_says', 'respond', 'print_description', 'reset_responses'].includes(
-            type,
-          )
+          [
+            'say',
+            'say_with_inputs',
+            'character_says',
+            'respond',
+            'print_description',
+            'reset_responses',
+          ].includes(type)
             ? '#386b58'
             : type === 'end'
               ? '#9c4a63'
@@ -590,7 +682,9 @@ function register() {
   for (const [type, fields] of Object.entries(conditionFields))
     Blockly.Blocks[`condition_${type}`] = {
       init(this: Blockly.Block) {
-        const input = this.appendDummyInput().appendField(type.replaceAll('_', ' ').toUpperCase());
+        const input = this.appendDummyInput().appendField(
+          conditionNames[type] ?? type.replaceAll('_', ' ').toUpperCase(),
+        );
         for (const key of fields) input.appendField(key).appendField(field(key, type), key);
         this.setOutput(true, 'Boolean');
         this.setColour('#916b31');
@@ -629,12 +723,28 @@ function setFields(block: Blockly.Block, data: Record<string, unknown>) {
       try {
         const field = block.getField(name);
         if (field instanceof Blockly.FieldDropdown) field.getOptions(false);
+        const displayed =
+          name === 'placement'
+            ? placementKey(value as import('./contracts').Placement)
+            : name === 'object' && structuredTargets.includes(String(data.type))
+              ? targetKey(value as import('./contracts').ObjectTarget)
+              : name === 'character' && data.type === 'possesses'
+                ? (value ?? '')
+                : name === 'text' && data.type === 'say_with_inputs'
+                  ? localMessage(
+                      project,
+                      (data.references ?? {}) as Extract<
+                        Effect,
+                        { type: 'say_with_inputs' }
+                      >['references'],
+                    ).display(String(value))
+                  : value;
         block.setFieldValue(
           name.startsWith('consume_') && typeof value === 'boolean'
             ? value
               ? 'TRUE'
               : 'FALSE'
-            : String(value),
+            : String(displayed),
           name,
         );
       } catch {
@@ -712,15 +822,22 @@ function fields(block: Blockly.Block, names: string[]): Record<string, unknown> 
   return Object.fromEntries(
     names.map((name) => {
       const raw = block.getFieldValue(name);
+      const type = block.type.replace(/^(luna_|condition_)/, '');
       return [
         name,
-        name === 'value'
-          ? valueFrom(String(raw), schema(block))
-          : name.startsWith('consume_')
-            ? raw === 'TRUE'
-            : name === 'count'
-              ? Number(raw)
-              : raw,
+        name === 'placement'
+          ? placementValue(raw)
+          : name === 'object' && structuredTargets.includes(type)
+            ? targetValue(raw)
+            : name === 'character' && type === 'possesses'
+              ? raw || null
+              : name === 'value'
+                ? valueFrom(String(raw), schema(block))
+                : name.startsWith('consume_')
+                  ? raw === 'TRUE'
+                  : name === 'count'
+                    ? Number(raw)
+                    : raw,
       ];
     }),
   );
@@ -762,7 +879,19 @@ export function readEffects(first: Blockly.Block | null, limit = Infinity): Effe
         then: readEffects(block.getInputTargetBlock('THEN')),
         otherwise: readEffects(block.getInputTargetBlock('ELSE')),
       });
-    else if (type === 'respond') {
+    else if (type === 'say_with_inputs') {
+      const data = block.data
+        ? (JSON.parse(block.data) as Extract<Effect, { type: 'say_with_inputs' }>)
+        : null;
+      const references = data?.references ?? {};
+      const message: Effect = {
+        type,
+        text: localMessage(project, references).encode(block.getFieldValue('text')),
+        references,
+      };
+      block.data = JSON.stringify(message);
+      effects.push(message);
+    } else if (type === 'respond') {
       const data = block.data ? (JSON.parse(block.data) as Effect) : null;
       const e: Extract<Effect, { type: 'respond' }> =
         data?.type === 'respond'
@@ -802,9 +931,17 @@ export const conditionToolbox = [...Object.keys(conditionFields), 'not', 'all', 
 }));
 export function refreshBlockFields(workspace: Blockly.WorkspaceSvg) {
   for (const surface of [workspace, workspace.getFlyout()?.getWorkspace()])
-    for (const block of surface?.getAllBlocks(false) ?? [])
+    for (const block of surface?.getAllBlocks(false) ?? []) {
+      if (block.type === 'luna_say_with_inputs' && block.data) {
+        const data = JSON.parse(block.data) as Extract<Effect, { type: 'say_with_inputs' }>;
+        block.setFieldValue(
+          localMessage(project, data.references ?? {}).display(data.text ?? ''),
+          'text',
+        );
+      }
       for (const input of block.inputList)
         for (const field of input.fieldRow) if (field instanceof LiveDropdown) field.refresh();
+    }
 }
 export function conditionFieldChanged(event: Blockly.Events.Abstract, ws: Blockly.Workspace) {
   if (
@@ -857,12 +994,17 @@ const toolbox = {
       kind: 'category',
       name: 'Responses',
       colour: '#386b58',
-      contents: ['say', 'character_says', 'respond', 'print_description', 'reset_responses'].map(
-        (t) => ({
-          kind: 'block',
-          type: `luna_${t}`,
-        }),
-      ),
+      contents: [
+        'say',
+        'say_with_inputs',
+        'character_says',
+        'respond',
+        'print_description',
+        'reset_responses',
+      ].map((t) => ({
+        kind: 'block',
+        type: `luna_${t}`,
+      })),
     },
     {
       kind: 'category',
@@ -886,9 +1028,14 @@ const toolbox = {
       contents: Object.keys(effectFields)
         .filter(
           (t) =>
-            !['say', 'character_says', 'respond', 'print_description', 'reset_responses'].includes(
-              t,
-            ),
+            ![
+              'say',
+              'say_with_inputs',
+              'character_says',
+              'respond',
+              'print_description',
+              'reset_responses',
+            ].includes(t),
         )
         .map((t) => ({ kind: 'block', type: `luna_${t}` })),
     },
@@ -1034,6 +1181,7 @@ export function describeBlock(
     kind,
     label:
       labels[block.type.replace('luna_', '')] ??
+      conditionNames[block.type.replace('condition_', '')] ??
       block.type
         .replace(/^(condition_|number_)/, '')
         .replaceAll('_', ' ')
@@ -1260,6 +1408,9 @@ export default function Blocks({
   const conditions = flowConditions(flow(p, flowId));
   const conditionVersion = JSON.stringify(conditions);
   const choiceVersion = JSON.stringify({
+    format: p.game.format_version,
+    input: hasCommandItem(p, flowId),
+    storage: p.objects.map((o) => [o.id, o.storage, o.placement]),
     entities: [...p.locations, ...p.objects, ...p.characters].map((entity) => [
       entity.id,
       entity.name,
@@ -1270,6 +1421,7 @@ export default function Blocks({
     hints: hintChoices(p),
     sequences: sequenceChoices(p),
   });
+  const toolboxFormat = useRef(p.game.format_version);
   const host = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   const selectedBlock = useRef<string | null>(null);
@@ -1448,6 +1600,7 @@ export default function Blocks({
       if (current.current.saved) {
         try {
           Blockly.serialization.workspaces.load(current.current.saved, ws);
+          refreshBlockFields(ws);
           const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
           loaded =
             !!root &&
@@ -1479,7 +1632,15 @@ export default function Blocks({
     }
   };
   useEffect(() => {
-    const ws = Blockly.inject(host.current!, blockWorkspaceOptions(toolbox));
+    const availableToolbox = {
+      ...toolbox,
+      contents: toolbox.contents.map((category) => ({
+        ...category,
+        contents: category.contents.filter((block) => blockAvailable(p, block.type)),
+      })),
+    };
+    const ws = Blockly.inject(host.current!, blockWorkspaceOptions(availableToolbox));
+    registerBlockScope(ws, flowId);
     workspace.current = ws;
     if (current.current.history) bindWorkspaceHistory(ws, () => current.current.history!);
     selectedBlock.current = selectedId ?? null;
@@ -1558,6 +1719,15 @@ export default function Blocks({
     if (!ws) return;
     Blockly.Events.disable();
     try {
+      if (toolboxFormat.current !== p.game.format_version)
+        ws.updateToolbox({
+          ...toolbox,
+          contents: toolbox.contents.map((category) => ({
+            ...category,
+            contents: category.contents.filter((block) => blockAvailable(p, block.type)),
+          })),
+        });
+      toolboxFormat.current = p.game.format_version;
       refreshBlockFields(ws);
     } finally {
       Blockly.Events.enable();
@@ -1685,7 +1855,9 @@ export default function Blocks({
                 }}
               >
                 <strong>{block.label}</strong> · {blockLocation(block.address)}
-                {block.value && 'text' in block.value ? ` · ${block.value.text}` : ''}
+                {block.value && 'text' in block.value
+                  ? ` · ${block.value.type === 'say_with_inputs' ? localMessage(p, block.value.references).display(block.value.text) : block.value.text}`
+                  : ''}
                 {findings.some(
                   (finding) =>
                     finding.blockId === block.blockId ||
@@ -1770,6 +1942,7 @@ export default function Blocks({
       <div className="block-workspace" ref={host} aria-label="Logic block workspace" />
       {insertion && (
         <BlockPicker
+          flowId={flowId}
           project={p}
           points={insertion.points}
           initial={insertion.initial}

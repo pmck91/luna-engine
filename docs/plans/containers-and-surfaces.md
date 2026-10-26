@@ -1,6 +1,6 @@
 # Containers and surfaces
 
-Status: **C0 accepted; C1 shared engine and persistence complete**, 25 October 2026. The owner reviewed the [working authoring preview](../design/containers/README.md) and replied “looks great.” Keep the accepted Details → Contents → Actions journey and **Command item** label. The [C1 shared contract](../design/containers/shared-contract.md) records the implementation choices. Production authoring controls and full feature acceptance remain C2–C3.
+Status: **C0 accepted; C1 committed; C2 implemented and accepted**, 26 October 2026. C1 is committed as `4af6bc0` on the feature branch. The owner accepted the [C0 authoring preview](../design/containers/README.md) with “looks great”; C2 now connects that Details → Contents → Actions journey and **Command item** label to the real engine. The owner reviewed the working C2 slice and replied “looks great lets commit.” The [shared contract](../design/containers/shared-contract.md) records the implementation choices; final feature acceptance remains C3.
 
 Branch: `feature/containers-and-surfaces`, created from merged `main` at `835f009`. This is F1 in the [gameplay feature roadmap](gameplay-feature-roadmap.md). Keep the feature, compatibility work, working UX, and acceptance example together until tested and accepted.
 
@@ -275,11 +275,24 @@ The initial measurement exposed repeated flat-object lookups. Restoring the dire
 
 ### C2 — Working authoring and player slice
 
-- [ ] Implement Details/Contents/placement controls, hierarchy/breadcrumbs, standard Actions, block/inspector synchronization, and in-context creation.
-- [ ] Integrate standard interactions, configurable text, grouped presentation, help/hints scope, and precise command explanations.
-- [ ] Exercise save/reopen, Undo/Redo, keyboard insertion, compact layouts, and return navigation with a portable bag and a closed chest.
+- [x] Implement Details/Contents/placement controls, hierarchy/breadcrumbs, standard Actions, block/inspector synchronization, and in-context creation.
+- [x] Integrate standard interactions, configurable text, grouped presentation, help/hints scope, and precise command explanations.
+- [x] Exercise save/reopen, Undo/Redo, keyboard insertion, compact layouts, and return navigation with a portable bag and a closed chest.
+- [x] Record owner feedback on the working authoring/player slice: accepted on 26 October 2026 with “looks great lets commit”; no changes requested.
 
 Feedback checkpoint: owner authors and plays the complete example, including a locked opening requirement and a custom response. Review terminology, command setup, refusal wording, and visibility of default versus custom behaviour.
+
+### C2 implementation and verification record
+
+Storage controls now support independent interiors/surfaces, opening state, and an explicit upgrade for format-1 projects. Contents creates portable items in context or moves existing objects, previews destinations and nested contents, and keeps each operation in project Undo/Redo. Initial/live placement choices exclude self and descendants; hierarchy and breadcrumbs show enclosing holders. Author-only state inspection shows the actual path and access blocker.
+
+Standard setup uses the shared Rust action builder through a small editor endpoint. It matches existing vocabulary, offers missing verbs in context, reports custom-command conflicts, and reviews phrases/refusal text before one history transaction. Existing standards are not duplicated; actions remain editable and individually disableable. Generated success messages use friendly **Command item name** and named-entity insertions with explicit typed metadata, preserving ordinary variables, property placeholders, and literal name escaping.
+
+PUT OBJECT, LIST CONTENTS, SAY WITH NAMES, HAS ITEM, CAN REACH, IS INSIDE / ON, and CAN TRANSFER use the current block renderer and selected-block inspector. Command item is offered only in an action that binds it; fixed references remain available. The **Can use carried item** preset expands to visible HAS ITEM + CAN REACH requirements. The block appearance, connector shapes, and terminal behaviour remain unchanged.
+
+Removing storage reviews affected contents, edited standard actions, conditions/effects, templates, and disconnected drafts. Compatible replacements are checked as one transaction. Captured playtest states are preserved and block an incompatible change until the author removes/replaces the affected setups. The in-editor guide includes a Containers and surfaces topic.
+
+Verification passes: **71 frontend unit tests**, **178 Rust tests/doctests**, generated-contract verification, production/prototype TypeScript builds, formatting, and Clippy. The full browser suite passes **93 workflows** (47 Chromium, 46 Firefox); the existing actual-browser-zoom check requires Chromium and is skipped in Firefox. Three new scenarios per browser cover real authoring, undo/cancel, setup conflicts, scoped blocks and custom responses, opacity, nested portable ownership, usable-key requirements, explicit upgrades, reassignment, save/reopen, export, and runner named saves. Release packaging and the isolated packaged runner/editor smoke check also pass. The existing Locked Study and historical fixtures remain unchanged. C3 still owns the checked-in acceptance example, final workload measurements, complete user/reference documentation and container-specific package acceptance, and owner approval of the complete feature.
 
 ### C3 — Acceptance and merge
 

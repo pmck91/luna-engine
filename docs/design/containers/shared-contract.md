@@ -1,6 +1,6 @@
 # Containers — shared engine contract
 
-Status: C1 implementation on `feature/containers-and-surfaces`, following owner acceptance of the C0 preview on 25 October 2026. The production Details/Contents/Actions controls and blocks are C2. This document records the engine contract used to build them, rather than claiming that the complete editor feature is available.
+Status: C1 committed as `4af6bc0`; C2 production Details/Contents/Actions controls and blocks implemented and accepted on `feature/containers-and-surfaces`, 26 October 2026. The owner reviewed the working C2 slice and replied “looks great lets commit.” C0 design acceptance is recorded separately. C3 retains final feature acceptance.
 
 See the [feature plan](../../plans/containers-and-surfaces.md) and [accepted authoring preview](README.md). Preserve the current block appearance and **Command item** label.
 
@@ -41,7 +41,7 @@ Standard behaviour is an ordinary editable Action with optional metadata:
 { "standard": { "interaction": "put_inside", "enabled": true } }
 ```
 
-The eight interactions are `open`, `close`, `look_inside`, `put_inside`, `put_on`, `take_from`, `take`, and `drop`. The model's `standard_action` helper returns one action with visible requirements/effects/default text; it does not install vocabulary, locks, or competing actions. Setup review and conflict handling belong to C2.
+The eight interactions are `open`, `close`, `look_inside`, `put_inside`, `put_on`, `take_from`, `take`, and `drop`. The model's `standard_action` helper returns one action with visible requirements/effects/default text; it does not install vocabulary, locks, or competing actions. C2's setup dialog calls `POST /api/v1/templates/container-actions` with the owner and chosen interaction/verb references, then reviews the returned canonical actions. Applying adds actions and any reviewed missing vocabulary in one project-history transaction. Existing standards are not duplicated. Matching custom commands are reported; their priority is enforced by the shared matcher.
 
 Only put-inside, put-on, and take-from declare one command item input. Their pattern contains an `object_input` part alongside the fixed owning holder. Fixed object IDs and resolved inputs have different wire representations in new conditions/effects:
 
@@ -104,4 +104,4 @@ Ordinary requirement refusal commits no transfer. A structural/effect error disc
 
 C1 tests cover opacity, surfaces, nested/character inventories, ancestry/cycles, hidden/offstage roots, explicit possession, typed ambiguity, custom precedence, scoped names, event accounting, rollback, graph-compatible restoration, legacy reads, and export/editor/runner parity with named/autosaves after every command. TypeScript visitors preserve typed inputs, rebind fixed references and message names, and reject replacements that introduce cycles or capability loss.
 
-C2 still owns production storage/contents/placement controls, scoped block fields, setup review and vocabulary creation, hierarchy/playtest presentation, capability-removal impact review, and keyboard/Undo/Redo/reopen acceptance. The C0 page remains a separate scripted prototype. C3 retains complete end-to-end feature acceptance, documentation, final performance review, owner feedback, and merge.
+C2 connects production storage/contents/placement controls, scoped block fields, setup review and vocabulary creation, hierarchy/playtest presentation, and capability-removal impact review. Its browser workflows cover keyboard use, project Undo/Redo, cancel, reopen, exported play, and named-save restoration. Typed references in templates and disconnected drafts participate in replacement and storage-impact review. Captured playtest states are preserved; incompatible capability changes require removing/replacing the affected setup first. The C0 page remains a separate scripted prototype. C3 retains the checked-in acceptance example, complete documentation/package acceptance, final performance review, owner feedback, and merge.

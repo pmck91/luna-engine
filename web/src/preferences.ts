@@ -13,7 +13,7 @@ export const defaultLayout: PanelLayout = {
 };
 export type SavedNavigation = {
   selected: string;
-  mode: 'map' | 'actions' | 'hints' | 'triggers';
+  mode: 'map' | 'actions' | 'hints' | 'triggers' | 'contents';
   search: string;
   triggerFilter: string;
   flowSelections: Record<string, string>;
@@ -54,7 +54,7 @@ export function restoredNavigation(project: Project, raw: unknown): SavedNavigat
   return {
     selected,
     mode:
-      saved.mode && ['map', 'actions', 'hints', 'triggers'].includes(saved.mode)
+      saved.mode && ['map', 'actions', 'hints', 'triggers', 'contents'].includes(saved.mode)
         ? saved.mode
         : 'map',
     search: typeof saved.search === 'string' ? saved.search : '',

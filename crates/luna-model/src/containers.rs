@@ -343,7 +343,7 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
                 if is_inside {
                     "Put an item inside"
                 } else {
-                    "Put an item on top"
+                    "Put an item on top of"
                 },
                 Condition::CanTransfer {
                     object: item(),
@@ -356,7 +356,7 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
         StandardInteraction::TakeFrom => {
             pattern = vec![PatternPart::ObjectInput, lit("from"), entity()];
             (
-                "Take an item from here",
+                "Take an item from",
                 Condition::All {
                     conditions: vec![
                         Condition::CanTransfer {

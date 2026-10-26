@@ -63,10 +63,11 @@ test('breadcrumbs distinguish the Actions workspace from an explicitly selected 
   await expect(path).toHaveText(['The Locked Study', 'Study', 'Actions', 'Garden']);
   await hierarchy.getByRole('button', { name: /old painting/ }).click();
   await actions.click();
-  await expect(path).toHaveText(['The Locked Study', 'old painting', 'Actions']);
+  await expect(path).toHaveText(['The Locked Study', 'Study', 'old painting', 'Actions']);
   await chooseFlow(page, /^Examine painting/);
   await expect(path).toHaveText([
     'The Locked Study',
+    'Study',
     'old painting',
     'Actions',
     'Examine painting',
