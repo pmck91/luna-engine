@@ -2381,6 +2381,10 @@ dialog.modal {
   }
 }
 @media (max-width: 760px) {
+  /* The inspector divider must not cover the hierarchy drawer's close button. */
+  .workspace:not(.hierarchy-collapsed) > .center + .resize-handle {
+    visibility: hidden;
+  }
   .tutorial-checklist {
     max-height: 120px;
   }
@@ -2485,4 +2489,80 @@ dialog.modal {
 }
 .input-resolution li {
   margin: 8px 0;
+}
+
+.procedure-workspace {
+  display: grid;
+  grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.procedure-library {
+  overflow: auto;
+  padding: 14px;
+  border-right: 1px solid var(--border, #393f4e);
+  background: #20242e;
+}
+.procedure-library .section-heading {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.procedure-list {
+  display: grid;
+  gap: 8px;
+}
+.procedure-list .list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  white-space: normal;
+  gap: 5px;
+}
+.procedure-list .list-item > * {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.procedure-list .active {
+  border-color: #9487e3;
+  background: #34304b;
+}
+.procedure-input,
+.argument-editor {
+  min-width: 0;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #42485a;
+  border-radius: 6px;
+}
+.procedure-contract {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.procedure-return {
+  padding: 5px 12px;
+  background: #262331;
+  border-bottom: 1px solid #42405a;
+}
+.procedure-return button {
+  max-width: 100%;
+  white-space: normal;
+}
+.message-bindings {
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  .procedure-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(140px, 190px) minmax(0, 1fr);
+  }
+  .procedure-library {
+    border-right: 0;
+    border-bottom: 1px solid #393f4e;
+  }
+  .procedure-list {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
 }

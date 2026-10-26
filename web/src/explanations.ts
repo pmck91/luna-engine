@@ -1,6 +1,10 @@
+import { script } from './model';
+import { argumentLabel, referenceLabel } from './procedureModel';
 import { createContext } from 'react';
 import type {
   CommandExplanation,
+  EntityRef,
+  ObjectTarget,
   InputResolution,
   CommandStatus,
   Condition,
@@ -13,7 +17,7 @@ import type {
   TraceStep,
   ValueTarget,
 } from './contracts';
-import { allEffects, flow, flowOwner, flows } from './model';
+import { allEffects, flowOwner, flows } from './model';
 import { playContentKey } from './playtest';
 import type { ReferenceSite } from './references';
 
@@ -30,15 +34,18 @@ export type ExplanationRecord = {
 };
 export const ExplanationFocus = createContext<ReferenceSite | null>(null);
 const entities = (p: Project) => [...p.locations, ...p.objects, ...p.characters];
-export const traceEntityName = (p: Project, id: string) =>
-  entities(p).find((e) => e.id === id)?.name ?? id;
+export const traceEntityName = (p: Project, id: EntityRef) => referenceLabel(p, id);
 export const explanationIsCurrent = (record: ExplanationRecord, project: Project) =>
   record.contentKey === playContentKey(project, record.help);
 const opNames = { eq: '=', ne: '≠', gt: '>', ge: '≥', lt: '<', le: '≤' };
 export function conditionTitle(p: Project, c: Condition): string {
-  const objectName = (target: string | { input: string }) =>
-    typeof target === 'string' ? traceEntityName(p, target) : 'Command item';
+  const objectName = (target: ObjectTarget) =>
+    typeof target === 'string' || 'procedure_input' in target
+      ? traceEntityName(p, target)
+      : 'Command item';
   switch (c.type) {
+    case 'compare':
+      return `${argumentLabel(p, c.left)} ${opNames[c.op]} ${argumentLabel(p, c.right)}`;
     case 'true':
       return 'Always';
     case 'false':
@@ -90,6 +97,8 @@ function targetTitle(p: Project, target: ValueTarget) {
 }
 export function traceTitle(p: Project, kind: TraceKind): string {
   switch (kind.type) {
+    case 'call':
+      return `CALL ${kind.name} · ${kind.returned === 'stopped' ? 'STOP returned' : kind.returned === 'ended' ? 'Game ended' : kind.returned === 'returned' ? 'Returned' : 'Failed'} · ${kind.arguments.map((binding) => `${binding.name}: ${binding.value.type === 'value' ? JSON.stringify(binding.value.value) : referenceLabel(p, binding.value.id)}`).join(', ')}`;
     case 'selected':
       return `Selected ${kind.name || 'action'}`;
     case 'candidate':
@@ -112,12 +121,12 @@ export function traceTitle(p: Project, kind: TraceKind): string {
 }
 export function traceContext(p: Project, step: TraceStep) {
   if (!step.source) return 'Built-in control';
-  const script = flow(p, step.source.subject);
+  const sourceScript = script(p, step.source.subject);
   const parent = flowOwner(p, step.source.subject);
   const owner = parent && ('title' in parent ? parent.title : parent.name);
   return [
     owner,
-    script?.name || (script ? 'Unnamed flow' : traceEntityName(p, step.source.subject)),
+    sourceScript?.name || (sourceScript ? 'Unnamed flow' : traceEntityName(p, step.source.subject)),
     step.source.path
       .replaceAll('otherwise', 'ELSE')
       .replaceAll('then', 'THEN')

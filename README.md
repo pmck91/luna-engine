@@ -38,13 +38,15 @@ On first launch without `--projects-dir`, enter an absolute projects-directory p
 
 The `examples` directory contains an editor-authored **The Locked Study** project and its actual exported bundle. You can open the project from the editor, or create a new project using the Locked Study template. Select an object, location, or character and open **Actions** to browse its command actions and location exits, choose a verb, and add an action. Choose its flow in the selector above the workspace. Selecting a block opens that occurrence's inspector; **Flow settings** returns to the action or trigger settings. **Flow outline** provides labelled selection buttons and identifies disconnected drafts. Inline block editing remains available. **Wrap in IF / ELSE** puts the current effects into a conditional block's THEN branch. Drag conditions and effects from the palette to edit either branch. The last block in each chain has a flat bottom and still accepts another block; connecting one restores the joining notch.
 
+Use **Game data → Procedures** to define shared effect flows with typed local inputs. Insert CALL blocks from actions, triggers or other procedures; **Open definition**, **Return to caller**, and **Used by** connect the editing contexts. The [Reward Workshop](examples/procedure-workshop/ACCEPTANCE.md) is an editable acceptance example with a checked export, covering shared/nested rewards, independent replies, hooks, stopping and rollback.
+
 Open **Block templates** on the canvas toolbar to save a whole command action, all effect blocks in the current flow, or a selected block and its following chain. Choose a saved template, set the target owner, and replace its entity references before inserting a new action or appending its effect blocks to the open flow. Property placeholders in messages follow the replacements too; the target must have compatible properties and the referenced variables, verbs, hints, and endings must exist. New actions include the command pattern and requirements. Each insertion has fresh action/response IDs, including matching reset references, so its response progress is independent. Appending blocks preserves existing positions and participates in project undo/redo. Rename or delete templates in the library; inserted copies remain independently editable. The library is saved with this project and stays available after reopening or deleting its original action. Exports contain the inserted game logic; the template library stays in editor data.
 
 Use the breadcrumbs and navigation arrows to return to earlier work, preserving selection and canvas/inspector views for the open session. **Undo** and **Redo** cover form edits, grouped block changes, templates and map layout in one timeline; their tooltips name the next operation. Saving retains the timeline. Ctrl/Cmd Z uses native undo within a text field and project undo elsewhere. A new project, reload or external-version acceptance starts a fresh timeline.
 
 Use **Back to …** above the inspector to return to the entity's properties, or select the entity again in the project hierarchy. Action requirements appear in the flow's **REQUIRES** input and stay in sync with the inspector, including checks such as carrying the brass key. Trigger conditions and exit visibility/traversability have their own inputs. **ALL** and **ANY** blocks use **+ / −** controls to add or remove checks. The arrow buttons in the inspector and playtest headers collapse each panel to a narrow bar; click the bar's arrow to reopen it. Collapsing preserves the selected content, playtest session, transcript, and pending command.
 
-The hierarchy's **Game data** group contains **Variables**, **Command vocabulary**, **Triggers**, and **Endings**. These entries open their editor and expand the inspector. Use **Command vocabulary** to edit verbs, synonyms, and ignored words. Use **Endings** to add, rename, or remove endings, edit their formatted messages and outcomes, and set **Require a reachable ending**. Choose an ending in an **END GAME** block to complete a playthrough. Renaming an ending preserves its existing block references. **Game settings** also provides an **Edit endings** shortcut.
+The hierarchy's **Game data** group contains **Variables**, **Command vocabulary**, **Triggers**, **Procedures**, and **Endings**. These entries open their editor and expand the inspector. Use **Command vocabulary** to edit verbs, synonyms, and ignored words. Use **Endings** to add, rename, or remove endings, edit their formatted messages and outcomes, and set **Require a reachable ending**. Choose an ending in an **END GAME** block to complete a playthrough. Renaming an ending preserves its existing block references. **Game settings** also provides an **Edit endings** shortcut.
 
 Endings default to **No outcome**. Leave that selected to finish with the ending's message alone, or choose victory, loss, or neutral to include an outcome line. All four choices complete the playthrough and preserve the ending in saves; loading a completed game keeps it completed.
 
@@ -94,11 +96,11 @@ Reserved controls are `look`, `inventory`, `help [entity]`, `hint [entity]`, `sa
 
 Choose **Entity help** in **Game settings** to control `help key`, `help the Keeper`, or `help Study`. Bare `help` always prints the game's general help. Names, aliases, and optional words such as `the` work as in other commands.
 
-| Mode | Player help |
-| --- | --- |
-| Off | General help only; entity command listings are disabled. |
+| Mode            | Player help                                                                                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Off             | General help only; entity command listings are disabled.                                                                                                 |
 | Basic (default) | Authored verbs and general command syntax, without other target names. Verbs remain listed regardless of puzzle requirements or other targets' presence. |
-| Full | Complete currently usable phrases, such as `give brass key to Keeper`, filtered by visibility, requirements, priority, and ambiguity. |
+| Full            | Complete currently usable phrases, such as `give brass key to Keeper`, filtered by visibility, requirements, priority, and ambiguity.                    |
 
 The **Playtest help** menu can override the mode for a test session after restarting that session. This keeps full command listings available for debugging while exported games retain their authored setting. Help never executes effects, advances responses, or changes saves.
 
@@ -125,12 +127,12 @@ The last command preserves saves. Adding `--delete-saves` explicitly deletes tha
 
 Default Linux locations follow XDG settings:
 
-| Content | Default location |
-| --- | --- |
-| Editor configuration | `~/.config/luna/editor.json` |
-| Runner configuration | `~/.config/luna/runner.toml` |
-| Installed games | `~/.local/share/luna/games/` |
-| Player saves | `~/.local/share/luna/saves/<game-id>/<content-version>/` |
+| Content              | Default location                                         |
+| -------------------- | -------------------------------------------------------- |
+| Editor configuration | `~/.config/luna/editor.json`                             |
+| Runner configuration | `~/.config/luna/runner.toml`                             |
+| Installed games      | `~/.local/share/luna/games/`                             |
+| Player saves         | `~/.local/share/luna/saves/<game-id>/<content-version>/` |
 
 The runner accepts `--config`, `--games-dir`, and `--saves-dir`. Command-line directory options override TOML configuration, which overrides defaults:
 
@@ -141,7 +143,7 @@ saves_dir = "/home/you/Saves/luna"
 
 One rolling autosave is updated after each completed state-changing command. Named slots are independent and have no small fixed limit. Names are case-sensitive trimmed labels, 1–80 characters long; path separators and control characters are rejected. `autosave` is reserved. Names never become storage paths.
 
-Saves require the exact game ID and content version. Replacing content under the same version preserves saves and warns about compatibility. Loading checks all saved references and types; valid states from changed content produce a warning. Content revisions are not automatically migrated. Format 1 saves load with empty hint history. New writes use save format 2 for content 1 and save format 3 for content 2–3. Parser questions and recent references are session-local and clear on successful load; they are not saved story progress. Corrupt saves are retained; overwriting a detected corrupt slot first preserves a separate recovery copy.
+Saves require the exact game ID and content version. Replacing content under the same version preserves saves and warns about compatibility. Loading checks all saved references and types; valid states from changed content produce a warning. Content revisions are not automatically migrated. Format 1 saves load with empty hint history. New writes use save format 2 for content 1, save format 3 for content 2–3, and save format 4 for content 4. Procedure reply progress is saved separately for each call path and restores without replaying effects. Parser questions and recent references are session-local and clear on successful load; they are not saved story progress. Corrupt saves are retained; overwriting a detected corrupt slot first preserves a separate recovery copy.
 
 `--color auto|always|never` controls terminal colours. Automatic mode requires a terminal and respects a non-empty `NO_COLOR`. Piped output is plain by default. The sixteen supported foreground colours are semantic markup; no terminal escapes are stored in project output or player state.
 

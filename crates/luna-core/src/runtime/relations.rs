@@ -21,11 +21,22 @@ pub(super) struct Relation {
 }
 
 impl<'a> Run<'a> {
-    pub(super) fn object_target<'b>(&'b self, target: &'b ObjectTarget) -> Option<&'b str> {
+    pub(super) fn object_reference<'b>(
+        &'b self,
+        target: &'b ObjectTarget,
+    ) -> anyhow::Result<&'b str> {
         match target {
-            ObjectTarget::Fixed(id) => Some(id),
-            ObjectTarget::Input { .. } => self.item_input,
+            ObjectTarget::Fixed(id) => Ok(id),
+            ObjectTarget::Input { .. } => self
+                .item_input
+                .ok_or_else(|| anyhow::anyhow!("Command item is not bound")),
+            ObjectTarget::ProcedureInput { procedure_input } => {
+                self.local(procedure_input)?.entity()
+            }
         }
+    }
+    pub(super) fn object_target<'b>(&'b self, target: &'b ObjectTarget) -> Option<&'b str> {
+        self.object_reference(target).ok()
     }
     fn direct_relation(&self, index: usize) -> Option<Relation> {
         let object = self.state.objects.get(&self.p.objects[index].id)?;

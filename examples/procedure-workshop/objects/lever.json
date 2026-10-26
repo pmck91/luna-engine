@@ -1,0 +1,60 @@
+{
+  "id": "lever",
+  "name": "Lever",
+  "aliases": [],
+  "description": "A workshop lever.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "hints": [],
+  "triggers": [],
+  "actions": [
+    {
+      "id": "lever-action",
+      "name": "Lever reward",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "lever"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "lever-award",
+          "procedure": "award",
+          "arguments": {
+            "recipient": {
+              "type": "entity",
+              "kind": "character",
+              "id": "keeper"
+            },
+            "amount": {
+              "type": "literal",
+              "value": 2
+            },
+            "note": {
+              "type": "literal",
+              "value": "shared"
+            },
+            "reset": {
+              "type": "literal",
+              "value": false
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

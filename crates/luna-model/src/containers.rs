@@ -8,13 +8,14 @@ use std::collections::{HashMap, HashSet};
 #[serde(deny_unknown_fields)]
 pub enum ObjectTarget {
     Fixed(String),
+    ProcedureInput { procedure_input: String },
     Input { input: ObjectInput },
 }
 impl ObjectTarget {
     pub fn fixed(&self) -> Option<&str> {
         match self {
             Self::Fixed(id) => Some(id),
-            Self::Input { .. } => None,
+            Self::Input { .. } | Self::ProcedureInput { .. } => None,
         }
     }
     pub fn command_item() -> Self {
@@ -112,7 +113,9 @@ pub struct StandardAction {
 #[serde(deny_unknown_fields)]
 pub enum InputTextReference {
     ItemName,
-    EntityName { entity: String },
+    EntityName { entity: EntityRef },
+    ProcedureInput { input: String },
+    ProcedureProperty { input: String, name: String },
 }
 
 /// Find cycles iteratively, in linear time, without following Rust's call stack.
@@ -150,6 +153,9 @@ impl Project {
     /// content and saved editor setups/templates. This does not upgrade content
     /// or perform semantic validation; saving unfinished authoring is supported.
     pub fn minimum_format(&self) -> u32 {
+        if self.requires_procedure_format() {
+            return 4;
+        }
         if self.game.command_assistance.is_some() {
             return 3;
         }
@@ -282,7 +288,10 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
         entity: owner.clone(),
     };
     let lit = |text: &str| PatternPart::Literal { text: text.into() };
-    let transfer = |object, placement| Effect::Transfer { object, placement };
+    let transfer = |object, placement: Placement| Effect::Transfer {
+        object,
+        placement: placement.into(),
+    };
     let inside = Placement::Inside {
         object: owner.clone(),
     };
@@ -295,12 +304,12 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
             "Open",
             Condition::Not {
                 condition: Box::new(Condition::Opened {
-                    object: owner.clone(),
+                    object: owner.clone().into(),
                 }),
             },
             vec![
                 Effect::Open {
-                    object: owner.clone(),
+                    object: owner.clone().into(),
                 },
                 Effect::Say {
                     text: "Opened.".into(),
@@ -311,11 +320,11 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
         StandardInteraction::Close => (
             "Close",
             Condition::Opened {
-                object: owner.clone(),
+                object: owner.clone().into(),
             },
             vec![
                 Effect::Close {
-                    object: owner.clone(),
+                    object: owner.clone().into(),
                 },
                 Effect::Say {
                     text: "Closed.".into(),
@@ -326,10 +335,10 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
         StandardInteraction::LookInside => (
             "Look inside",
             Condition::Opened {
-                object: owner.clone(),
+                object: owner.clone().into(),
             },
             vec![Effect::ListContents {
-                object: owner.clone(),
+                object: owner.clone().into(),
                 relation: ContentRelation::Inside,
             }],
             "It is closed.",
@@ -350,7 +359,7 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
                 },
                 Condition::CanTransfer {
                     object: item(),
-                    placement: placement.clone(),
+                    placement: placement.clone().into(),
                 },
                 vec![transfer(item(), placement)],
                 "You cannot put that there.",
@@ -364,7 +373,7 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
                     conditions: vec![
                         Condition::CanTransfer {
                             object: item(),
-                            placement: Placement::Inventory,
+                            placement: Placement::Inventory.into(),
                         },
                         Condition::Any {
                             conditions: vec![ContentRelation::Inside, ContentRelation::On]
@@ -379,7 +388,7 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
                                 })
                                 .map(|relation| Condition::InObject {
                                     object: item(),
-                                    parent: owner.clone(),
+                                    parent: owner.clone().into(),
                                     relation,
                                 })
                                 .collect(),
@@ -394,7 +403,7 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
             "Take",
             Condition::CanTransfer {
                 object: fixed(),
-                placement: Placement::Inventory,
+                placement: Placement::Inventory.into(),
             },
             vec![transfer(fixed(), Placement::Inventory)],
             "You cannot take that.",
@@ -407,7 +416,7 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
                 "Drop",
                 Condition::CanTransfer {
                     object: fixed(),
-                    placement: placement.clone(),
+                    placement: placement.clone().into(),
                 },
                 vec![transfer(fixed(), placement)],
                 "You are not carrying that.",
@@ -442,7 +451,7 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
                 InputTextReference::ItemName
             } else {
                 InputTextReference::EntityName {
-                    entity: owner.clone(),
+                    entity: owner.clone().into(),
                 }
             },
         )]);
@@ -453,7 +462,7 @@ pub fn standard_action(object: &Object, interaction: StandardInteraction, verb: 
             references.insert(
                 holder_key.clone(),
                 InputTextReference::EntityName {
-                    entity: owner.clone(),
+                    entity: owner.clone().into(),
                 },
             );
         }

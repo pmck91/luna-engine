@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { EditorPreferences, PanelLayout, Project } from './contracts';
 import type { HintSelection } from './HintBlocks';
-import { entity, flow, gameDataPages, owner } from './model';
+import { entity, flow, script, gameDataPages, owner } from './model';
 import type { ReferenceSite } from './references';
 export const defaultLayout: PanelLayout = {
   hierarchy_width: 220,
@@ -13,7 +13,7 @@ export const defaultLayout: PanelLayout = {
 };
 export type SavedNavigation = {
   selected: string;
-  mode: 'map' | 'actions' | 'hints' | 'triggers' | 'contents';
+  mode: 'map' | 'actions' | 'hints' | 'triggers' | 'contents' | 'procedures';
   search: string;
   triggerFilter: string;
   flowSelections: Record<string, string>;
@@ -25,7 +25,7 @@ export type SavedNavigation = {
 export function restoredNavigation(project: Project, raw: unknown): SavedNavigation {
   const valid = (id: string) =>
     !!owner(project, id) ||
-    !!flow(project, id) ||
+    !!script(project, id) ||
     project.game.endings.some((e) => e.id === id) ||
     Object.values(gameDataPages).includes(id as any);
   const saved = (raw && typeof raw === 'object' ? raw : {}) as Partial<SavedNavigation>;
@@ -54,7 +54,8 @@ export function restoredNavigation(project: Project, raw: unknown): SavedNavigat
   return {
     selected,
     mode:
-      saved.mode && ['map', 'actions', 'hints', 'triggers', 'contents'].includes(saved.mode)
+      saved.mode &&
+      ['map', 'actions', 'hints', 'triggers', 'contents', 'procedures'].includes(saved.mode)
         ? saved.mode
         : 'map',
     search: typeof saved.search === 'string' ? saved.search : '',
@@ -68,9 +69,9 @@ export function restoredNavigation(project: Project, raw: unknown): SavedNavigat
       ),
     ),
     flowBreadcrumb:
-      saved.flowBreadcrumb && flow(project, saved.flowBreadcrumb) ? saved.flowBreadcrumb : '',
+      saved.flowBreadcrumb && script(project, saved.flowBreadcrumb) ? saved.flowBreadcrumb : '',
     selectedBlocks: Object.fromEntries(
-      Object.entries(strings(saved.selectedBlocks)).filter(([id]) => flow(project, id)),
+      Object.entries(strings(saved.selectedBlocks)).filter(([id]) => script(project, id)),
     ),
     hintSelection,
     fieldSelection:

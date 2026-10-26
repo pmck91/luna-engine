@@ -116,7 +116,7 @@ impl<'a> Run<'a> {
                     &action.requirements,
                     self.source_for(&action.id, "requirements"),
                     "Action requirements",
-                ) {
+                )? {
                     self.result.status = CommandStatus::RequirementsFailed;
                     self.say(if action.failure_text.is_empty() {
                         "You cannot do that yet."
@@ -125,7 +125,7 @@ impl<'a> Run<'a> {
                     })?;
                     return Ok(());
                 }
-                self.effects_at(&action.effects, self.source_for(&action.id, "effects"))?;
+                self.flow_effects(&action.id, &action.effects)?;
                 if self.state.ending.is_none() {
                     if let Some(event) = self.verb(&action.verb).and_then(|v| v.event) {
                         let target = if action.standard.as_ref().is_some_and(|s| {
@@ -154,7 +154,7 @@ impl<'a> Run<'a> {
                     &exit.available,
                     self.source_for(&exit.id, "available"),
                     "Exit availability",
-                ) {
+                )? {
                     self.result.status = CommandStatus::RequirementsFailed;
                     self.say(if exit.blocked_text.is_empty() {
                         "That route is not available yet."
@@ -164,7 +164,7 @@ impl<'a> Run<'a> {
                     return Ok(());
                 }
                 self.say(&exit.text)?;
-                let flow = self.effects_at(&exit.effects, self.source_for(&exit.id, "effects"))?;
+                let flow = self.flow_effects(&exit.id, &exit.effects)?;
                 if flow == Flow::Continue {
                     self.traced(
                         TraceKind::Notice {

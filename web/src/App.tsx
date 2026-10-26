@@ -1,3 +1,7 @@
+import Procedures, { ProcedureInspector } from './Procedures';
+import { ProcedureScope } from './ProcedureScope';
+import { procedure } from './procedureModel';
+import { setCallDefinition } from './procedureEditing';
 import {
   Fragment,
   useCallback,
@@ -12,7 +16,6 @@ import type {
   CheckStart,
   Diagnostic,
   DiskView,
-  GameState,
   HelpMode,
   PlaytestView,
   PlaytestSetup,
@@ -26,6 +29,7 @@ import {
   character,
   action as makeAction,
   flow,
+  script,
   flowOwner,
   gameDataPages,
   owner,
@@ -33,7 +37,7 @@ import {
   object as makeObject,
 } from './model';
 import { lockedStudy } from './example';
-import { Check, Field, StateInspector, Text } from './Forms';
+import { Check, StateInspector, Text } from './Forms';
 import Inspector from './Inspector';
 import WorldMap from './WorldMap';
 import type { BlockSelection, BlockView, BlocksHandle } from './Blocks';
@@ -97,8 +101,19 @@ export default function App() {
   const [newTutorial, setNewTutorial] = useState(false);
   const [playtestFocused, setPlaytestFocused] = useState(false);
   const flushPreferences = useRef<(() => void) | null>(null);
-  const [mode, setMode] = useState<'map' | 'actions' | 'hints' | 'triggers' | 'contents'>('map');
+  const [mode, setMode] = useState<
+    'map' | 'actions' | 'hints' | 'triggers' | 'contents' | 'procedures'
+  >('map');
   const [containerSetup, setContainerSetup] = useState<string | null>(null);
+  const [procedureReturns, setProcedureReturns] = useState<
+    Array<{
+      definition: string;
+      scriptId: string;
+      blockId: string;
+      name: string;
+      selection: BlockSelection;
+    }>
+  >([]);
   const [triggerFilter, setTriggerFilter] = useState('');
   const [flowSelections, setFlowSelections] = useState<Record<string, string>>({});
   const [flowBreadcrumb, setFlowBreadcrumb] = useState('');
@@ -162,8 +177,8 @@ export default function App() {
   const [playSource, setPlaySource] = useState('');
   const [playHelpMode, setPlayHelpMode] = useState<HelpMode | ''>('');
   const [playProject, setPlayProject] = useState<Project | null>(null);
-  const current = useRef({ doc, view, conflict, selected });
-  current.current = { doc, view, conflict, selected };
+  const current = useRef({ doc, view, conflict, selected, procedureReturns });
+  current.current = { doc, view, conflict, selected, procedureReturns };
   const saved = useRef('');
   const projectHistory = useRef(new ProjectHistory());
   const [, refreshHistory] = useState(0);
@@ -255,6 +270,7 @@ export default function App() {
     setComparison(null);
     setMessage('');
     setStatus('Saved');
+    setProcedureReturns([]);
     setPlay(null);
     setExplanationRecord(null);
     setExplanationFocus(null);
@@ -340,24 +356,48 @@ export default function App() {
     if (
       !owner(next, key) &&
       !flow(next, key) &&
+      !procedure(next, key) &&
       !Object.values(gameDataPages).some((page) => page === key)
     ) {
-      const parent = previous && flowOwner(previous, key);
-      const entity = previous && owner(previous, key);
-      const room =
-        entity && 'placement' in entity && entity.placement.type === 'location'
-          ? entity.placement.location
-          : entity && 'location' in entity
-            ? entity.location
-            : undefined;
-      setSelected(
-        parent && owner(next, parent.id)
-          ? parent.id
-          : room && owner(next, room)
-            ? room
-            : next.game.id,
-      );
-      setMode('map');
+      const caller = current.current.procedureReturns
+        .slice()
+        .reverse()
+        .find((frame) => frame.definition === key && script(next, frame.scriptId));
+      if (caller) {
+        setSelected(caller.scriptId);
+        setFlowBreadcrumb(caller.scriptId);
+        const target = flow(next, caller.scriptId);
+        setMode(
+          procedure(next, caller.scriptId)
+            ? 'procedures'
+            : target && 'event' in target
+              ? 'triggers'
+              : 'actions',
+        );
+        if (target && 'event' in target) setTriggerFilter(flowOwner(next, target.id)?.id ?? '');
+        setBlockSelections((old) => ({ ...old, [caller.scriptId]: caller.selection }));
+        setProcedureReturns((old) => old.filter((frame) => frame.definition !== key));
+      } else if (previous && procedure(previous, key)) {
+        setSelected(gameDataPages.procedures);
+        setMode('procedures');
+      } else {
+        const parent = previous && flowOwner(previous, key);
+        const entity = previous && owner(previous, key);
+        const room =
+          entity && 'placement' in entity && entity.placement.type === 'location'
+            ? entity.placement.location
+            : entity && 'location' in entity
+              ? entity.location
+              : undefined;
+        setSelected(
+          parent && owner(next, parent.id)
+            ? parent.id
+            : room && owner(next, room)
+              ? room
+              : next.game.id,
+        );
+        setMode('map');
+      }
     }
     setDoc(next);
     setStatus(
@@ -392,6 +432,14 @@ export default function App() {
     setPlaytestFocused(false);
     const project = current.current.doc;
     setFlowBreadcrumb('');
+    if (key === gameDataPages.procedures || (project && procedure(project, key))) {
+      setSelected(key);
+      setMode('procedures');
+      setConnecting(false);
+      setInspectorCollapsed(false);
+      setFlowBreadcrumb(key === gameDataPages.procedures ? '' : key);
+      return;
+    }
     if (key === gameDataPages.triggers || key.startsWith(triggerPage())) {
       setSelected(gameDataPages.triggers);
       setTriggerFilter(key === gameDataPages.triggers ? '' : key.slice(triggerPage().length));
@@ -426,6 +474,7 @@ export default function App() {
       }
     } else if (
       mode === 'triggers' ||
+      mode === 'procedures' ||
       (mode === 'contents' &&
         !project?.objects.find((o) => o.id === key && (o.storage?.container || o.storage?.surface)))
     ) {
@@ -670,9 +719,11 @@ export default function App() {
   };
   const remove = (key: string) => {
     if (!doc) return;
-    const target: ReferenceTarget = flow(doc, key)
-      ? { kind: 'flow', id: key }
-      : { kind: 'entity', id: key };
+    const target: ReferenceTarget = procedure(doc, key)
+      ? { kind: 'procedure', id: key }
+      : flow(doc, key)
+        ? { kind: 'flow', id: key }
+        : { kind: 'entity', id: key };
     if (usedBy(doc, target).length) {
       setReferenceRequest({ target, action: 'delete' });
       return;
@@ -684,10 +735,12 @@ export default function App() {
       if (result.errors.length) throw new Error(result.errors.join(' '));
       Object.assign(p, result.project);
     });
-    setSelected(parent?.id ?? doc?.game.id ?? '');
+    if (target.kind === 'procedure') select(gameDataPages.procedures);
+    else setSelected(parent?.id ?? doc?.game.id ?? '');
   };
   const reveal = (site: ReferenceSite) => {
     if (!doc) return;
+    if (site.procedureId) site = { ...site, flowId: site.procedureId };
     if (site.setupId || site.checkId) {
       setShowDiagnostics(false);
       setPlaytestTools({ setupId: site.setupId, checkId: site.checkId });
@@ -768,6 +821,7 @@ export default function App() {
       error(e);
     }
   };
+  const activeProcedure = doc ? procedure(doc, selected) : undefined;
   const activeFlow = doc && flow(doc, selected);
   const creationRoom = doc ? authoringRoom(doc, selected) : '';
   const creationRoomName =
@@ -799,10 +853,11 @@ export default function App() {
         ? projectTriggers(doc).find((item) => !triggerFilter || item.ownerId === triggerFilter)
             ?.trigger
         : undefined;
-  const inspectedFlow = mode === 'triggers' ? activeTrigger : activeFlow;
+  const inspectedFlow =
+    mode === 'procedures' ? activeProcedure : mode === 'triggers' ? activeTrigger : activeFlow;
   const inspectedOwner = doc && inspectedFlow ? flowOwner(doc, inspectedFlow.id) : actionOwner;
   const inspectedBlock =
-    (mode === 'actions' || mode === 'triggers') &&
+    (mode === 'actions' || mode === 'triggers' || mode === 'procedures') &&
     inspectedFlow &&
     blockSelections[inspectedFlow.id]?.kind !== 'root'
       ? blockSelections[inspectedFlow.id]
@@ -826,6 +881,57 @@ export default function App() {
     )
       setTriggerFilter(actionOwner.id);
   }, [mode, activeFlow, actionOwner, triggerFilter]);
+  const openDefinition = (id: string, from = inspectedBlock) => {
+    if (from)
+      setProcedureReturns((old) => [
+        ...old.slice(-30),
+        {
+          definition: id,
+          scriptId: from.flowId,
+          blockId: from.blockId,
+          selection: structuredClone(from),
+          name:
+            (doc && (flow(doc, from.flowId)?.name || procedure(doc, from.flowId)?.name)) ||
+            'caller',
+        },
+      ]);
+    blocks.current?.selectBlock(null);
+    setBlockSelections((old) => {
+      const next = { ...old };
+      delete next[id];
+      return next;
+    });
+    select(id);
+  };
+  const returnToCaller = () => {
+    const frame = procedureReturns.at(-1);
+    if (!frame) return;
+    setProcedureReturns((old) => old.slice(0, -1));
+    select(frame.scriptId);
+    setBlockSelections((old) => ({
+      ...old,
+      [frame.scriptId]: { ...frame.selection, flowId: frame.scriptId, blockId: frame.blockId },
+    }));
+  };
+  const createDefinition = () => {
+    if (!inspectedBlock || inspectedBlock.value?.type !== 'call') return;
+    const call = inspectedBlock.value;
+    const definition = {
+      id: crypto.randomUUID(),
+      name: 'New procedure',
+      description: '',
+      inputs: [],
+      effects: [],
+    };
+    edit(
+      (p) => {
+        (p.procedures ??= []).push(definition);
+        setCallDefinition(p, inspectedBlock.flowId, inspectedBlock.blockId, call.id, definition.id);
+      },
+      { label: 'Create procedure for call' },
+    );
+    openDefinition(definition.id);
+  };
   const navigationKey = JSON.stringify([
     selected,
     mode,
@@ -942,6 +1048,7 @@ export default function App() {
       flowBreadcrumb,
       blockSelections,
       fieldSelection,
+      procedureReturns,
     },
     (entry) => {
       setSelected(entry.selected);
@@ -952,6 +1059,7 @@ export default function App() {
       setFlowSelections(entry.flowSelections);
       setFlowBreadcrumb(entry.flowBreadcrumb);
       setBlockSelections(entry.blockSelections);
+      setProcedureReturns(entry.procedureReturns);
       setFieldSelection(entry.fieldSelection);
       setRevealTarget(entry.fieldSelection);
       setConnecting(false);
@@ -1407,14 +1515,16 @@ export default function App() {
                   { id: gameDataPages.variables, name: 'Variables', icon: '◈' },
                   { id: gameDataPages.vocabulary, name: 'Command vocabulary', icon: '⌘' },
                   { id: gameDataPages.triggers, name: 'Triggers', icon: '⚡' },
+                  { id: gameDataPages.procedures, name: 'Procedures', icon: 'ƒ' },
                   { id: gameDataPages.endings, name: 'Endings', icon: '⚑' },
                 ].map((item) => (
                   <button
                     key={item.id}
-                    className={`tree-item ${selected === item.id || (item.id === gameDataPages.triggers && mode === 'triggers') ? 'active' : ''}`}
+                    className={`tree-item ${selected === item.id || (item.id === gameDataPages.triggers && mode === 'triggers') || (item.id === gameDataPages.procedures && mode === 'procedures') ? 'active' : ''}`}
                     aria-current={
                       selected === item.id ||
-                      (item.id === gameDataPages.triggers && mode === 'triggers')
+                      (item.id === gameDataPages.triggers && mode === 'triggers') ||
+                      (item.id === gameDataPages.procedures && mode === 'procedures')
                         ? 'page'
                         : undefined
                     }
@@ -1605,9 +1715,11 @@ export default function App() {
                       ? 'Hints'
                       : mode === 'contents'
                         ? 'Contents'
-                        : mode === 'triggers'
-                          ? 'Triggers'
-                          : 'Actions'}
+                        : mode === 'procedures'
+                          ? 'Procedures'
+                          : mode === 'triggers'
+                            ? 'Triggers'
+                            : 'Actions'}
                 </span>
                 {breadcrumbFlow && (
                   <>
@@ -1642,7 +1754,13 @@ export default function App() {
               </nav>
               <div className="canvas-toolbar">
                 <div className="tabs">
-                  <button className={mode === 'map' ? 'active' : ''} onClick={() => setMode('map')}>
+                  <button
+                    className={mode === 'map' ? 'active' : ''}
+                    onClick={() => {
+                      if (mode === 'procedures') select(doc.game.id);
+                      setMode('map');
+                    }}
+                  >
                     World map
                   </button>
                   <button
@@ -1720,19 +1838,46 @@ export default function App() {
                     ? connecting
                       ? 'Click a source room, then a target room · Esc cancels'
                       : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
-                    : mode === 'hints'
-                      ? 'Author progressive clues and optional solutions'
-                      : mode === 'triggers'
-                        ? 'Command, state, and value triggers'
-                        : mode === 'contents'
-                          ? 'Arrange initial contents and set up interactions'
-                          : actionOwner
-                            ? 'Choose an action or exit, then build its logic'
-                            : 'Select an object, location, or character'}
+                    : mode === 'procedures'
+                      ? 'Shared definitions with typed local inputs'
+                      : mode === 'hints'
+                        ? 'Author progressive clues and optional solutions'
+                        : mode === 'triggers'
+                          ? 'Command, state, and value triggers'
+                          : mode === 'contents'
+                            ? 'Arrange initial contents and set up interactions'
+                            : actionOwner
+                              ? 'Choose an action or exit, then build its logic'
+                              : 'Select an object, location, or character'}
                 </span>
               </div>
+              {mode === 'procedures' &&
+                activeProcedure &&
+                procedureReturns.at(-1)?.definition === activeProcedure.id && (
+                  <div className="procedure-return">
+                    <button
+                      disabled={!script(doc, procedureReturns.at(-1)!.scriptId)}
+                      onClick={returnToCaller}
+                    >
+                      ← Return to {procedureReturns.at(-1)!.name} → CALL
+                    </button>
+                  </div>
+                )}
               <div className="canvas">
-                {mode === 'contents' && storageOwner ? (
+                {mode === 'procedures' ? (
+                  <Procedures
+                    project={doc}
+                    active={activeProcedure}
+                    edit={edit}
+                    select={select}
+                    blocksRef={blocks}
+                    selectedBlock={activeProcedure && blockSelections[activeProcedure.id]?.blockId}
+                    onBlockSelect={selectBlock}
+                    blockViews={blockViews}
+                    history={historyControls}
+                    error={error}
+                  />
+                ) : mode === 'contents' && storageOwner ? (
                   <Contents
                     key={storageOwner.id}
                     project={doc}
@@ -2054,7 +2199,14 @@ export default function App() {
           >
             <div className="inspector-toolbar">
               {!inspectorHidden &&
-                (mode === 'hints' && hintOwner ? (
+                (mode === 'procedures' ? (
+                  <button
+                    className="inspector-back"
+                    onClick={() => select(gameDataPages.procedures)}
+                  >
+                    ← Procedures
+                  </button>
+                ) : mode === 'hints' && hintOwner ? (
                   <button
                     className="inspector-back"
                     onClick={() => {
@@ -2142,7 +2294,24 @@ export default function App() {
                     }
                   />
                 )}
-                {mode === 'hints' && hintOwner ? (
+                {mode === 'procedures' && !inspectedBlock ? (
+                  activeProcedure ? (
+                    <ProcedureInspector
+                      key={activeProcedure.id}
+                      project={doc}
+                      definition={activeProcedure}
+                      edit={edit}
+                      select={select}
+                      reveal={reveal}
+                      remove={() => remove(activeProcedure.id)}
+                    />
+                  ) : (
+                    <>
+                      <h2>Procedures</h2>
+                      <p>Select or add a procedure to edit its inputs and shared effects.</p>
+                    </>
+                  )
+                ) : mode === 'hints' && hintOwner ? (
                   <HintInspector
                     project={doc}
                     ownerId={hintOwner.id}
@@ -2159,6 +2328,8 @@ export default function App() {
                   <BlockInspector
                     project={doc}
                     selection={inspectedBlock}
+                    openDefinition={openDefinition}
+                    createDefinition={createDefinition}
                     help={() => setHelpTopic('blocks')}
                     change={(selection, value) =>
                       blocks.current?.updateBlock(
@@ -2485,53 +2656,69 @@ export default function App() {
         } else setReferenceRequest(reference);
       }}
     >
-      <ExplanationFocus.Provider value={traceTarget}>
-        <FindingContext.Provider value={{ findings: diagnostics, reveal: revealTarget }}>
-          <ReferenceCreation
-            project={doc}
-            edit={edit}
-            reserved={config?.reserved ?? []}
-            transact={(label, change) => {
-              const previous = creationTransaction.current;
-              const before = current.current.doc;
-              const context = { group: crypto.randomUUID(), label };
-              creationTransaction.current = context;
-              try {
-                change();
-                const after = current.current.doc;
-                current.current.doc = before;
-                creationTransaction.current = previous;
-                if (after && after !== before)
-                  edit((project) => Object.assign(project, after), context);
-              } catch (error) {
-                current.current.doc = before;
-                throw error;
-              } finally {
-                creationTransaction.current = previous;
+      <ProcedureScope.Provider
+        value={
+          doc
+            ? {
+                project: doc,
+                procedure: mode === 'procedures' ? activeProcedure : undefined,
+                scriptId: inspectedFlow?.id ?? '',
               }
-            }}
-          >
-            {editor}
-            {doc && referenceRequest && (
-              <ReferenceManager
-                key={JSON.stringify(referenceRequest)}
-                project={doc}
-                request={referenceRequest}
-                close={() => setReferenceRequest(null)}
-                edit={edit}
-                reveal={reveal}
-                removed={(target) => {
-                  if (
-                    'id' in target &&
-                    (selected === target.id || flowOwner(doc, selected)?.id === target.id)
-                  )
-                    select(flowOwner(doc, target.id)?.id ?? doc.game.id);
-                }}
-              />
-            )}
-          </ReferenceCreation>
-        </FindingContext.Provider>
-      </ExplanationFocus.Provider>
+            : null
+        }
+      >
+        <ExplanationFocus.Provider value={traceTarget}>
+          <FindingContext.Provider value={{ findings: diagnostics, reveal: revealTarget }}>
+            <ReferenceCreation
+              project={doc}
+              edit={edit}
+              reserved={config?.reserved ?? []}
+              transact={(label, change) => {
+                const previous = creationTransaction.current;
+                const before = current.current.doc;
+                const context = { group: crypto.randomUUID(), label };
+                creationTransaction.current = context;
+                try {
+                  change();
+                  const after = current.current.doc;
+                  current.current.doc = before;
+                  creationTransaction.current = previous;
+                  if (after && after !== before)
+                    edit((project) => Object.assign(project, after), context);
+                } catch (error) {
+                  current.current.doc = before;
+                  throw error;
+                } finally {
+                  creationTransaction.current = previous;
+                }
+              }}
+            >
+              {editor}
+              {doc && referenceRequest && (
+                <ReferenceManager
+                  key={JSON.stringify(referenceRequest)}
+                  project={doc}
+                  request={referenceRequest}
+                  close={() => setReferenceRequest(null)}
+                  edit={edit}
+                  reveal={reveal}
+                  removed={(target) => {
+                    if (
+                      'id' in target &&
+                      (selected === target.id || flowOwner(doc, selected)?.id === target.id)
+                    )
+                      select(
+                        target.kind === 'procedure'
+                          ? gameDataPages.procedures
+                          : (flowOwner(doc, target.id)?.id ?? doc.game.id),
+                      );
+                  }}
+                />
+              )}
+            </ReferenceCreation>
+          </FindingContext.Provider>
+        </ExplanationFocus.Provider>
+      </ProcedureScope.Provider>
     </ReferenceActions.Provider>
   );
 }

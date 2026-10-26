@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import * as Blockly from 'blockly/core';
 import type { Effect, Project } from './contracts';
 import { lockedStudy } from './example';
+import { inputLabel } from './procedureModel';
 import {
   blockAddresses,
+  remapPastedCalls,
   canMoveEffect,
   moveEffectBlock,
   describeBlock,
@@ -263,4 +265,141 @@ it('inserts into branches and typed inputs, retaining replaced conditions and nu
   expect(restored.getBlockById(inserted.id)?.getNextBlock()?.id).toBe(last.id);
   ws.dispose();
   restored.dispose();
+});
+
+describe('canonical procedure nodes', () => {
+  it('preserves typed calls, assignments, comparisons, input operands and bound messages through reload', () => {
+    const p = structuredClone(base);
+    p.game.format_version = 4;
+    p.procedures = [
+      {
+        id: 'reward',
+        name: 'Award coins',
+        description: '',
+        inputs: [{ id: 'amount-id', name: 'Amount', kind: 'integer', required_properties: {} }],
+        effects: [],
+      },
+    ];
+    const effects: Effect[] = [
+      {
+        type: 'call',
+        id: 'call-id',
+        procedure: 'reward',
+        arguments: { 'amount-id': { type: 'literal', value: 5 } },
+      },
+      { type: 'print_description', entity: { procedure_input: 'object-id' } },
+      {
+        type: 'transfer',
+        object: { procedure_input: 'object-id' },
+        placement: { type: 'inside', object: { procedure_input: 'holder-id' } },
+      },
+      {
+        type: 'assign',
+        target: { type: 'variable', name: 'score' },
+        value: { type: 'input', input: 'amount-id' },
+      },
+      {
+        type: 'if',
+        condition: {
+          type: 'compare',
+          left: { type: 'input', input: 'amount-id' },
+          op: 'gt',
+          right: { type: 'literal', value: 0 },
+        },
+        then: [
+          {
+            type: 'say',
+            text: {
+              text: 'You gain %amount%.',
+              references: { amount: { type: 'procedure_input', input: 'amount-id' } },
+            },
+          },
+        ],
+        otherwise: [],
+      },
+      {
+        type: 'update_variable',
+        name: 'score',
+        op: 'add',
+        operand: { type: 'input', input: 'amount-id' },
+      },
+      {
+        type: 'respond',
+        id: 'replies',
+        mode: 'loop',
+        exhaustion: 'once',
+        responses: [
+          {
+            text: '%amount%',
+            references: { amount: { type: 'procedure_input', input: 'amount-id' } },
+          },
+        ],
+        fallback: '',
+        on_exhausted: [],
+      },
+    ];
+    registerBlocks(p);
+    const ws = new Blockly.Workspace();
+    const root = loadEffectBlocks(ws, effects);
+    expect(root.getInputTargetBlock('DO')?.getFieldValue('procedure')).toBe('reward');
+    expect(root.getInputTargetBlock('DO')?.getFieldValue('ARG_amount-id')).toBe(5);
+    expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
+    const say = ws.getAllBlocks(false).find((block) => block.type === 'luna_say')!;
+    say.setFieldValue('Reward: %amount%.', 'text');
+    const edited = readEffects(root.getInputTargetBlock('DO'));
+    expect(edited[4]).toMatchObject({
+      then: [
+        { text: { text: 'Reward: %amount%.', references: { amount: { input: 'amount-id' } } } },
+      ],
+    });
+    const serialized = Blockly.serialization.workspaces.save(ws);
+    const reloaded = new Blockly.Workspace();
+    Blockly.serialization.workspaces.load(serialized, reloaded);
+    expect(readEffects(reloaded.getTopBlocks(false)[0].getInputTargetBlock('DO'))).toEqual(edited);
+    reloaded.dispose();
+    ws.dispose();
+  });
+});
+
+it('remaps nested CALL identities on every paste without changing normal reload identity', () => {
+  const effects: Effect[] = [
+    {
+      type: 'if',
+      condition: { type: 'true' },
+      then: [{ type: 'call', id: 'inner', procedure: 'award', arguments: {} }],
+      otherwise: [],
+    },
+    { type: 'call', id: 'outer', procedure: 'award', arguments: {} },
+  ];
+  const { ws, root } = workspace(effects);
+  const original = Blockly.serialization.blocks.save(root.getInputTargetBlock('DO')!)!;
+  const target = new Blockly.Workspace();
+  const first = readEffects(
+    Blockly.serialization.blocks.append(remapPastedCalls(original), target),
+  );
+  const second = readEffects(
+    Blockly.serialization.blocks.append(remapPastedCalls(original), target),
+  );
+  expect(first).not.toEqual(second);
+  expect(first[0]).toMatchObject({ then: [{ type: 'call', procedure: 'award', arguments: {} }] });
+  expect(first[1]).not.toMatchObject({ id: 'outer' });
+  expect(first[0]).not.toMatchObject({ then: [{ id: 'inner' }] });
+  expect(readEffects(Blockly.serialization.blocks.append(original, target))).toEqual(effects);
+  target.dispose();
+  ws.dispose();
+});
+
+it('resolves imported input display names only in their declaration scope', () => {
+  const project = structuredClone(base);
+  project.procedures = ['First', 'Second'].map((name) => ({
+    id: name,
+    name,
+    description: '',
+    inputs: [
+      { id: 'same-local-id', name: `${name} input`, kind: 'integer', required_properties: {} },
+    ],
+    effects: [],
+  }));
+  expect(inputLabel(project, 'same-local-id', 'Second')).toBe('Second input');
+  expect(inputLabel(project, 'same-local-id')).toBe('same-local-id');
 });

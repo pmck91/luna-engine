@@ -391,3 +391,29 @@ describe('saved block templates', () => {
     ws.dispose();
   });
 });
+
+it('copies CALL occurrences with fresh identity while retaining the shared definition and stable inputs', () => {
+  const p = project();
+  const template = makeTemplate(p, 'Call reward', p.objects[0].id, {
+    type: 'effects',
+    effects: [
+      {
+        type: 'call',
+        id: 'original-call',
+        procedure: 'award',
+        arguments: { 'amount-input': { type: 'literal', value: 5 } },
+      },
+    ],
+  });
+  const first = instantiateTemplate(template, {});
+  const second = instantiateTemplate(template, {});
+  expect(first.type).toBe('effects');
+  if (first.type !== 'effects' || second.type !== 'effects') throw new Error('Expected effects');
+  expect(first.effects[0]).toMatchObject({
+    type: 'call',
+    procedure: 'award',
+    arguments: { 'amount-input': { type: 'literal', value: 5 } },
+  });
+  expect(first.effects[0]).not.toEqual(second.effects[0]);
+  expect(first.effects[0]).not.toMatchObject({ id: 'original-call' });
+});

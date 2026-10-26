@@ -93,6 +93,16 @@ Parser assistance has a separate paired production benchmark: `cargo bench -p lu
 
 The current tradeoffs are deliberate: immutable indexes add initialization work and retained data, read-only descriptions scan live entity state, and ordinary commands clone the complete state for rollback. Explained changing chains take additional full snapshots and JSON diffs. Profile real games before replacing these mechanisms with a more complex mutation or diagnostic model.
 
+## Procedure acceptance and scaling
+
+The permanent [Reward Workshop fixture](../examples/procedure-workshop/ACCEPTANCE.md) and checked export exercise shared/nested typed calls, local resets, hooks, STOP/END, rollback and process persistence. `cargo test -p luna-editor --test procedure_workshop` compares canonical/checked/editor-exported content, normal/explained installed sessions, every named/autosave checkpoint, captured setups and invalid drafts. The matching browser test reopens a capture, follows nested sources and compares complete state across exported runner processes. The fixture notes document the explicit export-refresh switch; normal tests never rewrite canonical examples.
+
+```sh
+cargo bench -p luna-runner --offline --bench procedures -- 100 1000 5000
+```
+
+This paired production benchmark compares equivalent native bodies with shared calls, 16-level nesting and a 30-definition branching DAG with 2^29 potential paths. It measures validated-definition construction, reused-definition startup, normal/explained/unknown commands, state validation, restore and overwrite saves. It checks counters and that progress is absent before execution, one row after repeatedly using one root, and ten rows after visiting ten roots. It never enumerates potential paths. Fixture generation is outside the definition timer; execution does not include disk autosaves, which have their own sample. Results are observations, not CI timing thresholds. Run alone as for the other benchmarks above. The [R3 review](design/block-procedures/final-review.md) records raw data and tradeoffs.
+
 ## Exercise a release package
 
 From the repository root:
@@ -102,6 +112,6 @@ From the repository root:
 python3 scripts/smoke-package.py
 ```
 
-The first command rebuilds the frontend and release executables, then writes the Linux archive and checksum under `dist/`. It does not install or publish them. The smoke check extracts the archive outside the repository, clears development tools from the child processes' `PATH`, exercises runner import/play/save/load, and checks the embedded editor and its real export API. Both the editable Packing the Study project and its bundle ship in the archive. The smoke check compares their manifests, restores closed nested contents across process restarts, completes an outcome-free game, and loads the earlier checkpoint without replaying events.
+The first command rebuilds the frontend and release executables, then writes the Linux archive and checksum under `dist/`. It does not install or publish them. The smoke check extracts the archive outside the repository, clears development tools from the child processes' `PATH`, exercises runner import/play/save/load, and checks the embedded editor and its real export API. Both the editable Packing the Study project and its bundle ship in the archive. The smoke check also includes the Parser Gallery and Reward Workshop canonical/checked exports, nested procedure rollback, independent progress and restoration of completion. It compares their manifests, restores closed nested contents across process restarts, completes an outcome-free game, and loads the earlier checkpoint without replaying events.
 
 Run the smoke check after browser tests finish: it temporarily hides `web/dist` to prove the package's UI is embedded, then restores it. Its fixed historical walkthrough is separate from the editable example, so changes to the example puzzle do not redefine compatibility expectations. Format and persistence details are documented in [architecture and player persistence](architecture.md#player-persistence-and-rendering).

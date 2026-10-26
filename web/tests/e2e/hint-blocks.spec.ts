@@ -203,8 +203,8 @@ test('hint blocks, forms, inspector messages, layout, and live progress stay in 
   const autosave = JSON.parse(
     readFileSync(join(saves, game.id, game.content_version, 'autosave.json'), 'utf8'),
   );
-  expect(game.format_version).toBe(3);
-  expect(autosave.save_format).toBe(3);
+  expect(game.format_version).toBe(4);
+  expect(autosave.save_format).toBe(4);
   expect(autosave.state.hints[original.stages[0].id]).toEqual({
     clues_seen: 2,
     solution_seen: true,

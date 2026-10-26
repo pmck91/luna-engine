@@ -8,4 +8,4 @@ The painting has two ordered replies, the brass key unlocks the garden door with
 
 ## Developer acceptance examples
 
-[Packing the Study](packing-study/ACCEPTANCE.md) exercises containers/surfaces. [The Parser Gallery](parser-gallery/ACCEPTANCE.md) exercises clarification, recent references, ambiguity, rollback, and save/process boundaries. Each has editable canonical content and a checked `.luna` export. These acceptance notes are separate from the planned public documentation site.
+[Packing the Study](packing-study/ACCEPTANCE.md) exercises containers/surfaces. [The Parser Gallery](parser-gallery/ACCEPTANCE.md) exercises clarification, recent references, ambiguity, rollback, and save/process boundaries. [The Reward Workshop](procedure-workshop/ACCEPTANCE.md) exercises typed shared/nested calls, independent progress, events/watches, STOP/END, rollback and process restoration. Each has editable canonical content and a checked `.luna` export. These acceptance notes are separate from the planned public documentation site.

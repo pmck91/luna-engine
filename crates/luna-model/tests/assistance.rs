@@ -3,7 +3,7 @@ use luna_model::*;
 #[test]
 fn new_game_policy_and_legacy_serialization_are_explicit() {
     let mut project = Project::blank("New game");
-    assert_eq!(project.game.format_version, 3);
+    assert_eq!(project.game.format_version, FORMAT_VERSION);
     assert_eq!(project.minimum_format(), 3);
     let settings = project.game.command_assistance.as_ref().unwrap();
     assert!(settings.clarification && settings.recent_objects);

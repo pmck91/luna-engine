@@ -1,6 +1,6 @@
 # P2 working-slice review
 
-Status: **Implemented and owner accepted**, 26 October 2026, on `feature/parser-context`. The owner reviewed the live feature and replied “p2 is working as expected,” then requested the P2 commit. No changes were requested. P0 is accepted, P1 is committed as `25b634c`, and P2 implementation/acceptance is committed as `5c89b70`. P3 final feature acceptance is now recorded in the [plan](../../plans/parser-context.md); branch closeout remains pending.
+Status: **Implemented and owner accepted**, 26 October 2026, on `feature/parser-context`. The owner reviewed the live feature and replied “p2 is working as expected,” then requested the P2 commit. No changes were requested. P0 is accepted, P1 is committed as `25b634c`, and P2 implementation/acceptance is committed as `5c89b70`. P3 acceptance and merge as `d3c7860` (PR #3) are recorded in the [plan](../../plans/parser-context.md).
 
 ## Review the live feature
 
@@ -46,4 +46,4 @@ Browser coverage includes the new authoring/player journey, legacy collision/upg
 
 Live Chromium captures at 1512 px and 900 px were inspected for settings, pending/resolved explanations, and collapsed-panel layout. There were no page errors or horizontal page overflow. The closed chest's key was excluded from the initial question. Captures and the disposable review project are local review aids, not canonical examples.
 
-Historical [P1 scaling observations](../../plans/parser-context-p1-scaling.csv) remain labelled as P1. The [P3 acceptance record](final-review.md) now supplies production measurements, the permanent example, and final technical verification. Final owner acceptance and the request for final commit/push are now recorded; merge remains pending. User guides remain deferred to the documentation-site milestone.
+Historical [P1 scaling observations](../../plans/parser-context-p1-scaling.csv) remain labelled as P1. The [P3 acceptance record](final-review.md) now supplies production measurements, the permanent example, and final technical verification. The complete feature is accepted and merged as `d3c7860` (PR #3). User guides remain deferred to the documentation-site milestone.

@@ -219,7 +219,7 @@ fn help_never_executes_effects_triggers_or_response_sequences() {
         id: "replies".into(),
         responses: vec!["First".into(), "Second".into()],
         mode: SequenceMode::RepeatLast,
-        fallback: String::new(),
+        fallback: String::new().into(),
         exhaustion: luna_model::ExhaustionMode::Once,
         on_exhausted: vec![],
     }];

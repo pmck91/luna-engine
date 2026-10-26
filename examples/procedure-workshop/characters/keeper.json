@@ -1,0 +1,14 @@
+{
+  "id": "keeper",
+  "name": "Keeper",
+  "aliases": [],
+  "description": "The keeper records every coin.",
+  "location": "workshop",
+  "hidden": false,
+  "state": {
+    "coins": 0
+  },
+  "actions": [],
+  "triggers": [],
+  "hints": []
+}

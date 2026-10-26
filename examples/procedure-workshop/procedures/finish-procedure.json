@@ -1,0 +1,45 @@
+{
+  "id": "finish-procedure",
+  "name": "Complete the workshop",
+  "description": "END propagates through every caller and invokes the ending hook once.",
+  "inputs": [],
+  "effects": [
+    {
+      "type": "call",
+      "id": "completion-award",
+      "procedure": "award",
+      "arguments": {
+        "recipient": {
+          "type": "entity",
+          "kind": "character",
+          "id": "keeper"
+        },
+        "amount": {
+          "type": "literal",
+          "value": 1
+        },
+        "note": {
+          "type": "literal",
+          "value": "completion"
+        },
+        "reset": {
+          "type": "literal",
+          "value": false
+        }
+      }
+    },
+    {
+      "type": "end",
+      "ending": "complete"
+    },
+    {
+      "type": "update_variable",
+      "name": "ending_tail",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    }
+  ]
+}

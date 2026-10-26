@@ -1,6 +1,6 @@
 # Parser feature acceptance
 
-Status: **P3 complete and owner accepted; merge pending**, 26 October 2026, on `feature/parser-context`. P0 and P2 owner reviews are accepted; P1 is committed as `25b634c` and P2 as `5c89b70`. The owner reviewed the complete feature on 26 October 2026 and replied “very happy,” with no changes requested. The owner requested the final commit and push on 26 October 2026; merge remains pending. Public user guides remain deferred to the documentation-site milestone.
+Status: **P3 complete, accepted, and merged**, 26 October 2026, on `feature/parser-context`. P0 and P2 owner reviews are accepted; P1 is committed as `25b634c` and P2 as `5c89b70`. The owner reviewed the complete feature on 26 October 2026 and replied “very happy,” with no changes requested. P3 is committed as `c7faf75`; the complete feature is pushed and merged as `d3c7860` (PR #3), confirmed on 26 October 2026. Public user guides remain deferred to the documentation-site milestone.
 
 ## Delivered behaviour
 
@@ -61,4 +61,4 @@ Cold definition construction includes validation/overlap diagnostics for 15,002 
 
 Live desktop captures of the permanent Gallery's second-noun question and runtime rollback explanation were inspected. Both preserve original input/replies and current pending state, with no page errors or horizontal overflow. P2 already records accepted compact/settings/keyboard review. The disposable live project is separate from canonical examples.
 
-Fetched `origin/main` for review; it remains `3b34bc5` and is an ancestor of this branch. The branch includes P0/P1 proof/design work, promoted production regressions, P2's accepted live feature, and P3 acceptance assets/notes. The former experimental coordinator is retired. Prototype HTML is separate from the production entry. No divergence requiring merge resolution is present. Locked Study/historical fixture comparisons are clean. Final owner acceptance and the request to commit/push are recorded; merge remains pending.
+Fetched `origin/main` for review; it remains `3b34bc5` and is an ancestor of this branch. The branch includes P0/P1 proof/design work, promoted production regressions, P2's accepted live feature, and P3 acceptance assets/notes. The former experimental coordinator is retired. Prototype HTML is separate from the production entry. No divergence requiring merge resolution is present. Locked Study/historical fixture comparisons are clean. Final owner acceptance is recorded, and the complete feature is merged as `d3c7860` (PR #3).

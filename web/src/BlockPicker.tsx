@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Blockly from 'blockly/core';
 import type { Project } from './contracts';
 import {
-  blockCatalogue,
+  catalogue,
   blockAvailable,
   registerBlockScope,
   blockWorkspaceOptions,
@@ -34,7 +34,7 @@ export default function BlockPicker({
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState('');
   const point = points.find((point) => point.key === pointKey);
-  const entries = blockCatalogue.filter(
+  const entries = catalogue(project, flowId).filter(
     (entry) =>
       entry.kind === point?.kind &&
       blockAvailable(project, entry.type) &&

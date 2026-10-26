@@ -112,7 +112,7 @@ fn movement_changes_command_scope_preserves_ownership_and_restores_without_event
     let mut project = session.project().clone();
     project.game.actions[0].effects = vec![
         Effect::Move {
-            location: player.clone(),
+            location: player.clone().into(),
         },
         movement("@current"),
     ];

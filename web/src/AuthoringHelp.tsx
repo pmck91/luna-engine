@@ -23,6 +23,7 @@ export default function AuthoringHelp({
           ['start', 'First adventure'],
           ['blocks', 'Blocks and conditions'],
           ['containers', 'Containers and surfaces'],
+          ['procedures', 'Procedures'],
           ['test', 'Testing and sharing'],
           ['keyboard', 'Keyboard shortcuts'],
         ].map(([id, name]) => (
@@ -83,6 +84,41 @@ export default function AuthoringHelp({
           <p>
             Validate links to exact problems. Used by previews references; Rename updates
             variable/property keys together. Project Undo restores a complete editing operation.
+          </p>
+        </section>
+      ) : topic === 'procedures' ? (
+        <section>
+          <h3>Share behaviour with procedures</h3>
+          <p>
+            Open Procedures under Game data and choose Add procedure. Older projects first review an
+            upgrade to content format 4. Build the effects with the usual blocks, then declare named
+            inputs in Procedure details. Choose Object, Character, Location, Boolean, Integer or
+            Text. Declare required properties before reading or changing an entity input's
+            properties.
+          </p>
+          <p>
+            In an action, trigger or another procedure, use Add block and search for Call procedure
+            or the definition's name. Set each named argument in the inspector. Values can come from
+            literals, variables, entity properties or the current procedure's inputs. Item
+            interactions can explicitly pass Command item. Nothing is inherited from the caller.
+          </p>
+          <p>
+            Open definition takes you to the shared blocks. Return to caller restores the exact
+            CALL. Used by shows affected call sites. Renaming or reordering inputs keeps their
+            values; type, property-contract and removal changes require review. Existing values and
+            drafts remain available for repair, and project Undo restores the whole change.
+          </p>
+          <p>
+            Use Insert variable / property in a message to insert a local input or one of its
+            declared properties. These bindings follow input renames. Integer inputs also appear as
+            numeric blocks. Response resets offer only sequences in the current definition.
+          </p>
+          <p>
+            STOP returns from this procedure to its caller; END GAME completes the whole game. Each
+            CALL has independent response progress, including nested calls. Recursive calls are
+            rejected. A failed command rolls back its effects, output and response progress.
+            Duplicating a procedure creates an independent definition; copying a CALL keeps its
+            shared target and creates separate progress.
           </p>
         </section>
       ) : topic === 'containers' ? (

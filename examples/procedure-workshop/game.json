@@ -1,0 +1,480 @@
+{
+  "id": "b9136e20-86f2-4ea7-95c4-55c9d536795d",
+  "title": "The Reward Workshop",
+  "description": "Permanent reusable-procedure acceptance example.",
+  "author": "Luna Engine",
+  "format_version": 4,
+  "content_version": "1.0.0",
+  "starting_location": "workshop",
+  "opening_text": "A bell and a lever share the same reward procedure. Try use bell, use lever, use nested, use collect, use fail, use repeat, use stop, and use finish.",
+  "help_text": "The acceptance notes explain the deliberately failing command and the counters. Both use bell and use lever award two coins to Keeper.",
+  "unknown_command_text": "I couldn't match that command. Try help, or use a visible object's name.",
+  "command_assistance": {
+    "clarification": true,
+    "recent_objects": true,
+    "clarification_text": "Which do you mean?",
+    "retry_text": "Please choose one of the listed items.",
+    "unavailable_reference_text": "I can't tell what \u201cit\u201d refers to here. Use its full name."
+  },
+  "help_mode": "full",
+  "hints_enabled": true,
+  "ignored_words": ["a", "an", "the"],
+  "require_ending": true,
+  "variables": {
+    "starts": 0,
+    "awards": 0,
+    "commands": 0,
+    "take_events": 0,
+    "watch_events": 0,
+    "ending_events": 0,
+    "after_call": 0,
+    "stopped_tail": 0,
+    "ending_tail": 0,
+    "zero": 0
+  },
+  "endings": [
+    {
+      "id": "complete",
+      "name": "Workshop reviewed",
+      "text": "The workshop review is complete.",
+      "outcome": null
+    }
+  ],
+  "actions": [
+    {
+      "id": "nested-action",
+      "name": "Nested delivery",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "nested"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "nested-relay",
+          "procedure": "relay",
+          "arguments": {
+            "item": {
+              "type": "entity",
+              "kind": "object",
+              "id": "token"
+            },
+            "recipient": {
+              "type": "entity",
+              "kind": "character",
+              "id": "keeper"
+            },
+            "destination": {
+              "type": "entity",
+              "kind": "location",
+              "id": "workshop"
+            },
+            "enabled": {
+              "type": "literal",
+              "value": true
+            },
+            "amount": {
+              "type": "literal",
+              "value": 3
+            },
+            "note": {
+              "type": "literal",
+              "value": "nested <red> & %zero%"
+            }
+          }
+        },
+        {
+          "type": "update_variable",
+          "name": "after_call",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "Nested caller continued."
+        }
+      ]
+    },
+    {
+      "id": "collect-action",
+      "name": "Collect token",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "collect"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "give",
+          "object": "token"
+        }
+      ]
+    },
+    {
+      "id": "fail-action",
+      "name": "Rollback delivery",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "fail"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "failed-relay",
+          "procedure": "relay",
+          "arguments": {
+            "item": {
+              "type": "entity",
+              "kind": "object",
+              "id": "token"
+            },
+            "recipient": {
+              "type": "entity",
+              "kind": "character",
+              "id": "keeper"
+            },
+            "destination": {
+              "type": "entity",
+              "kind": "location",
+              "id": "workshop"
+            },
+            "enabled": {
+              "type": "literal",
+              "value": true
+            },
+            "amount": {
+              "type": "literal",
+              "value": 9
+            },
+            "note": {
+              "type": "literal",
+              "value": "nested <red> & %zero%"
+            }
+          }
+        },
+        {
+          "type": "say",
+          "text": "Discard this attempted output."
+        },
+        {
+          "type": "update_variable",
+          "name": "commands",
+          "op": "divide",
+          "operand": {
+            "type": "variable",
+            "name": "zero"
+          }
+        }
+      ]
+    },
+    {
+      "id": "repeat-action",
+      "name": "Reset this invocation",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "repeat"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "repeat-award",
+          "procedure": "award",
+          "arguments": {
+            "recipient": {
+              "type": "entity",
+              "kind": "character",
+              "id": "keeper"
+            },
+            "amount": {
+              "type": "literal",
+              "value": 1
+            },
+            "note": {
+              "type": "literal",
+              "value": "reset"
+            },
+            "reset": {
+              "type": "literal",
+              "value": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "stop-action",
+      "name": "Return from STOP",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "stop"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "stop-call",
+          "procedure": "early-return",
+          "arguments": {}
+        },
+        {
+          "type": "update_variable",
+          "name": "after_call",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "Caller after STOP."
+        }
+      ]
+    },
+    {
+      "id": "finish-action",
+      "name": "Finish review",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "finish"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "finish-call",
+          "procedure": "finish-procedure",
+          "arguments": {}
+        },
+        {
+          "type": "update_variable",
+          "name": "ending_tail",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    }
+  ],
+  "triggers": [
+    {
+      "id": "start-once",
+      "name": "Start Once",
+      "event": "start",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "starts",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "call",
+          "id": "startup-award",
+          "procedure": "award",
+          "arguments": {
+            "recipient": {
+              "type": "entity",
+              "kind": "character",
+              "id": "keeper"
+            },
+            "amount": {
+              "type": "literal",
+              "value": 1
+            },
+            "note": {
+              "type": "literal",
+              "value": "startup"
+            },
+            "reset": {
+              "type": "literal",
+              "value": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "command-once",
+      "name": "Command Once",
+      "event": "command",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "commands",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "take-once",
+      "name": "Take Once",
+      "event": "take",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "take_events",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "call",
+          "id": "take-audit",
+          "procedure": "audit",
+          "arguments": {
+            "message": {
+              "type": "literal",
+              "value": "take"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "watch-awards",
+      "name": "Watch Awards",
+      "event": "command",
+      "watch": {
+        "target": {
+          "type": "variable",
+          "name": "awards"
+        },
+        "mode": "each_change"
+      },
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "watch_events",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "call",
+          "id": "watch-audit",
+          "procedure": "audit",
+          "arguments": {
+            "message": {
+              "type": "literal",
+              "value": "watch"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ending-once",
+      "name": "Ending Once",
+      "event": "ending",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "ending_events",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "call",
+          "id": "ending-audit",
+          "procedure": "audit",
+          "arguments": {
+            "message": {
+              "type": "literal",
+              "value": "ending"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "assets": []
+}

@@ -129,6 +129,9 @@ test('the optional tutorial supports a first adventure, branch checks, keyboard 
   await page.getByRole('button', { name: 'Keyboard shortcuts', exact: true }).click();
   const help = page.getByRole('dialog', { name: 'Authoring guide', exact: true });
   await expect(help).toContainText('Ctrl/Cmd+K');
+  await help.getByRole('button', { name: 'Procedures', exact: true }).click();
+  await expect(help).toContainText('Share behaviour with procedures');
+  await expect(help).toContainText('Return to caller restores the exact CALL');
   await help.press('Escape');
   await expect(page.getByRole('button', { name: 'Keyboard shortcuts', exact: true })).toBeFocused();
 });

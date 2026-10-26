@@ -1,6 +1,6 @@
 import type {
   Action,
-  ContentRelation,
+  ScopedPlacement,
   GameState,
   InputTextReference,
   Object as GameObject,
@@ -11,13 +11,18 @@ import type {
   StandardInteraction,
 } from './contracts';
 import { entity, flow, id } from './model';
+import { entityKey, entityValue, inputLabel } from './procedureModel';
 import { decode, mapMessage } from './templates';
 
 export const commandItemKey = '@command:item';
 export const targetKey = (target: ObjectTarget) =>
-  typeof target === 'string' ? target : commandItemKey;
+  typeof target === 'string'
+    ? target
+    : 'procedure_input' in target
+      ? entityKey(target)
+      : commandItemKey;
 export const targetValue = (key: string): ObjectTarget =>
-  key === commandItemKey ? { input: 'item' } : key;
+  key === commandItemKey ? { input: 'item' } : entityValue(key);
 export const takesItem = (kind: StandardInteraction) =>
   ['put_inside', 'put_on', 'take_from'].includes(kind);
 export function hasCommandItem(p: Project, flowId: string) {
@@ -26,15 +31,15 @@ export function hasCommandItem(p: Project, flowId: string) {
     !!action && 'standard' in action && !!action.standard && takesItem(action.standard.interaction)
   );
 }
-export function placementKey(value: Placement): string {
+export function placementKey(value: Placement | ScopedPlacement): string {
   switch (value.type) {
     case 'inside':
     case 'on':
-      return `${value.type}:${value.object}`;
+      return `${value.type}:${entityKey(value.object)}`;
     case 'location':
-      return `location:${value.location}`;
+      return `location:${entityKey(value.location)}`;
     case 'character':
-      return `character:${value.character}`;
+      return `character:${entityKey(value.character)}`;
     default:
       return value.type;
   }
@@ -215,6 +220,7 @@ export function localMessage(
   references: Record<string, InputTextReference | undefined>,
   offerItem = false,
   offerEntities = false,
+  scope?: string,
 ) {
   const refs = { ...references };
   if (offerItem && !Object.values(refs).some((r) => r?.type === 'item_name'))
@@ -235,7 +241,9 @@ export function localMessage(
     const base =
       ref.type === 'item_name'
         ? 'Command item name'
-        : `${(entity(p, ref.entity)?.name ?? 'Missing entity').replace(/[&<>%\p{Cc}]/gu, (c) => ({ '&': '＆', '<': '‹', '>': '›', '%': '％' })[c] ?? ' ')} name`;
+        : ref.type === 'procedure_input' || ref.type === 'procedure_property'
+          ? `Input · ${inputLabel(p, ref.input, scope)}${ref.type === 'procedure_property' ? ` · ${ref.name}` : ''}`
+          : `${(entity(p, ref.entity)?.name ?? 'Missing entity').replace(/[&<>%\p{Cc}]/gu, (c) => ({ '&': '＆', '<': '‹', '>': '›', '%': '％' })[c] ?? ' ')} name`;
     let label = base;
     for (let i = 2; used.has(label); i++) label = `${base} (${i})`;
     used.add(label);

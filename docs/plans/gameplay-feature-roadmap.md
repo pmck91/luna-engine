@@ -1,8 +1,8 @@
 # Gameplay features and designer UX
 
-Status: **Containers merged; F2 complete and accepted; merge pending**, 26 October 2026. C0–C3 are complete and accepted, merged as `3b34bc5` (PR #2). F2's P1 proof/contract is committed as `25b634c`; P2 is owner accepted and committed as `5c89b70`; P3 technical acceptance is complete and the owner accepted the feature with “very happy”; branch closeout remains pending. The remaining feature directions are not implemented. User-facing feature guides and public references are deferred to the documentation-site milestone.
+Status: **F1/F2 merged; F3 accepted; push/merge pending**, 26 October 2026. Containers merged as `3b34bc5` (PR #2), and parser context merged as `d3c7860` (PR #3). The current work is [focused procedures](block-procedures.md), R2 and R3 accepted, on `feature/block-procedures` from that merged baseline. The owner agreed to basic procedures → conversations/quests → turns/routines; automatic procedure extraction is later scope. The procedure runtime/storage foundation is committed as `665170c`; the [working authoring slice](../design/block-procedures/authoring-review.md) is accepted after the owner completed the UI walkthrough; the [R3 technical review](../design/block-procedures/final-review.md) is accepted with “theyre good to commit”; push/merge remain pending. Conversations/quests remain unimplemented. User-facing guides remain deferred to the documentation milestone.
 
-This follows the merged [shared-core hardening](core-hardening.md) and [containers](containers-and-surfaces.md). The current work is [parser context](parser-context.md), on `feature/parser-context`, created from merged `main` at `3b34bc5`. Its design and live P2 feature are owner accepted; P3 technical acceptance is complete and owner accepted. The owner chose gameplay features before the documentation milestone on 26 October 2026. Documentation remains planned for v1. This list does not make every proposed feature a requirement for v1; agree the release scope before scheduling the remaining branches. Browser publishing is explicitly after v1.
+This follows the merged [shared-core hardening](core-hardening.md), [containers](containers-and-surfaces.md), and [parser context](parser-context.md). Each feature keeps the current block appearance and gets concrete design/working-slice feedback. The owner chose gameplay work before public documentation. Documentation remains planned for v1, and browser publishing remains after v1; this roadmap does not make every proposed feature a v1 requirement.
 
 ## Agreed direction
 
@@ -12,21 +12,22 @@ This follows the merged [shared-core hardening](core-hardening.md) and [containe
 - Keep standalone browser publishing as a separate future-version feature.
 - Develop each feature on its own branch. Present concrete wireframes, then working interactions for feedback, and merge the complete feature only after testing and owner acceptance.
 
-The existing [conversations and quests plan](conversations-and-quests.md) remains a separate, unimplemented update. Containers, procedures, and timers must not acquire a hidden dependency on that update.
+The [conversations and quests plan](conversations-and-quests.md) remains a separate, unimplemented update scheduled after focused procedures and before turns/routines. It can use the shared calls once available; procedures remain usable independently of conversations.
 
 ## Branches and dependencies
 
-| Feature                               | Branch                            | Scheduling and dependencies                                                                                       |
-| ------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| F1 — Containers and surfaces          | `feature/containers-and-surfaces` | Complete, accepted, and merged as `3b34bc5` (PR #2).                                                              |
-| F2 — Parser context and clarification | `feature/parser-context`          | P0–P3 accepted; final commit/push requested, merge pending. See the [detailed plan](parser-context.md).                     |
-| F3 — Reusable block procedures        | `feature/block-procedures`        | Prove typed inputs and definitions shared across workspaces before implementation.                                |
-| F4 — Turns and scheduled events       | `feature/turn-events`             | Owns the turn clock and scheduling contract; may call procedures if F3 already exists, but does not require them. |
-| F5 — Character routines               | `feature/character-routines`      | Depends on F4's turn clock; complements conversations without requiring the conversation update.                  |
-| F6 — Optional player undo             | `feature/player-undo`             | Uses complete runtime snapshots; adapt to whatever state-bearing features have merged.                            |
-| F7 — Standalone browser player        | `feature/browser-player`          | Explicitly after v1; investigate Rust/WebAssembly portability and distribution separately.                        |
+| Feature                               | Branch                             | Scheduling and dependencies                                                                                                                                                                                                                                                                             |
+| ------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1 — Containers and surfaces          | `feature/containers-and-surfaces`  | Complete, accepted, and merged as `3b34bc5` (PR #2).                                                                                                                                                                                                                                                    |
+| F2 — Parser context and clarification | `feature/parser-context`           | Complete, accepted, and merged as `d3c7860` (PR #3). See the [detailed plan](parser-context.md).                                                                                                                                                                                                        |
+| F3 — Reusable block procedures        | `feature/block-procedures`         | R0 accepted; [R1 proof/contract](../design/block-procedures/shared-contract.md) complete; [R2 working slice](../design/block-procedures/authoring-review.md) accepted; [R3 technical review](../design/block-procedures/final-review.md) accepted; push/merge pending. See [plan](block-procedures.md). |
+| Conversations and quests              | `feature/conversations-and-quests` | After focused F3 and before F4/F5; see the [refreshed plan](conversations-and-quests.md).                                                                                                                                                                                                               |
+| F4 — Turns and scheduled events       | `feature/turn-events`              | Owns the turn clock and scheduling contract; may call procedures if F3 already exists, but does not require them.                                                                                                                                                                                       |
+| F5 — Character routines               | `feature/character-routines`       | Depends on F4's turn clock; complements conversations without requiring the conversation update.                                                                                                                                                                                                        |
+| F6 — Optional player undo             | `feature/player-undo`              | Uses complete runtime snapshots; adapt to whatever state-bearing features have merged.                                                                                                                                                                                                                  |
+| F7 — Standalone browser player        | `feature/browser-player`           | Explicitly after v1; investigate Rust/WebAssembly portability and distribution separately.                                                                                                                                                                                                              |
 
-F1 is merged and F2's branch has been created from that merged baseline. Create the others from the latest merged, validated `main` when their work starts, rather than keeping seven branches drifting in parallel. Later branch names are reserved planning names, not claims of delivered features.
+F1 and F2 are merged. F3's branch starts at `d3c7860`; create later branches from the current validated `main` when their work starts. Later branch names are reserved planning names, not claims of delivered features.
 
 ## Shared designer experience
 
@@ -51,7 +52,7 @@ Objects stay ordinary objects. A chest may support items on its lid as well as c
 
 ## F2 — Parser context and clarification
 
-The owner accepted the [interactive wireframes](../design/parser-context/wireframes.html) with “works great” on 26 October 2026. The [detailed F2 plan](parser-context.md) and [P1 shared contract](../design/parser-context/shared-contract.md) record the reviewed interaction, real-matcher proof, compatibility decisions, and implementation milestones. P2 implements the live settings/player feature and production Session resolver; its [working-slice review](../design/parser-context/p2-review.md) is owner accepted. The [P3 acceptance record](../design/parser-context/final-review.md) covers the permanent fixture, paired production measurements, and passing final checks; the owner accepted the complete feature with “very happy”; the owner requested the final commit/push on 26 October 2026; merge remains pending.
+The owner accepted the [interactive wireframes](../design/parser-context/wireframes.html) with “works great” on 26 October 2026. The [detailed F2 plan](parser-context.md) and [P1 shared contract](../design/parser-context/shared-contract.md) record the reviewed interaction, real-matcher proof, compatibility decisions, and implementation milestones. P2 implements the live settings/player feature and production Session resolver; its [working-slice review](../design/parser-context/p2-review.md) is owner accepted. The [P3 acceptance record](../design/parser-context/final-review.md) covers the permanent fixture, paired production measurements, and passing final checks; the owner accepted the complete feature with “very happy”; P3 is committed as `c7faf75`, and the complete feature is merged as `d3c7860` (PR #3).
 
 This is primarily a player interaction, **not a new block authors must put before every action**. For example:
 
@@ -99,7 +100,7 @@ Designer workflow:
 
 - **Add procedure** opens the familiar block workspace and input/settings inspector. Input creation uses labelled forms and type pickers, not a required Blockly mutator dialog.
 - **Call procedure** appears in the normal insertion search. Its selected-block inspector presents named, typed argument fields, an **Open definition** link, and a return path to the exact call site.
-- **Make procedure from selection** can follow the basic workflow: preview the selected chain, suggest inputs for differing references, show the replacement call, then commit the extraction and replacement as one undoable edit. Do not begin with automatic refactoring as the only creation route.
+
 - Renaming an input preserves stable references. Changing/removing an input previews affected callers; missing or incompatible arguments become findings, not silently guessed values. Required entity properties form an explicit input contract.
 - **Used by** makes shared impact clear. Templates continue to insert independent copies; calling a procedure deliberately shares a definition.
 
@@ -107,7 +108,9 @@ Prove definitions/callers across separate workspaces against the installed Block
 
 Before implementation, specify response-sequence progress inside calls, parameter references in messages, nested calls, STOP versus return, and END GAME propagation. The initial recommendation is stable call-site identity for independent response progress, bounded nested calls with no recursion, and whole-command rollback on errors. Review these semantics with a small two-caller example before freezing the contract.
 
-Acceptance: create once, call from an action and a trigger, edit the definition, return to a caller, change an input safely, undo extraction, reopen, export, and restore progress without sharing cursors accidentally.
+Acceptance: create once, call from an action and a trigger, edit the definition, return to a caller, change an input safely, undo the shared change, reopen, export, and restore progress without sharing cursors accidentally.
+
+See the [focused plan and milestones](block-procedures.md) and [R0 interactive preview](../design/block-procedures/README.md). Automatic extraction from selected blocks is deferred: it can later preview a selected chain, propose explicit inputs, show the replacement CALL, and apply extraction/replacement as one undoable operation. It is outside the initial F3 delivery.
 
 ## F4 — Turns and scheduled events
 

@@ -1,5 +1,9 @@
 import type {
   BlockTemplate,
+  EntityRef,
+  Argument,
+  MessageText,
+  ScopedPlacement,
   Condition,
   Effect,
   NumericOperand,
@@ -28,13 +32,43 @@ type Visitor = {
 // text values are not entity IDs or messages.
 function visitContent(content: TemplateContent, visitor: Visitor): TemplateContent {
   const c = structuredClone(content);
-  const entity = (id: string) => visitor.entity(id, kinds);
-  const object = (id: string) => visitor.entity(id, ['object']);
-  const character = (id: string) => visitor.entity(id, ['character']);
-  const location = (id: string) => (id === '@current' ? id : visitor.entity(id, ['location']));
+  const reference = <T extends EntityRef>(value: T, allowed = kinds): T =>
+    (typeof value === 'string' ? visitor.entity(value, allowed) : value) as T;
+  const entity = <T extends EntityRef>(id: T) => reference(id);
+  const object = <T extends EntityRef>(id: T) => reference(id, ['object']);
+  const character = <T extends EntityRef>(id: T) => reference(id, ['character']);
+  const location = <T extends EntityRef>(id: T) =>
+    id === '@current' ? id : reference(id, ['location']);
+  const argument = (value: Argument): Argument =>
+    value.type === 'property'
+      ? { ...value, entity: entity(value.entity) }
+      : value.type === 'entity'
+        ? {
+            ...value,
+            id: visitor.entity(
+              value.id,
+              kinds.includes(value.kind as TemplateEntityKind)
+                ? [value.kind as TemplateEntityKind]
+                : kinds,
+            ),
+          }
+        : value;
+  const message = (value: MessageText): MessageText =>
+    typeof value === 'string'
+      ? visitor.text(value)
+      : {
+          ...value,
+          text: visitor.text(value.text, Object.keys(value.references)),
+          references: Object.fromEntries(
+            Object.entries(value.references).map(([key, ref]) => [
+              key,
+              ref?.type === 'entity_name' ? { ...ref, entity: entity(ref.entity) } : ref,
+            ]),
+          ),
+        };
   const target = (value: ObjectTarget): ObjectTarget =>
     typeof value === 'string' ? object(value) : value;
-  const placement = (value: Placement): Placement => {
+  const placement = (value: ScopedPlacement): ScopedPlacement => {
     switch (value.type) {
       case 'inside':
       case 'on':
@@ -51,6 +85,8 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
     v.type === 'property' ? { ...v, entity: entity(v.entity) } : v;
   const condition = (v: Condition): Condition => {
     switch (v.type) {
+      case 'compare':
+        return { ...v, left: argument(v.left), right: argument(v.right) };
       case 'all':
       case 'any':
         return { ...v, conditions: v.conditions.map(condition) };
@@ -93,8 +129,24 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
   };
   const effect = (v: Effect): Effect => {
     switch (v.type) {
+      case 'call':
+        return {
+          ...v,
+          arguments: Object.fromEntries(
+            Object.entries(v.arguments).map(([key, value]) => [key, value && argument(value)]),
+          ),
+        };
+      case 'assign':
+        return {
+          ...v,
+          target:
+            v.target.type === 'property'
+              ? { ...v.target, entity: entity(v.target.entity) }
+              : v.target,
+          value: argument(v.value),
+        };
       case 'say':
-        return { ...v, text: visitor.text(v.text) };
+        return { ...v, text: message(v.text) };
       case 'say_with_inputs':
         return {
           ...v,
@@ -111,12 +163,12 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
       case 'list_contents':
         return { ...v, object: object(v.object) };
       case 'character_says':
-        return { ...v, character: character(v.character), text: visitor.text(v.text) };
+        return { ...v, character: character(v.character), text: message(v.text) };
       case 'respond':
         return {
           ...v,
-          responses: v.responses.map((text) => visitor.text(text)),
-          fallback: visitor.text(v.fallback),
+          responses: v.responses.map(message),
+          fallback: message(v.fallback),
           on_exhausted: v.on_exhausted.map(effect),
         };
       case 'if':
@@ -149,7 +201,7 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
         return { ...v, character: character(v.character), location: location(v.location) };
       case 'reveal':
       case 'hide':
-        return { ...v, entity: visitor.entity(v.entity, ['object', 'character']) };
+        return { ...v, entity: reference(v.entity, ['object', 'character']) };
       case 'combine':
         return { ...v, first: object(v.first), second: object(v.second), result: object(v.result) };
       case 'set_variable':
@@ -322,6 +374,7 @@ export function instantiateTemplate(
   );
   for (const { effect } of allEffects(effects)) {
     if (effect.type === 'respond') effect.id = sequences.get(effect.id)!;
+    if (effect.type === 'call') effect.id = id();
     if (effect.type === 'reset_responses')
       effect.sequence = sequences.get(effect.sequence) ?? effect.sequence;
   }

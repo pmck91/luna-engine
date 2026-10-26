@@ -7,59 +7,14 @@ import {
   readEffects,
   readOperand,
   registerBlocks,
+  registerBlockScope,
 } from './Blocks';
 import { registerHintBlocks } from './HintBlocks';
-import { allEffects, entity, flow, flowOwner, flows } from './model';
+import { flowOwner, script } from './model';
 import type { ReferenceSite } from './references';
 
-export type Finding = Diagnostic & ReferenceSite & { blockId?: string };
-export function findingSite(project: Project, diagnostic: Diagnostic): ReferenceSite {
-  const script = flow(project, diagnostic.subject);
-  if (script)
-    return {
-      subject: script.id,
-      path: diagnostic.field,
-      flowId: script.id,
-      ownerId: flowOwner(project, script.id)?.id,
-      scope: 'content',
-    };
-  for (const owner of [...project.locations, ...project.objects, ...project.characters])
-    for (const puzzle of owner.hints) {
-      const stage = puzzle.stages.find((stage) => stage.id === diagnostic.subject);
-      if (puzzle.id === diagnostic.subject || stage)
-        return {
-          subject: diagnostic.subject,
-          path: diagnostic.field,
-          ownerId: owner.id,
-          puzzleId: puzzle.id,
-          stageId: stage?.id,
-          scope: 'content',
-        };
-    }
-  // Duplicate sequence IDs are reported against that ID rather than their flow.
-  const containing = flows(project).find((script) =>
-    allEffects(script.effects).some(
-      ({ effect }) => effect.type === 'respond' && effect.id === diagnostic.subject,
-    ),
-  );
-  if (containing)
-    return {
-      subject: diagnostic.subject,
-      flowId: containing.id,
-      ownerId: flowOwner(project, containing.id)?.id,
-      path: diagnostic.field,
-      scope: 'content',
-    };
-  return {
-    subject: diagnostic.subject,
-    ownerId: entity(project, diagnostic.subject)?.id,
-    path: diagnostic.field,
-    scope: 'content',
-  };
-}
-export function connectedFindings(project: Project, diagnostics: Diagnostic[]): Finding[] {
-  return diagnostics.map((diagnostic) => ({ ...diagnostic, ...findingSite(project, diagnostic) }));
-}
+export { findingSite, connectedFindings, type Finding } from './findingSites';
+import type { Finding } from './findingSites';
 
 /** Validate disconnected content through the same Rust validator, in an isolated copy. */
 export function prepareDraftValidation(project: Project) {
@@ -71,6 +26,7 @@ export function prepareDraftValidation(project: Project) {
     for (const [key, saved] of Object.entries(project.editor.blocks)) {
       const workspace = new Blockly.Workspace();
       try {
+        registerBlockScope(workspace, key);
         Blockly.serialization.workspaces.load(saved as object, workspace);
         const hint = [...project.locations, ...project.objects, ...project.characters]
           .flatMap((owner) => owner.hints.map((puzzle) => ({ owner: owner.id, puzzle: puzzle.id })))
@@ -107,7 +63,8 @@ export function prepareDraftValidation(project: Project) {
         for (const block of candidates) {
           const site: ReferenceSite = {
             subject: hint?.puzzle ?? key,
-            flowId: flow(project, key) ? key : undefined,
+            flowId: script(project, key) ? key : undefined,
+            procedureId: project.procedures?.some((item) => item.id === key) ? key : undefined,
             ownerId: hint?.owner ?? flowOwner(project, key)?.id,
             puzzleId: hint?.puzzle,
             blockId: block.id,
@@ -149,7 +106,18 @@ export function prepareDraftValidation(project: Project) {
               action.effects = readEffects(block);
               root.getInput('DO')!.connection!.connect(block.previousConnection!);
             }
-            copy.game.actions.push(action);
+            const definition = project.procedures?.find((item) => item.id === key);
+            if (definition) {
+              const effects = block.type.startsWith('condition_')
+                ? [{ type: 'if' as const, condition: action.requirements, then: [], otherwise: [] }]
+                : action.effects;
+              (copy.procedures ??= []).push({
+                ...structuredClone(definition),
+                id,
+                name: 'Procedure draft',
+                effects,
+              });
+            } else copy.game.actions.push(action);
             sources.set(id, {
               site,
               addresses: new Map([...blockAddresses(root)].filter(([id]) => originalIds.has(id))),

@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const SAVE_FORMAT: u32 = 3;
+pub const SAVE_FORMAT: u32 = 4;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Installed {
     pub game_id: String,
@@ -334,8 +334,10 @@ impl Storage {
             }
         }
         let envelope = SaveEnvelope {
-            save_format: if project.game.format_version >= 2 {
-                SAVE_FORMAT
+            save_format: if project.game.format_version >= 4 {
+                4
+            } else if project.game.format_version >= 2 {
+                3
             } else {
                 2
             },
@@ -370,6 +372,10 @@ impl Storage {
         );
         let save: SaveEnvelope = serde_json::from_slice(&bytes)
             .with_context(|| format!("Corrupt save {}; it has been preserved", path.display()))?;
+        ensure!(
+            save.save_format >= 4 || save.state.procedure_sequences.is_empty(),
+            "Procedure progress requires save format 4"
+        );
         ensure!(
             save.save_format != 1 || save.state.hints.is_empty(),
             "Hint progress requires save format 2"

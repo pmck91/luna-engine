@@ -1,8 +1,24 @@
 # Conversations and quests
 
-Status: proposed design for a future engine update. This document plans the work; these features are not implemented. The editor UX implementation is accepted and merged; user-facing documentation remains ahead of this update. See the [current TODO list](todo.md) for priorities and follow-up evaluation.
+Status: **Scheduled after focused procedures; detailed design review pending**, refreshed 26 October 2026. These features are not implemented. The owner agreed to basic procedures → conversations/quests → turns/routines. Editor UX, containers, and parser context are merged; public guides remain in the later documentation milestone. See the [current TODO list](todo.md) and [procedures plan](block-procedures.md).
 
 Implementation branch: `feature/conversations-and-quests`, created from the current validated default branch when implementation begins. Keep the model, runtime, format changes, editor, runner, and acceptance example together on that branch until they work end to end. The planning document and todo entries can be reviewed before that work starts.
+
+## Updated foundations and review boundary
+
+The merged baseline is parser context at `d3c7860`: content formats 1–3 and save formats 1–3, container/private inventory scope, rich messages, and session-local clarification/recent references are implemented. Focused procedures are being designed on their own branch. Reconfirm versions and use the merged procedure contract when this branch begins; no narrative format number is reserved.
+
+Conversations and quest hooks should use ordinary effects, including shared CALL where useful. Forward typed inputs explicitly, reuse the agreed STOP/ending/rollback rules, and give each node/reply/hook a stable progress root for nested procedure response paths. Plain effect blocks remain sufficient for authors who do not use procedures. Narrative state must not introduce a second parameter evaluator or shared-call cursor scheme.
+
+The following parser/conversation boundary needs prototype review before freezing the runtime contract:
+
+- F2 clarification is ephemeral Session context; conversation checkpoints/history are saved story progress. Load clears the former and restores the latter without replaying effects.
+- Explicit conversation replies, short eligible phrases, world commands, and numbered choices need one deterministic priority table. A number must belong to its last offered context and stable identities. Refresh stale lists before accepting a choice; never let a parser number select a conversation reply accidentally.
+- A world command can itself need noun clarification during an encounter. Specify which prompt owns subsequent replies, whether the encounter remains active until the world action succeeds, and how cancellation returns to it. Questions/retries/failed requirements must not silently pause or advance a conversation.
+- Preserve assisted `cancel` semantics when clarification is enabled and authored `cancel` when disabled. Review explicit `reply ...`, conversation pause/bye, and reserved-prefix collision upgrades together; do not silently commandeer existing commands.
+- Conversation phrase selection is confined to the active node; it cannot use F2 fragment matching to discover future topics. Conversation replies do not invent a recent-object referent. Ordinary authored world commands retain the F2 reference policy; help/hints retain existing scoped ID resolution.
+
+These are integration requirements and open interaction decisions, not an implemented conversation precedence policy. The detailed conversation wireframes will be reviewed after focused procedures merge.
 
 ## Goals and scope
 
@@ -176,11 +192,11 @@ Proposed canonical additions are project-level `conversations` and `quests` coll
 
 Extend the shared state with one optional active conversation, per-conversation checkpoints/history, and per-quest status/completed stages/journal history. Checkpoints distinguish pending entry from already-entered nodes and preserve offered reply identities. A core-produced conversation view supplies the current rendered prompt and permitted replies; restoring/displaying that view does not re-run effects, advance response sequences, or reveal additional hints.
 
-Use the next content/save formats for this combined update: with today's versions, that would be **content format 2** and **save format 3**. These numbers are not reserved: coordinate with the [gameplay feature roadmap](gameplay-feature-roadmap.md), including containers, and reconfirm against the actual merge order when implementation starts. New-format headers must let older engines reject unsupported data before ignoring unfamiliar files or state.
+Use the next available content/save formats after focused procedures merge. The current baseline is **content 3/save 3**; procedures proposes 4/4 pending its proof, so the narrative update must allocate versions from the actual merged state. No narrative number is reserved. New-format headers must let older engines reject unsupported data before ignoring unfamiliar files or state.
 
-Read existing format-1 projects/bundles and format-1/2 saves through explicit compatibility paths. Missing narrative state defaults to no active conversation, no conversation history, and all quests undiscovered; restoration must not infer milestones or replay game-start, node-entry, reward, or quest hooks. Retain existing hint history and all other saved state. Preserve game IDs, authored IDs, and existing content-version matching rules; this is not automatic migration between different released game versions.
+Read all previously supported projects/bundles/saves through explicit compatibility paths, including content/save 1–3 and the subsequently merged procedures format. Missing narrative state defaults to no active conversation, no conversation history, and all quests undiscovered; restoration must not infer milestones or replay game-start, node-entry, reward, or quest hooks. Retain existing hint history and all other saved state. Preserve game IDs, authored IDs, and existing content-version matching rules; this is not automatic migration between different released game versions.
 
-Audit new reserved prefixes (`reply`, `quest`, `quests`) before converting legacy content. Existing format-1 games using those words must retain their old command behaviour. Conversion must report collisions and preserve the source rather than silently renaming/shadowing actions. A format upgrade must be recoverable and use the existing atomic project write/recovery system.
+Audit new reserved prefixes (`reply`, `quest`, `quests`) before converting legacy content. Existing supported legacy games using those words must retain their old command behaviour. Conversion must report collisions and preserve the source rather than silently renaming/shadowing actions. A format upgrade must be recoverable and use the existing atomic project write/recovery system.
 
 Changes span more than the model structs:
 
@@ -197,7 +213,7 @@ Changes span more than the model structs:
 3. **Quest runtime and log.** Implement effects, conditions, once-only hooks, deterministic journal snapshots, reserved commands, save/load, and core-produced log views.
 4. **Conversation runtime.** Implement conditional entry selection, current-node reply resolution, history, guarded transitions, checkpoints, interruption, speaker output, and optional choice presentation. Integrate quest effects through the shared executor.
 5. **Editor and playtest.** Add the central lists, conversation graph, selected-node/reply blocks, quest/stage authoring, reference navigation, player reply controls, quest-log panel, and debug state inspection.
-6. **Full acceptance and documentation.** Author the complete Keeper quest through the editor, save/reopen/export it, and play it in the terminal. Complete compatibility and parity checks, documentation, and package smoke checks before merging the feature branch.
+6. **Full acceptance and developer notes.** Author the complete Keeper quest through the editor, save/reopen/export it, and play it in the terminal. Complete compatibility and parity checks, developer notes, and package smoke checks before merging the feature branch.
 
 Each milestone should have focused commits and checks. The existing test suite must continue to pass throughout; do not publish new-format games from a partially implemented milestone.
 

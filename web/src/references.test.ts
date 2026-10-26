@@ -289,6 +289,7 @@ it('includes captured state and check expectations in checked renames and blocks
           properties: { study: {}, 'keeper.old': { health: 2 } },
           visits: { study: 3 },
           sequences: {},
+          procedure_sequences: [],
           hints: {},
         },
       },
@@ -685,4 +686,141 @@ it('keeps internal template sequence resets independent of their deleted source'
     makeTemplate(p, 'External reset', 'study', { type: 'effects', effects: [rule.effects[1]] }),
   );
   expect(referencePlan(p, source).errors.join(' ')).toContain('response sequence used elsewhere');
+});
+
+it('tracks unused definitions, typed arguments and bound messages while preserving lexical input references', () => {
+  const p = fixture();
+  const local = { procedure_input: 'keeper-input' };
+  p.procedures = [
+    {
+      id: 'dialogue',
+      name: 'Dialogue',
+      description: '',
+      inputs: [
+        {
+          id: 'keeper-input',
+          name: 'Speaker',
+          kind: 'character',
+          required_properties: {},
+        },
+      ],
+      effects: [
+        {
+          type: 'character_says',
+          character: local,
+          text: {
+            text: '%speaker% has %keeper.old.health% health and %chances% chances.',
+            references: { speaker: { type: 'entity_name', entity: 'keeper.old' } },
+          },
+        },
+        {
+          type: 'assign',
+          target: { type: 'property', entity: 'keeper.old', name: 'health' },
+          value: { type: 'variable', name: 'chances' },
+        },
+        {
+          type: 'if',
+          condition: {
+            type: 'compare',
+            left: { type: 'property', entity: local, name: 'health' },
+            op: 'gt',
+            right: { type: 'variable', name: 'chances' },
+          },
+          then: [{ type: 'print_description', entity: local }],
+          otherwise: [],
+        },
+      ],
+    },
+  ];
+  p.game.actions = [
+    {
+      ...action('study'),
+      effects: [
+        {
+          type: 'call',
+          id: 'dialogue-call',
+          procedure: 'dialogue',
+          arguments: { 'keeper-input': { type: 'entity', kind: 'character', id: 'keeper.old' } },
+        },
+      ],
+    },
+  ];
+  expect(usedBy(p, { kind: 'procedure', id: 'dialogue' })).toHaveLength(1);
+  expect(referencePlan(p, { kind: 'procedure', id: 'dialogue' }).errors.join(' ')).toContain(
+    'replacement',
+  );
+  const uses = usedBy(p, { kind: 'variable', name: 'chances' });
+  expect(uses).toHaveLength(3);
+  expect(uses.every((use) => use.procedureId === 'dialogue')).toBe(true);
+  const renamed = referencePlan(
+    p,
+    { kind: 'variable', name: 'chances' },
+    { kind: 'variable', name: 'attempts' },
+    true,
+  );
+  expect(renamed.errors).toEqual([]);
+  expect(usedBy(renamed.project, { kind: 'variable', name: 'attempts' })).toHaveLength(3);
+  const changed = referencePlan(
+    renamed.project,
+    { kind: 'property', entity: 'keeper.old', name: 'health' },
+    { kind: 'property', entity: 'keeper.old', name: 'stamina' },
+    true,
+  );
+  expect(changed.errors).toEqual([]);
+  expect(changed.project.procedures?.[0].effects[0]).toMatchObject({
+    character: local,
+    text: { text: '%speaker% has %keeper.old.stamina% health and %attempts% chances.' },
+  });
+  expect(changed.project.procedures?.[0].effects[2]).toMatchObject({
+    condition: { left: { entity: local, name: 'health' } },
+  });
+  expect(
+    projectReferences(p).every(
+      (use) => use.target.kind !== 'entity' || typeof use.target.id === 'string',
+    ),
+  ).toBe(true);
+});
+
+it('blocks property renames that would invalidate a fixed entity argument contract', () => {
+  const p = fixture();
+  p.procedures = [
+    {
+      id: 'dialogue',
+      name: 'Dialogue',
+      description: '',
+      inputs: [
+        {
+          id: 'speaker',
+          name: 'Speaker',
+          kind: 'character',
+          required_properties: { health: 'integer' },
+        },
+      ],
+      effects: [],
+    },
+  ];
+  p.game.actions = [
+    {
+      ...action('study'),
+      effects: [
+        {
+          type: 'call',
+          id: 'talk',
+          procedure: 'dialogue',
+          arguments: { speaker: { type: 'entity', kind: 'character', id: 'keeper.old' } },
+        },
+      ],
+    },
+  ];
+  expect(usedBy(p, { kind: 'property', entity: 'keeper.old', name: 'health' })).toMatchObject([
+    { contract: true },
+  ]);
+  const rename = referencePlan(
+    p,
+    { kind: 'property', entity: 'keeper.old', name: 'health' },
+    { kind: 'property', entity: 'keeper.old', name: 'stamina' },
+    true,
+  );
+  expect(rename.errors.join(' ')).toContain('shared contract');
+  expect(rename.project).toEqual(p);
 });

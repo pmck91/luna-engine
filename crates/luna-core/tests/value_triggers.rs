@@ -179,7 +179,7 @@ fn actual_changes_only_and_each_change_mode_support_boolean_and_text_values() {
             target(name),
             Condition::True,
             vec![Effect::Say {
-                text: format!("Changed {name}."),
+                text: format!("Changed {name}.").into(),
             }],
         );
         t.watch.as_mut().unwrap().mode = WatchMode::EachChange;
@@ -433,7 +433,7 @@ fn watch_targets_keep_variable_property_and_dotted_owner_identities_separate() {
             target.clone(),
             Condition::True,
             vec![Effect::Say {
-                text: format!("Target {i} changed."),
+                text: format!("Target {i} changed.").into(),
             }],
         );
         trigger.watch.as_mut().unwrap().mode = WatchMode::EachChange;
@@ -441,7 +441,7 @@ fn watch_targets_keep_variable_property_and_dotted_owner_identities_separate() {
         let effect = match target {
             ValueTarget::Variable { name } => set(&name, 1),
             ValueTarget::Property { entity, name } => Effect::SetProperty {
-                entity,
+                entity: entity.into(),
                 name,
                 value: Value::Integer(1),
             },

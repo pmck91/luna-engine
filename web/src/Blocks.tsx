@@ -1,10 +1,26 @@
+import { projectProcedures } from './procedureBlocks';
+import {
+  procedure,
+  entityChoices,
+  localEntities,
+  referenceProperties,
+  newCall,
+} from './procedureModel';
+import {
+  argumentLabel,
+  editMessage,
+  entityKey,
+  entityValue,
+  referenceLabel,
+  scopedPlacementValue,
+} from './procedureModel';
 import { bindWorkspaceHistory, type HistoryControls } from './workspaceHistory';
 import { useContext, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import * as Blockly from 'blockly/core';
 import * as English from 'blockly/msg/en';
 import type { Condition, Effect, NumericOperand, Project, Value } from './contracts';
 import {
-  flow,
+  script,
   flowConditions,
   id,
   valueFrom,
@@ -25,13 +41,55 @@ import {
   objectPath,
   placementChoices,
   placementKey,
-  placementValue,
   targetKey,
   targetValue,
 } from './containerModel';
+/** Normal load/Undo keeps content IDs. Each native paste gets new CALL identities,
+ * including repeated pastes of the same clipboard item and nested chains. */
+export function remapPastedCalls(state: Blockly.serialization.blocks.State) {
+  const copy = structuredClone(state);
+  const visit = (block: Blockly.serialization.blocks.State) => {
+    if (block.type === 'luna_call' && block.data) {
+      const call = JSON.parse(block.data) as Extract<Effect, { type: 'call' }>;
+      call.id = id();
+      block.data = JSON.stringify(call);
+    }
+    for (const input of Object.values(block.inputs ?? {})) {
+      if (input.block) visit(input.block);
+      if (input.shadow) visit(input.shadow);
+    }
+    if (block.next?.block) visit(block.next.block);
+    if (block.next?.shadow) visit(block.next.shadow);
+  };
+  visit(copy);
+  return copy;
+}
+class LunaBlockPaster extends Blockly.clipboard.BlockPaster {
+  override paste(
+    data: Blockly.clipboard.BlockCopyData,
+    workspace: Blockly.WorkspaceSvg,
+    coordinate?: Blockly.utils.Coordinate,
+  ) {
+    return super.paste(
+      { ...data, blockState: remapPastedCalls(data.blockState) },
+      workspace,
+      coordinate,
+    );
+  }
+}
+Blockly.clipboard.registry.unregister(Blockly.clipboard.BlockPaster.TYPE);
+Blockly.clipboard.registry.register(Blockly.clipboard.BlockPaster.TYPE, new LunaBlockPaster());
+const callInputNames = new WeakMap<Blockly.Block, Record<string, string>>();
 const workspaceFlows = new WeakMap<Blockly.Workspace, string>();
 export function registerBlockScope(workspace: Blockly.Workspace, flowId: string) {
   workspaceFlows.set(workspace, flowId);
+}
+function workspaceScope(workspace: Blockly.Workspace | null): string | undefined {
+  while (workspace) {
+    const scope = workspaceFlows.get(workspace);
+    if (scope) return scope;
+    workspace = workspace instanceof Blockly.WorkspaceSvg ? workspace.targetWorkspace : null;
+  }
 }
 function hasScopedItem(block: Blockly.Block | null) {
   let ws: Blockly.Workspace | null = block?.workspace ?? null;
@@ -53,7 +111,10 @@ const newBlocks = [
   'condition_can_transfer',
 ];
 export const blockAvailable = (p: Project, type: string) =>
-  p.game.format_version >= 2 || !newBlocks.includes(type);
+  (p.game.format_version >= 2 || !newBlocks.includes(type)) &&
+  (p.game.format_version >= 4 ||
+    (!['luna_call', 'luna_assign', 'condition_compare', 'number_input'].includes(type) &&
+      !type.startsWith('procedure:')));
 export function nearestBlock(addresses: Map<string, string>, path: string): string | undefined {
   return [...addresses.entries()]
     .filter(([, address]) => address && (path === address || path.startsWith(`${address}.`)))
@@ -112,12 +173,15 @@ const conditionFields: Record<string, string[]> = {
   can_transfer: ['object', 'placement'],
 };
 const conditionNames: Record<string, string> = {
+  compare: 'COMPARE VALUES',
   possesses: 'HAS ITEM',
   reachable: 'CAN REACH',
   in_object: 'IS INSIDE / ON',
   can_transfer: 'CAN TRANSFER',
 };
 export const labels: Record<string, string> = {
+  call: 'CALL PROCEDURE',
+  assign: 'ASSIGN VALUE',
   say: 'SAY',
   say_with_inputs: 'SAY WITH NAMES',
   transfer: 'PUT OBJECT',
@@ -158,6 +222,21 @@ class LiveDropdown extends Blockly.FieldDropdown {
     this.forceRerender();
   }
 }
+function localPlacementChoices(block: Blockly.Block | null) {
+  return (procedure(project, workspaceScope(block?.workspace ?? null))?.inputs ?? []).flatMap(
+    (input) => {
+      const key = entityKey({ procedure_input: input.id });
+      return input.kind === 'object'
+        ? [
+            { id: `inside:${key}`, name: `Inside input · ${input.name}` },
+            { id: `on:${key}`, name: `On input · ${input.name}` },
+          ]
+        : input.kind === 'location' || input.kind === 'character'
+          ? [{ id: `${input.kind}:${key}`, name: `Input · ${input.name}` }]
+          : [];
+    },
+  );
+}
 function field(name: string, type: string): Blockly.Field {
   const dropdown = (items: (block: Blockly.Block | null) => Array<{ id: string; name: string }>) =>
     new LiveDropdown(function () {
@@ -166,22 +245,48 @@ function field(name: string, type: string): Blockly.Field {
       let original: unknown;
       try {
         original = block?.data ? JSON.parse(block.data)[name] : undefined;
+        if (original && typeof original === 'object') {
+          if (name === 'placement')
+            original = placementKey(original as import('./contracts').ScopedPlacement);
+          else if (name === 'object' && structuredTargets.includes(type))
+            original = targetKey(original as import('./contracts').ObjectTarget);
+          else if ('procedure_input' in original)
+            original = entityKey(original as import('./contracts').EntityRef);
+        }
       } catch {
         /* fresh block */
       }
       for (const value of [this.getValue(), original])
         if (typeof value === 'string' && value && !options.some(([, key]) => key === value))
-          options.push([`Missing: ${value}`, value]);
+          options.push([
+            value.startsWith('@procedure:')
+              ? referenceLabel(
+                  project,
+                  entityValue(value),
+                  block ? workspaceFlows.get(block.workspace) : undefined,
+                )
+              : `Missing: ${value}`,
+            value,
+          ]);
       return options;
     });
+  if (name === 'procedure') return dropdown(() => project.procedures ?? []);
+  if (name === 'input')
+    return dropdown((block) =>
+      (procedure(project, workspaceScope(block?.workspace ?? null))?.inputs ?? []).filter(
+        (input) => input.kind === 'integer',
+      ),
+    );
   if (name === 'object' && structuredTargets.includes(type))
     return dropdown((block) => [
+      ...localEntities(project, workspaceScope(block?.workspace ?? null), ['object']),
       ...(hasScopedItem(block) ? [{ id: commandItemKey, name: 'Command item' }] : []),
       ...project.objects.map((o) => ({ id: o.id, name: objectPath(project, o.id) })),
     ]);
   if (name === 'placement')
-    return dropdown((block) =>
-      placementChoices(
+    return dropdown((block) => [
+      ...localPlacementChoices(block),
+      ...placementChoices(
         project,
         block?.getFieldValue('object') === commandItemKey
           ? undefined
@@ -190,41 +295,60 @@ function field(name: string, type: string): Blockly.Field {
         true,
         false,
       ),
-    );
+    ]);
   if (name === 'relation')
     return new Blockly.FieldDropdown([
       ['inside', 'inside'],
       ['on top', 'on'],
     ]);
   if (name === 'parent')
-    return dropdown((block) =>
-      project.objects.filter((o) =>
+    return dropdown((block) => [
+      ...localEntities(project, workspaceScope(block?.workspace ?? null), ['object']),
+      ...project.objects.filter((o) =>
         block?.getFieldValue('relation') === 'on' ? o.storage?.surface : !!o.storage?.container,
       ),
-    );
+    ]);
   if (name === 'character' && type === 'possesses')
-    return dropdown(() => [{ id: '', name: 'Player' }, ...project.characters]);
+    return dropdown((block) => [
+      { id: '', name: 'Player' },
+      ...entityChoices(project, ['character'], workspaceScope(block?.workspace ?? null)),
+    ]);
   if (['object', 'first', 'second', 'result'].includes(name))
-    return dropdown(() => project.objects);
-  if (name === 'character') return dropdown(() => project.characters);
+    return dropdown((block) =>
+      entityChoices(project, ['object'], workspaceScope(block?.workspace ?? null)),
+    );
+  if (name === 'character')
+    return dropdown((block) =>
+      entityChoices(project, ['character'], workspaceScope(block?.workspace ?? null)),
+    );
   if (name === 'hint') return dropdown(() => hintChoices(project));
-  if (name === 'sequence') return dropdown(() => sequenceChoices(project));
+  if (name === 'sequence')
+    return dropdown((block) => sequenceChoices(project, workspaceScope(block?.workspace ?? null)));
   if (name === 'entity')
-    return dropdown(() => [...project.locations, ...project.objects, ...project.characters]);
+    return dropdown((block) =>
+      entityChoices(
+        project,
+        ['object', 'character', 'location'],
+        workspaceScope(block?.workspace ?? null),
+      ),
+    );
   if (name === 'location')
-    return dropdown(() => [
+    return dropdown((block) => [
       ...(['place', 'move_character'].includes(type)
         ? [{ id: '@current', name: 'Current location' }]
         : []),
-      ...project.locations,
+      ...entityChoices(project, ['location'], workspaceScope(block?.workspace ?? null)),
     ]);
   if (name === 'ending') return dropdown(() => project.game.endings);
   if (name === 'name')
     return dropdown((b) => {
-      const owner = [...project.locations, ...project.objects, ...project.characters].find(
-        (e) => e.id === b?.getFieldValue('entity'),
-      );
-      const values = type.includes('property') ? (owner?.state ?? {}) : project.game.variables;
+      const values = type.includes('property')
+        ? referenceProperties(
+            project,
+            entityValue(b?.getFieldValue('entity') ?? ''),
+            workspaceScope(b?.workspace ?? null),
+          )
+        : project.game.variables;
       const keys = Object.keys(values).filter((key) =>
         type.startsWith('update_') || type.startsWith('number_')
           ? typeof values[key] === 'number'
@@ -422,6 +546,34 @@ export const blockCatalogue: CatalogueBlock[] = [
         } as Record<string, string>
       )[type] ?? type.replaceAll('_', ' '),
   })),
+  {
+    type: 'luna_call',
+    name: 'Call procedure',
+    category: 'Procedures',
+    kind: 'effect',
+    aliases: 'reuse shared call',
+  },
+  {
+    type: 'luna_assign',
+    name: 'ASSIGN VALUE',
+    category: 'World and state',
+    kind: 'effect',
+    aliases: 'set input variable property',
+  },
+  {
+    type: 'condition_compare',
+    name: 'COMPARE VALUES',
+    category: 'Conditions',
+    kind: 'condition',
+    aliases: 'procedure input boolean integer text compare',
+  },
+  {
+    type: 'number_input',
+    name: 'PROCEDURE INPUT',
+    category: 'Numbers',
+    kind: 'number',
+    aliases: 'local integer input',
+  },
   ...['literal', 'variable', 'property'].map((type): CatalogueBlock => ({
     type: `number_${type}`,
     name: type === 'literal' ? 'NUMBER' : `${type.toUpperCase()} VALUE`,
@@ -430,7 +582,28 @@ export const blockCatalogue: CatalogueBlock[] = [
     aliases: type === 'literal' ? 'integer amount literal' : `numeric ${type}`,
   })),
 ];
+export function catalogue(project: Project, scope?: string) {
+  return [
+    ...blockCatalogue.filter(
+      (entry) =>
+        entry.type !== 'number_input' ||
+        procedure(project, scope)?.inputs.some((input) => input.kind === 'integer'),
+    ),
+    ...(project.procedures ?? []).map((definition) => ({
+      type: `procedure:${definition.id}`,
+      name: `Call ${definition.name}`,
+      category: 'Procedures',
+      kind: 'effect' as const,
+      aliases: definition.description,
+    })),
+  ];
+}
 export function createCatalogueBlock(workspace: Blockly.Workspace, type: string) {
+  if (type.startsWith('procedure:')) {
+    const block = workspace.newBlock('luna_call');
+    setFields(block, newCall(procedure(project, type.slice(10))));
+    return block;
+  }
   const entry = blockCatalogue.find((item) => item.type === type);
   if (!entry) throw new Error('Choose a block from the catalogue.');
   if (entry.kind === 'condition')
@@ -511,7 +684,7 @@ export function insertCatalogueBlock(
   const point = insertionPoints(workspace).find(
     (point) => point.blockId === socket.blockId && point.input === socket.input,
   );
-  const entry = blockCatalogue.find((item) => item.type === type);
+  const entry = catalogue(project, workspaceScope(workspace)).find((item) => item.type === type);
   const connection = socketConnection(workspace, socket);
   if (!point || !entry || point.kind !== entry.kind || !connection)
     throw new Error('This block does not fit the selected insertion point.');
@@ -715,9 +888,153 @@ function register() {
         setConditionCount(this, Math.max(0, Math.trunc(state.count ?? 2)));
       },
     };
+  // Scoped expressions retain canonical data and share the native block renderer.
+  for (const [type, label, output] of [
+    ['luna_assign', 'ASSIGN VALUE', ''],
+    ['condition_compare', 'COMPARE VALUES', 'Boolean'],
+  ])
+    Blockly.Blocks[type] = {
+      init(this: Blockly.Block) {
+        this.appendDummyInput().appendField(new Blockly.FieldLabelSerializable(label), 'SUMMARY');
+        this.data = JSON.stringify(
+          type === 'condition_compare'
+            ? defaultCondition('compare', project)
+            : {
+                type: 'assign',
+                target: { type: 'variable', name: Object.keys(project.game.variables)[0] ?? '' },
+                value: { type: 'literal', value: 0 },
+              },
+        );
+        if (output) this.setOutput(true, output);
+        else {
+          this.setPreviousStatement(true);
+          this.setNextStatement(true);
+        }
+        this.setColour(
+          output === 'Boolean' ? '#916b31' : output === 'Number' ? '#426e85' : '#7161c6',
+        );
+      },
+    };
+  Blockly.Blocks.luna_call = {
+    init(this: Blockly.Block) {
+      this.appendDummyInput('CALL')
+        .appendField('CALL')
+        .appendField(field('procedure', 'call'), 'procedure');
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour('#7161c6');
+      setFields(this, newCall(project.procedures?.[0]));
+    },
+    saveExtraState(this: Blockly.Block) {
+      return { inputNames: callInputNames.get(this) ?? {} };
+    },
+    loadExtraState(
+      this: Blockly.Block,
+      state: { definition?: string; inputNames?: Record<string, string> },
+    ) {
+      if (state.inputNames) callInputNames.set(this, { ...state.inputNames });
+      if (state.definition) setFields(this, newCall(procedure(project, state.definition)));
+    },
+  };
+  Blockly.Blocks.number_input = {
+    init(this: Blockly.Block) {
+      this.appendDummyInput()
+        .appendField('INPUT')
+        .appendField(field('input', 'number_input'), 'input');
+      this.setOutput(true, 'Number');
+      this.setColour('#426e85');
+    },
+  };
+}
+function refreshCall(block: Blockly.Block, data: Extract<Effect, { type: 'call' }>) {
+  for (const input of [...block.inputList])
+    if (input.name.startsWith('ARGUMENT_')) block.removeInput(input.name);
+  const definition = procedure(project, data.procedure);
+  const names = { ...callInputNames.get(block) };
+  for (const input of definition?.inputs ?? []) names[input.id] = input.name;
+  callInputNames.set(block, names);
+  const inputs = [
+    ...(definition?.inputs ?? []),
+    ...Object.keys(data.arguments)
+      .filter((id) => !definition?.inputs.some((input) => input.id === id))
+      .map((id) => ({ id, name: `${names[id] ?? 'Removed input'} (unused)` })),
+  ];
+  for (const input of inputs) {
+    const row = block.appendDummyInput(`ARGUMENT_${input.id}`).appendField(`${input.name}:`);
+    const argument = data.arguments[input.id];
+    if (argument?.type === 'literal')
+      row.appendField(
+        typeof argument.value === 'number'
+          ? new Blockly.FieldNumber(argument.value, -2147483648, 2147483647, 1)
+          : typeof argument.value === 'boolean'
+            ? new Blockly.FieldCheckbox(argument.value ? 'TRUE' : 'FALSE')
+            : new Blockly.FieldTextInput(argument.value),
+        `ARG_${input.id}`,
+      );
+    else if (argument?.type === 'entity')
+      row.appendField(
+        new LiveDropdown(() =>
+          choices([
+            { id: '', name: 'Choose…' },
+            ...entityChoices(project, [argument.kind]),
+            ...(argument.id &&
+            !entityChoices(project, [argument.kind]).some((entity) => entity.id === argument.id)
+              ? [{ id: argument.id, name: `Missing: ${argument.id}` }]
+              : []),
+          ]),
+        ),
+        `ARG_${input.id}`,
+      );
+    else
+      row.appendField(
+        argument
+          ? argumentLabel(project, argument, workspaceScope(block.workspace))
+          : 'Choose a value in the inspector',
+      );
+    if (argument?.type === 'entity') {
+      const f = block.getField(`ARG_${input.id}`)!;
+      (f as LiveDropdown).getOptions(false);
+      if (argument.id) block.setFieldValue(argument.id, `ARG_${input.id}`);
+    }
+  }
+}
+function readCall(block: Blockly.Block): Extract<Effect, { type: 'call' }> {
+  const call = block.data
+    ? (JSON.parse(block.data) as Extract<Effect, { type: 'call' }>)
+    : newCall();
+  const args = { ...call.arguments };
+  for (const [id, argument] of Object.entries(args)) {
+    const field = block.getField(`ARG_${id}`);
+    if (!field || !argument) continue;
+    if (argument.type === 'literal')
+      args[id] = { ...argument, value: valueFrom(String(field.getValue()), argument.value) };
+    if (argument.type === 'entity') args[id] = { ...argument, id: String(field.getValue()) };
+  }
+  const result = {
+    ...call,
+    procedure: block.getFieldValue('procedure') ?? call.procedure,
+    arguments: args,
+  };
+  block.data = JSON.stringify(result);
+  return result;
 }
 function setFields(block: Blockly.Block, data: Record<string, unknown>) {
   block.data = JSON.stringify(data);
+  if (block.type === 'luna_call')
+    refreshCall(block, data as unknown as Extract<Effect, { type: 'call' }>);
+  if (block.getField('SUMMARY')) {
+    const argument = (value: unknown) =>
+      argumentLabel(
+        project,
+        value as import('./contracts').Argument,
+        workspaceFlows.get(block.workspace),
+      );
+    const summary =
+      data.type === 'compare'
+        ? `${argument(data.left)} ${data.op} ${argument(data.right)}`
+        : `ASSIGN ${argument(data.value)}`;
+    block.setFieldValue(summary, 'SUMMARY');
+  }
   for (const [name, value] of Object.entries(data))
     if (block.getField(name)) {
       try {
@@ -729,7 +1046,9 @@ function setFields(block: Blockly.Block, data: Record<string, unknown>) {
             : name === 'object' && structuredTargets.includes(String(data.type))
               ? targetKey(value as import('./contracts').ObjectTarget)
               : name === 'character' && data.type === 'possesses'
-                ? (value ?? '')
+                ? value
+                  ? entityKey(value as import('./contracts').EntityRef)
+                  : ''
                 : name === 'text' && data.type === 'say_with_inputs'
                   ? localMessage(
                       project,
@@ -738,7 +1057,31 @@ function setFields(block: Blockly.Block, data: Record<string, unknown>) {
                         { type: 'say_with_inputs' }
                       >['references'],
                     ).display(String(value))
-                  : value;
+                  : name === 'text' && typeof value === 'object'
+                    ? (() => {
+                        const text = value as Exclude<import('./contracts').MessageText, string>;
+                        return localMessage(
+                          project,
+                          text.references,
+                          false,
+                          false,
+                          workspaceScope(block.workspace),
+                        ).display(text.text);
+                      })()
+                    : [
+                          'entity',
+                          'object',
+                          'character',
+                          'location',
+                          'parent',
+                          'first',
+                          'second',
+                          'result',
+                        ].includes(name) &&
+                        typeof value === 'object' &&
+                        value !== null
+                      ? entityKey(value as import('./contracts').EntityRef)
+                      : value;
         block.setFieldValue(
           name.startsWith('consume_') && typeof value === 'boolean'
             ? value
@@ -805,9 +1148,11 @@ function makeEffects(
 function schema(block: Blockly.Block): Value | undefined {
   const type = block.type;
   const declared = type.endsWith('property')
-    ? [...project.locations, ...project.objects, ...project.characters].find(
-        (e) => e.id === block.getFieldValue('entity'),
-      )?.state[block.getFieldValue('name')]
+    ? referenceProperties(
+        project,
+        entityValue(block.getFieldValue('entity')),
+        workspaceScope(block.workspace),
+      )[block.getFieldValue('name')]
     : project.game.variables[block.getFieldValue('name')];
   if (declared !== undefined) return declared;
   try {
@@ -826,18 +1171,44 @@ function fields(block: Blockly.Block, names: string[]): Record<string, unknown> 
       return [
         name,
         name === 'placement'
-          ? placementValue(raw)
+          ? scopedPlacementValue(raw)
           : name === 'object' && structuredTargets.includes(type)
             ? targetValue(raw)
             : name === 'character' && type === 'possesses'
-              ? raw || null
+              ? raw
+                ? entityValue(raw)
+                : null
               : name === 'value'
                 ? valueFrom(String(raw), schema(block))
                 : name.startsWith('consume_')
                   ? raw === 'TRUE'
                   : name === 'count'
                     ? Number(raw)
-                    : raw,
+                    : [
+                          'entity',
+                          'object',
+                          'character',
+                          'location',
+                          'parent',
+                          'first',
+                          'second',
+                          'result',
+                        ].includes(name)
+                      ? entityValue(raw)
+                      : name === 'text' &&
+                          block.data &&
+                          typeof JSON.parse(block.data).text === 'object'
+                        ? editMessage(
+                            JSON.parse(block.data).text,
+                            localMessage(
+                              project,
+                              JSON.parse(block.data).text.references,
+                              false,
+                              false,
+                              workspaceScope(block.workspace),
+                            ).encode(String(raw)),
+                          )
+                        : raw,
       ];
     }),
   );
@@ -845,6 +1216,7 @@ function fields(block: Blockly.Block, names: string[]): Record<string, unknown> 
 export function readCondition(block: Blockly.Block | null): Condition {
   if (!block) return { type: 'true' };
   const type = block.type.replace('condition_', '') as Condition['type'];
+  if (type === 'compare' && block.data) return JSON.parse(block.data) as Condition;
   if (type === 'not') return { type, condition: readCondition(block.getInputTargetBlock('TEST')) };
   if (type === 'all' || type === 'any')
     return {
@@ -855,6 +1227,7 @@ export function readCondition(block: Blockly.Block | null): Condition {
 }
 export function readOperand(block: Blockly.Block | null): NumericOperand {
   if (!block) return { type: 'literal', value: 1 };
+  if (block.type === 'number_input') return { type: 'input', input: block.getFieldValue('input') };
   if (block.type === 'number_literal')
     return { type: 'literal', value: Number(block.getFieldValue('value')) };
   if (block.type === 'number_variable')
@@ -862,7 +1235,7 @@ export function readOperand(block: Blockly.Block | null): NumericOperand {
   if (block.type === 'number_property')
     return {
       type: 'property',
-      entity: block.getFieldValue('entity'),
+      entity: entityValue(block.getFieldValue('entity')),
       name: block.getFieldValue('name'),
     };
   throw new Error('Arithmetic requires a numeric value block');
@@ -872,7 +1245,9 @@ export function readEffects(first: Blockly.Block | null, limit = Infinity): Effe
   let block = first;
   while (block && effects.length < limit) {
     const type = block.type.replace('luna_', '') as Effect['type'];
-    if (type === 'if')
+    if (type === 'call') effects.push(readCall(block));
+    else if (type === 'assign' && block.data) effects.push(JSON.parse(block.data) as Effect);
+    else if (type === 'if')
       effects.push({
         type,
         condition: readCondition(block.getInputTargetBlock('TEST')),
@@ -919,19 +1294,44 @@ export function readEffects(first: Blockly.Block | null, limit = Infinity): Effe
         ...fields(block, effectFields[type]),
         operand: readOperand(block.getInputTargetBlock('OPERAND')),
       } as Effect);
-    else if (type in effectFields)
-      effects.push({ type, ...fields(block, effectFields[type]) } as Effect);
+    else if (type in effectFields) {
+      const effect = { type, ...fields(block, effectFields[type]) } as Effect;
+      block.data = JSON.stringify(effect);
+      effects.push(effect);
+    }
     block = block.getNextBlock();
   }
   return effects;
 }
-export const conditionToolbox = [...Object.keys(conditionFields), 'not', 'all', 'any'].map((t) => ({
+export const conditionToolbox = [
+  ...Object.keys(conditionFields),
+  'not',
+  'all',
+  'any',
+  'compare',
+].map((t) => ({
   kind: 'block',
   type: `condition_${t}`,
 }));
 export function refreshBlockFields(workspace: Blockly.WorkspaceSvg) {
   for (const surface of [workspace, workspace.getFlyout()?.getWorkspace()])
     for (const block of surface?.getAllBlocks(false) ?? []) {
+      if (block.type === 'luna_call') setFields(block, readCall(block));
+      else if (block.getField('SUMMARY') && block.data) setFields(block, JSON.parse(block.data));
+      if (['luna_say', 'luna_character_says'].includes(block.type) && block.data) {
+        const data = JSON.parse(block.data);
+        if (data.text && typeof data.text === 'object')
+          block.setFieldValue(
+            localMessage(
+              project,
+              data.text.references,
+              false,
+              false,
+              workspaceScope(block.workspace),
+            ).display(data.text.text),
+            'text',
+          );
+      }
       if (block.type === 'luna_say_with_inputs' && block.data) {
         const data = JSON.parse(block.data) as Extract<Effect, { type: 'say_with_inputs' }>;
         block.setFieldValue(
@@ -992,6 +1392,12 @@ const toolbox = {
   contents: [
     {
       kind: 'category',
+      name: 'Procedures',
+      colour: '#7161c6',
+      contents: [{ kind: 'block', type: 'luna_call' }],
+    },
+    {
+      kind: 'category',
       name: 'Responses',
       colour: '#386b58',
       contents: [
@@ -1016,7 +1422,7 @@ const toolbox = {
       kind: 'category',
       name: 'Values',
       colour: '#426e85',
-      contents: ['literal', 'variable', 'property'].map((type) => ({
+      contents: ['literal', 'variable', 'property', 'input'].map((type) => ({
         kind: 'block',
         type: `number_${type}`,
       })),
@@ -1107,6 +1513,7 @@ export type BlockSelection = {
   connected: boolean;
   address: string | null;
   value: BlockValue | null;
+  argumentNames?: Record<string, string>;
   fields: Array<{
     name: string;
     label: string;
@@ -1189,9 +1596,17 @@ export function describeBlock(
     connected: address !== undefined,
     address: address ?? null,
     value,
+    argumentNames: block.type === 'luna_call' ? callInputNames.get(block) : undefined,
     fields: block.inputList.flatMap((input) =>
       input.fieldRow
-        .filter((f) => !!f.name && f.name !== 'FLOW_TITLE')
+        .filter(
+          (f) =>
+            !!f.name &&
+            f.name !== 'FLOW_TITLE' &&
+            f.name !== 'SUMMARY' &&
+            !f.name.startsWith('ARG_') &&
+            !(block.type === 'luna_call' && f.name === 'procedure'),
+        )
         .map((f) => ({
           name: f.name!,
           label: f.name!.replaceAll('_', ' '),
@@ -1405,10 +1820,11 @@ export default function Blocks({
   const explanationFocus = useContext(ExplanationFocus);
   const findings = findingContext.findings.filter((finding) => finding.flowId === flowId);
   register();
-  const conditions = flowConditions(flow(p, flowId));
+  const conditions = flowConditions(script(p, flowId));
   const conditionVersion = JSON.stringify(conditions);
   const choiceVersion = JSON.stringify({
     format: p.game.format_version,
+    procedures: (p.procedures ?? []).map(({ id, name, inputs }) => ({ id, name, inputs })),
     input: hasCommandItem(p, flowId),
     storage: p.objects.map((o) => [o.id, o.storage, o.placement]),
     entities: [...p.locations, ...p.objects, ...p.characters].map((entity) => [
@@ -1419,9 +1835,8 @@ export default function Blocks({
     variables: Object.entries(p.game.variables).map(([name, value]) => [name, typeof value]),
     endings: p.game.endings.map((ending) => [ending.id, ending.name]),
     hints: hintChoices(p),
-    sequences: sequenceChoices(p),
+    sequences: sequenceChoices(p, flowId),
   });
-  const toolboxFormat = useRef(p.game.format_version);
   const host = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   const selectedBlock = useRef<string | null>(null);
@@ -1596,10 +2011,12 @@ export default function Blocks({
     Blockly.Events.disable();
     try {
       ws.clear();
+      projectProcedures(ws, p.procedures ?? []);
       let loaded = false;
       if (current.current.saved) {
         try {
           Blockly.serialization.workspaces.load(current.current.saved, ws);
+          projectProcedures(ws, p.procedures ?? []);
           refreshBlockFields(ws);
           const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
           loaded =
@@ -1636,11 +2053,17 @@ export default function Blocks({
       ...toolbox,
       contents: toolbox.contents.map((category) => ({
         ...category,
-        contents: category.contents.filter((block) => blockAvailable(p, block.type)),
+        contents: category.contents.filter(
+          (block) =>
+            blockAvailable(p, block.type) &&
+            (block.type !== 'number_input' ||
+              !!procedure(p, flowId)?.inputs.some((input) => input.kind === 'integer')),
+        ),
       })),
     };
     const ws = Blockly.inject(host.current!, blockWorkspaceOptions(availableToolbox));
     registerBlockScope(ws, flowId);
+    projectProcedures(ws, p.procedures ?? []);
     workspace.current = ws;
     if (current.current.history) bindWorkspaceHistory(ws, () => current.current.history!);
     selectedBlock.current = selectedId ?? null;
@@ -1673,6 +2096,15 @@ export default function Blocks({
         return;
       }
       try {
+        if (event instanceof Blockly.Events.BlockCreate)
+          for (const id of event.ids ?? []) {
+            const block = ws.getBlockById(id);
+            if (block?.type === 'luna_call' && block.data) {
+              const call = JSON.parse(block.data);
+              call.id = crypto.randomUUID();
+              block.data = JSON.stringify(call);
+            }
+          }
         conditionFieldChanged(event, ws);
         commit({ label: 'Edit blocks', group: event.group || undefined });
         notifySelection();
@@ -1719,16 +2151,22 @@ export default function Blocks({
     if (!ws) return;
     Blockly.Events.disable();
     try {
-      if (toolboxFormat.current !== p.game.format_version)
-        ws.updateToolbox({
-          ...toolbox,
-          contents: toolbox.contents.map((category) => ({
-            ...category,
-            contents: category.contents.filter((block) => blockAvailable(p, block.type)),
-          })),
-        });
-      toolboxFormat.current = p.game.format_version;
+      projectProcedures(ws, p.procedures ?? []);
+      ws.updateToolbox({
+        ...toolbox,
+        contents: toolbox.contents.map((category) => ({
+          ...category,
+          contents: category.contents.filter(
+            (block) =>
+              blockAvailable(p, block.type) &&
+              (block.type !== 'number_input' ||
+                !!procedure(p, flowId)?.inputs.some((input) => input.kind === 'integer')),
+          ),
+        })),
+      });
       refreshBlockFields(ws);
+      updateOutline();
+      notifySelection();
     } finally {
       Blockly.Events.enable();
     }
@@ -1957,7 +2395,7 @@ export default function Blocks({
               selectedBlock.current = block.id;
               (block as Blockly.BlockSvg).select();
               commit({
-                label: `Insert ${blockCatalogue.find((entry) => entry.type === type)!.name}`,
+                label: `Insert ${catalogue(p, flowId).find((entry) => entry.type === type)?.name ?? 'block'}`,
               });
               notifySelection(true);
               setInsertionNotice(`Inserted ${describeBlock(block, flowId).label}.`);

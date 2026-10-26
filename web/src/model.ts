@@ -1,5 +1,6 @@
 import type {
   Action,
+  EntityRef,
   Character,
   Condition,
   Effect,
@@ -20,6 +21,7 @@ export const gameDataPages = {
   vocabulary: 'project:vocabulary',
   endings: 'project:endings',
   triggers: 'project:triggers',
+  procedures: 'project:procedures',
 } as const;
 export const yes: Condition = { type: 'true' };
 export const location = (name = 'New location'): Location => {
@@ -119,7 +121,8 @@ export const exit = (destination: string): Exit => ({
   text: '',
   effects: [],
 });
-export function entity(p: Project, key: string) {
+export function entity(p: Project, key: EntityRef) {
+  if (typeof key !== 'string') return undefined;
   return [...p.locations, ...p.objects, ...p.characters].find((e) => e.id === key);
 }
 export function hintStage(): HintStage {
@@ -163,7 +166,20 @@ export function flows(p: Project): Array<Action | Trigger | Exit> {
     ...('exits' in o ? o.exits : []),
   ]);
 }
-export function sequenceChoices(p: Project) {
+export function scripts(p: Project) {
+  return [...flows(p), ...(p.procedures ?? [])];
+}
+export function script(p: Project, key: string) {
+  return scripts(p).find((item) => item.id === key);
+}
+export function sequenceChoices(p: Project, scope?: string) {
+  const definition = (p.procedures ?? []).find((item) => item.id === scope);
+  if (definition)
+    return allEffects(definition.effects).flatMap(({ effect }, index) =>
+      effect.type === 'respond'
+        ? [{ id: effect.id, name: `${definition.name} · sequence ${index + 1}` }]
+        : [],
+    );
   return flows(p).flatMap((flow) => {
     const owner = flowOwner(p, flow.id)!;
     const ownerName = 'title' in owner ? owner.title : owner.name;
@@ -181,11 +197,13 @@ export function flow(p: Project, key: string) {
 export type FlowConditions = Partial<
   Record<'requirements' | 'condition' | 'visible' | 'available', Condition>
 >;
-export function flowConditions(f: Action | Trigger | Exit | undefined): FlowConditions {
+export function flowConditions(
+  f: Action | Trigger | Exit | import('./contracts').Procedure | undefined,
+): FlowConditions {
   if (!f) return {};
   if ('requirements' in f) return { requirements: f.requirements };
   if ('condition' in f) return { condition: f.condition };
-  return { visible: f.visible, available: f.available };
+  return 'visible' in f ? { visible: f.visible, available: f.available } : {};
 }
 export function allEffects(
   effects: Effect[],

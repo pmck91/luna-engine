@@ -87,7 +87,7 @@ fn parser_questions_and_references_work_in_terminal_and_clear_on_process_restore
     let completed = store
         .load_save(&record, &definition, Some("completed"))
         .unwrap();
-    assert_eq!(completed.save_format, 3);
+    assert_eq!(completed.save_format, 4);
     for id in ["brass", "silver"] {
         assert_eq!(completed.state.objects[id].placement, Placement::Inventory);
     }
@@ -248,7 +248,7 @@ fn response_follow_ups_resume_before_and_after_completion_and_can_be_reset() {
                     "Last warning.".into(),
                 ],
                 mode: SequenceMode::Fallback,
-                fallback: String::new(),
+                fallback: String::new().into(),
                 exhaustion: ExhaustionMode::Once,
                 on_exhausted: vec![
                     Effect::UpdateVariable {
@@ -655,7 +655,7 @@ fn arithmetic_cli_exports_saves_restores_and_recovers_from_failed_commands() {
                 operand: Operand::Literal { value: 1 },
             },
             Effect::UpdateProperty {
-                entity: room.clone(),
+                entity: room.clone().into(),
                 name: "charges".into(),
                 op: Op::Add,
                 operand: Operand::Variable {
@@ -666,7 +666,7 @@ fn arithmetic_cli_exports_saves_restores_and_recovers_from_failed_commands() {
                 name: "chances".into(),
                 op: Op::Multiply,
                 operand: Operand::Property {
-                    entity: room.clone(),
+                    entity: room.clone().into(),
                     name: "charges".into(),
                 },
             },
@@ -678,7 +678,7 @@ fn arithmetic_cli_exports_saves_restores_and_recovers_from_failed_commands() {
                 },
             },
             Effect::Say {
-                text: format!("%chances% chances; %{room}.charges% charges."),
+                text: format!("%chances% chances; %{room}.charges% charges.").into(),
             },
         ],
         ..Default::default()

@@ -23,6 +23,7 @@ mod hints;
 mod index;
 mod matching;
 mod presentation;
+mod procedures;
 mod relations;
 pub(crate) mod resolution;
 mod values;
@@ -36,6 +37,9 @@ const EVENT_DEPTH_LIMIT: usize = 64;
 pub(crate) struct Run<'a> {
     p: &'a Project,
     index: &'a RuntimeIndex,
+    procedure_index: &'a crate::procedures::ProcedureIndex,
+    invocation: procedures::Invocation,
+    active_procedures: Vec<usize>,
     entity_words: &'a EntityWords,
     pub(crate) state: Cow<'a, GameState>,
     pub(crate) result: CommandResult,
@@ -69,6 +73,9 @@ impl<'a> Run<'a> {
         Self {
             p: definition.project(),
             index: definition.runtime(),
+            procedure_index: definition.procedures(),
+            invocation: procedures::Invocation::default(),
+            active_procedures: vec![],
             entity_words: &definition.runtime().entity_words,
             state,
             result: CommandResult::default(),

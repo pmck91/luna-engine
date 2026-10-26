@@ -1,14 +1,14 @@
-# Architecture, content formats 1–3, and save formats 1–3
+# Architecture, content formats 1–4, and save formats 1–4
 
-Containers are merged, including the content-2/save-3 foundation. Parser assistance adds authored content format 3 while retaining content-1/2 and save-1/2/3 compatibility; interaction context is session-local. See the [parser contract](design/parser-context/shared-contract.md) and [P3 acceptance review](design/parser-context/final-review.md) for current branch status. Public author/player documentation remains deferred to the documentation-site milestone.
+Containers are merged, including the content-2/save-3 foundation. Parser assistance adds authored content format 3 while retaining content-1/2 and save-1/2/3 compatibility; interaction context is session-local. See the [parser contract](design/parser-context/shared-contract.md) and [P3 acceptance review](design/parser-context/final-review.md) for current branch status. The `feature/block-procedures` branch adds the canonical content-4/save-4 foundation; its [implementation record](design/block-procedures/foundation-review.md) records the runtime/storage work committed as `665170c`; the [authoring record](design/block-procedures/authoring-review.md) covers the owner-accepted R2 working slice; the [R3 review](design/block-procedures/final-review.md) records the accepted technical closeout. Public author/player documentation remains deferred to the documentation-site milestone.
 
-| Crate | Responsibility |
-| --- | --- |
-| `luna-model` | Serde content contract, validation, semantic text spans, starter actions |
-| `luna-core` | Parser, event dispatch, transactional execution, complete mutable state |
-| `luna-project` | Canonical files, disk revisions, recoverable saves, ZIP export/validation |
-| `luna-editor` | Authenticated loopback API, embedded UI, project operations, playtest host |
-| `luna-runner` | Immutable installations, CLI, player save storage, terminal host |
+| Crate          | Responsibility                                                             |
+| -------------- | -------------------------------------------------------------------------- |
+| `luna-model`   | Serde content contract, validation, semantic text spans, starter actions   |
+| `luna-core`    | Parser, event dispatch, transactional execution, complete mutable state    |
+| `luna-project` | Canonical files, disk revisions, recoverable saves, ZIP export/validation  |
+| `luna-editor`  | Authenticated loopback API, embedded UI, project operations, playtest host |
+| `luna-runner`  | Immutable installations, CLI, player save storage, terminal host           |
 
 The React/TypeScript editor uses React Flow for locations and exits and custom Blockly blocks for typed action flows. It never executes game rules in JavaScript. Rust types generate `web/src/contracts.ts`; CI checks that this file has not drifted.
 
@@ -18,24 +18,25 @@ The [development guide](development.md) covers building, embedding, verification
 
 The core's public imports remain available at the crate root. Its private implementation is divided by responsibility:
 
-| Module | Responsibility |
-| --- | --- |
-| [`lib.rs`](../crates/luna-core/src/lib.rs) | Public result/status/control types and API re-exports |
-| [`definition.rs`](../crates/luna-core/src/definition.rs) | Validated immutable content, initial state, and indexed saved-state compatibility checks |
-| [`input.rs`](../crates/luna-core/src/input.rs) | Typed ephemeral input resolution, noun provenance, and pending choices |
-| [`resolution.rs`](../crates/luna-core/src/runtime/resolution.rs) | Bounded clarification, recent references, revalidation, and once-only selected dispatch |
-| [`session.rs`](../crates/luna-core/src/session.rs) | Host lifecycle, creation/restoration, and committing or discarding a command attempt |
-| [`runtime/index.rs`](../crates/luna-core/src/runtime/index.rs) | Definition-owned entity/vocabulary lookups, normalized command patterns, and event/watch addresses |
-| [`runtime/mod.rs`](../crates/luna-core/src/runtime/mod.rs) | One attempted transaction's state/output, shared operation/depth limits, and observation context |
-| [`commands.rs`](../crates/luna-core/src/runtime/commands.rs), [`matching.rs`](../crates/luna-core/src/runtime/matching.rs) | Control parsing, command dispatch, patterns, candidate ranking, and the matcher reused by full help |
-| [`entities.rs`](../crates/luna-core/src/runtime/entities.rs), [`values.rs`](../crates/luna-core/src/runtime/values.rs) | Shared borrowed definition/value lookup, player scope, entity resolution, and checked arithmetic |
-| [`conditions.rs`](../crates/luna-core/src/runtime/conditions.rs) | Read-only condition semantics |
-| [`relations.rs`](../crates/luna-core/src/runtime/relations.rs) | Cycle-safe ancestry, possession/access, structural and physical transfer checks, mutation event accounting |
-| [`events.rs`](../crates/luna-core/src/runtime/events.rs) | Ordered event dispatch, movement/entry, and value-watch before/after transitions |
-| [`effects.rs`](../crates/luna-core/src/runtime/effects.rs) | Effect chains, inventory/visibility mutations, response sequences, branches, stopping, and finalization |
-| [`help.rs`](../crates/luna-core/src/runtime/help.rs), [`hints.rs`](../crates/luna-core/src/runtime/hints.rs) | Player command discovery and authored clue/solution progress |
-| [`presentation.rs`](../crates/luna-core/src/runtime/presentation.rs) | Message formatting, world/inventory listings, live ending presentation, and read-only resume views |
-| [`explanation.rs`](../crates/luna-core/src/runtime/explanation.rs) | Bounded observations, source paths, condition/effect traces, and attempted-state diffs |
+| Module                                                                                                                             | Responsibility                                                                                             |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [`lib.rs`](../crates/luna-core/src/lib.rs)                                                                                         | Public result/status/control types and API re-exports                                                      |
+| [`definition.rs`](../crates/luna-core/src/definition.rs)                                                                           | Validated immutable content, initial state, and indexed saved-state compatibility checks                   |
+| [`input.rs`](../crates/luna-core/src/input.rs)                                                                                     | Typed ephemeral input resolution, noun provenance, and pending choices                                     |
+| [`resolution.rs`](../crates/luna-core/src/runtime/resolution.rs)                                                                   | Bounded clarification, recent references, revalidation, and once-only selected dispatch                    |
+| [`session.rs`](../crates/luna-core/src/session.rs)                                                                                 | Host lifecycle, creation/restoration, and committing or discarding a command attempt                       |
+| [`runtime/index.rs`](../crates/luna-core/src/runtime/index.rs)                                                                     | Definition-owned entity/vocabulary lookups, normalized command patterns, and event/watch addresses         |
+| [`procedures.rs`](../crates/luna-core/src/procedures.rs), [`runtime/procedures.rs`](../crates/luna-core/src/runtime/procedures.rs) | Direct CALL/sequence indexes, typed lexical binding, invocation identity and call/return coordination      |
+| [`runtime/mod.rs`](../crates/luna-core/src/runtime/mod.rs)                                                                         | One attempted transaction's state/output, shared operation/depth limits, and observation context           |
+| [`commands.rs`](../crates/luna-core/src/runtime/commands.rs), [`matching.rs`](../crates/luna-core/src/runtime/matching.rs)         | Control parsing, command dispatch, patterns, candidate ranking, and the matcher reused by full help        |
+| [`entities.rs`](../crates/luna-core/src/runtime/entities.rs), [`values.rs`](../crates/luna-core/src/runtime/values.rs)             | Shared borrowed definition/value lookup, player scope, entity resolution, and checked arithmetic           |
+| [`conditions.rs`](../crates/luna-core/src/runtime/conditions.rs)                                                                   | Read-only condition semantics                                                                              |
+| [`relations.rs`](../crates/luna-core/src/runtime/relations.rs)                                                                     | Cycle-safe ancestry, possession/access, structural and physical transfer checks, mutation event accounting |
+| [`events.rs`](../crates/luna-core/src/runtime/events.rs)                                                                           | Ordered event dispatch, movement/entry, and value-watch before/after transitions                           |
+| [`effects.rs`](../crates/luna-core/src/runtime/effects.rs)                                                                         | Effect chains, inventory/visibility mutations, response sequences, branches, stopping, and finalization    |
+| [`help.rs`](../crates/luna-core/src/runtime/help.rs), [`hints.rs`](../crates/luna-core/src/runtime/hints.rs)                       | Player command discovery and authored clue/solution progress                                               |
+| [`presentation.rs`](../crates/luna-core/src/runtime/presentation.rs)                                                               | Message formatting, world/inventory listings, live ending presentation, and read-only resume views         |
+| [`explanation.rs`](../crates/luna-core/src/runtime/explanation.rs)                                                                 | Bounded observations, source paths, condition/effect traces, and attempted-state diffs                     |
 
 All runtime modules work on the same private `Run` context. Helpers buffer output and mutate attempted state; `Session` owns the commit/rollback decision. Ordinary event dispatch and value watches enter the same operation/depth gate, retaining priority/scope/ID ordering and the finalization guard. Explanation recording observes these calls rather than running a separate gameplay interpreter. Definition/schema access and presentation are shared without combining runtime execution, authoring validation, and structural reachability, which have distinct semantics.
 
@@ -47,9 +48,23 @@ The former inline unit-test module lives in [`tests.rs`](../crates/luna-core/src
 
 Explanations record at most 8,192 ordered steps and 256 changes per diff. A step's `parent` indexes an earlier step, while its source identifies a stable authored subject and canonical field/index path, independent of Blockly layout. Changes describe attempted state and can therefore include output/state later rolled back. `committed` means execution returned without error, including normal rejections; use the result's `state_changed` to decide whether state changed. Truncation limits diagnostics and never changes gameplay execution. Public core APIs require documentation through the `missing_docs` lint; CI also builds rustdoc with warnings denied.
 
+### Shared procedures (content 4)
+
+`Project.procedures` holds canonical definitions stored in `procedures/<id>.json`. Declarations have stable local IDs, six input kinds, and explicit entity-property contracts. CALL arguments bind once on entry; scalar values are captured, while entity references retain live properties. Scoped entity references and bound messages extend the old string wire forms without changing concrete saved placements. Generated TypeScript types preserve the same tagged/untagged representations.
+
+CALLs use ordinary effects, fallible conditions, watches and formatting inside the same transaction and limits. STOP returns from the current procedure, END propagates, and errors roll back the whole initiating attempt. Event handlers establish their own root/scope, while an active definition guard also detects callback re-entry. Definitions are borrowed; direct graph indexes and lazy progress avoid expanding possible invocation paths.
+
+`GameState.procedure_sequences` defaults empty and serializes as structured root/CALL-path/sequence/cursor rows. Duplicate paths, removed edges/sequences, invalid cursor bounds and resource overflows are rejected. A procedure-local reset affects only its current invocation; external resets into a procedure are rejected. Save 4 and captured setup 2 retain progress without replay, and compatible older saves/setups restore with empty procedure progress. The [frozen contract](design/block-procedures/shared-contract.md) and [foundation record](design/block-procedures/foundation-review.md) document exact semantics. The [authoring record](design/block-procedures/authoring-review.md) tracks the production editor and remaining acceptance work.
+
+The editor keeps ordinary `flow`/`flows` separate from `script`/`scripts`, which include procedures. `Procedures` owns the searchable library, declarations and familiar block workspace; `ProcedureCallInspector` and `ProcedureScope` project the current lexical inputs into argument, entity/property, arithmetic and message controls. `procedureBlocks` populates each native Blockly procedure map with independent copies; project history is the canonical writer, and workspace JSON never stores a competing definition. Call metadata retains old input names for readable signature repairs without duplicating canonical arguments.
+
+Shared signature changes retain callers, body references and disconnected drafts. The review applies one project-history edit; native reconciliation preserves stable identities and detaches replaced sockets. Contextual creation adds the definition and updates the selected CALL together. Definition navigation stores source selections and canvas views; nested return frames restore the exact caller without treating it as a breadcrumb parent. Used by, project search, findings and typed traces navigate procedures through the same reference sites. `findingSites` is a pure navigation helper, keeping React finding context independent of Blockly registration order.
+
+The permanent [Reward Workshop](../examples/procedure-workshop/ACCEPTANCE.md) tests the canonical/checked/HTTP export, normal and explained installed sessions, named/autosave/captured state and independent process continuation. Hook and reward counters detect replay; errors after nested calls roll back placement, output and cursors as well as values. It supplements the contract-specific regressions rather than replacing them. Package smoke ships and exercises both editable and exported forms. The [R3 review](design/block-procedures/final-review.md) records branch verification and measured scaling.
+
 ### Parser assistance and session context
 
-`Game.command_assistance` is optional. Omission means both features off and remains writable in content 1–2. New projects explicitly enable clarification and recent objects in content 3. Authoring either settings or message text in an older game requires a reviewed upgrade; exact `cancel` collisions block enabling clarification, without deleting custom actions. The three message fields participate in normal formatting, validation, rename/search, and Used by traversal.
+`Game.command_assistance` is optional. Omission means both features off and remains writable in content 1–2. New projects explicitly enable clarification and recent objects (requiring at least content 3); new projects on the procedures branch use content 4. Authoring either settings or message text in an older game requires a reviewed upgrade; exact `cancel` collisions block enabling clarification, without deleting custom actions. The three message fields participate in normal formatting, validation, rename/search, and Used by traversal.
 
 Session owns a bounded pending interpretation set and recent object separately from GameState. Ordinary names/literals are matched first; enabled `it` resolution uses a stable object ID in compatible noun slots. A tie can ask for an entity without evaluating requirements to guess a puzzle solution. Replies revalidate retained identities, then dispatch through normal requirements/effects/events once. Duplicate handlers remain author ambiguities. Question/retry/cancel run no story effects.
 
@@ -77,7 +92,7 @@ The `print_description` effect stores an `entity` reference and reads that locat
 
 `editor/map-layout.json` stores map positions, optional Blockly workspaces, and route layouts keyed by exit ID. A route layout records optional source/target border anchors (side and fractional position) and a label displacement from the route midpoint. Anchors move with their rooms; labels never alter arrow geometry. Older layouts without route data use automatic placement. These fields are editor metadata and remain excluded from exported games. The typed effects remain canonical; workspace restoration must agree with them or the editor rebuilds the blocks. Response-sequence IDs are independent of response order and persist across edits.
 
-Drafts can have semantic validation errors and remain saveable. Their format header must still support their typed features: an explicit upgrade is required before saving container content into format 1 or authored assistance settings into formats 1–2. Export and new playtests require valid content. Runtime restores additionally validate every saved entity, property, visit counter, ending, response cursor, and object-parent graph against the immutable game definition.
+Drafts can have semantic validation errors and remain saveable. Their format header must still support their typed features: an explicit upgrade is required before saving container content into format 1 or authored assistance settings into formats 1–2, or procedures/scoped references into formats 1–3. Export and new playtests require valid content. Runtime restores additionally validate every saved entity, property, visit counter, ending, response cursor, and object-parent graph against the immutable game definition.
 
 `luna_core::GameDefinition` owns a validated `Project`, saved-state schema, and compiled runtime indexes behind a private shared `Arc`. Construction performs full authoring validation once; clones share immutable content and indexes. `Session::start` and `Session::restore` still accept untrusted projects and create a definition, while `start_with_definition` and `restore_with_definition` reuse one. Sessions expose authored content through `project()` and the validated definition through `definition()`; changing authored content requires validating a new definition and rebuilding its indexes.
 
@@ -125,7 +140,7 @@ The [permanent Packing the Study acceptance fixture](../examples/packing-study/A
 
 `move_character` stores `character` and `location` references. The destination is a location ID or `@current`, resolved against the player's location at execution time. It changes only the character's live location; hidden state and every held object's canonical placement remain intact. Moving to the same room is a no-op. It does not run player Enter, FirstEnter, Leave, Take, Drop, or Speak events, increment visits, show a room description, or move the player. The enclosing action still emits its normal interaction/Command events. Author additional effects explicitly for arrival or departure behaviour. Player command scope and visibility immediately use the new position. Structural ending validation follows possible character positions without treating character destinations as rooms the player can reach.
 
-`character_says` stores `character` and formatted `text`. It reads the referenced character's current authored name and optional `name_colour`, then emits literal name, uncoloured ` says: `, and the message's formatted spans as one transcript line. The name is never parsed as markup or placeholders. The message uses the same live variable/property expansion and literal insertion rules as SAY. A speech effect does not fire Speak or gate output by speaker visibility; authors can add a visible condition. `text::speech` supplies the shared speaker-prefix formatting for future conversation features.
+`character_says` stores `character` and formatted `text`. It reads the referenced character's current authored name and optional `name_colour`, then emits literal name, uncoloured `says:`, and the message's formatted spans as one transcript line. The name is never parsed as markup or placeholders. The message uses the same live variable/property expansion and literal insertion rules as SAY. A speech effect does not fire Speak or gate output by speaker visibility; authors can add a visible condition. `text::speech` supplies the shared speaker-prefix formatting for future conversation features.
 
 `Character.name_colour` defaults to null for older content and accepts null or one of the existing 16 semantic colour names. Both new effects validate typed references and formatted messages, participate in nested IF/ELSE and response follow-ups, and share command rollback. The editor provides both blocks, synchronized inspector controls, a character name-colour picker/preview, and typed template replacement for speakers, destinations, and speech placeholders. Renaming a character preserves its references.
 
@@ -136,7 +151,12 @@ Character locations and held-item ownership already live in `GameState`, so cont
 `update_variable` targets a global variable by `name`; `update_property` targets a custom property by `entity` and `name`. Both include `op` (`add`, `subtract`, `multiply`, or `divide`) and a tagged `operand`: `literal` with an integer `value`, `variable` with a `name`, or `property` with an `entity` and `name`. For example:
 
 ```json
-{"type":"update_variable","name":"chances","op":"subtract","operand":{"type":"literal","value":1}}
+{
+  "type": "update_variable",
+  "name": "chances",
+  "op": "subtract",
+  "operand": { "type": "literal", "value": 1 }
+}
 ```
 
 The target and any referenced operand must have integer schemas. Literal zero divisors are validation errors; referenced divisors may start at zero and are checked against live state at execution. Each effect computes `target = current target OP current operand`, reading both before writing. Earlier effects are visible, including when an operand references the target itself. Calculations use checked signed 32-bit operations; division truncates toward zero. Zero division and overflow (including −2,147,483,648 divided by −1) fail the transaction and discard all its state and output.
@@ -195,7 +215,7 @@ Hint authoring has synchronized Forms and Blockly views, a per-entity puzzle lis
 
 Saving compares a hash of managed project files and assets with the caller's disk revision. A mismatch returns HTTP 409 and leaves canonical files unchanged. Recovery drafts live under `.luna-recovery/`. Multi-file updates use a write-ahead journal and atomic per-file replacement; reopening completes an interrupted transaction only when current files still match its before/after contents. Conflicting external recovery edits are reported rather than overwritten. Project-local recovery and lock files are ignored by the generated Git ignore file.
 
-The exported `.luna` is a standard deflated ZIP containing `manifest.json`, game/vocabulary/entity files, and declared assets under `assets/`. The manifest records format version, identity, content version, and SHA-256 hashes for the exact required file set. Export excludes `editor/`, recovery files, and player saves, and leaves the source project intact. Exported archives use file entries without separate directory entries.
+The exported `.luna` is a standard deflated ZIP containing `manifest.json`, game/vocabulary/entity files, all procedure definitions (including unused ones), and declared assets under `assets/`. The manifest records format version, identity, content version, and SHA-256 hashes for the exact required file set. Export excludes `editor/`, recovery files, and player saves, and leaves the source project intact. Exported archives use file entries without separate directory entries.
 
 Import checks checksums, required files, supported format, duplicate archive paths, safe relative paths, special files, and shared content validation. Resource ceilings are 64 MiB per file, 256 MiB per bundle/uncompressed content, and 10,000 ZIP entries. These are resource protections, not small authoring limits on responses or save slots.
 
@@ -203,7 +223,7 @@ Validated installation content is immutable. An atomic per-version JSON pointer 
 
 ## Player persistence and rendering
 
-Save formats 2–3 wrap the complete `GameState` including hint history, exact game identity/content version, a content fingerprint, UTC timestamps, and a label. The runner reads formats 1–3, writes 2 for content-1 games, and writes 3 for content-2/3 games. Nested placements require save 3. Missing legacy hint history defaults to empty; a format-1 file carrying nonempty hint history is rejected as inconsistent. Unsupported headers are rejected before state deserialization. Saved hint stage IDs must exist, cursors must fit their clue lists, and seen solutions must still exist. Saved object graphs must be cycle-free with compatible, unconsumed parents. Incompatible edits produce a preserved-save error. Keep IDs stable and publish a new content version when changing released puzzle structure. Existing identity/fingerprint/schema checks remain in place.
+Save formats 2–4 wrap the complete `GameState` including hint history, exact game identity/content version, a content fingerprint, UTC timestamps, and a label. The runner reads formats 1–4, writes 2 for content-1 games, 3 for content-2/3 games, and 4 for content-4 games. Nested placements require save 3. Missing legacy hint history defaults to empty; a format-1 file carrying nonempty hint history is rejected as inconsistent. Unsupported headers are rejected before state deserialization. Saved hint stage IDs must exist, cursors must fit their clue lists, and seen solutions must still exist. Saved object graphs must be cycle-free with compatible, unconsumed parents. Incompatible edits produce a preserved-save error. Keep IDs stable and publish a new content version when changing released puzzle structure. Existing identity/fingerprint/schema checks remain in place.
 
 Each slot uses atomic replacement. Named paths are derived from label hashes, and labels are never interpreted as paths. Loading restores state directly without start/entry events. Help and hint listing do not autosave; revealing a new clue or solution does. No hint effects are replayed on load.
 

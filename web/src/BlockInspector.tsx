@@ -1,9 +1,14 @@
+import { useContext } from 'react';
+import { ProcedureScope } from './ProcedureScope';
+import ProcedureCallInspector, { AssignmentInspector } from './ProcedureCallInspector';
+import type { EntityRef } from './contracts';
+import { entityChoices, entityValue, referenceProperties, fixedEntity } from './procedureModel';
 import { blockLocation } from './Blocks';
 import type { Condition, Effect, NumericOperand, Project } from './contracts';
 import type { BlockSelection, BlockValue } from './Blocks';
 import { Check, ConditionEditor, Field, Select, Text } from './Forms';
 import { EffectText } from './Inspector';
-import { entity, valueFrom } from './model';
+import { valueFrom } from './model';
 import { hasCommandItem } from './containerModel';
 import { InlineFindings } from './FindingContext';
 
@@ -13,13 +18,18 @@ export default function BlockInspector({
   change,
   settings,
   help,
+  openDefinition,
+  createDefinition,
 }: {
   project: Project;
   selection: BlockSelection;
   change: (selection: BlockSelection, value: BlockValue) => void;
   settings: () => void;
   help?: () => void;
+  openDefinition?: (id: string) => void;
+  createDefinition?: () => void;
 }) {
+  const scope = useContext(ProcedureScope);
   const value = selection.value!;
   const update = (value: BlockValue) => change(selection, value);
   const rich =
@@ -54,7 +64,18 @@ export default function BlockInspector({
         path={selection.address}
         blockId={selection.blockId}
       />
-      {selection.kind === 'condition' ? (
+      {value.type === 'call' ? (
+        <ProcedureCallInspector
+          project={project}
+          value={value}
+          inputNames={selection.argumentNames}
+          onChange={update}
+          openDefinition={openDefinition ?? (() => {})}
+          createDefinition={createDefinition ?? (() => {})}
+        />
+      ) : value.type === 'assign' ? (
+        <AssignmentInspector project={project} value={value} onChange={update} />
+      ) : selection.kind === 'condition' ? (
         <ConditionEditor
           project={project}
           value={value as Condition}
@@ -77,11 +98,24 @@ export default function BlockInspector({
             selection.fields.map((field) => {
               const effect = value as Effect;
               const patch = (raw: string | boolean | number) => {
-                let next: unknown = raw;
+                let next: unknown =
+                  typeof raw === 'string' &&
+                  [
+                    'entity',
+                    'object',
+                    'character',
+                    'location',
+                    'parent',
+                    'first',
+                    'second',
+                    'result',
+                  ].includes(field.name)
+                    ? entityValue(raw)
+                    : raw;
                 if (field.name === 'value' && typeof raw === 'string') {
                   const declaration =
                     'entity' in effect
-                      ? entity(project, effect.entity)?.state
+                      ? referenceProperties(project, effect.entity, scope?.procedure?.id)
                       : project.game.variables;
                   const schema = 'name' in effect ? declaration?.[effect.name] : undefined;
                   try {
@@ -98,7 +132,7 @@ export default function BlockInspector({
                 ) {
                   const values =
                     'entity' in replacement
-                      ? entity(project, replacement.entity)?.state
+                      ? referenceProperties(project, replacement.entity, scope?.procedure?.id)
                       : project.game.variables;
                   const declaration = values?.[replacement.name];
                   if (declaration !== undefined && typeof replacement.value !== typeof declaration)
@@ -122,10 +156,11 @@ export default function BlockInspector({
                             'set_property',
                             'update_variable',
                             'update_property',
-                          ].includes(effect.type)
+                          ].includes(effect.type) &&
+                          (!('entity' in effect) || typeof effect.entity === 'string')
                         ? {
                             kind: 'entity' in effect ? 'property' : 'variable',
-                            ownerId: 'entity' in effect ? effect.entity : undefined,
+                            ownerId: 'entity' in effect ? fixedEntity(effect.entity) : undefined,
                             numberOnly: effect.type.startsWith('update_'),
                             onCreated: (name, initial) =>
                               update({
@@ -174,7 +209,13 @@ export default function BlockInspector({
           {(value.type === 'update_variable' || value.type === 'update_property') && (
             <p className="muted">Select the connected number block to edit the amount.</p>
           )}
-          {value.type === 'stop' && <p>Stops the current flow here.</p>}
+          {value.type === 'stop' && (
+            <p>
+              {scope?.procedure
+                ? 'Returns from this procedure and continues the caller.'
+                : 'Stops the current flow here.'}
+            </p>
+          )}
         </>
       )}
     </>
@@ -189,12 +230,17 @@ function OperandEditor({
   value: NumericOperand;
   onChange: (value: NumericOperand) => void;
 }) {
-  const entities = [...project.locations, ...project.objects, ...project.characters];
+  const scope = useContext(ProcedureScope);
+  const entities = entityChoices(
+    project,
+    ['object', 'character', 'location'],
+    scope?.procedure?.id,
+  );
   const variables = Object.entries(project.game.variables)
     .filter(([, v]) => typeof v === 'number')
     .map(([id]) => ({ id, name: id }));
-  const properties = (id: string) =>
-    Object.entries(entity(project, id)?.state ?? {})
+  const properties = (id: EntityRef) =>
+    Object.entries(referenceProperties(project, id, scope?.procedure?.id))
       .filter(([, v]) => typeof v === 'number')
       .map(([id]) => ({ id, name: id }));
   return (
@@ -206,6 +252,7 @@ function OperandEditor({
           { id: 'literal', name: 'Number' },
           { id: 'variable', name: 'Variable' },
           { id: 'property', name: 'Entity property' },
+          ...(scope?.procedure ? [{ id: 'input', name: 'Procedure input' }] : []),
         ]}
         onChange={(type) =>
           onChange(
@@ -213,11 +260,18 @@ function OperandEditor({
               ? { type, value: 1 }
               : type === 'variable'
                 ? { type, name: variables[0]?.id ?? '' }
-                : {
-                    type: 'property',
-                    entity: entities[0]?.id ?? '',
-                    name: properties(entities[0]?.id ?? '')[0]?.id ?? '',
-                  },
+                : type === 'input'
+                  ? {
+                      type,
+                      input:
+                        scope?.procedure?.inputs.find((input) => input.kind === 'integer')?.id ??
+                        '',
+                    }
+                  : {
+                      type: 'property',
+                      entity: entities[0]?.id ?? '',
+                      name: properties(entities[0]?.id ?? '')[0]?.id ?? '',
+                    },
           )
         }
       />
@@ -232,6 +286,13 @@ function OperandEditor({
             onChange={(e) => onChange({ ...value, value: Number(e.target.value) })}
           />
         </Field>
+      ) : value.type === 'input' ? (
+        <Select
+          label="Procedure input"
+          value={value.input}
+          items={(scope?.procedure?.inputs ?? []).filter((input) => input.kind === 'integer')}
+          onChange={(input) => onChange({ ...value, input })}
+        />
       ) : (
         <>
           {value.type === 'property' && (
@@ -240,17 +301,25 @@ function OperandEditor({
               value={value.entity}
               items={entities}
               onChange={(entity) =>
-                onChange({ ...value, entity, name: properties(entity)[0]?.id ?? '' })
+                onChange({
+                  ...value,
+                  entity: entityValue(entity),
+                  name: properties(entityValue(entity))[0]?.id ?? '',
+                })
               }
             />
           )}
           <Select
             label={value.type === 'variable' ? 'Variable' : 'Property'}
-            create={{
-              kind: value.type,
-              ownerId: value.type === 'property' ? value.entity : undefined,
-              numberOnly: true,
-            }}
+            create={
+              value.type === 'property' && typeof value.entity !== 'string'
+                ? undefined
+                : {
+                    kind: value.type,
+                    ownerId: value.type === 'property' ? fixedEntity(value.entity) : undefined,
+                    numberOnly: true,
+                  }
+            }
             value={value.name}
             items={value.type === 'variable' ? variables : properties(value.entity)}
             onChange={(name) => onChange({ ...value, name })}
