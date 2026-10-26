@@ -1,41 +1,9 @@
-//! P1 feasibility proof, compiled only in tests; not a shipping parser mode.
-//!
-//! Interpretations come from the indexed matcher. Selected actions/exits use
-//! the ordinary dispatcher inside Session's real commit/explanation boundary.
-//! Only the pending-choice/reference coordinator is experimental here. This
-//! does not install settings, public metadata, migrations, or a second executor.
-use super::{Candidate, Handler, Owner, Run, word_prefix};
-use crate::{CommandResult, CommandStatus, GameState, Session};
-use anyhow::{Result, ensure};
-use luna_model::{
-    Action, ArithmeticOperation, Character, Condition, ContainerOpening, Effect, Ending, Event,
-    Exit, Location, NumericOperand, Object, ObjectStorage, PatternPart, Placement, Project,
-    StandardInteraction, Trigger, TriggerWatch, Value, ValueTarget, WatchMode, normalize,
-    standard_action, text,
-};
-use std::collections::{BTreeMap, BTreeSet};
-
+//! Production Session regression scenarios promoted from the P1 matcher proof.
+use super::*;
+use crate::{InputResolution, runtime::resolution::InteractionContext as Context};
+use luna_model::*;
+use std::ops::{Deref, DerefMut};
 const MAX_CHOICES: usize = 20;
-const MAX_INTERPRETATIONS: usize = 256;
-const MAX_NOUNS: usize = 32;
-type Filters = BTreeMap<usize, BTreeSet<String>>;
-type Identity = (String, Option<String>, Vec<String>);
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct Context {
-    recent: Option<String>,
-    pending: Option<Pending>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct Pending {
-    input: String,
-    reference: Option<String>,
-    filters: Filters,
-    slot: usize,
-    choices: Vec<String>,
-    alternatives: BTreeSet<Identity>,
-}
 
 #[derive(Debug, Default, PartialEq, Eq)]
 enum Resolution {
@@ -54,42 +22,102 @@ enum Resolution {
     Unavailable,
     Cancelled,
 }
-
 struct Outcome {
     result: CommandResult,
     resolution: Resolution,
 }
-
+// This adapter only projects public result metadata for the historical cases;
+// it contains no matching, coordination, effects, or transaction implementation.
 struct Proof {
     session: Session,
-    context: Context,
     clarify: bool,
     pronouns: bool,
 }
-
+impl Deref for Proof {
+    type Target = Session;
+    fn deref(&self) -> &Session {
+        &self.session
+    }
+}
+impl DerefMut for Proof {
+    fn deref_mut(&mut self) -> &mut Session {
+        &mut self.session
+    }
+}
 impl Proof {
     fn new(project: Project) -> Self {
+        let settings = project.game.command_assistance.clone().unwrap_or_default();
         Self {
             session: Session::start(project, None).unwrap().0,
-            context: Context::default(),
-            clarify: true,
-            pronouns: true,
+            clarify: settings.clarification,
+            pronouns: settings.recent_objects,
         }
     }
-
     fn attempt(&mut self, input: &str, explain: bool) -> (Outcome, Option<anyhow::Error>) {
-        let mut context = self.context.clone();
-        let mut resolution = Resolution::Ordinary;
-        let (result, error) = self.session.execute_with(input, explain, |run| {
-            resolution = advance(run, &mut context, input, self.clarify, self.pronouns)?;
-            Ok(())
-        });
-        if error.is_none() {
-            self.context = context;
+        let mut settings = self
+            .session
+            .project()
+            .game
+            .command_assistance
+            .clone()
+            .unwrap_or_default();
+        if settings.clarification != self.clarify || settings.recent_objects != self.pronouns {
+            settings.clarification = self.clarify;
+            settings.recent_objects = self.pronouns;
+            let mut project = self.session.project().clone();
+            project.game.command_assistance = Some(settings);
+            self.session = Session::restore(project, self.session.state().clone()).unwrap();
         }
+        let (result, error) = if explain {
+            let result = self.session.command_explained(input);
+            let error = (result.status == CommandStatus::Error).then(|| {
+                anyhow::anyhow!(
+                    result
+                        .explanation
+                        .as_ref()
+                        .and_then(|trace| trace.error.clone())
+                        .unwrap_or_default()
+                )
+            });
+            (result, error)
+        } else {
+            match self.session.command(input) {
+                Ok(result) => (result, None),
+                Err(error) => (
+                    CommandResult {
+                        status: CommandStatus::Error,
+                        ..Default::default()
+                    },
+                    Some(error),
+                ),
+            }
+        };
+        let resolution = match result.input_resolution.as_ref() {
+            Some(InputResolution::Pending { question, .. }) => Resolution::Waiting {
+                slot: self.session.context.pending.as_ref().unwrap().slot,
+                choices: question
+                    .choices
+                    .iter()
+                    .map(|choice| choice.entity.clone())
+                    .collect(),
+            },
+            Some(InputResolution::Resolved { bindings, .. }) if result.selected_flow.is_some() => {
+                Resolution::Selected {
+                    flow: result.selected_flow.clone().unwrap(),
+                    nouns: bindings
+                        .iter()
+                        .map(|binding| binding.entity.clone())
+                        .collect(),
+                }
+            }
+            Some(InputResolution::AuthorAmbiguity { .. }) => Resolution::AuthorAmbiguity,
+            Some(InputResolution::TooMany { .. }) => Resolution::TooMany,
+            Some(InputResolution::Unresolved { .. }) => Resolution::Unavailable,
+            Some(InputResolution::Cancelled { .. }) => Resolution::Cancelled,
+            _ => Resolution::Ordinary,
+        };
         (Outcome { result, resolution }, error)
     }
-
     fn command(&mut self, input: &str) -> Result<Outcome> {
         let (outcome, error) = self.attempt(input, false);
         if let Some(error) = error {
@@ -97,334 +125,9 @@ impl Proof {
         }
         Ok(outcome)
     }
-
     fn replace_state(&mut self, state: GameState) -> Result<()> {
-        self.session.replace_state(state)?;
-        self.context = Context::default();
-        Ok(())
+        self.session.replace_state(state)
     }
-}
-
-// Projected noun IDs are sufficient for narrowing; no display-name substitution
-// or copied/generated action is needed. P2 will retain typed slot provenance.
-fn nouns(candidate: Candidate<'_>) -> Vec<String> {
-    let pattern = match candidate.handler {
-        Handler::Action(action) => &action.pattern,
-        Handler::Exit(exit) => &exit.pattern,
-    };
-    pattern
-        .iter()
-        .filter_map(|part| match part {
-            PatternPart::Entity { entity } => Some(entity.clone()),
-            PatternPart::ObjectInput => candidate.item.map(str::to_owned),
-            PatternPart::Literal { .. } => None,
-        })
-        .collect()
-}
-
-fn identity(candidate: Candidate<'_>) -> Identity {
-    (
-        candidate.id.into(),
-        candidate.item.map(str::to_owned),
-        nouns(candidate),
-    )
-}
-
-fn shape(candidate: Candidate<'_>) -> Vec<String> {
-    let pattern = match candidate.handler {
-        Handler::Action(action) => &action.pattern,
-        Handler::Exit(exit) => &exit.pattern,
-    };
-    pattern
-        .iter()
-        .map(|part| match part {
-            PatternPart::Literal { text } => format!("literal:{}", normalize(text)),
-            _ => "noun".into(),
-        })
-        .collect()
-}
-
-fn matches<'a>(run: &Run<'a>, input: &str, reference: Option<&str>) -> Result<Vec<Candidate<'a>>> {
-    let mut candidates = run.candidates(input, None)?;
-    // Preserve actual aliases/literals before considering the recent reference.
-    if candidates.is_empty() && reference.is_some() {
-        candidates = run.candidates_with_reference(input, None, reference)?;
-    }
-    if let Some(best) = candidates.first().copied() {
-        candidates
-            .retain(|candidate| candidate.rank == best.rank && candidate.fallback == best.fallback);
-    }
-    candidates.dedup_by(|a, b| a.id == b.id && a.item == b.item);
-    Ok(candidates)
-}
-
-fn choices(run: &Run<'_>, candidates: &[Candidate<'_>], slot: usize) -> Vec<String> {
-    let mut ids = candidates
-        .iter()
-        .map(|candidate| nouns(*candidate)[slot].clone())
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
-    ids.sort_by_cached_key(|id| (normalize(run.entity_name(id).unwrap()), id.clone()));
-    ids
-}
-
-fn waiting(run: &mut Run<'_>, context: &mut Context, pending: Pending) -> Resolution {
-    run.result.status = CommandStatus::Ambiguous;
-    run.literal("Which do you mean?");
-    for (index, id) in pending.choices.iter().enumerate() {
-        run.literal(&format!("{}. {}", index + 1, run.entity_name(id).unwrap()));
-    }
-    let result = Resolution::Waiting {
-        slot: pending.slot,
-        choices: pending.choices.clone(),
-    };
-    context.pending = Some(pending);
-    result
-}
-
-fn select<'a>(
-    run: &mut Run<'a>,
-    context: &mut Context,
-    input: &str,
-    candidates: Vec<Candidate<'a>>,
-    filters: Filters,
-    reference: Option<String>,
-    clarify: bool,
-) -> Result<Resolution> {
-    if let [candidate] = candidates.as_slice() {
-        let candidate = *candidate;
-        let ids = nouns(candidate);
-        let result = Resolution::Selected {
-            flow: candidate.id.into(),
-            nouns: ids.clone(),
-        };
-        let recent = ids
-            .iter()
-            .find(|id| matches!(run.index.entities.get(id.as_str()), Some(Owner::Object(_))))
-            .cloned();
-        context.pending = None;
-        run.dispatch(candidate, input)?;
-        if recent.is_some() {
-            context.recent = recent;
-        }
-        return Ok(result);
-    }
-    let Some(first) = candidates.first().copied() else {
-        context.pending = None;
-        run.result.status = CommandStatus::Unmatched;
-        run.literal("That command is no longer available.");
-        return Ok(Resolution::Unavailable);
-    };
-    let first_shape = shape(first);
-    if candidates.len() > MAX_INTERPRETATIONS || nouns(first).len() > MAX_NOUNS {
-        context.pending = None;
-        run.result.status = CommandStatus::Ambiguous;
-        run.literal("Too many interpretations. Please type a more specific complete command.");
-        return Ok(Resolution::TooMany);
-    }
-    let compatible = candidates
-        .iter()
-        .all(|candidate| shape(*candidate) == first_shape);
-    let slot = compatible
-        .then(|| (0..nouns(first).len()).find(|&slot| choices(run, &candidates, slot).len() > 1))
-        .flatten();
-    if !clarify || slot.is_none() {
-        context.pending = None;
-        run.result.status = CommandStatus::Ambiguous;
-        run.literal("Please use a more specific command; nothing has changed.");
-        return Ok(Resolution::AuthorAmbiguity);
-    }
-    let slot = slot.unwrap();
-    let offered = choices(run, &candidates, slot);
-    if offered.len() > MAX_CHOICES {
-        context.pending = None;
-        run.result.status = CommandStatus::Ambiguous;
-        run.literal("Too many matches. Please type a more specific complete command.");
-        return Ok(Resolution::TooMany);
-    }
-    Ok(waiting(
-        run,
-        context,
-        Pending {
-            input: input.into(),
-            reference,
-            filters,
-            slot,
-            choices: offered,
-            alternatives: candidates
-                .iter()
-                .map(|candidate| identity(*candidate))
-                .collect(),
-        },
-    ))
-}
-
-fn reply(run: &Run<'_>, pending: &Pending, input: &str) -> BTreeSet<String> {
-    if input.bytes().all(|b| b.is_ascii_digit()) {
-        return input
-            .parse::<usize>()
-            .ok()
-            .and_then(|n| n.checked_sub(1))
-            .and_then(|index| pending.choices.get(index))
-            .cloned()
-            .into_iter()
-            .collect();
-    }
-    let tokens = input.split_whitespace().collect::<Vec<_>>();
-    let named = pending
-        .choices
-        .iter()
-        .filter(|id| run.entity_matches(&tokens, id))
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    if !named.is_empty() {
-        return named;
-    }
-    if input == "it" {
-        return pending
-            .reference
-            .as_ref()
-            .filter(|id| run.available(id) && pending.choices.contains(id))
-            .cloned()
-            .into_iter()
-            .collect();
-    }
-    pending
-        .choices
-        .iter()
-        .filter(|id| {
-            run.index.names[*id].iter().any(|name| {
-                run.entity_words.starts(&tokens, 0).any(|start| {
-                    let fragment = &tokens[start..];
-                    !fragment.is_empty()
-                        && name.windows(fragment.len()).any(|words| {
-                            words
-                                .iter()
-                                .zip(fragment)
-                                .all(|(word, token)| word == token)
-                        })
-                })
-            })
-        })
-        .cloned()
-        .collect()
-}
-
-fn known_verb(run: &Run<'_>, input: &str) -> bool {
-    let tokens = input.split_whitespace().collect::<Vec<_>>();
-    run.index.verbs.values().any(|verb| {
-        verb.phrases
-            .iter()
-            .any(|phrase| word_prefix(&tokens, phrase))
-    })
-}
-
-fn advance(
-    run: &mut Run<'_>,
-    context: &mut Context,
-    raw: &str,
-    clarify: bool,
-    pronouns: bool,
-) -> Result<Resolution> {
-    let input = normalize(raw);
-    if !clarify && !pronouns {
-        *context = Context::default();
-        run.command(raw)?;
-        return Ok(Resolution::Ordinary);
-    }
-    let control = super::super::host_control(raw);
-    if input.is_empty()
-        || control.is_some()
-        || matches!(input.as_str(), "look" | "inventory" | "help")
-        || input.starts_with("help ")
-    {
-        run.command(raw)?;
-        return Ok(Resolution::Ordinary);
-    }
-    if input == "hint" || input.starts_with("hint ") || run.state.ending.is_some() {
-        context.pending = None;
-        run.command(raw)?;
-        return Ok(Resolution::Ordinary);
-    }
-    ensure!(raw.len() <= 4096, "Command is too long");
-    if clarify && input == "cancel" {
-        context.pending = None;
-        run.literal("Command cancelled.");
-        return Ok(Resolution::Cancelled);
-    }
-    let reference = pronouns.then_some(context.recent.clone()).flatten();
-    let candidates = matches(run, &input, reference.as_deref())?;
-    if !candidates.is_empty() {
-        return select(
-            run,
-            context,
-            &input,
-            candidates,
-            Filters::new(),
-            reference,
-            clarify,
-        );
-    }
-    if let Some(mut pending) = context.pending.take() {
-        let current = matches(run, &pending.input, pending.reference.as_deref())?;
-        let candidates = current
-            .into_iter()
-            .filter(|candidate| {
-                let ids = nouns(*candidate);
-                pending
-                    .filters
-                    .iter()
-                    .all(|(slot, allowed)| ids.get(*slot).is_some_and(|id| allowed.contains(id)))
-            })
-            .collect::<Vec<_>>();
-        if candidates
-            .iter()
-            .any(|candidate| !pending.alternatives.contains(&identity(*candidate)))
-        {
-            run.result.status = CommandStatus::Unmatched;
-            run.literal("That command has changed. Please type a new complete command.");
-            return Ok(Resolution::Unavailable);
-        }
-        if candidates.is_empty() {
-            run.result.status = CommandStatus::Unmatched;
-            run.literal("That command is no longer available.");
-            return Ok(Resolution::Unavailable);
-        }
-        // Never reinterpret a displayed number after the offered scope changes.
-        let current = choices(run, &candidates, pending.slot);
-        if current != pending.choices {
-            pending.choices = current;
-            return Ok(waiting(run, context, pending));
-        }
-        let selected = reply(run, &pending, &input);
-        if !selected.is_empty() {
-            let candidates = candidates
-                .into_iter()
-                .filter(|candidate| selected.contains(&nouns(*candidate)[pending.slot]))
-                .collect();
-            pending.filters.insert(pending.slot, selected);
-            return select(
-                run,
-                context,
-                &pending.input,
-                candidates,
-                pending.filters,
-                pending.reference,
-                clarify,
-            );
-        }
-        if !known_verb(run, &input) {
-            return Ok(waiting(run, context, pending));
-        }
-    }
-    if pronouns && known_verb(run, &input) && input.split_whitespace().any(|word| word == "it") {
-        run.result.status = CommandStatus::Unmatched;
-        run.literal("I can't tell what “it” refers to here. Use its full name.");
-        return Ok(Resolution::Unavailable);
-    }
-    run.command(raw)?;
-    Ok(Resolution::Ordinary)
 }
 
 fn increment(name: &str) -> Effect {
@@ -792,7 +495,8 @@ fn references_never_replace_literals_or_bypass_object_scope() {
     // replacement API, to prove matching rechecks scope even for a retained ID.
     let mut state = proof.session.state().clone();
     state.objects.get_mut("brass").unwrap().hidden = true;
-    proof.session.replace_state(state).unwrap();
+    proof.session.definition().validate_state(&state).unwrap();
+    proof.session.state = state;
     let result = proof.command("examine it").unwrap();
     assert_eq!(result.resolution, Resolution::Unavailable);
     assert!(
@@ -840,7 +544,16 @@ fn control_commands_preserve_questions_and_fresh_commands_replace_them() {
 
 #[test]
 fn cancel_is_reserved_only_for_assisted_games_and_never_runs_effects() {
+    let mut proof = Proof::new(world());
+    proof.command("take key").unwrap();
+    assert_eq!(
+        proof.command("cancel").unwrap().resolution,
+        Resolution::Cancelled
+    );
+    assert!(proof.context.pending.is_none());
+    counts(&proof, 0);
     let mut p = world();
+    p.game.command_assistance.as_mut().unwrap().clarification = false;
     p.vocabulary.push(luna_model::Verb {
         id: "cancel".into(),
         canonical: "cancel".into(),
@@ -851,14 +564,6 @@ fn cancel_is_reserved_only_for_assisted_games_and_never_runs_effects() {
         .actions
         .push(action("authored-cancel", "cancel", vec![]));
     let mut proof = Proof::new(p);
-    proof.command("take key").unwrap();
-    assert_eq!(
-        proof.command("cancel").unwrap().resolution,
-        Resolution::Cancelled
-    );
-    assert!(proof.context.pending.is_none());
-    counts(&proof, 0);
-    proof.clarify = false;
     proof.command("cancel").unwrap();
     counts(&proof, 1);
 }
@@ -869,7 +574,8 @@ fn a_changed_offered_set_never_reuses_old_number_meanings() {
     proof.command("take key").unwrap();
     let mut state = proof.session.state().clone();
     state.objects.get_mut("brass").unwrap().hidden = true;
-    proof.session.replace_state(state).unwrap();
+    proof.session.definition().validate_state(&state).unwrap();
+    proof.session.state = state;
     let result = proof.command("1").unwrap();
     assert_eq!(
         result.resolution,
@@ -899,7 +605,8 @@ fn newly_available_handlers_cannot_capture_a_reply_to_an_old_question() {
     proof.command("take key").unwrap();
     let mut state = proof.session.state().clone();
     state.objects.get_mut("late-handler-owner").unwrap().hidden = false;
-    proof.session.replace_state(state).unwrap();
+    proof.session.definition().validate_state(&state).unwrap();
+    proof.session.state = state;
     assert_eq!(
         proof.command("1").unwrap().resolution,
         Resolution::Unavailable
@@ -1013,7 +720,8 @@ fn references_recheck_all_existing_container_and_ownership_scope_rules() {
                 item.consumed = scenario == "consumed";
             }
         }
-        proof.session.replace_state(state).unwrap();
+        proof.session.definition().validate_state(&state).unwrap();
+        proof.session.state = state;
         let result = proof.command("examine it").unwrap();
         assert_eq!(result.resolution, Resolution::Unavailable, "{scenario}");
         assert!(
@@ -1130,7 +838,8 @@ fn visible_exit_destination_exception_does_not_widen_ordinary_noun_scope() {
 
 #[test]
 fn optional_modes_and_restoration_leave_ordinary_games_unchanged() {
-    let p = world();
+    let mut p = world();
+    p.game.command_assistance = None;
     let mut ordinary = Session::start(p.clone(), None).unwrap().0;
     let mut proof = Proof::new(p);
     proof.clarify = false;
@@ -1160,7 +869,6 @@ fn optional_modes_and_restoration_leave_ordinary_games_unchanged() {
     .unwrap();
     let mut restored = Proof {
         session: restored,
-        context: Context::default(),
         clarify: true,
         pronouns: true,
     };
@@ -1226,53 +934,4 @@ fn too_many_choices_and_overlong_replies_are_bounded_without_partial_selection()
     assert!(proof.command(&"x".repeat(4097)).is_err());
     assert_eq!(proof.context, before);
     counts(&proof, 0);
-}
-
-#[test]
-#[ignore = "release-only measurements; no timing assertions"]
-fn scaling() {
-    use std::{hint::black_box, time::Instant};
-    fn measure<T>(mut operation: impl FnMut() -> T) -> f64 {
-        let start = Instant::now();
-        for _ in 0..30 {
-            black_box(operation());
-        }
-        start.elapsed().as_secs_f64() * 1000.0 / 30.0
-    }
-    println!("objects,measurement,milliseconds");
-    for count in [100, 1000, 5000] {
-        let mut p = world();
-        for index in 0..count - p.objects.len() {
-            let id = format!("token-{index}");
-            p.objects.push(Object {
-                id: id.clone(),
-                name: format!("Token {index}"),
-                aliases: vec!["key".into()],
-                placement: Placement::Inventory,
-                actions: vec![action(&format!("take-{id}"), "take", vec![entity(&id)])],
-                ..Default::default()
-            });
-        }
-        let mut proof = Proof::new(p);
-        let run = Run::view(proof.session.definition(), proof.session.state());
-        let baseline = measure(|| run.candidates("take brass key", None).unwrap());
-        let explicit = measure(|| matches(&run, "take brass key", Some("silver")).unwrap());
-        let reference = measure(|| matches(&run, "take it", Some("brass")).unwrap());
-        let crowded = measure(|| matches(&run, "take key", None).unwrap());
-        let question = measure(|| {
-            assert_eq!(
-                proof.command("take key").unwrap().resolution,
-                Resolution::TooMany
-            )
-        });
-        for (label, timing) in [
-            ("explicit_match", baseline),
-            ("explicit_assisted_match", explicit),
-            ("reference_match", reference),
-            ("ambiguous_match", crowded),
-            ("bounded_question_transaction", question),
-        ] {
-            println!("{count},{label},{timing:.6}");
-        }
-    }
 }

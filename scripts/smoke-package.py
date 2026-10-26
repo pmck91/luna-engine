@@ -149,6 +149,52 @@ def main():
             run(["run", packing_game["id"], "--load", "autosave"], "load packed\nquit\n", profile="packing")
             assert packed_save()["state"] == nested["state"], "Named load changed nested contents or replayed events"
 
+            # Author an assisted game through the packaged API, then resolve
+            # questions and restore saves in separate packaged runner processes.
+            parser_project = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser smoke"})
+            parser_content = parser_project["project"]
+            assert parser_content["game"]["format_version"] == 3
+            assert parser_content["game"]["command_assistance"]["clarification"]
+            assert parser_content["game"]["command_assistance"]["recent_objects"]
+            parser_content["game"]["variables"]["takes"] = 0
+            for key_id, key_name in [("brass", "Brass key"), ("silver", "Silver key"), ("secret", "Hidden key")]:
+                parser_content["objects"].append({
+                    "id": key_id, "name": key_name, "aliases": ["key"],
+                    "description": f"Description of {key_name}.",
+                    "placement": {"type": "location", "location": parser_content["game"]["starting_location"]},
+                    "portable": True, "hidden": key_id == "secret",
+                    "actions": [
+                        {"id": f"examine-{key_id}", "name": "Examine", "verb": "examine",
+                         "pattern": [{"type": "entity", "entity": key_id}],
+                         "effects": [{"type": "print_description", "entity": key_id}]},
+                        {"id": f"take-{key_id}", "name": "Take", "verb": "take",
+                         "pattern": [{"type": "entity", "entity": key_id}],
+                         "requirements": {"type": "not", "condition": {"type": "carrying", "object": key_id}},
+                         "effects": [{"type": "give", "object": key_id},
+                                     {"type": "update_variable", "name": "takes", "op": "add",
+                                      "operand": {"type": "literal", "value": 1}}]},
+                    ],
+                })
+            api(f"projects/{parser_project['handle']}", "PUT", {
+                "project": parser_content, "revision": parser_project["revision"],
+            })
+            parser_bundle = work / "parser-from-editor.luna"
+            parser_bundle.write_bytes(api(f"projects/{parser_project['handle']}/export", "POST", raw=True))
+            run(["import", str(parser_bundle)], profile="parser")
+            parser_game = parser_content["game"]
+            transcript = run(["run", parser_game["id"], "--new"],
+                             "take key\nlook\nsave pending\nbrass\nexamine it\n"
+                             "take key\nsilver\nsave collected\nquit\n", profile="parser")
+            assert transcript.count("Which do you mean?") == 2, transcript
+            assert "Description of Brass key." in transcript and "Hidden key" not in transcript, transcript
+            parser_saves = work / "parser/saves" / parser_game["id"] / parser_game["content_version"]
+            parser_save = json.loads((parser_saves / "autosave.json").read_text())
+            assert parser_save["save_format"] == 3 and parser_save["state"]["variables"]["takes"] == 2
+            assert "pending_clarification" not in json.dumps(parser_save) and "input_resolution" not in json.dumps(parser_save)
+            resumed = run(["run", parser_game["id"], "--load", "pending"],
+                          "1\nexamine it\nquit\n", profile="parser")
+            assert "Which do you mean?" not in resumed and "I can't tell what “it” refers to here." in resumed, resumed
+
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
             created = api("projects", "POST", {"folder": "smoke-outcome", "title": "No outcome"})
@@ -193,7 +239,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, nested container restarts/saves, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

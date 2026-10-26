@@ -1,6 +1,6 @@
 # Parser context and clarification
 
-Status: **P0 accepted; P1 complete; P2 next**, 26 October 2026. The owner reviewed the interactive design and replied “works great,” with no changes requested. The real-matcher proof and [shared contract](../design/parser-context/shared-contract.md) are complete. No assistance settings or live player interaction have shipped yet.
+Status: **P0–P2 accepted; P3 next**, 26 October 2026. The owner accepted the interactive design with “works great,” then accepted the live P2 feature with “p2 is working as expected” and requested its commit. P1 is committed as `25b634c`; P2 provides the live settings/player/explanation journey. See the [P2 review notes](../design/parser-context/p2-review.md). Final feature acceptance and branch closeout remain P3.
 
 Branch: `feature/parser-context`, created from merged `main` at `3b34bc5` after the container feature. This is F2 in the [gameplay roadmap](gameplay-feature-roadmap.md). The owner chose gameplay work before the public documentation milestone. Later gameplay features remain separate branches; this plan does not make F3–F6 v1 requirements.
 
@@ -22,7 +22,7 @@ The designer keeps using names, aliases, command patterns, requirements, and eff
 
 First scope: noun clarification for existing fixed entity parts and F1's Command item input; singular object reference `it`; per-game settings/messages; terminal/editor parity; author explanations. No plural references, `them`, gendered pronouns, `take all`, inferred missing nouns, fuzzy spelling, multiple commands per line, automatic puzzle solving, conversations, or new block types.
 
-## Proposed authoring journey
+## Accepted authoring journey
 
 Select **Game settings → Command assistance**, next to the existing help and hint controls:
 
@@ -48,7 +48,7 @@ Preview
   Reply with a name or number, type cancel, or enter a new command.
 ```
 
-The proposed default is both options **on for new games**. Existing games retain current behaviour until explicitly enabled. Settings are independent; disabling clarification can retain `it`, and vice versa. Entity help remains Off/Basic/Full; parser assistance does not expose commands or require Full help.
+The accepted default is both options **on for new games**. Existing games retain current behaviour until explicitly enabled. Settings are independent; disabling clarification can retain `it`, and vice versa. Entity help remains Off/Basic/Full; parser assistance does not expose commands or require Full help.
 
 Use existing rich-text controls for the three messages, including normal colour and variable/property formatting. The engine appends the numbered names and reply instructions separately: designers never need a special `%choices%` placeholder, and inserted entity names remain literal. The preview reflects message edits. Validation, message-reference rename/search, Undo/Redo, save/reopen, and export include these fields.
 
@@ -78,7 +78,7 @@ If equally ranked handlers still disagree after all entity bindings are identica
 
 ### Cancellation and other input
 
-| Input while a question is pending                                                          | Proposed result                                                                                                                                |
+| Input while a question is pending                                                          | Result                                                                                                                                |
 | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Empty input                                                                                | Preserve the question; no execution.                                                                                                           |
 | Unique name/fragment/number                                                                | Narrow the question or execute the original command once.                                                                                      |
@@ -92,7 +92,7 @@ If equally ranked handlers still disagree after all entity bindings are identica
 | Restart, successful load, debug state replacement, playtest setup, or new content revision | Clear pending and recent context. Restoration runs no gameplay effects.                                                                        |
 | Game ending                                                                                | Clear pending context; retain existing ended-command restrictions.                                                                             |
 
-Reserve exact `cancel` for assisted games only when clarification is enabled. Add collision findings/upgrade review for authored patterns that can accept exactly `cancel`; authors resolve these or leave clarification off. Existing games with assistance disabled keep their current vocabulary. This proposal needs review alongside the defaults.
+Reserve exact `cancel` for assisted games only when clarification is enabled. Collision findings/upgrade review cover authored patterns that can accept exactly `cancel`; authors resolve these or leave clarification off. Existing games with assistance disabled keep their current vocabulary. This rule was accepted with the P0 defaults.
 
 Future conversations will own a separate reply context. F2 must expose a clear interaction-state boundary rather than treating clarification as a conversation node; define precedence when that later feature is designed.
 
@@ -130,18 +130,18 @@ While waiting, show **No action executed** and leave selected_flow unset. After 
 
 Duplicate-handler ambiguity links the competing action/exit definitions in the author view. Player messages do not list IDs, requirements, hidden objects, or action readiness. Changing assistance settings marks an existing playtest stale under the normal revision rules.
 
-## Shared-core and compatibility proposal
+## Shared-core and compatibility implementation
 
 Current implementation reference points:
 
-- [matching.rs](../../crates/luna-core/src/runtime/matching.rs) retains one optional dynamic item binding but not the complete noun-slot identity of fixed parts. Extend the shared matcher to preserve those bindings without enumerating every possible object/action combination.
-- [commands.rs](../../crates/luna-core/src/runtime/commands.rs) currently rejects top-rank ties and asks for a full new command. Keep existing ranking and extract input resolution from selected-handler execution.
-- [session.rs](../../crates/luna-core/src/session.rs) owns immutable content plus transactional GameState. Add bounded, session-local interaction context there; retain it across both runner inputs and editor API requests.
-- [entities.rs](../../crates/luna-core/src/runtime/entities.rs) supplies help/hint lookup and shared scope checks. Share resolution primitives without causing a help query to execute an action.
+- [matching.rs](../../crates/luna-core/src/runtime/matching.rs) preserves dynamic Command item and fixed noun identities plus recent-reference provenance, without expanding actions per object.
+- [commands.rs](../../crates/luna-core/src/runtime/commands.rs) retains ordinary dispatch/ranking; [resolution.rs](../../crates/luna-core/src/runtime/resolution.rs) resolves assisted input before selected-handler execution.
+- [session.rs](../../crates/luna-core/src/session.rs) owns immutable content, transactional GameState, and bounded session-local interaction context across runner inputs and editor API requests.
+- [entities.rs](../../crates/luna-core/src/runtime/entities.rs) supplies shared scope and help/hint resolution, including recent references by stable object ID without executing an action.
 
 Pending clarification and the recent object are **session-local**, outside GameState, saved progress, bundles, and editor metadata. Save/load restores the story, not a half-finished question. `Session::restore` and successful `replace_state` begin with no interaction context; failed replacement preserves everything. `into_state` deliberately drops this context. Document this distinction in the public Rust API.
 
-The [P1 shared contract](../design/parser-context/shared-contract.md) specifies content format **3** for authored assistance settings, retaining explicit reads/legacy writes for content 1–2. Omitted settings mean both options off; newly created format-3 games use explicit new-game defaults. Editing settings in an older game requires an explicit upgrade; no new fields are written under an old header. The contract records fields, optional serialization, compatibility, message visitors, and version gates for P2. P1 has not changed the shipped format constants or serialized definitions. Reconcile version numbers if another format-bearing feature merges first.
+The [P1 shared contract](../design/parser-context/shared-contract.md) specifies content format **3** for authored assistance settings, retaining explicit reads/legacy writes for content 1–2. Omitted settings mean both options off; newly created format-3 games use explicit new-game defaults. Editing settings in an older game requires an explicit upgrade; no new fields are written under an old header. The contract records fields, optional serialization, compatibility, message visitors, and version gates for P2. P2 implements these format/model changes; older projects remain explicit legacy content until reviewed upgrade.
 
 No new player-save format is needed because runtime interaction context is not persisted. Keep save-format 3 for content-3 games and retain legacy save reads/writes. P1 reviewed the actual store/state-schema checks: settings do not alter structural state, and the current save-format selector already writes 3 for content 2 or later. Prove actual assistance-upgraded bundles and compatible earlier saves in P2/P3; preserve incompatible slots and report clear errors.
 
@@ -167,11 +167,11 @@ Context changes share the command's commit boundary. Core runtime errors must no
 
 ### P2 — Complete the shared player and authoring slice
 
-- Implement bounded session context, shared resolution, dispatch-once behaviour, and formatted messages.
-- Add Game settings with independent switches, live preview, upgrade/collision review, canonical persistence, generated contracts, Undo/Redo, search/rename/references, and export.
-- Add player prompt/cancel presentation and author-only Input resolution explanations with navigation links. No Blockly appearance changes or mandatory assistance blocks.
-- Cover Chromium/Firefox controls, keyboard-only use, compact panels, save/reopen, stale playtest revisions, and exact editor/exported-runner parity.
-- Present a working slice for owner feedback before final feature acceptance.
+- [x] Implement bounded session context, shared resolution, dispatch-once behaviour, and formatted messages. Promote the 21 proof regressions through production Session calls and retire the test-only coordinator.
+- [x] Add Game settings with independent switches, live preview, upgrade/collision review, canonical persistence, generated contracts, Undo/Redo, search/rename/references, and export.
+- [x] Add player prompt/cancel presentation and author-only Input resolution explanations with navigation links. No Blockly appearance changes or mandatory assistance blocks.
+- [x] Cover Chromium/Firefox controls, keyboard-only use, compact panels, save/reopen, stale playtest revisions, and exact editor/exported-runner parity.
+- [x] Owner accepted the [working slice](../design/parser-context/p2-review.md) on 26 October 2026 with “p2 is working as expected” and requested its commit. No changes requested; P3 retains final feature acceptance.
 
 ### P3 — Acceptance and branch closeout
 
@@ -182,13 +182,17 @@ Context changes share the command's commit boundary. Core runtime errors must no
 - Run the relevant full core/editor/runner/browser/contracts/lint/build/package checks and matched scale measurements; document evidence and actual limits. Public user guides remain deferred to the documentation milestone.
 - Record final owner acceptance, commit/push when requested, and merge the whole feature before starting the next feature branch.
 
+## P2 verification
+
+The [working review](../design/parser-context/p2-review.md) records 211 passing Rust tests/doctests, 74 frontend tests, 99 Chromium/Firefox workflows (one existing browser-specific skip), release-package smoke checks, compatibility/parity boundaries, live UI inspection, owner acceptance, and remaining P3 review. Formatting, generated contracts, Clippy, rustdoc, local links, and whitespace checks pass. Locked Study and historical fixtures have no changes.
+
 ## P1 verification
 
-The [test-only proof](../../crates/luna-core/src/runtime/parser_proof.rs) has **21 passing functional cases** plus one separately ignored release measurement. It uses actual matching, selected-handler dispatch, event/watch execution, and Session rollback/explanations. Context remains experimental; no public session call enables assistance yet. P2 must promote/replace that coordinator and retain the regressions through the production API rather than maintain two parsers.
+At commit **`25b634c`**, the test-only proof had **21 passing functional cases** plus one separately ignored release measurement. It used actual matching, selected-handler dispatch, event/watch execution, and Session rollback/explanations. P2 has retired that coordinator and promoted its scenarios to [production Session regressions](../../crates/luna-core/src/input_tests.rs). There is one production input resolver.
 
-The full workspace has **200 passing Rust tests/doctests**, with only that observational benchmark ignored. Workspace Clippy with warnings denied, generated TypeScript contract check, Rust formatting, core rustdoc with warnings denied, documentation links, and diff whitespace checks pass. The refactor preserves existing explicit-command behaviour and public contracts. No new content/save version, model field, production control, generated type, Locked Study file, or historical fixture is changed at P1.
+P1's workspace verification had **200 passing Rust tests/doctests**, with the observational benchmark ignored. Clippy, contracts, formatting, core rustdoc, documentation links, and whitespace checks passed. P1 did not alter model fields, shipped versions, Locked Study, or historical fixtures.
 
-Run the focused proof with `cargo test -p luna-core --offline parser_proof --lib`. Run measurements with `cargo test -p luna-core --release --offline parser_proof::scaling --lib -- --ignored --nocapture`.
+To reproduce the historical P1 proof/measurement, check out `25b634c` separately and run `cargo test -p luna-core --offline parser_proof --lib` or `cargo test -p luna-core --release --offline parser_proof::scaling --lib -- --ignored --nocapture`. On the current branch, use `cargo test -p luna-core --offline input_tests --lib` and `cargo test -p luna-core --offline --test command_assistance` for production regressions. P3 will measure the completed production feature.
 
 The [15-row release CSV](parser-context-p1-scaling.csv) covers 100, 1,000, and 5,000 objects. At 5,000 objects:
 

@@ -2445,3 +2445,44 @@ dialog.modal {
     transition-duration: 0.01ms !important;
   }
 }
+
+.command-assistance-settings {
+  border-top: 1px solid var(--border);
+  margin: 18px 0;
+  padding-top: 4px;
+}
+.command-assistance-settings fieldset {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 12px 0;
+}
+.command-assistance-settings legend {
+  color: var(--muted);
+  padding: 0;
+}
+.assistance-preview,
+.input-resolution {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.pending-command {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--purple);
+  background: var(--panel);
+}
+.pending-command span {
+  flex: 1;
+  min-width: 120px;
+  overflow-wrap: anywhere;
+}
+.input-resolution li {
+  margin: 8px 0;
+}

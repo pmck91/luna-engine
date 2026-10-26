@@ -1,6 +1,7 @@
 //! Authored entity lookup, player command scope, and target resolution.
 use super::{Run, index::Owner};
 use crate::CommandStatus;
+use anyhow::Result;
 use luna_model::{Character, Ending, Location, Verb};
 
 impl<'a> Run<'a> {
@@ -74,8 +75,55 @@ impl<'a> Run<'a> {
             .collect()
     }
 
-    pub(super) fn resolve_entity(&mut self, query: &str) -> Option<(String, String)> {
+    pub(super) fn resolve_entity(&mut self, query: &str) -> Result<Option<(String, String)>> {
         let entities = self.matching_entities(query);
+        if entities.is_empty()
+            && {
+                let tokens = query.split_whitespace().collect::<Vec<_>>();
+                self.entity_words
+                    .starts(&tokens, 0)
+                    .any(|start| tokens[start..] == ["it"])
+            }
+            && self
+                .p
+                .game
+                .command_assistance
+                .as_ref()
+                .is_some_and(|settings| settings.recent_objects)
+        {
+            if let Some(entity) = self.context.recent.clone()
+                && self.available(&entity)
+            {
+                let name = self
+                    .entity_name(&entity)
+                    .expect("validated recent object")
+                    .to_owned();
+                self.result.input_resolution = Some(crate::InputResolution::Resolved {
+                    original_command: query.into(),
+                    replies: vec![],
+                    history_truncated: false,
+                    bindings: vec![crate::NounBinding {
+                        pattern_index: 0,
+                        entity: entity.clone(),
+                        command_item: false,
+                        origin: crate::NounOrigin::RecentObject,
+                    }],
+                });
+                return Ok(Some((entity, name)));
+            }
+            self.result.status = CommandStatus::Unmatched;
+            let settings = self.p.game.command_assistance.as_ref().unwrap();
+            self.say(&settings.unavailable_reference_text)?;
+            self.result.input_resolution = Some(crate::InputResolution::Unresolved {
+                original_command: query.into(),
+                reason: if self.context.recent.is_some() {
+                    crate::UnresolvedInputReason::OutOfScope
+                } else {
+                    crate::UnresolvedInputReason::MissingReference
+                },
+            });
+            return Ok(None);
+        }
         let [(entity, name)] = entities.as_slice() else {
             if entities.is_empty() {
                 self.result.status = CommandStatus::Unmatched;
@@ -92,8 +140,8 @@ impl<'a> Run<'a> {
                     names.join(", ")
                 ));
             }
-            return None;
+            return Ok(None);
         };
-        Some((entity.clone(), name.clone()))
+        Ok(Some((entity.clone(), name.clone())))
     }
 }

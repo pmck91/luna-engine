@@ -163,6 +163,7 @@ test('review storage removal with reassignment, cancellation and undo, and expli
   page.setDefaultTimeout(10000);
   await seedProject(page, `container-impact-${info.project.name}`, (p) => {
     p.game.format_version = 1;
+    delete p.game.command_assistance;
     const chest = { ...object(p.game.starting_location), id: 'chest', name: 'Chest', actions: [] };
     p.objects = [chest];
   });

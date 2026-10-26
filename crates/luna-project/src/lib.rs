@@ -508,6 +508,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let mut p = Project::blank("Legacy format");
         p.game.format_version = 1;
+        p.game.command_assistance = None;
         p.objects.push(Object {
             id: "legacy".into(),
             name: "legacy".into(),

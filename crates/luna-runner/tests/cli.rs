@@ -24,6 +24,77 @@ fn command(temp: &Path, args: &[&str], input: &[u8]) -> Output {
 fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.fixtures/locked-study.luna")
 }
+
+#[test]
+fn parser_questions_and_references_work_in_terminal_and_clear_on_process_restore() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut project = Project::blank("Parser CLI");
+    for (id, name) in [("brass", "Brass key"), ("silver", "Silver key")] {
+        let mut object = Object {
+            id: id.into(),
+            name: name.into(),
+            aliases: vec!["key".into()],
+            description: format!("Description of {name}."),
+            portable: true,
+            placement: Placement::Location {
+                location: project.game.starting_location.clone(),
+            },
+            ..Default::default()
+        };
+        object.actions = starter_actions(&object);
+        project.objects.push(object);
+    }
+    let bundle = temp.path().join("parser.luna");
+    fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &project).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        command(temp.path(), &["import", bundle.to_str().unwrap()], b"")
+            .status
+            .success()
+    );
+    let played = command(temp.path(), &["run", &project.game.id, "--new"], b"take key\nlook\nsave waiting\nbrass\nexamine it\ntake key\nsilver\nsave completed\nquit\n");
+    assert!(
+        played.status.success(),
+        "{}",
+        String::from_utf8_lossy(&played.stderr)
+    );
+    let transcript = String::from_utf8(played.stdout).unwrap();
+    assert_eq!(transcript.matches("Which do you mean?").count(), 2);
+    assert!(transcript.contains("Description of Brass key."));
+    let restored = command(
+        temp.path(),
+        &["run", &project.game.id, "--load", "waiting"],
+        b"1\nexamine it\nexamine brass key\nexamine it\nquit\n",
+    );
+    assert!(
+        restored.status.success(),
+        "{}",
+        String::from_utf8_lossy(&restored.stderr)
+    );
+    let transcript = String::from_utf8(restored.stdout).unwrap();
+    assert!(!transcript.contains("Which do you mean?"));
+    assert!(transcript.contains("I can't tell what “it” refers to here."));
+    assert_eq!(transcript.matches("Description of Brass key.").count(), 2);
+    let store = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let record = store
+        .record(&project.game.id, &project.game.content_version)
+        .unwrap();
+    let definition = GameDefinition::new(store.load_game(&record).unwrap()).unwrap();
+    let completed = store
+        .load_save(&record, &definition, Some("completed"))
+        .unwrap();
+    assert_eq!(completed.save_format, 3);
+    for id in ["brass", "silver"] {
+        assert_eq!(completed.state.objects[id].placement, Placement::Inventory);
+    }
+    let encoded = serde_json::to_string(&completed).unwrap();
+    assert!(!encoded.contains("pending_clarification"));
+    assert!(!encoded.contains("input_resolution"));
+}
 #[test]
 fn optional_outcomes_survive_export_completion_and_named_save_restore() {
     use luna_model::*;

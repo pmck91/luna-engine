@@ -1,20 +1,18 @@
 # Parser assistance — P1 shared contract
 
-Status: **Implementation contract following the accepted P0 design**, 26 October 2026. The owner accepted the [wireframes](wireframes.html) with “works great.” P1 proves the matcher/dispatch approach; the live feature, authoring controls, wire types, and migrations remain P2. See the [feature plan](../../plans/parser-context.md) for milestones.
+Status: **Implemented and owner accepted in P2**, 26 October 2026. The owner accepted the [wireframes](wireframes.html) with “works great.” P1 is committed as `25b634c`; P2 implements this contract in the shared runtime, canonical model, and editor; the owner accepted the live feature with “p2 is working as expected.” See the [feature plan](../../plans/parser-context.md) and [working review](p2-review.md).
 
-## Boundaries and proof
+## Boundaries and regression coverage
 
-[The P1 proof](../../../crates/luna-core/src/runtime/parser_proof.rs) is compiled only in tests. It gets interpretations from the actual indexed matcher and calls the ordinary selected-handler dispatcher inside Session's actual transaction/explanation boundary. It does not replace entity names in the input, clone definitions to inject aliases, expand typed actions into per-item handlers, execute generated JavaScript, or implement a second effect executor.
+[Production input resolution](../../../crates/luna-core/src/runtime/resolution.rs) uses the indexed matcher and ordinary selected-handler dispatcher inside Session's transaction/explanation boundary. It never substitutes entity names in input, injects aliases, expands actions per item, or executes a separate effect interpreter. Session commits story state and interaction context together.
 
-The small production refactors preserve public behaviour: `Run::command` now calls a shared selected-handler method; `Session::execute` calls a shared transaction method; ordinary candidate matching supplies no recent reference. No public command enables the test coordinator. The new reference-aware matcher accepts a recent ID only in object noun slots and is exercised by the proof before P2 wires it to sessions.
+The former P1 test coordinator has been retired. Its [21 regression scenarios](../../../crates/luna-core/src/input_tests.rs) call production Session APIs; [public integration coverage](../../../crates/luna-core/tests/command_assistance.rs) checks result metadata, formatting, help/hints, restoration, legacy omission, and post-ending cancellation. Scenarios include fixed nouns, Command item, multiple slots, repeated aliases/names, scope changes, ranking, duplicate flows, literal/name collisions, requirements, once-only events, controls, rollback, independent switches, and bounds.
 
-The proof covers fixed nouns, F1 Command item, two noun slots, repeated aliases/names, normal versus explained execution, requirements, standard/custom precedence, priority, duplicate flows, literal/name collisions, changing scope, controls, cancellation, ending/rollback, restoration, independent switches, and bounded choices. It uses effect/command/watch counters to verify one dispatch and no question-side effects.
-
-The coordinator is intentionally experimental. P2 must promote/replace it with production input resolution and typed provenance, formatted messages, help/hint recent-reference handling, canonical settings/validation/migrations, and host presentation. Retain these regression scenarios through the production Session API and retire the independent test coordinator; do not maintain two parser implementations. P1's normal-path regression suite does not establish acceptance of those unimplemented parts.
+P2 additionally implements authored validation/messages, versioned persistence, help/hint recent-reference handling, and host presentation. Final fixture/performance/owner acceptance remains P3.
 
 ## Authored settings and versions
 
-Add optional `Game.command_assistance` with a generated Rust/TypeScript type:
+Optional `Game.command_assistance` with a generated Rust/TypeScript type:
 
 ```text
 CommandAssistance
@@ -79,7 +77,7 @@ Before processing a reply, rerun matching/ranking for the original command, appl
 
 Reply names/aliases use the existing normalization/ignored-word rules. Exact offered names/aliases take precedence over fragment and `it` replies. Fragments match a nonempty whole-word sequence in an offered name/alias; they are not fuzzy spelling or a widening of normal command syntax. Numeric replies are complete positive decimal option numbers; reject zero, out-of-range/overflow values, and mixed numeric text without selecting an item.
 
-Use deterministic name ordering, then stable ID for identical labels. Player labels contain literal names and, when necessary, currently visible placement cues; never hidden paths, readiness, properties, author flow names, or stable IDs. Identical labels remain selectable by displayed number. P2's path qualifiers must use the same shared scope rules, rather than simply printing an author's full ownership path.
+Use deterministic name ordering, then stable ID for identical labels. Player labels contain literal names and, when necessary, currently visible placement cues; never hidden paths, readiness, properties, author flow names, or stable IDs. Identical labels remain selectable by displayed number. Path qualifiers use the same shared scope rules, rather than simply printing an author's full ownership path.
 
 Bound pending state to **20 displayed choices**, **256 retained interpretations**, and **32 noun slots**; the existing 4,096-byte command limit also applies to answers. Larger ambiguities request a more specific complete command without retaining a truncated selectable subset. Retain at most 64 accepted reply strings and 16 KiB of reply-history text; mark explanation history truncated when necessary, without discarding noun constraints. Retries and read-only controls do not grow the accepted-reply history. These are interaction limits, independent of existing effect/event/trace budgets.
 
@@ -119,7 +117,7 @@ Preserve serialized CommandStatus values:
 
 `state_changed` continues to compare only GameState. Context changes do not trigger an autosave or make the runner report unsaved story progress. A prompt can nevertheless produce messages/metadata and update the browser's pending-command view.
 
-Add optional, generated `CommandResult.input_resolution`, omitted for old/unassisted ordinary results. Use a tagged union so pending/resolved/rejected states cannot require contradictory fields:
+Optional, generated `CommandResult.input_resolution` is omitted for old/unassisted ordinary results. It uses a tagged union so pending/resolved/rejected states cannot require contradictory fields:
 
 - **pending**: raw original command, accepted reply history/truncation, current noun's pattern index, literal choices with entity IDs, and narrowing progress.
 - **resolved**: raw original command, accepted replies/truncation, ordered typed bindings, and each binding's origin (`name`, `recent_object`, `clarification`). Preserve fixed versus Command item references; entity IDs never become `%variable%` bindings.
@@ -128,7 +126,7 @@ Add optional, generated `CommandResult.input_resolution`, omitted for old/unassi
 - **author_ambiguity**: raw command and competing TraceSource references for author navigation, with no selectable player actions.
 - **too_many**: raw command and the interaction limit reached; no truncated selectable list.
 
-Exact Rust enum/field naming can follow repository conventions, but the variants/invariants above are the shared contract; generate the frontend types from Rust. Do not require clients to parse English transcript lines to determine pending state.
+The Rust definitions in [input.rs](../../../crates/luna-core/src/input.rs) generate the frontend types. `CommandResult.pending_clarification` independently carries the currently committed question after each input, including read-only controls. `Session::pending_clarification()` exposes the same read-only snapshot. A `look` result can therefore preserve the waiting UI without falsely describing `look` as a new clarification attempt. Both optional fields are omitted when absent; runtime errors expose the previous committed question. Clients never need to parse transcript text to recover pending state.
 
 The author explanation combines the original input, actual submitted reply, narrowing, selected ID, requirements, effects, and state changes. Preserve `CommandExplanation.command` as the input actually submitted, such as `brass`; the separately carried original input provides the link to `take key`. Waiting/retry views show no action executed and no selected flow. Typed resolution metadata accompanies both normal and explained results; recording adds observations without executing again.
 
@@ -137,10 +135,10 @@ The author explanation combines the original input, actual submitted reply, narr
 - Canonical model/validation/minimum-format and header-first content/bundle compatibility, generated contracts, explicit upgrade/cancel collision review, message formatting/reference/search visitors, and legacy read/write tests.
 - Production session context with atomic rollback/reset, captured noun provenance, bounded history and candidates, shared entity-ID resolution for help/hints, and consistent status/metadata.
 - Game settings with reviewed switches/messages/preview, project Undo/Redo, save/reopen/export, stale-playtest handling, player prompt/cancel, author explanation links, keyboard and compact layouts.
-- Working-slice owner feedback, then P3 example/export/runner/named/autosave/process/package/browser acceptance. Preserve Locked Study and historical fixtures. Public user guides remain in the deferred documentation milestone.
+- Working-slice owner acceptance is recorded; P3 retains final example/export/runner/named/autosave/process/package/browser acceptance. Preserve Locked Study and historical fixtures. Public user guides remain in the deferred documentation milestone.
 
 ## Evidence
 
-Run the functional proof with `cargo test -p luna-core --offline parser_proof --lib`. The separately ignored `parser_proof::scaling` test prints observational CSV in release mode, with no timing assertions. The [P1 measurements](../../plans/parser-context-p1-scaling.csv) distinguish matching-only samples from the full bounded-question transaction, which includes the existing story-state copy.
+Run production regressions with `cargo test -p luna-core --offline input_tests --lib` and `cargo test -p luna-core --offline --test command_assistance`. Model, editor parity, runner process, and browser tests cover the live authoring and compatibility boundaries.
 
-Full verification totals and observed timings are recorded in the [feature plan](../../plans/parser-context.md#p1-verification). P1 does not establish installed-runner save compatibility or live authoring/browser acceptance for an unimplemented feature; those remain explicit P2/P3 checks.
+The [P1 measurements](../../plans/parser-context-p1-scaling.csv) remain historical observations from commit `25b634c`, distinguishing matching-only samples from full attempted-state transactions. The removed test-only benchmark can be reproduced at that commit. P3 will measure the completed production path; these earlier timings are not production performance guarantees. Current verification and remaining acceptance work are recorded in the [review notes](p2-review.md).

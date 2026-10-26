@@ -568,6 +568,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let mut p = Project::blank("Hint save compatibility");
         p.game.format_version = 1;
+        p.game.command_assistance = None;
         p.locations[0].hints.push(HintSet {
             id: "puzzle".into(),
             name: "Room puzzle".into(),

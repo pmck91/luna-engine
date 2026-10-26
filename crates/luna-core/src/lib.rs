@@ -60,6 +60,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 mod definition;
+mod input;
+pub use input::*;
 mod runtime;
 mod session;
 
@@ -143,6 +145,14 @@ pub struct CommandResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub explanation: Option<CommandExplanation>,
+    /// Structured resolution of this input, independent of gameplay changes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub input_resolution: Option<InputResolution>,
+    /// Current question after this attempt, preserved across read-only commands.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pending_clarification: Option<ClarificationQuestion>,
 }
 impl Default for CommandResult {
     fn default() -> Self {
@@ -154,6 +164,8 @@ impl Default for CommandResult {
             control: None,
             selected_flow: None,
             explanation: None,
+            input_resolution: None,
+            pending_clarification: None,
         }
     }
 }

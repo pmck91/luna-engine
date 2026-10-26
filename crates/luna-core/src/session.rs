@@ -1,7 +1,7 @@
 //! Host-facing session lifecycle and the command commit/rollback boundary.
 use crate::{
     CommandResult, CommandStatus, GameDefinition,
-    runtime::{Run, explanation},
+    runtime::{Run, explanation, resolution::InteractionContext},
 };
 use anyhow::Result;
 use luna_model::{Condition, Event, GameState, Project, text};
@@ -12,6 +12,10 @@ use luna_model::{Condition, Event, GameState, Project, text};
 /// snapshot or replace it through [`Self::replace_state`], which validates the
 /// complete snapshot before committing it.
 ///
+/// Pending clarification and recent-object references belong to this session,
+/// outside [`GameState`]. Commands commit or roll back that context with story
+/// state. Restore and successful state replacement begin with no input context.
+///
 /// Each session keeps its definition alive independently of other clones. State
 /// compatibility is structural: debug replacement can install a valid snapshot
 /// that ordinary gameplay could not reach. Host storage owns bundle fingerprints,
@@ -19,6 +23,7 @@ use luna_model::{Condition, Event, GameState, Project, text};
 pub struct Session {
     definition: GameDefinition,
     state: GameState,
+    context: InteractionContext,
 }
 impl Session {
     /// Validate authored content and start a fresh playthrough.
@@ -49,7 +54,11 @@ impl Session {
         location: Option<&str>,
     ) -> Result<(Self, CommandResult)> {
         let state = definition.initial_state(location)?;
-        let mut session = Self { definition, state };
+        let mut session = Self {
+            definition,
+            state,
+            context: InteractionContext::default(),
+        };
         let mut run = Run::new(&session.definition, session.state.clone());
         run.say(&session.definition.project().game.title)?;
         run.say(&session.definition.project().game.opening_text)?;
@@ -77,7 +86,8 @@ impl Session {
     /// Restore saved state without replaying effects or revalidating game content.
     ///
     /// Validates the complete snapshot, including its identity/version and progress
-    /// bounds. A completed snapshot stays completed. Presentation is explicit via
+    /// bounds. A completed snapshot stays completed. Pending clarification and
+    /// recent references are cleared. Presentation is explicit via
     /// [`Self::resume_messages`]; restoration returns no transcript itself.
     ///
     /// # Errors
@@ -85,7 +95,11 @@ impl Session {
     /// Returns an error if saved state is incompatible with the definition.
     pub fn restore_with_definition(definition: GameDefinition, state: GameState) -> Result<Self> {
         definition.validate_state(&state)?;
-        Ok(Self { definition, state })
+        Ok(Self {
+            definition,
+            state,
+            context: InteractionContext::default(),
+        })
     }
     /// Borrow the immutable game definition shared with save storage.
     pub fn definition(&self) -> &GameDefinition {
@@ -111,7 +125,18 @@ impl Session {
         &self.state
     }
 
+    /// Return the current player-safe question without changing story or context.
+    ///
+    /// Read-only commands can leave a question pending. Successful restore or
+    /// state replacement clears it; this view is never part of saved GameState.
+    pub fn pending_clarification(&self) -> Option<crate::ClarificationQuestion> {
+        self.context.question()
+    }
+
     /// Consume this session and return its complete state for storage or transfer.
+    ///
+    /// Deliberately drops pending clarification and recent references; those are
+    /// interaction context, not saved story progress.
     pub fn into_state(self) -> GameState {
         self.state
     }
@@ -120,11 +145,13 @@ impl Session {
     ///
     /// Intended for host state editing and loading. Replacement runs no events,
     /// effects, or messages and preserves the supplied progress exactly.
+    /// Successful replacement clears pending clarification and recent references,
+    /// even when the supplied state equals the current snapshot.
     ///
     /// # Errors
     ///
     /// Rejects any snapshot incompatible with this session's definition, leaving
-    /// the previous state intact.
+    /// the previous state and interaction context intact.
     ///
     /// ```
     /// use luna_core::Session;
@@ -143,6 +170,7 @@ impl Session {
     pub fn replace_state(&mut self, state: GameState) -> Result<()> {
         self.definition.validate_state(&state)?;
         self.state = state;
+        self.context = InteractionContext::default();
         Ok(())
     }
 
@@ -211,16 +239,16 @@ impl Session {
         self.execute_with(input, explain, |run| run.command(input))
     }
 
-    // Keep one commit/rollback/explanation boundary when a resolver supplies an
-    // already selected handler. P1's test-only interaction proof uses this seam;
-    // public commands still enter through the existing explicit matcher.
-    pub(crate) fn execute_with(
+    // Resolution, selected-handler execution, and explanations share this
+    // commit boundary. Story and ephemeral input context commit together.
+    fn execute_with(
         &mut self,
         input: &str,
         explain: bool,
         command: impl FnOnce(&mut Run<'_>) -> Result<()>,
     ) -> (CommandResult, Option<anyhow::Error>) {
         let mut run = Run::new(&self.definition, self.state.clone());
+        run.context = self.context.clone();
         if explain {
             run.recording = Some(explanation::Recorder::default());
         }
@@ -241,12 +269,14 @@ impl Session {
         }
         if error.is_none() {
             run.result.state_changed = *run.state != self.state;
+            self.context = run.context;
             self.state = run.state.into_owned();
         } else {
             run.result.status = CommandStatus::Error;
             run.result.state_changed = false;
             run.result.control = None;
         }
+        run.result.pending_clarification = self.context.question();
         (run.result, error)
     }
     /// Describe the current location without entering it or advancing progress.
@@ -300,3 +330,7 @@ impl Session {
         Run::view(&self.definition, &self.state).condition(condition)
     }
 }
+
+#[cfg(test)]
+#[path = "input_tests.rs"]
+mod input_tests;

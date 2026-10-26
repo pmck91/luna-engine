@@ -762,6 +762,8 @@ export default function PlaytestTools({
                                   ),
                                   help: report.check.help_mode ?? '',
                                   status: step.result!.status,
+                                  input_resolution: step.result!.input_resolution,
+                                  selected_flow: step.result!.selected_flow,
                                   origin: `Check · ${report.check.name} · command ${step.index + 1}`,
                                 });
                                 close();

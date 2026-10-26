@@ -10,7 +10,7 @@ impl<'a> Run<'a> {
             self.literal("Entity command help is disabled for this game.");
             return Ok(());
         }
-        let Some((entity, name)) = self.resolve_entity(query) else {
+        let Some((entity, name)) = self.resolve_entity(query)? else {
             return Ok(());
         };
         if self.p.game.help_mode == HelpMode::Basic && self.state.ending.is_none() {

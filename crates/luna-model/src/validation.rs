@@ -837,6 +837,30 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         c.text(&game.id, f, t)
     }
     c.location(&game.id, "starting_location", &game.starting_location);
+    if let Some(assistance) = &game.command_assistance {
+        if game.format_version < 3 {
+            c.error(
+                &game.id,
+                "command_assistance",
+                "Command assistance requires an explicit upgrade to content format 3",
+            );
+        }
+        for (field, text) in [
+            ("clarification_text", &assistance.clarification_text),
+            ("retry_text", &assistance.retry_text),
+            (
+                "unavailable_reference_text",
+                &assistance.unavailable_reference_text,
+            ),
+        ] {
+            c.text(&game.id, &format!("command_assistance.{field}"), text);
+        }
+        if assistance.clarification {
+            for id in cancellation_conflicts(p) {
+                c.error(&id, "pattern", "The exact command cancel is reserved while noun clarification is enabled. Change this command or disable clarification in Game settings.");
+            }
+        }
+    }
     let mut words = BTreeMap::<String, String>::new();
     for v in &p.vocabulary {
         c.id(&v.id, "vocabulary.id");

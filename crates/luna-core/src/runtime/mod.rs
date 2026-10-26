@@ -24,6 +24,7 @@ mod index;
 mod matching;
 mod presentation;
 mod relations;
+pub(crate) mod resolution;
 mod values;
 
 pub use commands::host_control;
@@ -38,6 +39,7 @@ pub(crate) struct Run<'a> {
     entity_words: &'a EntityWords,
     pub(crate) state: Cow<'a, GameState>,
     pub(crate) result: CommandResult,
+    pub(crate) context: resolution::InteractionContext,
     budget: usize,
     depth: usize,
     finalizing: bool,
@@ -70,6 +72,7 @@ impl<'a> Run<'a> {
             entity_words: &definition.runtime().entity_words,
             state,
             result: CommandResult::default(),
+            context: resolution::InteractionContext::default(),
             budget: OPERATION_LIMIT,
             depth: 0,
             finalizing: false,

@@ -1,5 +1,6 @@
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
 import ContainerSettings, { ContainerUpgrade } from './ContainerSettings';
+import CommandAssistanceSettings from './CommandAssistanceSettings';
 import { hasCommandItem, localMessage } from './containerModel';
 import { ObjectTargetSelect } from './Forms';
 import type { ProjectEdit } from './projectHistory';
@@ -75,7 +76,8 @@ export default function Inspector({
       <>
         <h2>Command vocabulary</h2>
         <p className="muted">
-          Reserved: look, inventory, help [entity], hint [entity], save, load, saves, quit.
+          Reserved: look, inventory, help [entity], hint [entity], save, load, saves, quit
+          {p.game.command_assistance?.clarification ? ', cancel.' : '.'}
         </p>
         <Text
           label="Ignored words before entity names (comma separated)"
@@ -246,6 +248,7 @@ export default function Inspector({
             onChange={(unknown_command_text) => update({ unknown_command_text })}
           />
           <p className="muted">Shown when a player's command does not match an available action.</p>
+          <CommandAssistanceSettings project={p} edit={edit} />
           <Select
             label="Entity help"
             value={p.game.help_mode}
@@ -274,6 +277,7 @@ export default function Inspector({
           {'aliases' in o && (
             <Text
               label="Aliases (comma separated)"
+              path="aliases"
               value={o.aliases.join(', ')}
               onChange={(s) =>
                 update({

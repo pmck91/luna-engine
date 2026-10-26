@@ -9,6 +9,19 @@ use luna_model::{Event, normalize, reserved};
 
 impl<'a> Run<'a> {
     pub(crate) fn command(&mut self, input: &str) -> Result<()> {
+        if let Some(settings) = self.p.game.command_assistance.as_ref()
+            && (settings.clarification || settings.recent_objects)
+        {
+            let mut context = std::mem::take(&mut self.context);
+            let result = super::resolution::advance(self, &mut context, input, settings);
+            self.context = context;
+            return result;
+        }
+        self.context = super::resolution::InteractionContext::default();
+        self.command_explicit(input)
+    }
+
+    pub(super) fn command_explicit(&mut self, input: &str) -> Result<()> {
         let normalized = normalize(input);
         if self.recording.is_some() && (normalized.is_empty() || reserved(input)) {
             self.observe(
@@ -54,11 +67,7 @@ impl<'a> Run<'a> {
         let matches = self.candidates(&normalized, recorder.as_mut());
         self.recording = recorder;
         let matches = matches?;
-        for m in &matches {
-            self.result
-                .trace
-                .push(format!("Candidate '{}' [{}]: literal specificity {}, bound targets {}, scope {}, priority {}", m.name,m.id,m.rank.0,m.rank.1,match m.rank.2 { 2 => "object/character", 1 => "location", _ => "global" },m.rank.3))
-        }
+        self.candidate_trace(&matches);
         let Some(best) = matches.first().copied() else {
             self.result.status = CommandStatus::Unmatched;
             return self.say(&self.p.game.unknown_command_text);

@@ -137,6 +137,7 @@ export default function App() {
   const [newTitle, setNewTitle] = useState('My adventure');
   const [newFolder, setNewFolder] = useState('my-adventure');
   const [example, setExample] = useState(false);
+  const playerCommand = useRef<HTMLInputElement>(null);
   const [play, setPlay] = useState<PlaytestView | null>(null);
   const [logs, setLogs] = useState<PlaytestLog[]>([]);
   const [playStart, setPlayStart] = useState<CheckStart>({ type: 'fresh', location: null });
@@ -563,9 +564,9 @@ export default function App() {
       setBusy(false);
     }
   };
-  const send = async () => {
-    if (!play || !input.trim() || busy) return;
-    const command = input.trim();
+  const send = async (submitted?: string) => {
+    const command = (submitted ?? input).trim();
+    if (!play || !command || busy) return;
     setInput('');
     const next = [...history, command];
     setHistory(next);
@@ -590,6 +591,8 @@ export default function App() {
           contentKey: playSource,
           help: playRecordingHelp,
           status: result.result.status,
+          input_resolution: result.result.input_resolution,
+          selected_flow: result.result.selected_flow,
         });
         if (explanation.error)
           setLogs((old) => [
@@ -601,6 +604,7 @@ export default function App() {
       error(e);
     } finally {
       setBusy(false);
+      requestAnimationFrame(() => playerCommand.current?.focus());
     }
   };
   const create = async () => {
@@ -1955,6 +1959,16 @@ export default function App() {
                     </p>
                   )}
                 </div>
+                {play?.result.pending_clarification && (
+                  <div className="pending-command" role="note" aria-label="Pending command">
+                    <span>
+                      Waiting for a choice: {play.result.pending_clarification.original_command}
+                    </span>
+                    <button type="button" disabled={busy} onClick={() => void send('cancel')}>
+                      Cancel pending command
+                    </button>
+                  </div>
+                )}
                 <form
                   className="command-input"
                   onSubmit={(e) => {
@@ -1964,6 +1978,7 @@ export default function App() {
                 >
                   <span>&gt;</span>
                   <input
+                    ref={playerCommand}
                     aria-label="Player command"
                     placeholder="Type a command, e.g. examine painting"
                     value={input}
@@ -2370,6 +2385,8 @@ export default function App() {
                     contentKey: playContentKey(snapshot, check.help_mode ?? ''),
                     help: check.help_mode ?? '',
                     status: last.status,
+                    input_resolution: last.input_resolution,
+                    selected_flow: last.selected_flow,
                   }
                 : null,
             );
@@ -2390,6 +2407,10 @@ export default function App() {
         <CommandExplanation
           record={explanationRecord}
           project={doc}
+          reveal={(site) => {
+            setShowExplanation(false);
+            reveal(site);
+          }}
           close={() => setShowExplanation(false)}
           inspect={(index) => {
             if (!explanationIsCurrent(explanationRecord, doc)) return;

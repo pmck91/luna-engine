@@ -373,6 +373,9 @@ function scan(
       ...('title' in owner ? ['title', 'opening_text', 'help_text', 'unknown_command_text'] : []),
     ])
       message(owner, key, site);
+    if ('command_assistance' in owner && owner.command_assistance)
+      for (const key of ['clarification_text', 'retry_text', 'unavailable_reference_text'])
+        message(owner.command_assistance, key, child(site, 'command_assistance'));
     if ('starting_location' in owner)
       reference(owner, 'starting_location', { kind: 'entity', id: owner.starting_location }, site, {
         allowed: ['location'],

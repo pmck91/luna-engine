@@ -1,6 +1,6 @@
-# Architecture, content formats 1–2, and save formats 1–3
+# Architecture, content formats 1–3, and save formats 1–3
 
-The container branch implements the shared content-2/save-3 foundation and production authoring controls; C0/C2 design reviews are accepted and C3 covers final acceptance. See the [shared contract and current feature status](design/containers/shared-contract.md). Existing content-1 projects and save-1/2 compatibility are preserved. Public author/player documentation is deferred to the documentation-site milestone.
+Containers are merged, including the content-2/save-3 foundation. Parser assistance adds authored content format 3 while retaining content-1/2 and save-1/2/3 compatibility; interaction context is session-local. See the [parser contract](design/parser-context/shared-contract.md) and [P2 review](design/parser-context/p2-review.md) for current branch status. Public author/player documentation remains deferred to the documentation-site milestone.
 
 | Crate | Responsibility |
 | --- | --- |
@@ -22,6 +22,8 @@ The core's public imports remain available at the crate root. Its private implem
 | --- | --- |
 | [`lib.rs`](../crates/luna-core/src/lib.rs) | Public result/status/control types and API re-exports |
 | [`definition.rs`](../crates/luna-core/src/definition.rs) | Validated immutable content, initial state, and indexed saved-state compatibility checks |
+| [`input.rs`](../crates/luna-core/src/input.rs) | Typed ephemeral input resolution, noun provenance, and pending choices |
+| [`resolution.rs`](../crates/luna-core/src/runtime/resolution.rs) | Bounded clarification, recent references, revalidation, and once-only selected dispatch |
 | [`session.rs`](../crates/luna-core/src/session.rs) | Host lifecycle, creation/restoration, and committing or discarding a command attempt |
 | [`runtime/index.rs`](../crates/luna-core/src/runtime/index.rs) | Definition-owned entity/vocabulary lookups, normalized command patterns, and event/watch addresses |
 | [`runtime/mod.rs`](../crates/luna-core/src/runtime/mod.rs) | One attempted transaction's state/output, shared operation/depth limits, and observation context |
@@ -45,6 +47,14 @@ The former inline unit-test module lives in [`tests.rs`](../crates/luna-core/src
 
 Explanations record at most 8,192 ordered steps and 256 changes per diff. A step's `parent` indexes an earlier step, while its source identifies a stable authored subject and canonical field/index path, independent of Blockly layout. Changes describe attempted state and can therefore include output/state later rolled back. `committed` means execution returned without error, including normal rejections; use the result's `state_changed` to decide whether state changed. Truncation limits diagnostics and never changes gameplay execution. Public core APIs require documentation through the `missing_docs` lint; CI also builds rustdoc with warnings denied.
 
+### Parser assistance and session context
+
+`Game.command_assistance` is optional. Omission means both features off and remains writable in content 1–2. New projects explicitly enable clarification and recent objects in content 3. Authoring either settings or message text in an older game requires a reviewed upgrade; exact `cancel` collisions block enabling clarification, without deleting custom actions. The three message fields participate in normal formatting, validation, rename/search, and Used by traversal.
+
+Session owns a bounded pending interpretation set and recent object separately from GameState. Ordinary names/literals are matched first; enabled `it` resolution uses a stable object ID in compatible noun slots. A tie can ask for an entity without evaluating requirements to guess a puzzle solution. Replies revalidate retained identities, then dispatch through normal requirements/effects/events once. Duplicate handlers remain author ambiguities. Question/retry/cancel run no story effects.
+
+Context and story share one commit boundary; runtime errors roll both back. Read-only controls preserve pending input. Successful restore/state replacement, even an equal snapshot, clears context without replaying events. Saves/bundles/editor metadata contain no context. `CommandResult.input_resolution` describes this input; `pending_clarification` independently reports the committed waiting question after read-only inputs. The UI uses generated metadata rather than parsing transcript strings. Assistance changes follow normal stale-playtest revision rules.
+
 ### Editor authoring workspaces
 
 The Actions tab edits command actions and exits, with separate lists and a remembered flow selection per owner. Triggers has a dedicated list and block canvas under Game data, grouped into command, state, and value triggers and filterable by owner. Entity inspectors link to their triggers; trigger selection opens its settings and block flow. Flow roots expose action requirements, trigger conditions, or exit visibility and traversability as Boolean inputs alongside the effects. These inputs and the inspector edit the same canonical conditions. ALL/ANY blocks preserve arbitrary child counts, including empty and single-child groups. Restoring an older workspace adds missing condition inputs from the canonical model without discarding its effect layout. Inspector and playtest collapse controls affect only the editor layout and keep panel contents mounted.
@@ -67,7 +77,7 @@ The `print_description` effect stores an `entity` reference and reads that locat
 
 `editor/map-layout.json` stores map positions, optional Blockly workspaces, and route layouts keyed by exit ID. A route layout records optional source/target border anchors (side and fractional position) and a label displacement from the route midpoint. Anchors move with their rooms; labels never alter arrow geometry. Older layouts without route data use automatic placement. These fields are editor metadata and remain excluded from exported games. The typed effects remain canonical; workspace restoration must agree with them or the editor rebuilds the blocks. Response-sequence IDs are independent of response order and persist across edits.
 
-Drafts can have semantic validation errors and remain saveable. Their format header must still support their typed features: an explicit upgrade is required before saving container content into a format-1 project. Export and new playtests require valid content. Runtime restores additionally validate every saved entity, property, visit counter, ending, response cursor, and object-parent graph against the immutable game definition.
+Drafts can have semantic validation errors and remain saveable. Their format header must still support their typed features: an explicit upgrade is required before saving container content into format 1 or authored assistance settings into formats 1–2. Export and new playtests require valid content. Runtime restores additionally validate every saved entity, property, visit counter, ending, response cursor, and object-parent graph against the immutable game definition.
 
 `luna_core::GameDefinition` owns a validated `Project`, saved-state schema, and compiled runtime indexes behind a private shared `Arc`. Construction performs full authoring validation once; clones share immutable content and indexes. `Session::start` and `Session::restore` still accept untrusted projects and create a definition, while `start_with_definition` and `restore_with_definition` reuse one. Sessions expose authored content through `project()` and the validated definition through `definition()`; changing authored content requires validating a new definition and rebuilding its indexes.
 
@@ -193,7 +203,7 @@ Validated installation content is immutable. An atomic per-version JSON pointer 
 
 ## Player persistence and rendering
 
-Save formats 2–3 wrap the complete `GameState` including hint history, exact game identity/content version, a content fingerprint, UTC timestamps, and a label. The runner reads formats 1–3, writes 2 for content-1 games, and writes 3 for content-2 games. Nested placements require save 3. Missing legacy hint history defaults to empty; a format-1 file carrying nonempty hint history is rejected as inconsistent. Unsupported headers are rejected before state deserialization. Saved hint stage IDs must exist, cursors must fit their clue lists, and seen solutions must still exist. Saved object graphs must be cycle-free with compatible, unconsumed parents. Incompatible edits produce a preserved-save error. Keep IDs stable and publish a new content version when changing released puzzle structure. Existing identity/fingerprint/schema checks remain in place.
+Save formats 2–3 wrap the complete `GameState` including hint history, exact game identity/content version, a content fingerprint, UTC timestamps, and a label. The runner reads formats 1–3, writes 2 for content-1 games, and writes 3 for content-2/3 games. Nested placements require save 3. Missing legacy hint history defaults to empty; a format-1 file carrying nonempty hint history is rejected as inconsistent. Unsupported headers are rejected before state deserialization. Saved hint stage IDs must exist, cursors must fit their clue lists, and seen solutions must still exist. Saved object graphs must be cycle-free with compatible, unconsumed parents. Incompatible edits produce a preserved-save error. Keep IDs stable and publish a new content version when changing released puzzle structure. Existing identity/fingerprint/schema checks remain in place.
 
 Each slot uses atomic replacement. Named paths are derived from label hashes, and labels are never interpreted as paths. Loading restores state directly without start/entry events. Help and hint listing do not autosave; revealing a new clue or solution does. No hint effects are replayed on load.
 

@@ -150,6 +150,9 @@ impl Project {
     /// content and saved editor setups/templates. This does not upgrade content
     /// or perform semantic validation; saving unfinished authoring is supported.
     pub fn minimum_format(&self) -> u32 {
+        if self.game.command_assistance.is_some() {
+            return 3;
+        }
         if self
             .objects
             .iter()
