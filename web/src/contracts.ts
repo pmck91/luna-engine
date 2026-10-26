@@ -5,9 +5,33 @@ export type JsonValue = number | string | boolean | Array<JsonValue> | { [key in
 
 export type Value = boolean | number | string;
 
+export type ObjectTarget = string | { input: ObjectInput, };
+
+export type ObjectInput = "item";
+
+export type ContainerOpening = "always_open" | "openable";
+
+export type ObjectStorage = { container: ContainerOpening | null, surface: boolean, };
+
+export type ContentRelation = "inside" | "on";
+
+export type StandardInteraction = "open" | "close" | "look_inside" | "put_inside" | "put_on" | "take_from" | "take" | "drop";
+
+export type StandardAction = { interaction: StandardInteraction,
+/**
+ * Disabled actions remain editable/validated but never enter player matching.
+ */
+enabled: boolean, };
+
+export type InputTextReference = { "type": "item_name" } | { "type": "entity_name", entity: string, };
+
 export type Comparison = "eq" | "ne" | "gt" | "ge" | "lt" | "le";
 
-export type Condition = { "type": "true" } | { "type": "false" } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: string, name: string, op: Comparison, value: Value, } | { "type": "carrying", object: string, } | { "type": "character_carrying", character: string, object: string, } | { "type": "hint_used", hint: string, } | { "type": "exists", object: string, } | { "type": "at", location: string, } | { "type": "visited", location: string, op: Comparison, count: number, } | { "type": "opened", object: string, } | { "type": "visible", entity: string, };
+export type Condition = { "type": "true" } | { "type": "false" } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: string, name: string, op: Comparison, value: Value, } | { "type": "carrying",
+/**
+ * Direct player inventory only. Use Possesses for nested ownership.
+ */
+object: string, } | { "type": "character_carrying", character: string, object: string, } | { "type": "hint_used", hint: string, } | { "type": "exists", object: string, } | { "type": "at", location: string, } | { "type": "visited", location: string, op: Comparison, count: number, } | { "type": "opened", object: string, } | { "type": "visible", entity: string, } | { "type": "possesses", object: ObjectTarget, character: string | null, } | { "type": "reachable", object: ObjectTarget, } | { "type": "in_object", object: ObjectTarget, parent: string, relation: ContentRelation, } | { "type": "can_transfer", object: ObjectTarget, placement: Placement, };
 
 export type HelpMode = "off" | "basic" | "full";
 
@@ -23,11 +47,11 @@ export type ArithmeticOperation = "add" | "subtract" | "multiply" | "divide";
 
 export type NumericOperand = { "type": "literal", value: number, } | { "type": "variable", name: string, } | { "type": "property", entity: string, name: string, };
 
-export type Effect = { "type": "say", text: string, } | { "type": "character_says", character: string, text: string, } | { "type": "print_description", entity: string, } | { "type": "respond", id: string, responses: Array<string>, mode: SequenceMode, fallback: string, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: string, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: string, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: string, } | { "type": "give_character", object: string, character: string, } | { "type": "remove", object: string, } | { "type": "consume", object: string, } | { "type": "place", object: string, location: string, } | { "type": "reveal", entity: string, } | { "type": "hide", entity: string, } | { "type": "open", object: string, } | { "type": "close", object: string, } | { "type": "move", location: string, } | { "type": "move_character", character: string, location: string, } | { "type": "combine", first: string, second: string, consume_first: boolean, consume_second: boolean, result: string, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
+export type Effect = { "type": "say", text: string, } | { "type": "say_with_inputs", text: string, references: { [key in string]?: InputTextReference }, } | { "type": "transfer", object: ObjectTarget, placement: Placement, } | { "type": "list_contents", object: string, relation: ContentRelation, } | { "type": "character_says", character: string, text: string, } | { "type": "print_description", entity: string, } | { "type": "respond", id: string, responses: Array<string>, mode: SequenceMode, fallback: string, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: string, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: string, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: string, } | { "type": "give_character", object: string, character: string, } | { "type": "remove", object: string, } | { "type": "consume", object: string, } | { "type": "place", object: string, location: string, } | { "type": "reveal", entity: string, } | { "type": "hide", entity: string, } | { "type": "open", object: string, } | { "type": "close", object: string, } | { "type": "move", location: string, } | { "type": "move_character", character: string, location: string, } | { "type": "combine", first: string, second: string, consume_first: boolean, consume_second: boolean, result: string, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
 
-export type PatternPart = { "type": "literal", text: string, } | { "type": "entity", entity: string, };
+export type PatternPart = { "type": "literal", text: string, } | { "type": "entity", entity: string, } | { "type": "object_input" };
 
-export type Action = { id: string, name: string, verb: string, pattern: Array<PatternPart>, priority: number, requirements: Condition, failure_text: string, effects: Array<Effect>, };
+export type Action = { id: string, name: string, verb: string, pattern: Array<PatternPart>, priority: number, requirements: Condition, failure_text: string, effects: Array<Effect>, standard?: StandardAction, };
 
 export type Event = "start" | "ending" | "enter" | "first_enter" | "leave" | "command" | "examine" | "take" | "drop" | "pull" | "push" | "turn" | "open" | "close" | "use" | "speak" | "interact";
 
@@ -45,9 +69,9 @@ export type Exit = { id: string, name: string, aliases: Array<string>, verb: str
 
 export type Location = { id: string, name: string, aliases: Array<string>, description: string, actions: Array<Action>, triggers: Array<Trigger>, exits: Array<Exit>, state: { [key in string]?: Value }, hints: Array<HintSet>, };
 
-export type Placement = { "type": "location", location: string, } | { "type": "character", character: string, } | { "type": "inventory" } | { "type": "absent" };
+export type Placement = { "type": "location", location: string, } | { "type": "character", character: string, } | { "type": "inside", object: string, } | { "type": "on", object: string, } | { "type": "inventory" } | { "type": "absent" };
 
-export type Object = { id: string, name: string, aliases: Array<string>, description: string, placement: Placement, portable: boolean, hidden: boolean, open: boolean, state: { [key in string]?: Value }, actions: Array<Action>, triggers: Array<Trigger>, hints: Array<HintSet>, };
+export type Object = { id: string, name: string, aliases: Array<string>, description: string, placement: Placement, portable: boolean, hidden: boolean, open: boolean, state: { [key in string]?: Value }, actions: Array<Action>, triggers: Array<Trigger>, hints: Array<HintSet>, storage?: ObjectStorage, };
 
 export type Character = { id: string, name: string, name_colour: string | null, aliases: Array<string>, description: string, location: string, hidden: boolean, state: { [key in string]?: Value }, actions: Array<Action>, triggers: Array<Trigger>, hints: Array<HintSet>, };
 

@@ -97,6 +97,7 @@ struct Check<'a> {
     p: &'a Project,
     diagnostics: Vec<Diagnostic>,
     ids: BTreeSet<String>,
+    item_input: bool,
 }
 impl Check<'_> {
     fn report(
@@ -175,6 +176,62 @@ impl Check<'_> {
     fn location(&mut self, s: &str, f: &str, id: &str) {
         if !self.p.locations.iter().any(|e| e.id == id) {
             self.error(s, f, format!("Missing location: {id}"))
+        }
+    }
+    fn v2(&mut self, s: &str, f: &str) {
+        if self.p.game.format_version < 2 {
+            self.error(
+                s,
+                f,
+                "This feature requires an explicit upgrade to content format 2",
+            );
+        }
+    }
+    fn target(&mut self, s: &str, f: &str, target: &ObjectTarget) {
+        match target {
+            ObjectTarget::Fixed(id) => self.object(s, f, id),
+            ObjectTarget::Input { .. } if !self.item_input => {
+                self.error(s, f, "Command item is not declared by this action")
+            }
+            ObjectTarget::Input { .. } => {}
+        }
+    }
+    fn parent(&mut self, s: &str, f: &str, id: &str, relation: ContentRelation) {
+        self.object(s, f, id);
+        if let Some(parent) = self.p.objects.iter().find(|o| o.id == id)
+            && match relation {
+                ContentRelation::Inside => parent.storage.unwrap_or_default().container.is_none(),
+                ContentRelation::On => !parent.storage.unwrap_or_default().surface,
+            }
+        {
+            self.error(
+                s,
+                f,
+                if relation == ContentRelation::Inside {
+                    "Target cannot contain items"
+                } else {
+                    "Target has no top surface"
+                },
+            );
+        }
+    }
+    fn placement(&mut self, s: &str, f: &str, placement: &Placement, scripted: bool) {
+        match placement {
+            Placement::Location { location } if scripted && location == "@current" => {}
+            Placement::Location { location } => self.location(s, f, location),
+            Placement::Character { character } => self.character(s, f, character),
+            Placement::Inside { object } => {
+                self.v2(s, f);
+                self.parent(s, f, object, ContentRelation::Inside);
+            }
+            Placement::On { object } => {
+                self.v2(s, f);
+                self.parent(s, f, object, ContentRelation::On);
+            }
+            Placement::Absent if scripted => {
+                self.error(s, f, "Use REMOVE to park an object offstage")
+            }
+            Placement::Inventory | Placement::Absent => {}
         }
     }
     fn value(
@@ -269,6 +326,31 @@ impl Check<'_> {
                 }
             }
             Condition::Visible { entity } => self.entity(s, f, entity),
+            Condition::Possesses { object, character } => {
+                self.v2(s, f);
+                self.target(s, f, object);
+                if let Some(character) = character {
+                    self.character(s, f, character);
+                }
+            }
+            Condition::Reachable { object } => {
+                self.v2(s, f);
+                self.target(s, f, object);
+            }
+            Condition::InObject {
+                object,
+                parent,
+                relation,
+            } => {
+                self.v2(s, f);
+                self.target(s, f, object);
+                self.parent(s, f, parent, *relation);
+            }
+            Condition::CanTransfer { object, placement } => {
+                self.v2(s, f);
+                self.target(s, f, object);
+                self.placement(s, f, placement, true);
+            }
         }
     }
     fn effects(&mut self, s: &str, f: &str, effects: &[Effect]) {
@@ -276,6 +358,52 @@ impl Check<'_> {
             let f = format!("{f}.{i}");
             match e {
                 Effect::Say { text } => self.text(s, &f, text),
+                Effect::SayWithInputs {
+                    text: message,
+                    references,
+                } => {
+                    self.v2(s, &f);
+                    for (key, reference) in references {
+                        if key.is_empty()
+                            || key.trim() != key
+                            || key.contains('%')
+                            || self.p.text_reference(key).is_some()
+                        {
+                            self.error(s, &format!("{f}.references"), "Message-local names must be nonempty, unambiguous, and must not shadow a variable/property");
+                        }
+                        match reference {
+                            InputTextReference::ItemName if !self.item_input => {
+                                self.error(s, &f, "Command item name is not available in this flow")
+                            }
+                            InputTextReference::EntityName { entity } => self.entity(s, &f, entity),
+                            _ => {}
+                        }
+                    }
+                    if let Err(error) = text::format(message, |key| match references.get(key) {
+                        Some(InputTextReference::ItemName) => Ok("item".into()),
+                        Some(InputTextReference::EntityName { entity }) => self
+                            .p
+                            .entity_name(entity)
+                            .map(str::to_owned)
+                            .ok_or_else(|| anyhow::anyhow!("Missing name entity: {entity}")),
+                        None => self
+                            .p
+                            .initial_text_value(key)
+                            .map(ToString::to_string)
+                            .ok_or_else(|| anyhow::anyhow!("Unknown message value: %{key}%")),
+                    }) {
+                        self.error(s, &f, error.to_string());
+                    }
+                }
+                Effect::Transfer { object, placement } => {
+                    self.v2(s, &f);
+                    self.target(s, &f, object);
+                    self.placement(s, &f, placement, true);
+                }
+                Effect::ListContents { object, relation } => {
+                    self.v2(s, &f);
+                    self.parent(s, &f, object, *relation);
+                }
                 Effect::CharacterSays { character, text } => {
                     self.character(s, &format!("{f}.character"), character);
                     self.text(s, &format!("{f}.text"), text);
@@ -421,6 +549,16 @@ impl Check<'_> {
                 PatternPart::Entity { entity } => {
                     self.entity(s, &format!("pattern.{index}"), entity)
                 }
+                PatternPart::ObjectInput => {
+                    self.v2(s, "pattern");
+                    if !self.item_input {
+                        self.error(
+                            s,
+                            "pattern",
+                            "Command item requires a standard interaction that declares it",
+                        );
+                    }
+                }
             }
         }
     }
@@ -541,6 +679,7 @@ fn command_forms(
                 .into_iter()
                 .flat_map(|name| entity_words.forms(name))
                 .collect(),
+            PatternPart::ObjectInput => vec!["<item>".into()],
         };
         forms = forms
             .iter()
@@ -570,6 +709,7 @@ pub fn validate_condition(p: &Project, condition: &Condition) -> Vec<Diagnostic>
         p,
         diagnostics: vec![],
         ids: BTreeSet::new(),
+        item_input: false,
     };
     check.condition(&p.game.id, "expectation", condition);
     check.diagnostics
@@ -579,6 +719,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         p,
         diagnostics: vec![],
         ids: BTreeSet::new(),
+        item_input: false,
     };
     let game = &p.game;
     for (owner, hints) in p.hint_owners() {
@@ -662,12 +803,12 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         }
     }
     c.id(&game.id, "id");
-    if game.format_version != FORMAT_VERSION {
+    if !supported_format(game.format_version) {
         c.error(
             &game.id,
             "format_version",
             format!(
-                "Unsupported format {}; supported: {FORMAT_VERSION}",
+                "Unsupported format {}; supported: 1 through {FORMAT_VERSION}",
                 game.format_version
             ),
         )
@@ -746,10 +887,25 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     for o in &p.objects {
         c.id(&o.id, "id");
         c.text(&o.id, "description", &o.description);
-        match &o.placement {
-            Placement::Location { location } => c.location(&o.id, "placement", location),
-            Placement::Character { character } => c.character(&o.id, "placement", character),
-            Placement::Inventory | Placement::Absent => {}
+        c.placement(&o.id, "placement", &o.placement, false);
+        if o.storage.is_some() {
+            c.v2(&o.id, "storage");
+        }
+        if o.storage.unwrap_or_default().container == Some(ContainerOpening::AlwaysOpen) && !o.open
+        {
+            c.error(&o.id, "open", "An always-open container must start open");
+        }
+    }
+    if p.objects
+        .iter()
+        .any(|o| o.placement.parent_object().is_some())
+    {
+        for cycle in placement_cycles(p.objects.iter().map(|o| (o.id.as_str(), &o.placement))) {
+            c.error(
+                cycle[0],
+                "placement",
+                format!("Object placement forms a cycle: {}", cycle.join(" → ")),
+            );
         }
     }
     for ch in &p.characters {
@@ -771,11 +927,68 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     let mut trigger_keys = BTreeMap::new();
     for (owner, actions, triggers) in p.owners() {
         for a in actions {
+            c.item_input = a
+                .standard
+                .as_ref()
+                .is_some_and(|standard| standard.interaction.takes_item());
+            if let Some(standard) = &a.standard {
+                c.v2(&a.id, "standard");
+                if let Some(object) = p.objects.iter().find(|o| o.id == owner) {
+                    let storage = object.storage.unwrap_or_default();
+                    let kind = standard.interaction;
+                    let valid = match kind {
+                        StandardInteraction::Open | StandardInteraction::Close => {
+                            storage.container == Some(ContainerOpening::Openable)
+                        }
+                        StandardInteraction::LookInside | StandardInteraction::PutInside => {
+                            storage.container.is_some()
+                        }
+                        StandardInteraction::PutOn => storage.surface,
+                        StandardInteraction::TakeFrom => !storage.is_empty(),
+                        StandardInteraction::Take | StandardInteraction::Drop => object.portable,
+                    };
+                    if !valid {
+                        c.error(
+                            &a.id,
+                            "standard",
+                            "Standard interaction does not match the owner's capabilities",
+                        );
+                    }
+                    if !a.pattern.iter().any(
+                        |part| matches!(part, PatternPart::Entity { entity } if entity == owner),
+                    ) {
+                        c.error(
+                            &a.id,
+                            "pattern",
+                            "A standard interaction must name its owning object",
+                        );
+                    }
+                } else {
+                    c.error(
+                        &a.id,
+                        "standard",
+                        "Standard interactions must belong to an object",
+                    );
+                }
+            }
+            if a.pattern
+                .iter()
+                .filter(|part| matches!(part, PatternPart::ObjectInput))
+                .count()
+                != usize::from(c.item_input)
+            {
+                c.error(
+                    &a.id,
+                    "pattern",
+                    "This interaction must declare exactly its supported command item input",
+                );
+            }
             c.id(&a.id, "actions.id");
             c.pattern(&a.id, &a.verb, &a.pattern);
             c.condition(&a.id, "requirements", &a.requirements);
             c.text(&a.id, "failure_text", &a.failure_text);
             c.effects(&a.id, "effects", &a.effects);
+            c.item_input = false;
             for command in command_forms(p, &a.verb, &a.pattern, false) {
                 if let Some(old) = patterns.insert(command.clone(), a.id.clone())
                     && old != a.id

@@ -409,6 +409,17 @@ impl Run<'_> {
                 .visits
                 .get(location)
                 .and_then(|v| serde_json::to_value(v).ok()),
+            Condition::Possesses { object, .. } | Condition::Reachable { object } | Condition::InObject { object, .. } | Condition::CanTransfer { object, .. } => self.object_target(object).map(|id| {
+                let mut path = vec![];
+                let mut current = id;
+                for _ in 0..=self.state.objects.len() {
+                    let Some(state) = self.state.objects.get(current) else { break };
+                    path.push(serde_json::json!({"id": current, "state": state}));
+                    let Some((parent, _)) = state.placement.parent_object() else { break };
+                    current = parent;
+                }
+                serde_json::json!({"object": id, "reachable": self.object_available(id), "path": path})
+            }),
             _ => None,
         };
         let index = self.recording.as_mut().and_then(|r| {
@@ -460,6 +471,9 @@ impl Run<'_> {
 }
 pub(super) fn effect_name(effect: &Effect) -> &'static str {
     match effect {
+        Effect::SayWithInputs { .. } => "SAY",
+        Effect::Transfer { .. } => "TRANSFER OBJECT",
+        Effect::ListContents { .. } => "LIST CONTENTS",
         Effect::Say { .. } => "SAY",
         Effect::CharacterSays { .. } => "CHARACTER SAYS",
         Effect::PrintDescription { .. } => "PRINT DESCRIPTION",

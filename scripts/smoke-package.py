@@ -140,7 +140,7 @@ def main():
             assert "Outcome:" not in completed, completed
             autosave = work / "no-outcome/saves" / game["id"] / game["content_version"] / "autosave.json"
             state = json.loads(autosave.read_text())
-            assert state["save_format"] == 2, state
+            assert state["save_format"] == (3 if game["format_version"] >= 2 else 2), state
             assert state["state"]["ending"] == "finish", state
         finally:
             if editor is not None and editor.poll() is None:

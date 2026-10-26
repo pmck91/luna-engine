@@ -3,6 +3,8 @@ import type {
   Condition,
   Effect,
   NumericOperand,
+  ObjectTarget,
+  Placement,
   Project,
   TemplateContent,
   TemplateEntity,
@@ -20,7 +22,7 @@ export function templateEntities(p: Project): TemplateEntity[] {
 }
 type Visitor = {
   entity: (id: string, allowed: TemplateEntityKind[]) => string;
-  text: (text: string) => string;
+  text: (text: string, localNames?: string[]) => string;
 };
 // Visit typed references only: literal pattern words, property names, and stored
 // text values are not entity IDs or messages.
@@ -30,6 +32,21 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
   const object = (id: string) => visitor.entity(id, ['object']);
   const character = (id: string) => visitor.entity(id, ['character']);
   const location = (id: string) => (id === '@current' ? id : visitor.entity(id, ['location']));
+  const target = (value: ObjectTarget): ObjectTarget =>
+    typeof value === 'string' ? object(value) : value;
+  const placement = (value: Placement): Placement => {
+    switch (value.type) {
+      case 'inside':
+      case 'on':
+        return { ...value, object: object(value.object) };
+      case 'location':
+        return { ...value, location: location(value.location) };
+      case 'character':
+        return { ...value, character: character(value.character) };
+      default:
+        return value;
+    }
+  };
   const operand = (v: NumericOperand): NumericOperand =>
     v.type === 'property' ? { ...v, entity: entity(v.entity) } : v;
   const condition = (v: Condition): Condition => {
@@ -48,6 +65,18 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
         return { ...v, object: object(v.object) };
       case 'character_carrying':
         return { ...v, object: object(v.object), character: character(v.character) };
+      case 'possesses':
+        return {
+          ...v,
+          object: target(v.object),
+          character: v.character ? character(v.character) : null,
+        };
+      case 'reachable':
+        return { ...v, object: target(v.object) };
+      case 'in_object':
+        return { ...v, object: target(v.object), parent: object(v.parent) };
+      case 'can_transfer':
+        return { ...v, object: target(v.object), placement: placement(v.placement) };
       case 'at':
       case 'visited':
         return { ...v, location: location(v.location) };
@@ -66,12 +95,27 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
     switch (v.type) {
       case 'say':
         return { ...v, text: visitor.text(v.text) };
+      case 'say_with_inputs':
+        return {
+          ...v,
+          text: visitor.text(v.text, Object.keys(v.references)),
+          references: Object.fromEntries(
+            Object.entries(v.references).map(([key, ref]) => [
+              key,
+              ref?.type === 'entity_name' ? { ...ref, entity: entity(ref.entity) } : ref,
+            ]),
+          ),
+        };
+      case 'transfer':
+        return { ...v, object: target(v.object), placement: placement(v.placement) };
+      case 'list_contents':
+        return { ...v, object: object(v.object) };
       case 'character_says':
         return { ...v, character: character(v.character), text: visitor.text(v.text) };
       case 'respond':
         return {
           ...v,
-          responses: v.responses.map(visitor.text),
+          responses: v.responses.map((text) => visitor.text(text)),
           fallback: visitor.text(v.fallback),
           on_exhausted: v.on_exhausted.map(effect),
         };
@@ -202,8 +246,9 @@ export function templateReferences(t: BlockTemplate): TemplateReference[] {
   };
   visitContent(t.content, {
     entity,
-    text: (text) =>
+    text: (text, localNames = []) =>
       mapMessage(text, (reference) => {
+        if (localNames.includes(decode(reference))) return reference;
         const id = messageEntity(t, reference);
         if (id) entity(id, kinds);
         return reference;
@@ -228,8 +273,9 @@ export function makeTemplate(
   const usedVariables = new Set<string>();
   visitContent(t.content, {
     entity: (id) => id,
-    text: (text) =>
+    text: (text, localNames = []) =>
       mapMessage(text, (reference) => {
+        if (localNames.includes(decode(reference))) return reference;
         if (t.text_variables.includes(decode(reference))) usedVariables.add(decode(reference));
         return reference;
       }),
@@ -261,8 +307,9 @@ export function instantiateTemplate(
   const replacement = (id: string) => (Object.hasOwn(mapping, id) ? mapping[id] : id);
   const copied = visitContent(t.content, {
     entity: replacement,
-    text: (text) =>
+    text: (text, localNames = []) =>
       mapMessage(text, (reference) => {
+        if (localNames.includes(decode(reference))) return reference;
         const id = messageEntity(t, reference);
         return id ? `${replacement(id)}${reference.slice(id.length)}` : reference;
       }),
@@ -288,14 +335,24 @@ export function templateBindingErrors(
   effectsOnly = false,
 ): string[] {
   const errors = new Set<string>();
+  const declaredNames = new Set([
+    ...Object.keys(p.game.variables),
+    ...templateEntities(p).flatMap((entity) =>
+      entity.properties.map((name) => `${entity.id}.${name}`),
+    ),
+  ]);
   const content: TemplateContent =
     effectsOnly && t.content.type === 'action'
       ? { type: 'effects', effects: t.content.action.effects }
       : t.content;
   visitContent(content, {
     entity: (id) => id,
-    text: (text) =>
-      mapMessage(text, (reference) => {
+    text: (text, localNames = []) => {
+      for (const name of localNames)
+        if (declaredNames.has(name))
+          errors.add(`Message-local name “${name}” would hide a variable or property.`);
+      return mapMessage(text, (reference) => {
+        if (localNames.includes(decode(reference))) return reference;
         const name = decode(reference);
         if (t.text_variables.includes(name)) {
           if (!Object.hasOwn(p.game.variables, name))
@@ -312,7 +369,8 @@ export function templateBindingErrors(
           }
         }
         return reference;
-      }),
+      });
+    },
   });
   return [...errors];
 }

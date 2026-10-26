@@ -55,6 +55,7 @@ impl Owner {
 pub(super) enum Part {
     Literal(Vec<String>),
     Entity(String),
+    ObjectInput,
 }
 
 pub(super) struct Pattern {
@@ -76,6 +77,10 @@ impl Pattern {
                 PatternPart::Entity { entity } => {
                     specificity.1 += 1;
                     Part::Entity(entity.clone())
+                }
+                PatternPart::ObjectInput => {
+                    specificity.1 += 1;
+                    Part::ObjectInput
                 }
             })
             .collect();
@@ -124,6 +129,8 @@ pub(crate) struct RuntimeIndex {
     pub(super) owners: Vec<Owner>,
     pub(super) entities: HashMap<String, Owner>,
     pub(super) names: HashMap<String, Vec<Vec<String>>>,
+    pub(super) object_names: Option<ObjectNames>,
+    pub(super) has_storage: bool,
     pub(super) verbs: HashMap<String, Verb>,
     pub(super) endings: HashMap<String, usize>,
     pub(super) exits: Vec<Vec<Vec<Pattern>>>,
@@ -133,6 +140,64 @@ pub(crate) struct RuntimeIndex {
     events: Vec<(Event, Vec<TriggerAddress>)>,
     variable_watches: HashMap<String, Vec<TriggerAddress>>,
     property_watches: HashMap<String, HashMap<String, Vec<TriggerAddress>>>,
+}
+
+/// Prefix lookup is compiled only for games declaring item inputs. Matching a
+/// slot walks the input words; it does not scan all objects or expand actions.
+pub(super) struct ObjectNames {
+    nodes: Vec<NounNode>,
+}
+#[derive(Default)]
+struct NounNode {
+    next: HashMap<String, usize>,
+    objects: Vec<usize>,
+}
+impl Default for ObjectNames {
+    fn default() -> Self {
+        Self {
+            nodes: vec![NounNode::default()],
+        }
+    }
+}
+impl ObjectNames {
+    fn insert(&mut self, words: &[String], object: usize) {
+        if words.is_empty() {
+            return;
+        }
+        let mut index = 0;
+        for word in words {
+            index = if let Some(&next) = self.nodes[index].next.get(word) {
+                next
+            } else {
+                let next = self.nodes.len();
+                self.nodes.push(NounNode::default());
+                self.nodes[index].next.insert(word.clone(), next);
+                next
+            };
+        }
+        // Objects are inserted consecutively, including all their aliases.
+        // Duplicate spellings need only inspect the last ID.
+        if self.nodes[index].objects.last() != Some(&object) {
+            self.nodes[index].objects.push(object);
+        }
+    }
+    pub(super) fn matches(&self, words: &[&str], start: usize) -> Vec<(usize, usize)> {
+        let mut index = 0;
+        let mut matches = vec![];
+        for (offset, word) in words[start..].iter().enumerate() {
+            let Some(&child) = self.nodes[index].next.get(*word) else {
+                break;
+            };
+            index = child;
+            matches.extend(
+                self.nodes[index]
+                    .objects
+                    .iter()
+                    .map(|&object| (start + offset + 1, object)),
+            );
+        }
+        matches
+    }
 }
 
 impl RuntimeIndex {
@@ -150,7 +215,7 @@ impl RuntimeIndex {
             .collect();
         // Read names directly from their owners: Project::entity_aliases scans
         // entity lists and would make definition compilation quadratic.
-        let names = project
+        let names: HashMap<String, Vec<Vec<String>>> = project
             .locations
             .iter()
             .map(|e| (&e.id, &e.name, &e.aliases))
@@ -171,6 +236,25 @@ impl RuntimeIndex {
                 )
             })
             .collect();
+        let object_names = project
+            .owners()
+            .iter()
+            .any(|(_, actions, _)| {
+                actions.iter().any(|a| {
+                    a.pattern
+                        .iter()
+                        .any(|part| matches!(part, PatternPart::ObjectInput))
+                })
+            })
+            .then(|| {
+                let mut trie = ObjectNames::default();
+                for (i, object) in project.objects.iter().enumerate() {
+                    for words in &names[&object.id] {
+                        trie.insert(words, i);
+                    }
+                }
+                trie
+            });
         let verbs: HashMap<_, _> = project
             .vocabulary
             .iter()
@@ -267,6 +351,11 @@ impl RuntimeIndex {
             owners,
             entities,
             names,
+            object_names,
+            has_storage: project
+                .objects
+                .iter()
+                .any(|o| o.storage.is_some_and(|s| !s.is_empty())),
             verbs,
             exits,
             endings: project

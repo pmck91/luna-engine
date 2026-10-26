@@ -1,4 +1,4 @@
-import type { BlockTemplate, Project, Value } from './contracts';
+import type { BlockTemplate, Condition, Effect, Placement, Project, Value } from './contracts';
 import { allEffects, entity, flow, flowOwner, flows } from './model';
 import { decode, mapMessage } from './templates';
 
@@ -178,12 +178,14 @@ function scan(
     key: string | number,
     site: ReferenceSite,
     template?: BlockTemplate,
+    localNames: string[] = [],
   ) => {
     const record = v as RecordValue;
     if (typeof record[key] !== 'string') return;
     visitMessage?.(child(site, String(key)), record[key]);
     let index = 0;
     record[key] = mapMessage(record[key], (raw) => {
+      if (localNames.includes(decode(raw))) return raw;
       const target = resolveMessageReference(resolve, raw, template);
       const at = child(site, `${String(key)}.value${index++}`);
       if (!target) return raw;
@@ -201,6 +203,11 @@ function scan(
                 : raw,
           );
     });
+  };
+  const placement = (value: RecordValue, site: ReferenceSite) => {
+    const key = value.type === 'inside' || value.type === 'on' ? 'object' : value.type;
+    if (['object', 'location', 'character'].includes(key) && value[key] !== '@current')
+      reference(value, key, { kind: 'entity', id: value[key] }, site, { allowed: [key] });
   };
   const node = (
     v: RecordValue,
@@ -240,10 +247,33 @@ function scan(
       at: { location: ['location'] },
       visited: { location: ['location'] },
       visible: { entity: ['location', 'object', 'character'] },
+      list_contents: { object: ['object'] },
     };
     for (const [key, allowed] of Object.entries(refs[type] ?? {}))
       if (v[key] !== '@current')
         reference(v, key, { kind: 'entity', id: v[key] }, site, { allowed });
+    if (['possesses', 'reachable', 'in_object', 'can_transfer', 'transfer'].includes(type)) {
+      if (typeof v.object === 'string')
+        reference(v, 'object', { kind: 'entity', id: v.object }, site, { allowed: ['object'] });
+      if (type === 'possesses' && v.character)
+        reference(v, 'character', { kind: 'entity', id: v.character }, site, {
+          allowed: ['character'],
+        });
+      if (type === 'in_object')
+        reference(v, 'parent', { kind: 'entity', id: v.parent }, site, { allowed: ['object'] });
+      if (v.placement) placement(v.placement, child(site, 'placement'));
+    }
+    if (type === 'say_with_inputs') {
+      message(v, 'text', site, template, Object.keys(v.references ?? {}));
+      for (const [key, ref] of Object.entries(v.references ?? {}) as [string, RecordValue][])
+        if (ref.type === 'entity_name')
+          reference(
+            ref,
+            'entity',
+            { kind: 'entity', id: ref.entity },
+            child(site, `references.${key}`),
+          );
+    }
     if (type === 'hint_used') reference(v, 'hint', { kind: 'puzzle', id: v.hint }, site);
     const internalReset =
       type === 'reset_responses' &&
@@ -321,25 +351,7 @@ function scan(
       reference(owner, 'location', { kind: 'entity', id: owner.location }, site, {
         allowed: ['location'],
       });
-    if (
-      'placement' in owner &&
-      (owner.placement.type === 'location' || owner.placement.type === 'character')
-    ) {
-      const key = owner.placement.type;
-      reference(
-        owner.placement,
-        key,
-        {
-          kind: 'entity',
-          id:
-            owner.placement.type === 'location'
-              ? owner.placement.location
-              : owner.placement.character,
-        },
-        child(site, 'placement'),
-        { allowed: [key] },
-      );
-    }
+    if ('placement' in owner) placement(owner.placement, child(site, 'placement'));
     for (const item of [
       ...owner.actions,
       ...owner.triggers,
@@ -478,22 +490,7 @@ function scan(
     }
     for (const [id, object] of Object.entries(state.objects) as [string, RecordValue][]) {
       emit({ kind: 'entity', id }, child(site, `objects.${id}`), { allowed: ['object'] });
-      if (object.placement.type === 'location')
-        reference(
-          object.placement,
-          'location',
-          { kind: 'entity', id: object.placement.location },
-          child(site, `objects.${id}.placement`),
-          { allowed: ['location'] },
-        );
-      if (object.placement.type === 'character')
-        reference(
-          object.placement,
-          'character',
-          { kind: 'entity', id: object.placement.character },
-          child(site, `objects.${id}.placement`),
-          { allowed: ['character'] },
-        );
+      placement(object.placement, child(site, `objects.${id}.placement`));
     }
     for (const [id, character] of Object.entries(state.characters) as [string, RecordValue][]) {
       emit({ kind: 'entity', id }, child(site, `characters.${id}`), { allowed: ['character'] });
@@ -690,6 +687,90 @@ export function deleteDefinition(p: Project, target: ReferenceTarget) {
   }
 }
 export type ReferencePlan = { project: Project; uses: ReferenceUse[]; errors: string[] };
+
+// Replacements are one transaction: validate the resulting graph, including
+// references in templates, rather than approving each changed ID in isolation.
+function containerReferenceErrors(p: Project): string[] {
+  const errors = new Set<string>();
+  const objects = new Map(p.objects.map((o) => [o.id, o]));
+  const holder = (id: string, relation: 'inside' | 'on') => {
+    const object = objects.get(id);
+    if (!object || (relation === 'inside' ? !object.storage?.container : !object.storage?.surface))
+      errors.add(
+        `${object?.name ?? id} must support items ${relation === 'inside' ? 'inside' : 'on top'}.`,
+      );
+  };
+  const placement = (value: Placement) => {
+    if (value.type === 'inside' || value.type === 'on') holder(value.object, value.type);
+  };
+  const condition = (value: Condition) => {
+    const pending = [value];
+    while (pending.length) {
+      const c = pending.pop()!;
+      if (c.type === 'all' || c.type === 'any') pending.push(...c.conditions);
+      if (c.type === 'not') pending.push(c.condition);
+      if (c.type === 'in_object') holder(c.parent, c.relation);
+      if (c.type === 'can_transfer') placement(c.placement);
+    }
+  };
+  const effects = (chain: Effect[]) => {
+    for (const { effect: e } of allEffects(chain)) {
+      if (e.type === 'transfer') placement(e.placement);
+      if (e.type === 'list_contents') holder(e.object, e.relation);
+      if (e.type === 'if') condition(e.condition);
+      if (e.type === 'say_with_inputs')
+        for (const name of Object.keys(e.references))
+          if (resolveMessageReference(p, name))
+            errors.add(`Message-local name “${name}” would hide a variable or property.`);
+    }
+  };
+  for (const owner of owners(p)) {
+    if ('placement' in owner) placement(owner.placement);
+    for (const f of [
+      ...owner.actions,
+      ...owner.triggers,
+      ...('exits' in owner ? owner.exits : []),
+    ]) {
+      if ('requirements' in f) condition(f.requirements);
+      if ('condition' in f) condition(f.condition);
+      if ('visible' in f) condition(f.visible);
+      if ('available' in f) condition(f.available);
+      effects(f.effects);
+    }
+    if ('hints' in owner)
+      for (const hint of owner.hints) {
+        condition(hint.available);
+        condition(hint.solved);
+        hint.stages.forEach((stage) => condition(stage.condition));
+      }
+  }
+  for (const template of p.editor.templates) {
+    if (template.content.type === 'action') {
+      condition(template.content.action.requirements);
+      effects(template.content.action.effects);
+    } else effects(template.content.effects);
+  }
+  const done = new Set<string>();
+  for (const object of p.objects) {
+    const path = new Set<string>();
+    let current = object;
+    while (!done.has(current.id)) {
+      if (path.has(current.id)) {
+        errors.add('Object placement forms a cycle.');
+        break;
+      }
+      path.add(current.id);
+      const parent: typeof current | undefined =
+        current.placement.type === 'inside' || current.placement.type === 'on'
+          ? objects.get(current.placement.object)
+          : undefined;
+      if (!parent) break;
+      current = parent;
+    }
+    path.forEach((id) => done.add(id));
+  }
+  return [...errors];
+}
 export function referencePlan(
   p: Project,
   source: ReferenceTarget,
@@ -843,5 +924,14 @@ export function referencePlan(
     )
       errors.push('A global variable would hide this template property. Choose a different name.');
   }
+  const existingContainerErrors = new Set(containerReferenceErrors(p));
+  // Destructive entity replacement must leave the complete graph valid, even
+  // if the draft already had another cycle or incompatible parent. Value-key
+  // renames only need to reject newly introduced local-name collisions.
+  errors.push(
+    ...containerReferenceErrors(next).filter(
+      (error) => source.kind === 'entity' || !existingContainerErrors.has(error),
+    ),
+  );
   return { project: next, uses, errors: [...new Set(errors)] };
 }

@@ -39,7 +39,7 @@ The [crate overview](../crates/luna-core/src/lib.rs) demonstrates validation, co
 
 Use `Session::start(project, ...)` or `Session::restore(project, state)` when the caller has arbitrary untrusted content and no reusable definition. Repeated operations should share a definition. To change authored content, clone `project()`, edit it, and construct a new validated definition. Existing sessions retain their original definition and indexes.
 
-The Rust API uses `session.state()` for borrowed reads, `session.state().clone()` followed by `replace_state(edited)?` for edits, and `into_state()` for ownership transfer. Command status comparisons use `CommandStatus` variants; the seven serialized strings remain unchanged. Content stays in format 1 and saves are written in format 2 with supported legacy reads.
+The Rust API uses `session.state()` for borrowed reads, `session.state().clone()` followed by `replace_state(edited)?` for edits, and `into_state()` for ownership transfer. Command status comparisons use `CommandStatus` variants; the seven serialized strings remain unchanged. Content formats 1–2 and save formats 1–3 are readable. New projects use content 2/save 3; existing content-1 games retain save 2. The [container shared contract](design/containers/shared-contract.md) describes the explicit upgrade and relationship rules; production container authoring controls remain C2 work on the feature branch.
 
 ## Run verification
 
@@ -79,7 +79,7 @@ cargo bench -p luna-runner --bench scaling --offline
 cargo bench -p luna-runner --bench scaling --offline -- 100 1000
 ```
 
-The dependency-free benchmark prints CSV for distributed and crowded rooms, added global commands, and a 48-step watch chain with unrelated watches. It separates definition/session startup, ordinary commands, explanations, read-only views, state cloning, JSON snapshots, compatibility checks, and overwriting an existing save. Fixture construction is outside startup timing; save timing includes locking, encoding, replacement, and sync calls.
+The dependency-free benchmark prints CSV for distributed and crowded rooms, added global commands, a 48-step watch chain with unrelated watches, and broad/deep nested containers. Container cases add one editable typed-input interaction, without per-item action expansion; its read-only body keeps the same graph across repeated samples. It separates definition/session startup, ordinary commands, explanations, read-only views, state cloning, JSON snapshots, compatibility checks, and overwriting an existing save. Fixture construction is outside startup timing; save timing includes locking, encoding, replacement, and sync calls.
 
 Use the same compiler, fixtures, sample counts, and storage device for comparisons. Run measurements without concurrent builds/browser tests. Set `TMPDIR` to an existing writable directory on the intended filesystem when measuring storage; the checked-in results used tmpfs and exclude physical-disk latency. Timings are observations, not functional CI thresholds. See the [hardening methodology and results](plans/core-hardening.md#h5-implementation-and-measurements) and its linked raw CSV files.
 

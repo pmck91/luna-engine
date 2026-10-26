@@ -49,6 +49,20 @@ impl<'a> Run<'a> {
     fn effect(&mut self, effect: &Effect) -> Result<Flow> {
         match effect {
             Effect::Say { text } => self.say(text)?,
+            Effect::SayWithInputs { text, references } => {
+                let message = self.message_with_inputs(text, references)?;
+                if !text.is_empty() {
+                    self.result.messages.push(message);
+                }
+            }
+            Effect::Transfer { object, placement } => {
+                let id = self
+                    .object_target(object)
+                    .context("Command item is not bound")?
+                    .to_owned();
+                self.transfer(&id, placement.clone())?;
+            }
+            Effect::ListContents { object, relation } => self.list_contents(object, *relation)?,
             Effect::CharacterSays { character, text } => {
                 let speaker = self.character(character).context("Unknown speaker")?;
                 self.result.messages.push(text::speech(
@@ -146,45 +160,28 @@ impl<'a> Run<'a> {
                 )?;
             }
             Effect::Give { object } => {
-                let o = self
-                    .state
-                    .to_mut()
-                    .objects
-                    .get_mut(object)
-                    .context("Unknown object")?;
-                let changed = o.placement != Placement::Inventory || !o.exists;
-                o.exists = true;
-                o.consumed = false;
-                o.placement = Placement::Inventory;
-                if changed {
-                    self.fire(Event::Take, object)?
-                }
+                self.transfer(object, Placement::Inventory)?;
             }
             Effect::GiveCharacter { object, character } => {
-                ensure!(
-                    self.state.characters.contains_key(character),
-                    "Unknown character inventory"
-                );
-                let o = self
-                    .state
-                    .to_mut()
-                    .objects
-                    .get_mut(object)
-                    .context("Unknown object")?;
-                let dropping = o.exists && o.placement == Placement::Inventory;
-                o.exists = true;
-                o.consumed = false;
-                o.placement = Placement::Character {
-                    character: character.clone(),
-                };
-                if dropping {
-                    self.fire(Event::Drop, object)?;
-                }
+                self.transfer(
+                    object,
+                    Placement::Character {
+                        character: character.clone(),
+                    },
+                )?;
             }
             Effect::Remove { object } | Effect::Consume { object } => {
+                if matches!(effect, Effect::Consume { .. }) {
+                    ensure!(
+                        !self.state.objects.values().any(|state| state
+                            .placement
+                            .parent_object()
+                            .is_some_and(|(parent, _)| parent == object)),
+                        "Cannot consume a nonempty holder; move or remove its contents first"
+                    );
+                }
                 let o = self
-                    .state
-                    .to_mut()
+                    .world_mut()
                     .objects
                     .get_mut(object)
                     .context("Unknown object")?;
@@ -193,31 +190,18 @@ impl<'a> Run<'a> {
                 o.consumed = matches!(effect, Effect::Consume { .. });
             }
             Effect::Place { object, location } => {
-                let loc = if location == "@current" {
-                    self.state.location.clone()
-                } else {
-                    location.clone()
-                };
-                ensure!(self.location(&loc).is_some(), "Unknown object destination");
-                let o = self
-                    .state
-                    .to_mut()
-                    .objects
-                    .get_mut(object)
-                    .context("Unknown object")?;
-                let dropping = o.placement == Placement::Inventory;
-                o.exists = true;
-                o.consumed = false;
-                o.placement = Placement::Location { location: loc };
-                if dropping {
-                    self.fire(Event::Drop, object)?
-                }
+                self.transfer(
+                    object,
+                    Placement::Location {
+                        location: location.clone(),
+                    },
+                )?;
             }
             Effect::Reveal { entity } | Effect::Hide { entity } => {
                 let hidden = matches!(effect, Effect::Hide { .. });
-                if let Some(o) = self.state.to_mut().objects.get_mut(entity) {
+                if let Some(o) = self.world_mut().objects.get_mut(entity) {
                     o.hidden = hidden
-                } else if let Some(c) = self.state.to_mut().characters.get_mut(entity) {
+                } else if let Some(c) = self.world_mut().characters.get_mut(entity) {
                     c.hidden = hidden
                 } else {
                     bail!("Unknown visibility target")
@@ -225,9 +209,11 @@ impl<'a> Run<'a> {
             }
             Effect::Open { object } | Effect::Close { object } => {
                 let open = matches!(effect, Effect::Open { .. });
+                if !open {
+                    self.ensure_can_close(object)?;
+                }
                 let o = self
-                    .state
-                    .to_mut()
+                    .world_mut()
                     .objects
                     .get_mut(object)
                     .context("Unknown object")?;
@@ -235,7 +221,7 @@ impl<'a> Run<'a> {
                 let changed = o.open != open;
                 o.open = open;
                 if changed {
-                    self.fire(if open { Event::Open } else { Event::Close }, object)?
+                    self.fire_mutation(if open { Event::Open } else { Event::Close }, object)?
                 }
             }
             Effect::Move { location } => self.move_to(location)?,

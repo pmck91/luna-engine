@@ -485,6 +485,14 @@ export function defaultCondition(type: Condition['type'], p: Project): Condition
       return { type, location, op: 'eq', count: 0 };
     case 'visible':
       return { type, entity };
+    case 'possesses':
+      return { type, object, character: null };
+    case 'reachable':
+      return { type, object };
+    case 'in_object':
+      return { type, object, parent: object, relation: 'inside' };
+    case 'can_transfer':
+      return { type, object, placement: { type: 'inventory' } };
   }
 }
 export function ConditionEditor({
@@ -558,14 +566,17 @@ export function ConditionEditor({
           onChange={(condition) => onChange({ type: 'not', condition })}
         />
       )}
-      {'object' in c && (
-        <Select
-          label="Object"
-          value={c.object}
-          items={p.objects}
-          onChange={(object) => patch({ object })}
-        />
-      )}
+      {'object' in c &&
+        (typeof c.object === 'string' ? (
+          <Select
+            label="Object"
+            value={c.object}
+            items={p.objects}
+            onChange={(object) => patch({ object })}
+          />
+        ) : (
+          <span>Command item</span>
+        ))}
       {c.type === 'character_carrying' && (
         <Select
           label="Character"

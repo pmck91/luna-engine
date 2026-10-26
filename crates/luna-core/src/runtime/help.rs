@@ -21,7 +21,22 @@ impl<'a> Run<'a> {
                 let owner = address.id(self.p);
                 let actions = address.actions(self.p);
                 for action in actions {
-                    if Self::concerns_entity(owner, &action.pattern, &entity)
+                    if action
+                        .standard
+                        .as_ref()
+                        .is_some_and(|s| !s.enabled || !self.available(owner))
+                    {
+                        continue;
+                    }
+                    let input_concerns = action
+                        .pattern
+                        .iter()
+                        .any(|part| matches!(part, PatternPart::ObjectInput))
+                        && matches!(
+                            self.index.entities.get(&entity),
+                            Some(super::index::Owner::Object(_))
+                        );
+                    if (Self::concerns_entity(owner, &action.pattern, &entity) || input_concerns)
                         && let Some(verb) = self.verb(&action.verb)
                     {
                         verbs
@@ -61,7 +76,28 @@ impl<'a> Run<'a> {
                     continue;
                 }
                 for action in actions {
-                    if Self::concerns_entity(owner, &action.pattern, &entity)
+                    if action.standard.as_ref().is_some_and(|s| !s.enabled) {
+                        continue;
+                    }
+                    let fixed_concerns = Self::concerns_entity(owner, &action.pattern, &entity);
+                    if action
+                        .pattern
+                        .iter()
+                        .any(|part| matches!(part, PatternPart::ObjectInput))
+                    {
+                        for item in &self.p.objects {
+                            if (fixed_concerns || item.id == entity)
+                                && self.available(&item.id)
+                                && let Some(phrase) = self.command_phrase_with_item(
+                                    &action.verb,
+                                    &action.pattern,
+                                    Some(&item.id),
+                                )
+                            {
+                                phrases.insert(phrase);
+                            }
+                        }
+                    } else if fixed_concerns
                         && let Some(phrase) = self.command_phrase(&action.verb, &action.pattern)
                     {
                         phrases.insert(phrase);
@@ -94,12 +130,18 @@ impl<'a> Run<'a> {
             let Some(best) = candidates.first() else {
                 continue;
             };
-            if candidates.get(1).is_some_and(|next| next.rank == best.rank) {
+            if candidates
+                .get(1)
+                .is_some_and(|next| next.rank == best.rank && next.fallback == best.fallback)
+            {
                 continue;
             }
+            let previous = self.item_input;
+            self.item_input = best.item;
             let usable = match &best.handler {
                 Handler::Action(action) => {
-                    Self::concerns_entity(best.owner, &action.pattern, &entity)
+                    (Self::concerns_entity(best.owner, &action.pattern, &entity)
+                        || best.item == Some(entity.as_str()))
                         && self.condition(&action.requirements)
                 }
                 Handler::Exit(exit) => {
@@ -107,6 +149,7 @@ impl<'a> Run<'a> {
                         && self.condition(&exit.available)
                 }
             };
+            self.item_input = previous;
             if usable {
                 commands.entry(normalized).or_insert(phrase);
             }

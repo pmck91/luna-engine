@@ -536,6 +536,8 @@ function FlowInspector({
                     setPattern(f.pattern.map((v, j) => (i === j ? { type: 'literal', text } : v)))
                   }
                 />
+              ) : part.type === 'object_input' ? (
+                <span>Command item</span>
               ) : (
                 <Select
                   label="Target"

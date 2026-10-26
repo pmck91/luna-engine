@@ -1,5 +1,7 @@
 //! Versioned, host-independent Luna authoring contract.
 mod command_words;
+mod containers;
+pub use containers::*;
 mod state;
 pub use state::*;
 pub mod text;
@@ -10,7 +12,12 @@ use std::collections::BTreeMap;
 use ts_rs::TS;
 pub use validation::*;
 
-pub const FORMAT_VERSION: u32 = 1;
+/// Latest writable content format; format 1 retains its legacy flat semantics.
+pub const FORMAT_VERSION: u32 = 2;
+/// Whether a content header is understood, before parsing versioned variants.
+pub fn supported_format(version: u32) -> bool {
+    (1..=FORMAT_VERSION).contains(&version)
+}
 pub const RESERVED: &[&str] = &[
     "look",
     "inventory",
@@ -119,6 +126,7 @@ pub enum Condition {
         value: Value,
     },
     Carrying {
+        /// Direct player inventory only. Use Possesses for nested ownership.
         object: String,
     },
     CharacterCarrying {
@@ -144,6 +152,26 @@ pub enum Condition {
     },
     Visible {
         entity: String,
+    },
+    /// Effective inventory ownership, including closed or hidden nested items.
+    Possesses {
+        object: ObjectTarget,
+        character: Option<String>,
+    },
+    /// Current player access through every visible, open enclosing holder.
+    Reachable {
+        object: ObjectTarget,
+    },
+    /// An immediate relationship; this does not imply current player access.
+    InObject {
+        object: ObjectTarget,
+        parent: String,
+        relation: ContentRelation,
+    },
+    /// Physical player transfer rules, including portability, access and cycles.
+    CanTransfer {
+        object: ObjectTarget,
+        placement: Placement,
     },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
@@ -183,6 +211,22 @@ pub enum NumericOperand {
 pub enum Effect {
     Say {
         text: String,
+    },
+    /// Message-local typed names. Substituted names remain literal text.
+    SayWithInputs {
+        text: String,
+        references: BTreeMap<String, InputTextReference>,
+    },
+    /// Scripted placement: enforces graph/capability invariants but can stage
+    /// closed/offstage containers. Pair with CanTransfer for player restrictions.
+    Transfer {
+        object: ObjectTarget,
+        placement: Placement,
+    },
+    /// Read-only, player-visible direct contents; respects closed interiors.
+    ListContents {
+        object: String,
+        relation: ContentRelation,
     },
     CharacterSays {
         character: String,
@@ -283,6 +327,7 @@ pub enum Effect {
 pub enum PatternPart {
     Literal { text: String },
     Entity { entity: String },
+    ObjectInput,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
@@ -295,6 +340,9 @@ pub struct Action {
     pub requirements: Condition,
     pub failure_text: String,
     pub effects: Vec<Effect>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub standard: Option<StandardAction>,
 }
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -443,6 +491,12 @@ pub enum Placement {
     Character {
         character: String,
     },
+    Inside {
+        object: String,
+    },
+    On {
+        object: String,
+    },
     Inventory,
     #[default]
     Absent,
@@ -462,6 +516,9 @@ pub struct Object {
     pub actions: Vec<Action>,
     pub triggers: Vec<Trigger>,
     pub hints: Vec<HintSet>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub storage: Option<ObjectStorage>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]

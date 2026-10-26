@@ -5,9 +5,9 @@
 use anyhow::{Context, Result, ensure};
 use luna_core::{CommandStatus, GameDefinition, Session};
 use luna_model::{
-    Action, ArithmeticOperation, Comparison, Condition, Effect, Exit, Location, NumericOperand,
-    Object, PatternPart, Placement, Project, Trigger, TriggerWatch, Value, ValueTarget, WatchMode,
-    starter_actions,
+    Action, ArithmeticOperation, Comparison, Condition, ContainerOpening, Effect, Exit, Location,
+    NumericOperand, Object, ObjectStorage, PatternPart, Placement, Project, StandardInteraction,
+    Trigger, TriggerWatch, Value, ValueTarget, WatchMode, standard_action, starter_actions,
 };
 use luna_runner::{Installed, Storage};
 use std::{hint::black_box, time::Instant};
@@ -90,7 +90,39 @@ fn measure<T>(repetitions: usize, mut operation: impl FnMut() -> Result<T>) -> R
 
 fn run_case(store: &Storage, objects: usize, layout: &str) -> Result<()> {
     let mut project = world(objects, layout == "crowded");
-    let probe = if layout == "global-commands" {
+    let probe = if matches!(layout, "containers-broad" | "containers-deep") {
+        for (index, object) in project.objects.iter_mut().enumerate() {
+            object.storage = Some(ObjectStorage {
+                container: Some(ContainerOpening::AlwaysOpen),
+                surface: true,
+            });
+            object.open = true;
+            object.placement = if index == 0 {
+                Placement::Inventory
+            } else {
+                Placement::Inside {
+                    object: format!(
+                        "object-{}",
+                        if layout == "containers-deep" {
+                            index - 1
+                        } else {
+                            0
+                        }
+                    ),
+                }
+            };
+        }
+        // Repeatedly resolve a typed input without moving it out of the test
+        // graph. This editable standard keeps its input/pattern, with a read-only
+        // authored body so each sample measures the same broad/deep ancestry.
+        let root = &mut project.objects[0];
+        let mut action = standard_action(root, StandardInteraction::PutOn, "use");
+        action.id = "input-probe".into();
+        action.requirements = Condition::True;
+        action.effects.clear();
+        root.actions.push(action);
+        format!("use token {} on token 0", objects - 1)
+    } else if layout == "global-commands" {
         for index in 0..objects {
             project.game.actions.push(Action {
                 id: format!("choice-{index}"),
@@ -256,7 +288,14 @@ fn main() -> Result<()> {
         "layout,objects,rooms,actions,state_bytes,start_ms,look_ms,unknown_ms,examine_ms,mutation_ms,explained_ms,validate_state_ms,overwrite_save_ms,definition_ms,session_start_ms,description_ms,condition_ms,clone_state_ms,snapshot_json_ms,probe_ms"
     );
     for size in sizes {
-        for layout in ["distributed", "crowded", "global-commands", "watch-chain"] {
+        for layout in [
+            "distributed",
+            "crowded",
+            "global-commands",
+            "watch-chain",
+            "containers-broad",
+            "containers-deep",
+        ] {
             let case = temp.path().join(format!("{layout}-{size}"));
             let store = Storage::new(case.join("games"), case.join("saves"))?;
             run_case(&store, size, layout)?;

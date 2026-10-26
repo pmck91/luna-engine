@@ -49,6 +49,55 @@ function project(): Project {
   p.characters = [character(room.id), character(room.id)];
   return p;
 }
+
+it('rebinds nested destinations and literal entity names while preserving scoped item inputs', () => {
+  const p = project();
+  const [from, to] = p.objects;
+  const f = action(from.id);
+  f.standard = { interaction: 'put_inside', enabled: true };
+  f.pattern = [
+    { type: 'object_input' },
+    { type: 'literal', text: 'in' },
+    { type: 'entity', entity: from.id },
+  ];
+  f.requirements = {
+    type: 'can_transfer',
+    object: { input: 'item' },
+    placement: { type: 'inside', object: from.id },
+  };
+  f.effects = [
+    { type: 'transfer', object: { input: 'item' }, placement: { type: 'inside', object: from.id } },
+    { type: 'list_contents', object: from.id, relation: 'inside' },
+    {
+      type: 'say_with_inputs',
+      text: `%item% in %holder%, ${from.id} stays literal.`,
+      references: { item: { type: 'item_name' }, holder: { type: 'entity_name', entity: from.id } },
+    },
+  ];
+  p.game.variables.item = 7;
+  const template = makeTemplate(p, 'Put', from.id, { type: 'action', action: f });
+  expect(templateBindingErrors(p, template, { [from.id]: to.id }).join(' ')).toContain(
+    'would hide a variable',
+  );
+  expect(template.text_variables).toEqual([]);
+  expect(templateReferences(template).map((ref) => ref.id)).toEqual([from.id]);
+  const copy = copiedAction(template, { [from.id]: to.id });
+  expect(copy.requirements).toEqual({
+    type: 'can_transfer',
+    object: { input: 'item' },
+    placement: { type: 'inside', object: to.id },
+  });
+  expect(copy.effects[0]).toEqual({
+    type: 'transfer',
+    object: { input: 'item' },
+    placement: { type: 'inside', object: to.id },
+  });
+  expect(copy.effects[2]).toEqual({
+    ...f.effects[2],
+    references: { item: { type: 'item_name' }, holder: { type: 'entity_name', entity: to.id } },
+  });
+  expect(copy.pattern[0]).toEqual({ type: 'object_input' });
+});
 function copiedAction(t: ReturnType<typeof makeTemplate>, mapping: Record<string, string>): Action {
   const copy = instantiateTemplate(t, mapping);
   if (copy.type !== 'action') throw new Error('Expected action');

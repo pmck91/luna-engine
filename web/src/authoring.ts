@@ -56,7 +56,9 @@ export function commandPreview(project: Project, verb: string, pattern: PatternP
     ...pattern.map((part) =>
       part.type === 'literal'
         ? part.text
-        : (entity(project, part.entity)?.name ?? 'Choose an entity'),
+        : part.type === 'object_input'
+          ? '<item>'
+          : (entity(project, part.entity)?.name ?? 'Choose an entity'),
     ),
   ]
     .filter(Boolean)

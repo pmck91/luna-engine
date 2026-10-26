@@ -1,11 +1,31 @@
 //! Semantic messages and world/ending descriptions; no event dispatch.
 use super::Run;
 use anyhow::{Context, Result};
-use luna_model::{Ending, Placement, TextReference, text};
+use luna_model::{ContentRelation, Ending, InputTextReference, Placement, TextReference, text};
+use std::collections::BTreeMap;
 
 impl<'a> Run<'a> {
     pub(super) fn message(&self, t: &str) -> Result<Vec<text::Span>> {
+        self.message_with_inputs(t, &BTreeMap::new())
+    }
+    pub(super) fn message_with_inputs(
+        &self,
+        t: &str,
+        references: &BTreeMap<String, InputTextReference>,
+    ) -> Result<Vec<text::Span>> {
         text::format(t, |reference| {
+            if let Some(local) = references.get(reference) {
+                let id = match local {
+                    InputTextReference::ItemName => {
+                        self.item_input.context("Command item is not bound")?
+                    }
+                    InputTextReference::EntityName { entity } => entity,
+                };
+                return self
+                    .entity_name(id)
+                    .map(str::to_owned)
+                    .context("Missing message name entity");
+            }
             let value = match self.p.text_reference(reference) {
                 Some(TextReference::Variable(name)) => self.variable(name),
                 Some(TextReference::Property { entity, name }) => self.property(entity, name),
@@ -52,7 +72,7 @@ impl<'a> Run<'a> {
             .objects
             .iter()
             .filter(|o| {
-                self.available(&o.id) && self.state.objects[&o.id].placement != Placement::Inventory
+                self.available(&o.id) && matches!(&self.state.objects[&o.id].placement, Placement::Location { location } if location == &self.state.location)
             })
             .map(|o| o.name.as_str())
             .chain(
@@ -66,6 +86,11 @@ impl<'a> Run<'a> {
         contents.sort_unstable();
         if !contents.is_empty() {
             self.literal(&format!("You see: {}.", contents.join(", ")))
+        }
+        if let Some(super::index::Owner::Location(index)) =
+            self.index.entities.get(&self.state.location)
+        {
+            self.grouped_contents(super::relations::Root::Room(*index));
         }
         let mut exits = l
             .exits
@@ -110,5 +135,83 @@ impl<'a> Run<'a> {
         } else {
             format!("You are carrying: {}.", items.join(", "))
         });
+        self.grouped_contents(super::relations::Root::Player);
+    }
+
+    fn grouped_contents(&mut self, root: super::relations::Root) {
+        if !self.index.has_storage {
+            return;
+        }
+        let mut groups = BTreeMap::<(String, String, u8), Vec<&str>>::new();
+        for object in &self.p.objects {
+            let Some((parent, relation)) = self.state.objects[&object.id].placement.parent_object()
+            else {
+                continue;
+            };
+            if !self.available(&object.id) || self.object_relation(&object.id).root != root {
+                continue;
+            }
+            let parent_name = self.entity_name(parent).unwrap_or(parent);
+            groups
+                .entry((
+                    parent_name.to_owned(),
+                    parent.to_owned(),
+                    u8::from(relation == ContentRelation::On),
+                ))
+                .or_default()
+                .push(&object.name);
+        }
+        for ((name, _, on), mut names) in groups {
+            names.sort_unstable();
+            self.literal(&format!(
+                "{} {name}: {}.",
+                if on == 1 { "On" } else { "Inside" },
+                names.join(", ")
+            ));
+        }
+    }
+
+    pub(super) fn list_contents(&mut self, object: &str, relation: ContentRelation) -> Result<()> {
+        if !self.object_available(object) {
+            return Ok(());
+        }
+        let name = self.entity_name(object).context("Unknown holder")?;
+        if relation == ContentRelation::Inside && !self.state.objects[object].open {
+            self.literal("It is closed.");
+            return Ok(());
+        }
+        let mut names = self
+            .p
+            .objects
+            .iter()
+            .filter(|item| {
+                self.available(&item.id)
+                    && self.state.objects[&item.id].placement.parent_object()
+                        == Some((object, relation))
+            })
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>();
+        names.sort_unstable();
+        self.literal(&if names.is_empty() {
+            format!(
+                "There is nothing {} {name}.",
+                if relation == ContentRelation::Inside {
+                    "inside"
+                } else {
+                    "on"
+                }
+            )
+        } else {
+            format!(
+                "{} {name}: {}.",
+                if relation == ContentRelation::Inside {
+                    "Inside"
+                } else {
+                    "On"
+                },
+                names.join(", ")
+            )
+        });
+        Ok(())
     }
 }

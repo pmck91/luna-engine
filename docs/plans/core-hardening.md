@@ -1,10 +1,10 @@
 # Shared core and runner hardening
 
-Status: **Ready for owner review**, starting 25 October 2026. H1 is committed as `c2ad929`, H2 as `ed06e7e`, H3 as `98c3eea`, H4 as `556e752`, and H5 as `f3455a0`. H6 documentation and automated acceptance are complete; owner acceptance and branch closeout remain.
+Status: **Reviewed and merged**, 25 October 2026, as `835f009` on `main`. H1 is committed as `c2ad929`, H2 as `ed06e7e`, H3 as `98c3eea`, H4 as `556e752`, H5 as `f3455a0`, and H6 as `0a30b61`. The owner reviewed the completed branch on GitHub and confirmed the merge.
 
 Branch: `feature/core-hardening`, created from `main` at `0dcb1be`.
 
-This work follows the shared-core quality and performance review. Complete it before the conversations/quests expansion; resume the user-facing documentation work after this hardening pass. Keep the work on this branch for review and testing before merging.
+This work followed the shared-core quality and performance review and was completed before the conversations/quests expansion. The implementation, review, and benchmark record below is retained. See the [current TODO list](todo.md) and [gameplay feature roadmap](gameplay-feature-roadmap.md) for subsequent planning and documentation priorities.
 
 ## Goals and constraints
 
@@ -83,7 +83,7 @@ Project/definition encapsulation was brought forward into H2 to make cached vali
 - [x] Update the architecture/developer notes for the final module/API layout and benchmark commands. Avoid comments that merely restate code.
 - [x] Run workspace tests, formatting, Clippy with warnings denied, generated-contract checks, and frontend checks affected by contract/API changes. Run browser parity checks if playtest paths change, plus package smoke checks before merging.
 - [x] Compare benchmark results with H1, review the diff for unintended content/save-format or example changes, and record residual limits. Add focused generated/property tests only for invariants that need broader coverage.
-- [x] Request owner review of the completed branch. Merge/push when requested; do not fold the deferred conversations/quests or documentation-site work into this branch. Owner acceptance and merge remain open.
+- [x] Request owner review of the completed branch. The owner reviewed it on GitHub and merged it as `835f009`; deferred conversations/quests and documentation-site work were not included.
 
 ## Execution record
 
@@ -221,4 +221,4 @@ H6 acceptance passed:
 - The Linux release archive and checksum built successfully. The packaged example, fixed historical walkthrough, named/completed save restoration, optional outcomes, and embedded editor/export API passed outside the repository with development tools removed from child-process `PATH`. The source frontend was hidden during the smoke check and restored afterward.
 - Documentation formatting/link checks, artifact checksum verification, and the final diff/content-scope review.
 
-The completed branch is ready for owner review on GitHub. Review the Rust API migration and [development guide](../development.md), the recorded performance tradeoffs, and the complete branch diff from `0dcb1be`, including the H6 documentation changes. Owner acceptance and merge remain the branch closeout steps. The deferred example refresh, documentation site, and conversations/quests work retain their existing TODO priorities.
+The owner reviewed the completed branch on GitHub and confirmed its merge into `main` as `835f009`. The Rust API migration and [development guide](../development.md), recorded performance tradeoffs, and complete diff from `0dcb1be` remain the review record. Subsequent example refresh, documentation, and feature planning are tracked in the [current TODO list](todo.md).
