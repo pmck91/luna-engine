@@ -1241,14 +1241,15 @@ export default function App() {
               width="112"
               height="112"
             />
-            <div className="eyebrow">YOUR NEXT ADVENTURE</div>
+            <div className="eyebrow">BUILD YOUR NEXT ADVENTURE</div>
             <h1>
               Build a world.
               <br />
               Let words open it.
             </h1>
             <p>
-              Connect places, give objects a story, and play it all through a real command parser.
+              Build a living world to explore. Write an interactive Story. Let your imagination go
+              wild!
             </p>
             <button className="primary" onClick={() => setProjectModal(true)}>
               Create a project
