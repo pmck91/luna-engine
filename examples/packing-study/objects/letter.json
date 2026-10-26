@@ -1,0 +1,128 @@
+{
+  "id": "letter",
+  "name": "Letter",
+  "aliases": [],
+  "description": "Pack this letter in the bag and keep the key in the small box.",
+  "placement": {
+    "type": "on",
+    "object": "chest"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "letter-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "letter"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "letter"
+        }
+      ]
+    },
+    {
+      "id": "letter-take",
+      "name": "Take Letter",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "letter"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "letter",
+        "placement": {
+          "type": "inventory"
+        }
+      },
+      "failure_text": "You cannot take that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "letter",
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %holder_name%.",
+          "references": {
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "letter"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take",
+        "enabled": true
+      }
+    },
+    {
+      "id": "letter-drop",
+      "name": "Drop Letter",
+      "verb": "drop",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "letter"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "letter",
+        "placement": {
+          "type": "location",
+          "location": "@current"
+        }
+      },
+      "failure_text": "You are not carrying that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "letter",
+          "placement": {
+            "type": "location",
+            "location": "@current"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You drop %holder_name%.",
+          "references": {
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "letter"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "drop",
+        "enabled": true
+      }
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

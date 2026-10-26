@@ -1,0 +1,107 @@
+[
+  {
+    "id": "examine",
+    "canonical": "examine",
+    "synonyms": [
+      "inspect",
+      "look at"
+    ],
+    "event": "examine"
+  },
+  {
+    "id": "take",
+    "canonical": "take",
+    "synonyms": [
+      "get",
+      "pick up"
+    ],
+    "event": null
+  },
+  {
+    "id": "drop",
+    "canonical": "drop",
+    "synonyms": [],
+    "event": null
+  },
+  {
+    "id": "use",
+    "canonical": "use",
+    "synonyms": [],
+    "event": "use"
+  },
+  {
+    "id": "go",
+    "canonical": "go",
+    "synonyms": [
+      "walk",
+      "follow"
+    ],
+    "event": null
+  },
+  {
+    "id": "pull",
+    "canonical": "pull",
+    "synonyms": [],
+    "event": "pull"
+  },
+  {
+    "id": "push",
+    "canonical": "push",
+    "synonyms": [],
+    "event": "push"
+  },
+  {
+    "id": "turn",
+    "canonical": "turn",
+    "synonyms": [],
+    "event": "turn"
+  },
+  {
+    "id": "open",
+    "canonical": "open",
+    "synonyms": [],
+    "event": null
+  },
+  {
+    "id": "close",
+    "canonical": "close",
+    "synonyms": [],
+    "event": null
+  },
+  {
+    "id": "talk",
+    "canonical": "talk",
+    "synonyms": [
+      "speak to"
+    ],
+    "event": "speak"
+  },
+  {
+    "id": "put",
+    "canonical": "put",
+    "synonyms": [
+      "place"
+    ],
+    "event": null
+  },
+  {
+    "id": "look-in",
+    "canonical": "look in",
+    "synonyms": [
+      "look inside"
+    ],
+    "event": null
+  },
+  {
+    "id": "give",
+    "canonical": "give",
+    "synonyms": [],
+    "event": null
+  },
+  {
+    "id": "ask",
+    "canonical": "ask",
+    "synonyms": [],
+    "event": null
+  }
+]

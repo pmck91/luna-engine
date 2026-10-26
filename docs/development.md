@@ -39,7 +39,7 @@ The [crate overview](../crates/luna-core/src/lib.rs) demonstrates validation, co
 
 Use `Session::start(project, ...)` or `Session::restore(project, state)` when the caller has arbitrary untrusted content and no reusable definition. Repeated operations should share a definition. To change authored content, clone `project()`, edit it, and construct a new validated definition. Existing sessions retain their original definition and indexes.
 
-The Rust API uses `session.state()` for borrowed reads, `session.state().clone()` followed by `replace_state(edited)?` for edits, and `into_state()` for ownership transfer. Command status comparisons use `CommandStatus` variants; the seven serialized strings remain unchanged. Content formats 1–2 and save formats 1–3 are readable. New projects use content 2/save 3; existing content-1 games retain save 2. The [container shared contract](design/containers/shared-contract.md) describes the explicit upgrade and relationship rules; production container authoring controls remain C2 work on the feature branch.
+The Rust API uses `session.state()` for borrowed reads, `session.state().clone()` followed by `replace_state(edited)?` for edits, and `into_state()` for ownership transfer. Command status comparisons use `CommandStatus` variants; the seven serialized strings remain unchanged. Content formats 1–2 and save formats 1–3 are readable. New projects use content 2/save 3; existing content-1 games retain save 2. The [container shared contract](design/containers/shared-contract.md) describes the explicit upgrade, relationship rules, and implemented authoring controls. Container user guides/public reference pages belong to the later documentation-site milestone.
 
 ## Run verification
 
@@ -71,6 +71,8 @@ CI installs browser system dependencies too. `LUNA_FIREFOX_EXECUTABLE` can selec
 
 Rust feature tests cover transactional execution and malformed-state rejection. Editor integration tests compare HTTP playtests with exported/installed runner sessions; runner CLI tests exercise actual saves, loads, process restart, and terminal rendering. Keep these boundaries covered when adding behaviour. A test that only repeats an internal implementation detail is less useful than checking a player-visible result, state invariant, or compatibility boundary.
 
+The permanent [Packing the Study fixture](../examples/packing-study/ACCEPTANCE.md) supplies canonical content and a checked `.luna` export. `cargo test -p luna-editor --test packing_study` compares both with the real editor export and validates every named/autosave boundary through the packing sequence. `packing-study.spec.ts` covers captured-state reopening and separate runner processes in both browsers. Refresh the checked export through the editor after changing content; the parity test detects a stale bundle. These are acceptance/developer instructions, separate from the deferred public guides.
+
 ## Measure larger games
 
 ```sh
@@ -83,6 +85,8 @@ The dependency-free benchmark prints CSV for distributed and crowded rooms, adde
 
 Use the same compiler, fixtures, sample counts, and storage device for comparisons. Run measurements without concurrent builds/browser tests. Set `TMPDIR` to an existing writable directory on the intended filesystem when measuring storage; the checked-in results used tmpfs and exclude physical-disk latency. Timings are observations, not functional CI thresholds. See the [hardening methodology and results](plans/core-hardening.md#h5-implementation-and-measurements) and its linked raw CSV files.
 
+The [C3 review](design/containers/final-review.md#performance-record) includes a fresh archived-C1 build and current-branch measurements for all 18 cases, with raw CSVs and the retained initialization/explanation tradeoffs.
+
 The current tradeoffs are deliberate: immutable indexes add initialization work and retained data, read-only descriptions scan live entity state, and ordinary commands clone the complete state for rollback. Explained changing chains take additional full snapshots and JSON diffs. Profile real games before replacing these mechanisms with a more complex mutation or diagnostic model.
 
 ## Exercise a release package
@@ -94,6 +98,6 @@ From the repository root:
 python3 scripts/smoke-package.py
 ```
 
-The first command rebuilds the frontend and release executables, then writes the Linux archive and checksum under `dist/`. It does not install or publish them. The smoke check extracts the archive outside the repository, clears development tools from the child processes' `PATH`, exercises runner import/play/save/load, and checks the embedded editor and its real export API.
+The first command rebuilds the frontend and release executables, then writes the Linux archive and checksum under `dist/`. It does not install or publish them. The smoke check extracts the archive outside the repository, clears development tools from the child processes' `PATH`, exercises runner import/play/save/load, and checks the embedded editor and its real export API. Both the editable Packing the Study project and its bundle ship in the archive. The smoke check compares their manifests, restores closed nested contents across process restarts, completes an outcome-free game, and loads the earlier checkpoint without replaying events.
 
 Run the smoke check after browser tests finish: it temporarily hides `web/dist` to prove the package's UI is embedded, then restores it. Its fixed historical walkthrough is separate from the editable example, so changes to the example puzzle do not redefine compatibility expectations. Format and persistence details are documented in [architecture and player persistence](architecture.md#player-persistence-and-rendering).

@@ -1,6 +1,6 @@
 # Architecture, content formats 1–2, and save formats 1–3
 
-The container branch implements the shared content-2/save-3 foundation. Production container authoring controls remain C2 work; see the [shared contract and current feature status](design/containers/shared-contract.md). Existing content-1 projects and save-1/2 compatibility are preserved.
+The container branch implements the shared content-2/save-3 foundation and production authoring controls; C0/C2 design reviews are accepted and C3 covers final acceptance. See the [shared contract and current feature status](design/containers/shared-contract.md). Existing content-1 projects and save-1/2 compatibility are preserved. Public author/player documentation is deferred to the documentation-site milestone.
 
 | Crate | Responsibility |
 | --- | --- |
@@ -98,6 +98,18 @@ Moving into player inventory emits Take when ownership changes. Moving from play
 The object inspector's initial placement menu and character inspector's initial inventory edit the same object field. Removing an initial inventory entry with **Place in room** selects the holder's initial location explicitly. The playtest state inspector derives current inventory from saved placements and keeps existence/consumption consistent when changing placement.
 
 Character inventories add a placement variant without changing the content format or adding a separate state inventory list. Old projects, player carrying conditions, and Blockly metadata remain readable. Character inventories require an engine supporting the new variants. Older engines reject unknown content/state variants instead of dropping ownership. Invalid owner references or inconsistent saved placements produce compatibility errors; they are not silently reassigned. Existing game/content identity and fingerprint checks remain in force. See the player persistence section for hint history and current save-format compatibility.
+
+### Containers, surfaces, and scoped references
+
+`Object.storage` declares an optional interior (`openable` or `always_open`) and an independent top surface. Content 2 adds `inside`/`on` placements with an immediate object parent; contents lists derive from those edges. Initial state, transfers, state replacement, and save restoration reject self/cyclic graphs, incompatible capabilities, and consumed parents. Traversal is iterative. REMOVE parks a holder's subtree intact; CONSUME refuses a nonempty holder.
+
+The runtime's relation query distinguishes effective root ownership, existence, and access. Direct CARRYING checks retain their old semantics. HAS ITEM follows nested ownership, while CAN REACH also requires visible/accessibly rooted objects and open enclosing interiors. Character-owned contents remain private. Standard player transfers use CAN TRANSFER to enforce physical rules; scripted TRANSFER/GIVE/PLACE can stage content in a closed/offstage holder while retaining structural checks. Only the moved object's root-ownership crossing emits TAKE/DROP; descendants do not receive an event cascade. OPEN/CLOSE mutation events are unchanged and standards deduplicate an identical configured verb event.
+
+A standard action is ordinary canonical logic with a behaviour/enabled marker. Put-inside, put-on, and take-from patterns bind one `ObjectTarget::Input`; fixed IDs remain `ObjectTarget::Fixed`. The compiled name-prefix index captures the item once per attempt. Requirements, effects, full help, and explanations share it; events/watches temporarily clear it. A failing authored match cannot fall through to a standard handler. SAY WITH NAMES uses explicit local reference metadata and inserts resolved names as literal spans; globals/property placeholders retain their meaning.
+
+The editor's `ContainerSettings`, `Contents`, and `ContainerSetup` components operate on the same project/history API. `POST /templates/container-actions` calls the shared Rust builder without mutating a project or installing vocabulary. The setup review applies actions and any approved missing verbs in one project edit. Scoped Blockly fields serialize the typed target/placement values, with friendly local-name labels presented as an editing view of stored keys. Reference replacement visits canonical logic, templates, connected metadata, and disconnected drafts; changed destination references require compatible storage without rejecting unrelated unfinished drafts. Captured setups retain their exact state and must be removed/replaced before an incompatible capability change.
+
+The [permanent Packing the Study acceptance fixture](../examples/packing-study/ACCEPTANCE.md) checks these boundaries through canonical files, the checked export, real editor exports, HTTP playtests, installed runner sessions, and separate runner processes. Its counters detect replayed start/open/take events. The release smoke check repeats nested restoration with the embedded editor and packaged binaries. Existing Locked Study inputs remain separate.
 
 ### Character movement and speech
 

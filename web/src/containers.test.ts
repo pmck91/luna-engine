@@ -114,6 +114,38 @@ it('round trips scoped conditions, nested transfers and name metadata through ac
   ws.dispose();
   restored.dispose();
 });
+it('requires compatible replacement storage for a holder used only by disconnected blocks', () => {
+  const p = fixture();
+  p.objects[1].placement = { type: 'inventory' };
+  p.objects[2].placement = { type: 'inventory' };
+  const a = action(undefined, 'use');
+  p.game.actions = [a];
+  registerBlocks(p);
+  const ws = new Blockly.Workspace();
+  const root = loadEffectBlocks(ws, [
+    { type: 'transfer', object: 'key', placement: { type: 'inside', object: 'bag' } },
+  ]);
+  root.getInputTargetBlock('DO')!.unplug();
+  p.editor.blocks[a.id] = Blockly.serialization.workspaces.save(
+    ws,
+  ) as Project['editor']['blocks'][string];
+  const incompatible = referencePlan(
+    p,
+    { kind: 'entity', id: 'bag' },
+    { kind: 'entity', id: 'key' },
+  );
+  expect(incompatible.uses.some((use) => use.scope === 'draft' && use.relation === 'inside')).toBe(
+    true,
+  );
+  expect(incompatible.errors).toContain('The replacement must support items inside.');
+  const compatible = referencePlan(
+    p,
+    { kind: 'entity', id: 'bag' },
+    { kind: 'entity', id: 'spare' },
+  );
+  expect(compatible.errors).toEqual([]);
+  ws.dispose();
+});
 it('reassigns capability-dependent canonical, template and saved draft references without changing other references', () => {
   const p = fixture();
   const a = action('bag', 'use');

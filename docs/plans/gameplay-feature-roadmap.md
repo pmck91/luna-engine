@@ -1,6 +1,6 @@
 # Gameplay features and designer UX
 
-Status: **Container design accepted; C1 implementation on its feature branch**, 25 October 2026. The remaining feature directions are documented for later review and are not implemented. Container production UI and complete acceptance remain C2–C3.
+Status: **Container engine/editor implemented; C0–C3 complete and accepted**, 26 October 2026. Push and merge remain open. The remaining feature directions are documented for later review and are not implemented. The container branch is not merged. User-facing feature guides and public references are deferred to the documentation-site milestone.
 
 This follows the merged [shared-core hardening](core-hardening.md). The immediate work is the [container design](containers-and-surfaces.md), on `feature/containers-and-surfaces`, created from merged `main` at `835f009`. Documentation remains a v1 priority. This list does not make every proposed feature a requirement for v1; agree the release scope before scheduling the remaining branches. Browser publishing is explicitly after v1.
 
@@ -18,7 +18,7 @@ The existing [conversations and quests plan](conversations-and-quests.md) remain
 
 | Feature                               | Branch                            | Scheduling and dependencies                                                                                                                               |
 | ------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| F1 — Containers and surfaces          | `feature/containers-and-surfaces` | Current implementation branch; C0 accepted, C1 shared foundation implemented. C2 delivers production authoring using one standard action per interaction. |
+| F1 — Containers and surfaces          | `feature/containers-and-surfaces` | Engine/editor implemented; C0–C3 complete and accepted. Push and merge remain open. |
 | F2 — Parser context and clarification | `feature/parser-context`          | Independent player convenience; integrate with F1's noun bindings if F1 has merged.                                                                       |
 | F3 — Reusable block procedures        | `feature/block-procedures`        | Prove typed inputs and definitions shared across workspaces before implementation.                                                                        |
 | F4 — Turns and scheduled events       | `feature/turn-events`             | Owns the turn clock and scheduling contract; may call procedures if F3 already exists, but does not require them.                                         |
@@ -43,7 +43,7 @@ For each feature: **authoring journey and wireframes → owner feedback → risk
 
 ## F1 — Containers and surfaces
 
-See the [detailed design, wireframes, decisions, and milestones](containers-and-surfaces.md), [accepted C0 review](../design/containers/README.md), and [C1 shared contract](../design/containers/shared-contract.md). The owner accepted the working authoring preview. The shared engine/persistence foundation is implemented on the branch; C2 connects production controls and blocks before full C3 acceptance.
+See the [detailed design, wireframes, decisions, and milestones](containers-and-surfaces.md), [accepted authoring reviews](../design/containers/README.md), [shared contract](../design/containers/shared-contract.md), and [C3 review evidence](../design/containers/final-review.md). The engine/persistence foundation and production authoring controls/blocks are implemented and accepted. C3's permanent example, package, scale, developer notes, and technical checks are complete and accepted; push and merge remain. Public author/player guides remain part of the later documentation-site work.
 
 The proposed journey is: select an object → enable **Can contain items** and/or **Items can be placed on top** → configure opening behaviour → add/move initial contents → review the offered standard interactions → playtest. Authors can use explicit placement/condition blocks for special puzzles without reimplementing containment itself.
 

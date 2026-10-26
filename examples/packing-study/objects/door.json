@@ -1,0 +1,196 @@
+{
+  "id": "door",
+  "name": "Garden door",
+  "aliases": [
+    "door"
+  ],
+  "description": "A locked door leading east. The key must be carried and reachable to unlock it.",
+  "placement": {
+    "type": "location",
+    "location": "study"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {
+    "locked": true
+  },
+  "actions": [
+    {
+      "id": "door-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "door"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "door"
+        }
+      ]
+    },
+    {
+      "id": "door-open",
+      "name": "Open with a usable key",
+      "verb": "open",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "door"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "any",
+        "conditions": [
+          {
+            "type": "property",
+            "entity": "door",
+            "name": "locked",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "type": "all",
+            "conditions": [
+              {
+                "type": "possesses",
+                "object": "key",
+                "character": null
+              },
+              {
+                "type": "reachable",
+                "object": "key"
+              }
+            ]
+          }
+        ]
+      },
+      "failure_text": "The garden door is locked. Carry the brass key where you can reach it.",
+      "effects": [
+        {
+          "type": "if",
+          "condition": {
+            "type": "not",
+            "condition": {
+              "type": "property",
+              "entity": "door",
+              "name": "locked",
+              "op": "eq",
+              "value": false
+            }
+          },
+          "then": [
+            {
+              "type": "set_property",
+              "entity": "door",
+              "name": "locked",
+              "value": false
+            },
+            {
+              "type": "say",
+              "text": "The brass key turns in the lock."
+            }
+          ],
+          "otherwise": []
+        },
+        {
+          "type": "open",
+          "object": "door"
+        },
+        {
+          "type": "say",
+          "text": "The garden door opens."
+        }
+      ]
+    },
+    {
+      "id": "door-close",
+      "name": "Close the door",
+      "verb": "close",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "door"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "close",
+          "object": "door"
+        },
+        {
+          "type": "say",
+          "text": "The garden door closes."
+        }
+      ]
+    }
+  ],
+  "triggers": [
+    {
+      "id": "door-opened",
+      "name": "Door opened",
+      "event": "open",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "door_opens",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    }
+  ],
+  "hints": [
+    {
+      "id": "door-puzzle",
+      "name": "Open the garden door",
+      "available": {
+        "type": "true"
+      },
+      "solved": {
+        "type": "property",
+        "entity": "door",
+        "name": "locked",
+        "op": "eq",
+        "value": false
+      },
+      "stages": [
+        {
+          "id": "door-stage",
+          "name": "Find and use a key",
+          "condition": {
+            "type": "true"
+          },
+          "clues": [
+            "Look inside the wooden chest.",
+            "A key in a closed bag is carried, but cannot be used."
+          ],
+          "solution": "Open the chest, take the key, and open the door. If the key is in the bag, open the bag first."
+        }
+      ]
+    }
+  ]
+}

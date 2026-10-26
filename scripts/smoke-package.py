@@ -13,6 +13,7 @@ import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 
 
 def main():
@@ -108,6 +109,46 @@ def main():
             config = api("config")
             assert config["projects_root"] == str((package / "examples").resolve())
 
+            # Compare the checked bundle with the packaged editor's actual export,
+            # then exercise nested saves across separate runner processes.
+            packing = api("open", "POST", {"folder": "packing-study"})
+            packing_game = packing["project"]["game"]
+            packing_bundle = work / "packing-from-editor.luna"
+            packing_bundle.write_bytes(api(f"projects/{packing['handle']}/export", "POST", raw=True))
+            shipped_bundle = package / "examples/packing-study.luna"
+            with zipfile.ZipFile(packing_bundle) as current, zipfile.ZipFile(shipped_bundle) as shipped:
+                assert json.loads(current.read("manifest.json")) == json.loads(shipped.read("manifest.json"))
+                assert not any(name.startswith("editor/") for name in current.namelist())
+            run(["import", str(packing_bundle)], profile="packing")
+            run(["run", packing_game["id"], "--new"],
+                "open chest\ntake key from chest\ntake bag\nput key in box\n"
+                "take letter from chest\nput letter in bag\ngive bag to keeper\n"
+                "ask keeper for bag\nclose bag\nopen door\nsave packed\nquit\n",
+                profile="packing")
+            packing_saves = work / "packing/saves" / packing_game["id"] / packing_game["content_version"]
+            def packed_save():
+                return json.loads((packing_saves / "autosave.json").read_text())
+            nested = packed_save()
+            assert nested["save_format"] == 3, nested
+            assert nested["state"]["objects"]["key"]["placement"] == {"type": "inside", "object": "box"}
+            assert nested["state"]["objects"]["box"]["placement"] == {"type": "inside", "object": "bag"}
+            assert nested["state"]["objects"]["letter"]["placement"] == {"type": "inside", "object": "bag"}
+            assert nested["state"]["objects"]["bag"]["placement"] == {"type": "inventory"}
+            assert not nested["state"]["objects"]["bag"]["open"]
+            assert nested["state"]["variables"] == {"starts": 1, "key_takes": 1, "door_opens": 0}
+            resumed = run(["run", packing_game["id"], "--load", "autosave"], "inventory\nhelp key\nhint key\nquit\n", profile="packing")
+            assert "Brass key" not in resumed and "Small box" not in resumed, resumed
+            assert packed_save()["state"] == nested["state"], "Read-only resume replayed container state"
+            completed = run(["run", packing_game["id"], "--load", "autosave"],
+                "load packed\nopen bag\nopen door\nclose bag\ngo east\nuse bag\n"
+                "save finished\nload finished\nopen door\nquit\n", profile="packing")
+            assert "Everything is packed." in completed and "Loaded finished." in completed, completed
+            assert "This playthrough has ended." in completed and "Outcome:" not in completed, completed
+            assert packed_save()["state"]["ending"] == "packed"
+            assert packed_save()["state"]["variables"] == {"starts": 1, "key_takes": 1, "door_opens": 1}
+            run(["run", packing_game["id"], "--load", "autosave"], "load packed\nquit\n", profile="packing")
+            assert packed_save()["state"] == nested["state"], "Named load changed nested contents or replayed events"
+
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
             created = api("projects", "POST", {"folder": "smoke-outcome", "title": "No outcome"})
@@ -152,7 +193,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged example, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, nested container restarts/saves, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

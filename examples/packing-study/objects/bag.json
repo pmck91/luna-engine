@@ -1,0 +1,452 @@
+{
+  "id": "bag",
+  "name": "Canvas bag",
+  "aliases": [
+    "bag"
+  ],
+  "description": "A roomy canvas bag with a fastening flap.",
+  "placement": {
+    "type": "location",
+    "location": "study"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": true,
+  "state": {},
+  "actions": [
+    {
+      "id": "bag-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "bag"
+        }
+      ]
+    },
+    {
+      "id": "bag-open",
+      "name": "Open Canvas bag",
+      "verb": "open",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "opened",
+          "object": "bag"
+        }
+      },
+      "failure_text": "It is already open.",
+      "effects": [
+        {
+          "type": "open",
+          "object": "bag"
+        },
+        {
+          "type": "say",
+          "text": "Opened."
+        }
+      ],
+      "standard": {
+        "interaction": "open",
+        "enabled": true
+      }
+    },
+    {
+      "id": "bag-close",
+      "name": "Close Canvas bag",
+      "verb": "close",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "opened",
+        "object": "bag"
+      },
+      "failure_text": "It is already closed.",
+      "effects": [
+        {
+          "type": "close",
+          "object": "bag"
+        },
+        {
+          "type": "say",
+          "text": "Closed."
+        }
+      ],
+      "standard": {
+        "interaction": "close",
+        "enabled": true
+      }
+    },
+    {
+      "id": "bag-look-inside",
+      "name": "Look inside Canvas bag",
+      "verb": "look-in",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "opened",
+        "object": "bag"
+      },
+      "failure_text": "It is closed.",
+      "effects": [
+        {
+          "type": "list_contents",
+          "object": "bag",
+          "relation": "inside"
+        }
+      ],
+      "standard": {
+        "interaction": "look_inside",
+        "enabled": true
+      }
+    },
+    {
+      "id": "bag-put-inside",
+      "name": "Put an item inside Canvas bag",
+      "verb": "put",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "in"
+        },
+        {
+          "type": "entity",
+          "entity": "bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": {
+          "input": "item"
+        },
+        "placement": {
+          "type": "inside",
+          "object": "bag"
+        }
+      },
+      "failure_text": "You cannot put that there.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "inside",
+            "object": "bag"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You put %command_item_name% inside %holder_name%.",
+          "references": {
+            "command_item_name": {
+              "type": "item_name"
+            },
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "bag"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "put_inside",
+        "enabled": true
+      }
+    },
+    {
+      "id": "bag-take-from",
+      "name": "Take an item from Canvas bag",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "from"
+        },
+        {
+          "type": "entity",
+          "entity": "bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "can_transfer",
+            "object": {
+              "input": "item"
+            },
+            "placement": {
+              "type": "inventory"
+            }
+          },
+          {
+            "type": "any",
+            "conditions": [
+              {
+                "type": "in_object",
+                "object": {
+                  "input": "item"
+                },
+                "parent": "bag",
+                "relation": "inside"
+              }
+            ]
+          }
+        ]
+      },
+      "failure_text": "You cannot take that from here.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %command_item_name%.",
+          "references": {
+            "command_item_name": {
+              "type": "item_name"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take_from",
+        "enabled": true
+      }
+    },
+    {
+      "id": "bag-take",
+      "name": "Take Canvas bag",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "bag",
+        "placement": {
+          "type": "inventory"
+        }
+      },
+      "failure_text": "You cannot take that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "bag",
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %holder_name%.",
+          "references": {
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "bag"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take",
+        "enabled": true
+      }
+    },
+    {
+      "id": "bag-drop",
+      "name": "Drop Canvas bag",
+      "verb": "drop",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "bag",
+        "placement": {
+          "type": "location",
+          "location": "@current"
+        }
+      },
+      "failure_text": "You are not carrying that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "bag",
+          "placement": {
+            "type": "location",
+            "location": "@current"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You drop %holder_name%.",
+          "references": {
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "bag"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "drop",
+        "enabled": true
+      }
+    },
+    {
+      "id": "bag-give",
+      "name": "Give the bag to the keeper",
+      "verb": "give",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bag"
+        },
+        {
+          "type": "literal",
+          "text": "to"
+        },
+        {
+          "type": "entity",
+          "entity": "keeper"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "bag",
+        "placement": {
+          "type": "character",
+          "character": "keeper"
+        }
+      },
+      "failure_text": "Pick up the bag first.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "bag",
+          "placement": {
+            "type": "character",
+            "character": "keeper"
+          }
+        },
+        {
+          "type": "character_says",
+          "character": "keeper",
+          "text": "I will keep your bag safe. Ask me for it when you are ready."
+        }
+      ]
+    },
+    {
+      "id": "bag-finish",
+      "name": "Finish packing",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "at",
+            "location": "garden"
+          },
+          {
+            "type": "possesses",
+            "object": "bag",
+            "character": null
+          },
+          {
+            "type": "in_object",
+            "object": "box",
+            "parent": "bag",
+            "relation": "inside"
+          },
+          {
+            "type": "in_object",
+            "object": "key",
+            "parent": "box",
+            "relation": "inside"
+          },
+          {
+            "type": "in_object",
+            "object": "letter",
+            "parent": "bag",
+            "relation": "inside"
+          }
+        ]
+      },
+      "failure_text": "Pack the letter in the bag and the key in the small box, then carry the bag into the garden.",
+      "effects": [
+        {
+          "type": "end",
+          "ending": "packed"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": [],
+  "storage": {
+    "container": "openable",
+    "surface": false
+  }
+}

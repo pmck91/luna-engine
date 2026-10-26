@@ -1,0 +1,152 @@
+{
+  "id": "key",
+  "name": "Brass key",
+  "aliases": [
+    "key"
+  ],
+  "description": "A brass key that fits the garden door.",
+  "placement": {
+    "type": "inside",
+    "object": "chest"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "key-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "key"
+        }
+      ]
+    },
+    {
+      "id": "key-take",
+      "name": "Take Brass key",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "key",
+        "placement": {
+          "type": "inventory"
+        }
+      },
+      "failure_text": "You cannot take that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "key",
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %holder_name%.",
+          "references": {
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "key"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take",
+        "enabled": true
+      }
+    },
+    {
+      "id": "key-drop",
+      "name": "Drop Brass key",
+      "verb": "drop",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "key",
+        "placement": {
+          "type": "location",
+          "location": "@current"
+        }
+      },
+      "failure_text": "You are not carrying that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "key",
+          "placement": {
+            "type": "location",
+            "location": "@current"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You drop %holder_name%.",
+          "references": {
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "key"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "drop",
+        "enabled": true
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "id": "key-taken",
+      "name": "Key taken",
+      "event": "take",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "key_takes",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    }
+  ],
+  "hints": []
+}

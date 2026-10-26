@@ -939,6 +939,20 @@ export function referencePlan(
         typeof schema(p, changed) !== typeof schema(p, use.target))
     )
       errors.push(`The replacement needs a compatible property “${changed.name}”.`);
+    if (
+      changed.kind === 'entity' &&
+      use.relation &&
+      !removedSite(use) &&
+      !same(changed, use.target)
+    ) {
+      // Include disconnected typed fields without rejecting unrelated unfinished
+      // drafts: only a reference changed by this replacement is constrained.
+      const holder = next.objects.find((object) => object.id === changed.id);
+      if (use.relation === 'inside' ? !holder?.storage?.container : !holder?.storage?.surface)
+        errors.push(
+          `The replacement must support items ${use.relation === 'inside' ? 'inside' : 'on top'}.`,
+        );
+    }
   }
   for (const template of next.editor.templates) {
     if (source.kind === 'variable' && destination?.kind === 'variable')

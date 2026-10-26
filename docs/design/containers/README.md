@@ -127,3 +127,5 @@ The original C0 checkpoint changed no version numbers, schemas, generated contra
 The owner accepted the working screens with “looks great” on 25 October 2026. Retain **Details → Contents → Actions**, one standard-interaction review, **Command item** beside named fixed objects, independent inside/on capabilities, and explicit possession/reachability.
 
 C1's persistence/binding contract is recorded separately. The owner accepted C2's working authoring/player slice on 26 October 2026 with “looks great lets commit”; no changes were requested. This acceptance does not replace C3's final feature review.
+
+C3's [review record](final-review.md) maps the permanent Packing the Study fixture, full regression/package checks, matched performance measurements, and developer notes to the acceptance matrix. The owner accepted the complete feature on 26 October 2026 with “great looks good” and requested its commit. Push and merge remain open. Public author/player documentation stays deferred to the documentation-site work.
