@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -52,6 +53,9 @@ import { FindingContext, FindingsList, FindingSubject, InlineFindings } from './
 import { activeFindings, validationKey } from './warnings';
 import { ProjectHistory, type EditContext } from './projectHistory';
 import Actions from './Actions';
+import Contents from './Contents';
+import ContainerSetup from './ContainerSetup';
+import { ancestry, objectHierarchy, parentId } from './containerModel';
 import Hints from './Hints';
 import Triggers from './Triggers';
 import { projectTriggers, triggerPage } from './triggerModel';
@@ -93,7 +97,8 @@ export default function App() {
   const [newTutorial, setNewTutorial] = useState(false);
   const [playtestFocused, setPlaytestFocused] = useState(false);
   const flushPreferences = useRef<(() => void) | null>(null);
-  const [mode, setMode] = useState<'map' | 'actions' | 'hints' | 'triggers'>('map');
+  const [mode, setMode] = useState<'map' | 'actions' | 'hints' | 'triggers' | 'contents'>('map');
+  const [containerSetup, setContainerSetup] = useState<string | null>(null);
   const [triggerFilter, setTriggerFilter] = useState('');
   const [flowSelections, setFlowSelections] = useState<Record<string, string>>({});
   const [flowBreadcrumb, setFlowBreadcrumb] = useState('');
@@ -418,7 +423,11 @@ export default function App() {
         setFlowSelections((previous) => ({ ...previous, [parent.id]: key }));
         setMode('actions');
       }
-    } else if (mode === 'triggers') {
+    } else if (
+      mode === 'triggers' ||
+      (mode === 'contents' &&
+        !project?.objects.find((o) => o.id === key && (o.storage?.container || o.storage?.surface)))
+    ) {
       setMode('map');
     }
   };
@@ -760,7 +769,20 @@ export default function App() {
   const creationRoomName =
     doc?.locations.find((room) => room.id === creationRoom)?.name ?? 'a room';
   const actionOwner = doc && (owner(doc, selected) ?? flowOwner(doc, selected));
+  const objectTree = doc ? objectHierarchy(doc) : [];
+  const objectDepth = new Map(objectTree.map((entry) => [entry.object.id, entry.depth]));
+  const storageOwner =
+    actionOwner &&
+    'placement' in actionOwner &&
+    (actionOwner.storage?.container || actionOwner.storage?.surface)
+      ? actionOwner
+      : null;
+  const ownerAncestors =
+    doc && actionOwner && 'placement' in actionOwner ? ancestry(doc, actionOwner.id) : [];
   const hintOwner = actionOwner && 'hints' in actionOwner ? actionOwner : null;
+  useEffect(() => {
+    if (mode === 'contents' && !storageOwner) setMode('map');
+  }, [mode, storageOwner?.id]);
   const actionFlow =
     (activeFlow && !('event' in activeFlow) ? activeFlow : undefined) ??
     (doc && actionOwner && flow(doc, flowSelections[actionOwner.id])) ??
@@ -1219,14 +1241,15 @@ export default function App() {
               width="112"
               height="112"
             />
-            <div className="eyebrow">YOUR NEXT ADVENTURE</div>
+            <div className="eyebrow">BUILD YOUR NEXT ADVENTURE</div>
             <h1>
               Build a world.
               <br />
               Let words open it.
             </h1>
             <p>
-              Connect places, give objects a story, and play it all through a real command parser.
+              Build a living world to explore. Write an interactive Story. Let your imagination go
+              wild!
             </p>
             <button className="primary" onClick={() => setProjectModal(true)}>
               Create a project
@@ -1309,7 +1332,7 @@ export default function App() {
                 },
                 {
                   title: 'Objects',
-                  items: doc.objects,
+                  items: objectTree.map((entry) => entry.object),
                   add: () =>
                     edit((p) => {
                       const o = makeObject(creationRoom);
@@ -1349,11 +1372,24 @@ export default function App() {
                     .map((e) => (
                       <button
                         key={e.id}
+                        style={
+                          'placement' in e
+                            ? { paddingLeft: 16 + Math.min(objectDepth.get(e.id) ?? 0, 4) * 12 }
+                            : undefined
+                        }
                         className={`tree-item ${e.id === selected || (mode === 'actions' && actionOwner?.id === e.id) ? 'active' : ''}`}
                         onClick={() => select(e.id)}
                       >
                         <span>◇</span>
-                        {e.name}
+                        <span>
+                          {e.name}
+                          {'placement' in e && parentId(e.placement) && (
+                            <small className="tree-placement">
+                              {e.placement.type === 'inside' ? 'inside' : 'on'}{' '}
+                              {doc.objects.find((o) => o.id === parentId(e.placement))?.name}
+                            </small>
+                          )}
+                        </span>
                       </button>
                     ))}
                 </section>
@@ -1539,6 +1575,16 @@ export default function App() {
                   →
                 </button>
                 <button onClick={() => select(doc.game.id)}>{doc.game.title}</button>
+                {ownerAncestors.map((key) => (
+                  <Fragment key={key}>
+                    <span aria-hidden="true">›</span>
+                    <button onClick={() => select(key)}>
+                      {owner(doc, key) && 'name' in owner(doc, key)!
+                        ? (owner(doc, key)! as { name: string }).name
+                        : key}
+                    </button>
+                  </Fragment>
+                ))}
                 {actionOwner && actionOwner.id !== doc.game.id && (
                   <>
                     <span aria-hidden="true">›</span>
@@ -1553,9 +1599,11 @@ export default function App() {
                     ? 'World map'
                     : mode === 'hints'
                       ? 'Hints'
-                      : mode === 'triggers'
-                        ? 'Triggers'
-                        : 'Actions'}
+                      : mode === 'contents'
+                        ? 'Contents'
+                        : mode === 'triggers'
+                          ? 'Triggers'
+                          : 'Actions'}
                 </span>
                 {breadcrumbFlow && (
                   <>
@@ -1608,6 +1656,19 @@ export default function App() {
                   >
                     Actions
                   </button>
+                  {storageOwner && (
+                    <button
+                      className={mode === 'contents' ? 'active' : ''}
+                      onClick={() => {
+                        setSelected(storageOwner.id);
+                        setFlowBreadcrumb('');
+                        setConnecting(false);
+                        setMode('contents');
+                      }}
+                    >
+                      Contents
+                    </button>
+                  )}
                   <button
                     className={mode === 'hints' ? 'active' : ''}
                     disabled={!hintOwner}
@@ -1659,13 +1720,24 @@ export default function App() {
                       ? 'Author progressive clues and optional solutions'
                       : mode === 'triggers'
                         ? 'Command, state, and value triggers'
-                        : actionOwner
-                          ? 'Choose an action or exit, then build its logic'
-                          : 'Select an object, location, or character'}
+                        : mode === 'contents'
+                          ? 'Arrange initial contents and set up interactions'
+                          : actionOwner
+                            ? 'Choose an action or exit, then build its logic'
+                            : 'Select an object, location, or character'}
                 </span>
               </div>
               <div className="canvas">
-                {mode === 'map' ? (
+                {mode === 'contents' && storageOwner ? (
+                  <Contents
+                    key={storageOwner.id}
+                    project={doc}
+                    holder={storageOwner}
+                    edit={edit}
+                    select={select}
+                    setup={() => setContainerSetup(storageOwner.id)}
+                  />
+                ) : mode === 'map' ? (
                   <WorldMap
                     project={doc}
                     view={mapView.current}
@@ -2097,6 +2169,12 @@ export default function App() {
                     select={select}
                     remove={remove}
                     error={error}
+                    contents={(id) => {
+                      select(id);
+                      setMode('contents');
+                      setConnecting(false);
+                    }}
+                    containerSetup={setContainerSetup}
                   />
                 )}
               </FindingSubject.Provider>
@@ -2111,6 +2189,15 @@ export default function App() {
           setQuery={setProjectSearch}
           close={() => setShowSearch(false)}
           reveal={reveal}
+        />
+      )}
+      {containerSetup && doc?.objects.find((o) => o.id === containerSetup) && (
+        <ContainerSetup
+          project={doc}
+          object={doc.objects.find((o) => o.id === containerSetup)!}
+          edit={edit}
+          select={select}
+          close={() => setContainerSetup(null)}
         />
       )}
       {showExitCreation && doc && (

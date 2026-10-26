@@ -27,6 +27,325 @@ async fn post(app: axum::Router, path: &str, body: Value) -> Value {
 }
 
 #[tokio::test]
+async fn container_setup_templates_execute_as_the_same_editable_shared_actions() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut project = Project::blank("Container setup API");
+    project.objects = vec![
+        Object {
+            id: "bag".into(),
+            name: "bag".into(),
+            open: true,
+            storage: Some(ObjectStorage {
+                container: Some(ContainerOpening::Openable),
+                surface: false,
+            }),
+            placement: Placement::Location {
+                location: project.game.starting_location.clone(),
+            },
+            ..Default::default()
+        },
+        Object {
+            id: "key".into(),
+            name: "key".into(),
+            portable: true,
+            placement: Placement::Inventory,
+            ..Default::default()
+        },
+    ];
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let result = post(app, "/api/v1/templates/container-actions", json!({"object":project.objects[0],"interactions":[{"interaction":"put_inside","verb":"use"},{"interaction":"look_inside","verb":"examine"}]})).await;
+    let actions: Vec<Action> = serde_json::from_value(result).unwrap();
+    assert_eq!(actions.len(), 2);
+    assert!(project.objects[0].actions.is_empty());
+    project.objects[0].actions = actions;
+    let (mut session, _) = Session::start(project, None).unwrap();
+    let result = session.command("use the key in the bag").unwrap();
+    assert_eq!(result.status, luna_core::CommandStatus::Ok);
+    assert_eq!(
+        session.state().objects["key"].placement,
+        Placement::Inside {
+            object: "bag".into()
+        }
+    );
+    let result = session.command("examine bag").unwrap();
+    assert!(
+        result
+            .messages
+            .iter()
+            .any(|spans| text::plain(spans) == "Inside bag: key.")
+    );
+}
+
+#[tokio::test]
+async fn nested_containers_match_editor_exports_and_every_save_boundary() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut p = Project::blank("Container parity");
+    p.game.help_mode = HelpMode::Full;
+    p.game
+        .variables
+        .insert("starts".into(), luna_model::Value::Integer(0));
+    p.game.triggers.push(Trigger {
+        id: "count-starts".into(),
+        event: Event::Start,
+        effects: vec![Effect::UpdateVariable {
+            name: "starts".into(),
+            op: ArithmeticOperation::Add,
+            operand: NumericOperand::Literal { value: 1 },
+        }],
+        ..Default::default()
+    });
+    p.vocabulary.push(Verb {
+        id: "put".into(),
+        canonical: "put".into(),
+        synonyms: vec![],
+        event: None,
+    });
+    let room = p.game.starting_location.clone();
+    p.objects = vec![
+        Object {
+            id: "chest".into(),
+            name: "chest".into(),
+            storage: Some(ObjectStorage {
+                container: Some(ContainerOpening::Openable),
+                surface: true,
+            }),
+            placement: Placement::Location { location: room },
+            ..Default::default()
+        },
+        Object {
+            id: "bag".into(),
+            name: "bag".into(),
+            storage: Some(ObjectStorage {
+                container: Some(ContainerOpening::Openable),
+                surface: false,
+            }),
+            portable: true,
+            open: true,
+            placement: Placement::Inventory,
+            ..Default::default()
+        },
+        Object {
+            id: "box".into(),
+            name: "box".into(),
+            storage: Some(ObjectStorage {
+                container: Some(ContainerOpening::AlwaysOpen),
+                surface: false,
+            }),
+            portable: true,
+            open: true,
+            placement: Placement::Inside {
+                object: "chest".into(),
+            },
+            ..Default::default()
+        },
+        Object {
+            id: "key".into(),
+            name: "key".into(),
+            portable: true,
+            placement: Placement::Inside {
+                object: "box".into(),
+            },
+            ..Default::default()
+        },
+        Object {
+            id: "letter".into(),
+            name: "letter".into(),
+            portable: true,
+            placement: Placement::On {
+                object: "chest".into(),
+            },
+            ..Default::default()
+        },
+    ];
+    for object in &mut p.objects {
+        let storage = object.storage.unwrap_or_default();
+        if storage.container == Some(ContainerOpening::Openable) {
+            object
+                .actions
+                .push(standard_action(object, StandardInteraction::Open, "open"));
+            object
+                .actions
+                .push(standard_action(object, StandardInteraction::Close, "close"));
+        }
+        if storage.container.is_some() {
+            object.actions.push(standard_action(
+                object,
+                StandardInteraction::PutInside,
+                "put",
+            ));
+        }
+        if storage.surface {
+            object
+                .actions
+                .push(standard_action(object, StandardInteraction::PutOn, "put"));
+        }
+        if !storage.is_empty() {
+            object.actions.push(standard_action(
+                object,
+                StandardInteraction::TakeFrom,
+                "take",
+            ));
+        }
+        if object.portable {
+            object
+                .actions
+                .push(standard_action(object, StandardInteraction::Take, "take"));
+            object
+                .actions
+                .push(standard_action(object, StandardInteraction::Drop, "drop"));
+        }
+    }
+    // Multi-file loading has a stable filename order, independent of creation order.
+    p.objects.sort_by(|a, b| a.id.cmp(&b.id));
+    let root = temp.path().join("source");
+    luna_project::save_project(&root, &p, None).unwrap();
+    assert_eq!(luna_project::load_project(&root).unwrap(), p);
+    let bundle = temp.path().join("containers.luna");
+    std::fs::write(&bundle, luna_project::export_bundle(&root, &p).unwrap()).unwrap();
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let installed = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let (mut runner, _) = Session::start(storage.load_game(&installed).unwrap(), None).unwrap();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let mut editor = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"location":null}),
+    )
+    .await;
+    for command in [
+        "look",
+        "take key",
+        "open chest",
+        "take letter from chest",
+        "put letter in bag",
+        "take box from chest",
+        "put box in bag",
+        "close bag",
+        "help bag",
+        "inventory",
+        "open bag",
+        "take key from box",
+        "put key on chest",
+        "drop bag",
+        "take bag",
+        "close chest",
+        "look",
+    ] {
+        let result = runner.command(command).unwrap();
+        editor = post(
+            app.clone(),
+            &format!(
+                "/api/v1/playtests/{}/commands",
+                editor["session"].as_str().unwrap()
+            ),
+            json!({"command":command,"explain":true}),
+        )
+        .await;
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(runner.state()).unwrap(),
+            "{command}"
+        );
+        assert_eq!(
+            editor["result"]["messages"],
+            serde_json::to_value(&result.messages).unwrap(),
+            "{command}"
+        );
+        assert_eq!(
+            editor["result"]["status"],
+            serde_json::to_value(result.status).unwrap(),
+            "{command}"
+        );
+        for slot in [None, Some("nested checkpoint")] {
+            storage
+                .write_save(&installed, runner.definition(), runner.state(), slot)
+                .unwrap();
+            let save = storage
+                .load_save(&installed, runner.definition(), slot)
+                .unwrap();
+            assert_eq!(save.save_format, luna_runner::SAVE_FORMAT);
+            let before = runner.state().clone();
+            runner = Session::restore(storage.load_game(&installed).unwrap(), save.state).unwrap();
+            assert_eq!(runner.state(), &before);
+        }
+    }
+    assert_eq!(
+        runner.state().variables["starts"],
+        luna_model::Value::Integer(1)
+    );
+    let captured = post(
+        app.clone(),
+        &format!(
+            "/api/v1/playtests/{}/capture",
+            editor["session"].as_str().unwrap()
+        ),
+        json!({"name":"Packed bag"}),
+    )
+    .await;
+    assert_eq!(
+        captured["state"],
+        serde_json::to_value(runner.state()).unwrap()
+    );
+    let restored = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"setup":captured}),
+    )
+    .await;
+    assert_eq!(restored["state"], captured["state"]);
+    assert_eq!(restored["result"]["state_changed"], false);
+    // Keep authored content valid while making its old captured hierarchy
+    // incompatible; the setup must explain the mismatch instead of flattening it.
+    let bag = p.objects.iter_mut().find(|o| o.id == "bag").unwrap();
+    bag.storage = None;
+    bag.actions.clear();
+    let status = post(
+        app,
+        "/api/v1/playtests/setup-status",
+        json!({"project":p,"setup":captured}),
+    )
+    .await;
+    assert_eq!(status["compatible"], false);
+    assert!(status["reason"].as_str().unwrap().contains("incompatible"));
+    assert_eq!(
+        runner.state().objects["letter"].placement,
+        Placement::Inside {
+            object: "bag".into()
+        }
+    );
+    assert_eq!(
+        runner.state().objects["box"].placement,
+        Placement::Inside {
+            object: "bag".into()
+        }
+    );
+    assert_eq!(
+        runner.state().objects["key"].placement,
+        Placement::On {
+            object: "chest".into()
+        }
+    );
+}
+
+#[tokio::test]
 async fn character_movement_and_coloured_speech_match_exports_and_saved_restoration() {
     use luna_model::*;
     let temp = tempfile::tempdir().unwrap();
@@ -423,7 +742,7 @@ async fn authored_hints_match_runner_exports_and_resume_saved_progress() {
             let saved = storage
                 .load_save(&installed, runner.definition(), slot)
                 .unwrap();
-            assert_eq!(saved.save_format, 2);
+            assert_eq!(saved.save_format, luna_runner::SAVE_FORMAT);
             runner = Session::restore(storage.load_game(&installed).unwrap(), saved.state).unwrap();
         }
     }

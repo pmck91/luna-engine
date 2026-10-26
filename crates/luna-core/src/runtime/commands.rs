@@ -62,11 +62,11 @@ impl<'a> Run<'a> {
         };
         let tied = matches
             .iter()
-            .filter(|m| m.rank == best.rank)
+            .filter(|m| m.rank == best.rank && m.fallback == best.fallback)
             .collect::<Vec<_>>();
         if tied.len() > 1 {
             self.result.status = CommandStatus::Ambiguous;
-            self.literal(&format!("Please clarify your command: {}. Type a more specific command; nothing has changed.",tied.iter().map(|m|m.name).collect::<Vec<_>>().join(" or ")));
+            self.literal(&format!("Please clarify your command: {}. Type a more specific command; nothing has changed.",tied.iter().map(|m| match m.item { Some(id) => format!("{} ({})", m.name, self.entity_name(id).unwrap_or(id)), None => m.name.to_owned() }).collect::<Vec<_>>().join(" or ")));
             return Ok(());
         }
         self.result.trace.push(format!(
@@ -74,6 +74,18 @@ impl<'a> Run<'a> {
             best.name, best.id
         ));
         self.result.selected_flow = Some(best.id.to_owned());
+        self.item_input = best.item;
+        if let Some(item) = best.item {
+            self.observe(
+                TraceKind::Notice {
+                    text: format!(
+                        "Command item: {} [{item}]",
+                        self.entity_name(item).unwrap_or(item)
+                    ),
+                },
+                self.source_for(best.id, "pattern"),
+            );
+        }
         self.observe(
             TraceKind::Selected {
                 name: best.name.to_owned(),
@@ -98,7 +110,21 @@ impl<'a> Run<'a> {
                 self.effects_at(&action.effects, self.source_for(&action.id, "effects"))?;
                 if self.state.ending.is_none() {
                     if let Some(event) = self.verb(&action.verb).and_then(|v| v.event) {
-                        self.fire(event, best.owner)?
+                        let target = if action.standard.as_ref().is_some_and(|s| {
+                            s.interaction == luna_model::StandardInteraction::TakeFrom
+                        }) {
+                            best.item.unwrap_or(best.owner)
+                        } else {
+                            best.owner
+                        };
+                        let duplicate = action.standard.is_some()
+                            && self
+                                .mutation_events
+                                .iter()
+                                .any(|(prior, owner)| *prior == event && owner == target);
+                        if !duplicate {
+                            self.fire(event, target)?;
+                        }
                     }
                     if self.state.ending.is_none() {
                         self.fire(Event::Command, best.owner)?

@@ -1,0 +1,292 @@
+{
+  "id": "box",
+  "name": "Small box",
+  "aliases": [
+    "box"
+  ],
+  "description": "A little open box for keeping small things together.",
+  "placement": {
+    "type": "inside",
+    "object": "bag"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": true,
+  "state": {},
+  "actions": [
+    {
+      "id": "box-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "box"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "box"
+        }
+      ]
+    },
+    {
+      "id": "box-look-inside",
+      "name": "Look inside Small box",
+      "verb": "look-in",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "box"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "opened",
+        "object": "box"
+      },
+      "failure_text": "It is closed.",
+      "effects": [
+        {
+          "type": "list_contents",
+          "object": "box",
+          "relation": "inside"
+        }
+      ],
+      "standard": {
+        "interaction": "look_inside",
+        "enabled": true
+      }
+    },
+    {
+      "id": "box-put-inside",
+      "name": "Put an item inside Small box",
+      "verb": "put",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "in"
+        },
+        {
+          "type": "entity",
+          "entity": "box"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": {
+          "input": "item"
+        },
+        "placement": {
+          "type": "inside",
+          "object": "box"
+        }
+      },
+      "failure_text": "You cannot put that there.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "inside",
+            "object": "box"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You put %command_item_name% inside %holder_name%.",
+          "references": {
+            "command_item_name": {
+              "type": "item_name"
+            },
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "box"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "put_inside",
+        "enabled": true
+      }
+    },
+    {
+      "id": "box-take-from",
+      "name": "Take an item from Small box",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "from"
+        },
+        {
+          "type": "entity",
+          "entity": "box"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "can_transfer",
+            "object": {
+              "input": "item"
+            },
+            "placement": {
+              "type": "inventory"
+            }
+          },
+          {
+            "type": "any",
+            "conditions": [
+              {
+                "type": "in_object",
+                "object": {
+                  "input": "item"
+                },
+                "parent": "box",
+                "relation": "inside"
+              }
+            ]
+          }
+        ]
+      },
+      "failure_text": "You cannot take that from here.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %command_item_name%.",
+          "references": {
+            "command_item_name": {
+              "type": "item_name"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take_from",
+        "enabled": true
+      }
+    },
+    {
+      "id": "box-take",
+      "name": "Take Small box",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "box"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "box",
+        "placement": {
+          "type": "inventory"
+        }
+      },
+      "failure_text": "You cannot take that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "box",
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %holder_name%.",
+          "references": {
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "box"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take",
+        "enabled": true
+      }
+    },
+    {
+      "id": "box-drop",
+      "name": "Drop Small box",
+      "verb": "drop",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "box"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "box",
+        "placement": {
+          "type": "location",
+          "location": "@current"
+        }
+      },
+      "failure_text": "You are not carrying that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "box",
+          "placement": {
+            "type": "location",
+            "location": "@current"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You drop %holder_name%.",
+          "references": {
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "box"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "drop",
+        "enabled": true
+      }
+    }
+  ],
+  "triggers": [],
+  "hints": [],
+  "storage": {
+    "container": "always_open",
+    "surface": false
+  }
+}

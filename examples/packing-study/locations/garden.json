@@ -1,0 +1,53 @@
+{
+  "id": "garden",
+  "name": "Garden",
+  "aliases": [],
+  "description": "Gravel paths wind between the beds. The study lies to the west.",
+  "actions": [
+    {
+      "id": "garden-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "garden"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "garden"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "exits": [
+    {
+      "id": "garden-west",
+      "name": "west",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "study",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

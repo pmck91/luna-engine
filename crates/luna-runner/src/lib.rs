@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const SAVE_FORMAT: u32 = 2;
+pub const SAVE_FORMAT: u32 = 3;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Installed {
     pub game_id: String,
@@ -334,7 +334,11 @@ impl Storage {
             }
         }
         let envelope = SaveEnvelope {
-            save_format: SAVE_FORMAT,
+            save_format: if project.game.format_version >= 2 {
+                SAVE_FORMAT
+            } else {
+                2
+            },
             game_id: record.game_id.clone(),
             content_version: record.content_version.clone(),
             fingerprint: record.fingerprint.clone(),
@@ -360,8 +364,8 @@ impl Storage {
         let header: Header = serde_json::from_slice(&bytes)
             .with_context(|| format!("Corrupt save {}; it has been preserved", path.display()))?;
         ensure!(
-            matches!(header.save_format, 1 | SAVE_FORMAT),
-            "Unsupported save format {}; supported: 1 and {SAVE_FORMAT}",
+            (1..=SAVE_FORMAT).contains(&header.save_format),
+            "Unsupported save format {}; supported: 1 through {SAVE_FORMAT}",
             header.save_format
         );
         let save: SaveEnvelope = serde_json::from_slice(&bytes)
@@ -369,6 +373,15 @@ impl Storage {
         ensure!(
             save.save_format != 1 || save.state.hints.is_empty(),
             "Hint progress requires save format 2"
+        );
+        ensure!(
+            save.save_format >= 3
+                || save
+                    .state
+                    .objects
+                    .values()
+                    .all(|o| o.placement.parent_object().is_none()),
+            "Nested placement requires save format 3"
         );
         Ok(save)
     }
@@ -468,10 +481,93 @@ mod tests {
     use super::*;
     use luna_core::Session;
     #[test]
+    fn nested_saves_validate_the_graph_and_preserve_incompatible_slots() {
+        use luna_model::*;
+        let temp = tempfile::tempdir().unwrap();
+        let mut p = Project::blank("Nested save contracts");
+        p.objects = vec![
+            Object {
+                id: "bag".into(),
+                name: "bag".into(),
+                open: true,
+                storage: Some(ObjectStorage {
+                    container: Some(ContainerOpening::Openable),
+                    surface: false,
+                }),
+                placement: Placement::Inventory,
+                ..Default::default()
+            },
+            Object {
+                id: "key".into(),
+                name: "key".into(),
+                placement: Placement::Inside {
+                    object: "bag".into(),
+                },
+                ..Default::default()
+            },
+        ];
+        let store = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+        let bundle = temp.path().join("nested.luna");
+        fs::write(&bundle, storage::export_bundle(temp.path(), &p).unwrap()).unwrap();
+        let record = store
+            .install(store.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+            .unwrap();
+        let (session, _) = Session::start(p.clone(), None).unwrap();
+        store
+            .write_save(&record, session.definition(), session.state(), None)
+            .unwrap();
+        let path = store
+            .slot_path(&p.game.id, &p.game.content_version, None)
+            .unwrap();
+        let original = fs::read(&path).unwrap();
+        let envelope: serde_json::Value = serde_json::from_slice(&original).unwrap();
+        assert_eq!(envelope["save_format"], SAVE_FORMAT);
+        let mut mislabeled = envelope.clone();
+        mislabeled["save_format"] = 2.into();
+        fs::write(&path, serde_json::to_vec(&mislabeled).unwrap()).unwrap();
+        assert!(
+            store
+                .load_save(&record, session.definition(), None)
+                .unwrap_err()
+                .to_string()
+                .contains("requires save format 3")
+        );
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&fs::read(&path).unwrap()).unwrap(),
+            mislabeled
+        );
+        fs::write(&path, &original).unwrap();
+        let mut changed = p.clone();
+        changed.objects[0].storage = None;
+        let changed = GameDefinition::new(changed).err().unwrap();
+        assert!(changed.to_string().contains("invalid"));
+        // The initial content can stay valid after a capability change while a
+        // previously captured nested save becomes incompatible.
+        p.objects[0].storage = None;
+        p.objects[1].placement = Placement::Inventory;
+        let changed = GameDefinition::new(p).unwrap();
+        assert!(store.load_save(&record, &changed, None).is_err());
+        assert_eq!(fs::read(&path).unwrap(), original);
+        let mut cyclic = envelope;
+        cyclic["state"]["objects"]["bag"]["placement"] =
+            serde_json::json!({"type":"inside","object":"bag"});
+        fs::write(&path, serde_json::to_vec(&cyclic).unwrap()).unwrap();
+        assert!(
+            store
+                .load_save(&record, session.definition(), None)
+                .is_err()
+        );
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&fs::read(&path).unwrap()).unwrap(),
+            cyclic
+        );
+    }
+    #[test]
     fn old_saves_load_and_hint_progress_is_preserved_in_format_two() {
         use luna_model::{HintSet, HintStage};
         let temp = tempfile::tempdir().unwrap();
         let mut p = Project::blank("Hint save compatibility");
+        p.game.format_version = 1;
         p.locations[0].hints.push(HintSet {
             id: "puzzle".into(),
             name: "Room puzzle".into(),

@@ -1,0 +1,336 @@
+{
+  "id": "chest",
+  "name": "Wooden chest",
+  "aliases": [
+    "chest"
+  ],
+  "description": "A stout wooden chest with a flat lid.",
+  "placement": {
+    "type": "location",
+    "location": "study"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "chest-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "chest"
+        }
+      ]
+    },
+    {
+      "id": "chest-open",
+      "name": "Open Wooden chest",
+      "verb": "open",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "opened",
+          "object": "chest"
+        }
+      },
+      "failure_text": "It is already open.",
+      "effects": [
+        {
+          "type": "open",
+          "object": "chest"
+        },
+        {
+          "type": "say",
+          "text": "Opened."
+        }
+      ],
+      "standard": {
+        "interaction": "open",
+        "enabled": true
+      }
+    },
+    {
+      "id": "chest-close",
+      "name": "Close Wooden chest",
+      "verb": "close",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "opened",
+        "object": "chest"
+      },
+      "failure_text": "It is already closed.",
+      "effects": [
+        {
+          "type": "close",
+          "object": "chest"
+        },
+        {
+          "type": "say",
+          "text": "Closed."
+        }
+      ],
+      "standard": {
+        "interaction": "close",
+        "enabled": true
+      }
+    },
+    {
+      "id": "chest-look-inside",
+      "name": "Look inside Wooden chest",
+      "verb": "look-in",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "opened",
+        "object": "chest"
+      },
+      "failure_text": "It is closed.",
+      "effects": [
+        {
+          "type": "list_contents",
+          "object": "chest",
+          "relation": "inside"
+        }
+      ],
+      "standard": {
+        "interaction": "look_inside",
+        "enabled": true
+      }
+    },
+    {
+      "id": "chest-put-inside",
+      "name": "Put an item inside Wooden chest",
+      "verb": "put",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "in"
+        },
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": {
+          "input": "item"
+        },
+        "placement": {
+          "type": "inside",
+          "object": "chest"
+        }
+      },
+      "failure_text": "You cannot put that there.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "inside",
+            "object": "chest"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You put %command_item_name% inside %holder_name%.",
+          "references": {
+            "command_item_name": {
+              "type": "item_name"
+            },
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "chest"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "put_inside",
+        "enabled": true
+      }
+    },
+    {
+      "id": "chest-put-on",
+      "name": "Put an item on top of Wooden chest",
+      "verb": "put",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "on"
+        },
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": {
+          "input": "item"
+        },
+        "placement": {
+          "type": "on",
+          "object": "chest"
+        }
+      },
+      "failure_text": "You cannot put that there.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "on",
+            "object": "chest"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You put %command_item_name% on %holder_name%.",
+          "references": {
+            "command_item_name": {
+              "type": "item_name"
+            },
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "chest"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "put_on",
+        "enabled": true
+      }
+    },
+    {
+      "id": "chest-take-from",
+      "name": "Take an item from Wooden chest",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "from"
+        },
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "can_transfer",
+            "object": {
+              "input": "item"
+            },
+            "placement": {
+              "type": "inventory"
+            }
+          },
+          {
+            "type": "any",
+            "conditions": [
+              {
+                "type": "in_object",
+                "object": {
+                  "input": "item"
+                },
+                "parent": "chest",
+                "relation": "inside"
+              },
+              {
+                "type": "in_object",
+                "object": {
+                  "input": "item"
+                },
+                "parent": "chest",
+                "relation": "on"
+              }
+            ]
+          }
+        ]
+      },
+      "failure_text": "You cannot take that from here.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %command_item_name%.",
+          "references": {
+            "command_item_name": {
+              "type": "item_name"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take_from",
+        "enabled": true
+      }
+    }
+  ],
+  "triggers": [],
+  "hints": [],
+  "storage": {
+    "container": "openable",
+    "surface": true
+  }
+}

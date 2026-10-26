@@ -3,6 +3,8 @@ import * as Blockly from 'blockly/core';
 import type { Project } from './contracts';
 import {
   blockCatalogue,
+  blockAvailable,
+  registerBlockScope,
   blockWorkspaceOptions,
   createCatalogueBlock,
   registerBlocks,
@@ -17,8 +19,10 @@ export default function BlockPicker({
   initial,
   close,
   insert,
+  flowId,
 }: {
   project: Project;
+  flowId?: string;
   points: InsertionPoint[];
   initial: string;
   close: () => void;
@@ -33,6 +37,7 @@ export default function BlockPicker({
   const entries = blockCatalogue.filter(
     (entry) =>
       entry.kind === point?.kind &&
+      blockAvailable(project, entry.type) &&
       `${entry.name} ${entry.category} ${entry.aliases}`
         .toLowerCase()
         .includes(query.toLowerCase().trim()),
@@ -63,6 +68,7 @@ export default function BlockPicker({
     });
     Blockly.Events.disable();
     try {
+      if (flowId) registerBlockScope(workspace, flowId);
       const block = createCatalogueBlock(workspace, selected.type);
       for (const item of workspace.getAllBlocks(false)) item.initSvg();
       refreshChainEnds(workspace);

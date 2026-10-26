@@ -33,6 +33,8 @@ export const explanationIsCurrent = (record: ExplanationRecord, project: Project
   record.contentKey === playContentKey(project, record.help);
 const opNames = { eq: '=', ne: '≠', gt: '>', ge: '≥', lt: '<', le: '≤' };
 export function conditionTitle(p: Project, c: Condition): string {
+  const objectName = (target: string | { input: string }) =>
+    typeof target === 'string' ? traceEntityName(p, target) : 'Command item';
   switch (c.type) {
     case 'true':
       return 'Always';
@@ -68,6 +70,14 @@ export function conditionTitle(p: Project, c: Condition): string {
           .flatMap((e) => e.hints)
           .find((h) => h.id === c.hint)?.name ?? c.hint
       }`;
+    case 'possesses':
+      return `${c.character ? traceEntityName(p, c.character) : 'Player'} has ${objectName(c.object)}`;
+    case 'reachable':
+      return `Can reach ${objectName(c.object)}`;
+    case 'in_object':
+      return `${objectName(c.object)} is ${c.relation === 'inside' ? 'inside' : 'on'} ${traceEntityName(p, c.parent)}`;
+    case 'can_transfer':
+      return `Can move ${objectName(c.object)} to ${c.placement.type === 'inside' || c.placement.type === 'on' ? traceEntityName(p, c.placement.object) : c.placement.type}`;
   }
 }
 function targetTitle(p: Project, target: ValueTarget) {

@@ -320,7 +320,7 @@ fn puzzle_hints_autosave_and_named_loads_resume_clues_without_revealing_solution
     let installed = storage.records().unwrap().pop().unwrap();
     let definition = GameDefinition::new(p.clone()).unwrap();
     let auto = storage.load_save(&installed, &definition, None).unwrap();
-    assert_eq!(auto.save_format, 2);
+    assert_eq!(auto.save_format, luna_runner::SAVE_FORMAT);
     assert!(auto.state.hints["room-stage"].solution_seen);
     let named = storage
         .load_save(&installed, &definition, Some("first clue"))

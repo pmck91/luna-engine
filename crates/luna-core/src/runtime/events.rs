@@ -8,7 +8,7 @@
 use super::Run;
 use crate::TraceKind;
 use anyhow::{Context, Result, ensure};
-use luna_model::{Event, Placement, Value, ValueTarget, WatchMode};
+use luna_model::{Event, Value, ValueTarget, WatchMode};
 
 impl<'a> Run<'a> {
     fn event_scope(&self, event: Event, owner: &str, id: &str) -> Option<u8> {
@@ -24,9 +24,9 @@ impl<'a> Run<'a> {
         if !matches!(event, Event::Enter | Event::FirstEnter | Event::Leave) {
             return None;
         }
-        let object_in_room = self.state.objects.get(id).is_some_and(|object| {
-            object.exists && matches!(&object.placement, Placement::Location { location } if location == owner)
-        });
+        let relation = self.object_relation(id);
+        let object_in_room = relation.alive
+            && matches!(relation.root, super::relations::Root::Room(index) if self.p.locations[index].id == owner);
         let character_in_room = self
             .state
             .characters
@@ -36,6 +36,9 @@ impl<'a> Run<'a> {
     }
 
     pub(crate) fn fire(&mut self, event: Event, owner: &str) -> Result<()> {
+        self.without_inputs(|this| this.fire_unbound(event, owner))
+    }
+    fn fire_unbound(&mut self, event: Event, owner: &str) -> Result<()> {
         self.begin_event()?;
         // Membership is captured before any handler runs. Conditions are still
         // evaluated at execution time, after earlier handlers may change state.
@@ -119,6 +122,9 @@ impl<'a> Run<'a> {
     }
 
     pub(super) fn set_value(&mut self, target: &ValueTarget, value: Value) -> Result<()> {
+        self.without_inputs(|this| this.set_value_unbound(target, value))
+    }
+    fn set_value_unbound(&mut self, target: &ValueTarget, value: Value) -> Result<()> {
         let previous = self.value(target)?.clone();
         ensure!(
             previous.same_type(&value),

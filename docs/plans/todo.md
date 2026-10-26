@@ -1,14 +1,16 @@
 # Project todo
 
-Last reviewed: **25 October 2026**, against the implementation, tests, and accepted plans.
+Last reviewed: **26 October 2026**, against the implementation, tests, and accepted plans.
 
 The editor UX work (M0–M7 and M9) is accepted and merged into `main` as `1608340`. Custom unknown-command messages and warning acknowledgements are also implemented and committed. Completed work is recorded below; human screen-reader/new-author evaluation remains open.
 
-Shared-core and runner hardening on `feature/core-hardening` has completed H1–H6 implementation and automated acceptance and is ready for owner review and branch closeout. User-facing documentation follows: refresh the example, establish the Astro Starlight site on GitHub Pages, and publish a complete first-adventure tutorial before expanding the deeper developer documentation. Existing README, [development guide](../development.md), architecture notes, and in-editor guidance provide starting material; the standalone documentation site has not been built.
+Shared-core and runner hardening (H1–H6) is reviewed and merged into `main` as `835f009`. The current work is [containers and surfaces](containers-and-surfaces.md): C0–C3 are complete and accepted on `feature/containers-and-surfaces`. The [C3 review record](../design/containers/final-review.md) covers the permanent example, tests/package checks, performance, developer notes, and final owner acceptance. Push and merge remain open. The [gameplay feature roadmap](gameplay-feature-roadmap.md) records seven directions and a separate branch for each; it does not make them all v1 requirements. Browser publishing is explicitly after v1.
 
-## Shared core and runner — ready for owner review
+User-facing documentation remains a v1 priority: refresh the example, establish the Astro Starlight site on GitHub Pages, and publish a complete first-adventure tutorial before expanding the deeper developer documentation. Existing README, [development guide](../development.md), architecture notes, and in-editor guidance provide starting material; the standalone documentation site has not been built.
 
-Follow the [core hardening plan](core-hardening.md) on `feature/core-hardening`, preserving game/save formats and existing execution semantics.
+## Shared core and runner — completed and merged
+
+The [core hardening plan](core-hardening.md) was completed on `feature/core-hardening`, preserving game/save formats and existing execution semantics.
 
 - [x] H1: Correct restored-session message formatting through shared core presentation, add runner regression coverage, and establish repeatable release benchmarks.
 - [x] H2: Separate immutable game-definition validation from saved-state compatibility checks, removing repeated project analysis from autosaves while preserving corruption/recovery protections.
@@ -16,11 +18,33 @@ Follow the [core hardening plan](core-hardening.md) on `feature/core-hardening`,
 - [x] H4: Encapsulate sessions, provide validated state replacement, and introduce typed command statuses with unchanged serialized values.
 - [x] H5: Optimize measured lookup/normalization and read-only copying costs without weakening transactional rollback or deterministic ordering.
 - [x] H6: Add API rustdoc and executable examples, update architecture/developer notes, complete automated parity/compatibility and package acceptance, and review the branch diff.
-- [ ] Owner review and branch closeout: review `feature/core-hardening` on GitHub, then merge/push when requested. Performance limits and the acceptance record are in the plan.
+- [x] Owner review and branch closeout: reviewed on GitHub and merged into `main` as `835f009` on 25 October 2026. Performance limits and the acceptance record are in the plan.
 
-## Documentation — after core hardening
+## Gameplay features — design before implementation
+
+Follow the [gameplay feature roadmap](gameplay-feature-roadmap.md). Preserve the current block appearance and the accepted editor UX foundations. Request feedback on concrete wireframes and working authoring flows; each feature stays on its own branch through parity, persistence, browser testing, and final acceptance. Only the container branch has been created; create later branches from current merged `main` when their work begins.
+
+- [x] Document the seven feature directions, branch names, dependencies, designer journeys, design references, and v1 versus future-version boundaries. Detailed defaults remain proposals, not recorded design acceptance.
+- [x] F1 / C0: Prepare a [clickable container authoring preview and test-only binding proof](../design/containers/README.md), preserving actual Luna block rendering and exercising existing matching/requirements before production model/parser work.
+- [x] F1 / C0: Owner accepted the working Details → Contents → Actions journey with “looks great,” retaining **Command item**, independent capabilities, explicit possession/reachability, and existing block appearance. The [C1 shared contract](../design/containers/shared-contract.md) records typed inputs/messages, custom precedence, events, removal/consumption, and compatibility.
+- [x] F1 / C1: Implement nested placements/capabilities, shared scope/possession/physical transfers, conditions/effects, grouped content views, graph-safe saves/setups, typed standard interactions, generated contracts and reference/template visitors, with legacy compatibility and editor/export/runner parity tests. Production controls are C2.
+- [x] F1 / C2 implementation: Wire storage/contents/placement controls, hierarchy/breadcrumbs, standard-action setup, scoped blocks/inspectors, friendly name insertion, playtest state paths/access notes, usable-item requirements, and capability-removal impact review. Add production authoring/export/runner browser scenarios and an in-editor guide topic.
+- [x] F1 / C2 review: Owner accepted the working authoring/player slice on 26 October 2026 with “looks great lets commit”; no changes requested. C3 retains final feature acceptance.
+- [x] F1 / C3 technical acceptance: Add the permanent Packing the Study project/export and reproducible test walkthrough; complete browser/editor/export/runner/named/autosave/package checks, matched performance measurements, developer/compatibility notes, and review against fetched `origin/main`. Fix the disconnected-holder replacement gap. All 179 Rust tests, 72 frontend tests, 95 browser workflows, and the extended release smoke check pass; Locked Study/historical fixtures are unchanged. See the [review record](../design/containers/final-review.md).
+- [x] F1 / C3 owner acceptance and commit: Owner accepted the complete feature on 26 October 2026 with “great looks good,” followed by “lets commit.”
+- [ ] F1 branch closeout: Push and merge the complete feature branch when requested. User-facing guides and public reference pages remain deferred to the full documentation work below.
+- [ ] F2: Design and implement parser noun clarification and recent references on `feature/parser-context`. Resolve the player choice before executing existing action blocks; add discoverable assistance settings and explanations without asking authors to wire clarification into each action.
+- [ ] F3: Prototype named procedures, typed input forms, CALL blocks, definition/caller navigation, shared-impact review, and optional extraction from selected blocks on `feature/block-procedures`. Prove cross-workspace definitions and specify nested calls/response progress before implementation.
+- [ ] F4: Prototype named scheduled triggers, SCHEDULE/CANCEL blocks, turn-cost settings, and a live pending-timer view on `feature/turn-events`. Define exact countdown boundaries, ordering, WAIT compatibility, failure/ending rules, and saved schedules; keep the existing turn-verb event distinct from the turn clock.
+- [ ] F5: After F4, prototype character routine step lists with movement/wait/speech/effect blocks, start/pause/resume controls, blocked-step explanations, and saved progress on `feature/character-routines`. Confirm route/exit and conversation interaction before implementation; keep explicit MOVE CHARACTER semantics intact.
+- [ ] F6: Design optional player undo on `feature/player-undo`, proposed off by default. Keep it separate from editor history, configure it in Game settings, and restore complete transactions with bounded history and explicit hint/ending/load behaviour.
+- [ ] Agree which remaining gameplay candidates belong in v1 after the concrete UX reviews. Do not let the full roadmap or browser publishing become an implicit v1 gate.
+
+## Documentation — v1
 
 Use Astro Starlight for a user-facing documentation site hosted on GitHub Pages, with Markdown content maintained in this repository. Organise the navigation into Getting started, Editor guide, Game logic, Playing and sharing, Reference, and Developer documentation.
+
+At the owner's request on 26 October 2026, write user-facing feature documentation during this full documentation milestone. The site source/configuration and Pages deployment workflow have not been created; existing repository notes and in-editor guidance are the starting material.
 
 - [ ] Refresh [the checked-in Locked Study export](../../examples/locked-study.luna) from the current [editable project](../../examples/locked-study), then update [the example README](../../examples/README.md) for the current story and supported walkthroughs. The export currently has two rooms and older Tom behaviour; the editable project also has Dev room and moves Tom there after receiving his toy. Keep the fixed historical `.fixtures/locked-study.luna` regression fixture separate and unchanged.
 - [ ] Set up the documentation site with the existing Luna logo, a branded landing page, search, sidebar navigation, and light/dark themes. Provide a local preview command.
@@ -29,6 +53,7 @@ Use Astro Starlight for a user-facing documentation site hosted on GitHub Pages,
 - [ ] Write the Editor guide covering the current hierarchy, world map and exits, objects, characters, inventories, Actions, Hints, the separate Triggers workspace, selected-block inspection, insertion/reordering, undo/redo, search, layouts, project-local templates, and warning acknowledgements. Include playtest setups, repeatable checks, and command explanations.
 - [ ] Write the Game logic guide covering variables versus properties, initial versus current state, requirements versus IF / ELSE, actions versus triggers, arithmetic, response sequences, saved block templates, hints, and optional ending outcomes. Explain game-wide messages, player help modes, and the custom unknown-command response.
 - [ ] Add task-focused guides such as "Create a locked door", "Give an item to a character", and "End the game when health reaches zero". Include step-by-step instructions, screenshots of the relevant blocks, and playtest checks.
+- [ ] Document containers and surfaces in the editor/game-logic guides and public block/command reference: storage settings, inside/on contents, portable nesting, standard-action setup/customization, Command item/name insertion, possession versus reachability, usable-key requirements, and player commands. Use the reviewed Packing the Study acceptance example and existing in-editor guidance as source material; this user documentation is deferred from C3.
 - [ ] Write Playing and sharing instructions for playtesting, exporting and sharing games, importing and running games in the terminal, player commands/help/hints, saving/loading, and recovery from common errors.
 - [ ] Create a Reference section with a block catalogue, command syntax and ignored words, message formatting and variable/property placeholders, and troubleshooting. Reuse the existing in-editor help where appropriate.
 - [ ] Shorten the README to a project introduction, installation instructions, and prominent documentation links once the corresponding guides are available. Move detailed authoring guidance into the site and development instructions into Developer documentation.
@@ -46,7 +71,7 @@ These are follow-up sessions, not unresolved gates for the already accepted and 
 
 ## Conversations and quests — deferred engine update
 
-Design is documented in [Conversations and quests](conversations-and-quests.md); the model, runtime, and authoring UI are not implemented. Core hardening and documentation remain ahead of this update; UX evaluation is tracked separately above. Implement the combined update on a separate `feature/conversations-and-quests` branch when work begins.
+Design is documented in [Conversations and quests](conversations-and-quests.md); the model, runtime, and authoring UI are not implemented. Core hardening is merged; documentation remains ahead of this deferred update, and its scheduling relative to the new gameplay candidates is not yet agreed. UX evaluation is tracked separately above. Implement the combined update on a separate `feature/conversations-and-quests` branch when work begins, allocating format versions against the features already merged.
 
 - [ ] Prototype the conversation graph and quest authoring flow, then confirm the proposed reply presentation, interruption/checkpoint behaviour, quest progression, and version/command compatibility contract.
 - [ ] Add shared conversation/quest definitions, stable references, progress state, validation, generated contracts, transactional project/bundle storage, and explicit content/save-format compatibility paths.
@@ -57,6 +82,7 @@ Design is documented in [Conversations and quests](conversations-and-quests.md);
 
 ## Potential extensions — not scheduled
 
+- [ ] F7: Standalone browser publishing, explicitly after v1, on a future `feature/browser-player` branch. Follow the [roadmap's distribution proposal](gameplay-feature-roadmap.md#f7--standalone-browser-player-after-v1): prove shared Rust/WebAssembly execution and design export/preview, accessible player UI, and browser saves before promising an output format or hosting workflow.
 - [Portable template import/export](portable-templates-extension.md), formerly M8 / UX-13: preserve independent copies, explicit reference binding at insertion, and basic editable creation for missing entities. Project-local templates are implemented; exchanging template files remains deferred and is outside the completed UX scope.
 
 ## Continuing development standards

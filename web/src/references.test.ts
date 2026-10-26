@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import * as Blockly from 'blockly/core';
 import type { Project } from './contracts';
-import { action, character, location } from './model';
+import { action, character, location, object } from './model';
 import { makeTemplate } from './templates';
 import { loadEffectBlocks, makeCondition, registerBlocks } from './Blocks';
 import { projectReferences, referencePlan, resolveMessageReference, usedBy } from './references';
@@ -56,6 +56,96 @@ function fixture(): Project {
     editor: { positions: {}, routes: {}, templates: [], blocks: {} },
   };
 }
+
+it('tracks nested parents and typed action references without treating command inputs as IDs', () => {
+  const p = fixture();
+  p.game.format_version = 2;
+  p.objects = ['bag', 'spare', 'key'].map((name) => ({
+    ...object('study'),
+    id: name,
+    name,
+    actions: [],
+  }));
+  for (const holder of p.objects.slice(0, 2))
+    holder.storage = { container: 'openable', surface: true };
+  p.objects[2].placement = { type: 'inside', object: 'bag' };
+  const f = action('bag');
+  f.standard = { interaction: 'put_inside', enabled: true };
+  f.pattern = [
+    { type: 'object_input' },
+    { type: 'literal', text: 'in' },
+    { type: 'entity', entity: 'bag' },
+  ];
+  f.requirements = {
+    type: 'all',
+    conditions: [
+      { type: 'possesses', object: { input: 'item' }, character: null },
+      { type: 'reachable', object: 'bag' },
+      { type: 'in_object', object: 'key', parent: 'bag', relation: 'inside' },
+      {
+        type: 'can_transfer',
+        object: { input: 'item' },
+        placement: { type: 'inside', object: 'bag' },
+      },
+    ],
+  };
+  f.effects = [
+    { type: 'transfer', object: { input: 'item' }, placement: { type: 'on', object: 'bag' } },
+    { type: 'list_contents', object: 'bag', relation: 'inside' },
+    {
+      type: 'say_with_inputs',
+      text: '%local% / %holder% / %chances%',
+      references: { local: { type: 'item_name' }, holder: { type: 'entity_name', entity: 'bag' } },
+    },
+  ];
+  p.game.actions = [f];
+  const refs = projectReferences(p);
+  expect(refs.some((ref) => ref.path === 'placement.object' && ref.subject === 'key')).toBe(true);
+  expect(refs.filter((ref) => ref.target.kind === 'variable').map((ref) => ref.target)).toEqual([
+    { kind: 'variable', name: 'chances' },
+  ]);
+  expect(refs.every((ref) => !('id' in ref.target) || typeof ref.target.id === 'string')).toBe(
+    true,
+  );
+  const result = referencePlan(p, { kind: 'entity', id: 'bag' }, { kind: 'entity', id: 'spare' });
+  expect(result.errors).toEqual([]);
+  expect(result.project.objects.find((o) => o.id === 'key')?.placement).toEqual({
+    type: 'inside',
+    object: 'spare',
+  });
+  const effects = result.project.game.actions[0].effects;
+  expect(effects[0]).toEqual({
+    type: 'transfer',
+    object: { input: 'item' },
+    placement: { type: 'on', object: 'spare' },
+  });
+  expect(effects[2]).toMatchObject({
+    references: { holder: { type: 'entity_name', entity: 'spare' }, local: { type: 'item_name' } },
+  });
+});
+
+it('refuses holder replacement that creates a cycle or loses a required capability', () => {
+  const p = fixture();
+  p.objects = ['outer', 'inner', 'plain'].map((name) => ({
+    ...object('study'),
+    id: name,
+    name,
+    actions: [],
+  }));
+  for (const holder of p.objects.slice(0, 2))
+    holder.storage = { container: 'openable', surface: false };
+  p.objects[1].placement = { type: 'inside', object: 'outer' };
+  const original = structuredClone(p);
+  const cyclic = referencePlan(p, { kind: 'entity', id: 'outer' }, { kind: 'entity', id: 'inner' });
+  expect(cyclic.errors.join(' ')).toContain('placement forms a cycle');
+  const unsupported = referencePlan(
+    p,
+    { kind: 'entity', id: 'outer' },
+    { kind: 'entity', id: 'plain' },
+  );
+  expect(unsupported.errors.join(' ')).toContain('must support items inside');
+  expect(p).toEqual(original);
+});
 it('finds unknown-command messages and preserves their references through checked renames', () => {
   const p = fixture();
   p.game.unknown_command_text =

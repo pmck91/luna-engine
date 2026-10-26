@@ -1,0 +1,74 @@
+{
+  "id": "keeper",
+  "name": "Keeper",
+  "name_colour": "yellow",
+  "aliases": [
+    "keeper"
+  ],
+  "description": "The keeper is happy to hold your packed bag.",
+  "location": "study",
+  "hidden": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "keeper-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "keeper"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "keeper"
+        }
+      ]
+    },
+    {
+      "id": "keeper-return",
+      "name": "Ask for the bag",
+      "verb": "ask",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "keeper"
+        },
+        {
+          "type": "literal",
+          "text": "for bag"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "character_carrying",
+        "character": "keeper",
+        "object": "bag"
+      },
+      "failure_text": "The keeper is not holding your bag.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "bag",
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "character_says",
+          "character": "keeper",
+          "text": "Here is your bag, just as you left it."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

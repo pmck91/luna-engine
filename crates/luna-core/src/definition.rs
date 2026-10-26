@@ -49,6 +49,7 @@ type Values = BTreeMap<String, ValueType>;
 struct StateSchema {
     locations: BTreeSet<String>,
     objects: BTreeSet<String>,
+    storage: BTreeMap<String, ObjectStorage>,
     characters: BTreeSet<String>,
     endings: BTreeSet<String>,
     variables: Values,
@@ -167,6 +168,11 @@ impl GameDefinition {
             "Game definition is invalid"
         );
         let schema = StateSchema {
+            storage: project
+                .objects
+                .iter()
+                .filter_map(|o| o.storage.map(|storage| (o.id.clone(), storage)))
+                .collect(),
             locations: project
                 .locations
                 .iter()
@@ -332,6 +338,7 @@ impl GameDefinition {
                 && schema.locations.len() == state.visits.len(),
             "Save entity lists do not match this game definition"
         );
+        let mut nested = false;
         for id in &schema.objects {
             let object = state.objects.get(id).context("Missing saved object")?;
             match &object.placement {
@@ -343,6 +350,34 @@ impl GameDefinition {
                     schema.characters.contains(character),
                     "Saved object has an invalid character owner"
                 ),
+                Placement::Inside { object: parent } | Placement::On { object: parent } => {
+                    nested = true;
+                    ensure!(
+                        project.game.format_version >= 2,
+                        "Nested placement requires content format 2"
+                    );
+                    ensure!(
+                        schema.objects.contains(parent),
+                        "Saved object references a missing holder"
+                    );
+                    let storage = schema.storage.get(parent).copied().unwrap_or_default();
+                    ensure!(
+                        if matches!(&object.placement, Placement::Inside { .. }) {
+                            storage.container.is_some()
+                        } else {
+                            storage.surface
+                        },
+                        "Saved placement is incompatible with the holder"
+                    );
+                    ensure!(
+                        !state
+                            .objects
+                            .get(parent)
+                            .context("Missing saved holder")?
+                            .consumed,
+                        "Saved placement references a consumed holder"
+                    );
+                }
                 Placement::Inventory | Placement::Absent => {}
             }
             ensure!(
@@ -352,6 +387,24 @@ impl GameDefinition {
             ensure!(
                 !object.consumed || !object.exists,
                 "Consumed object cannot exist"
+            );
+        }
+        for (id, storage) in &schema.storage {
+            ensure!(
+                storage.container != Some(ContainerOpening::AlwaysOpen) || state.objects[id].open,
+                "An always-open saved container cannot be closed"
+            );
+        }
+        if nested {
+            ensure!(
+                placement_cycles(
+                    state
+                        .objects
+                        .iter()
+                        .map(|(id, o)| (id.as_str(), &o.placement))
+                )
+                .is_empty(),
+                "Saved object placement forms a cycle"
             );
         }
         for id in &schema.characters {

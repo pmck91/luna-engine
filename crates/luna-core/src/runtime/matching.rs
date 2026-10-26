@@ -7,6 +7,11 @@ use crate::TraceKind;
 use anyhow::{Context, Result};
 use luna_model::{Action, Exit, PatternPart};
 
+// C0 experiment only: no new model variants, handlers, or wire formats ship here.
+#[cfg(test)]
+#[path = "container_proof.rs"]
+mod container_proof;
+
 #[derive(Clone, Copy)]
 pub(super) enum Handler<'a> {
     Action(&'a Action),
@@ -19,6 +24,8 @@ pub(super) struct Candidate<'a> {
     pub(super) owner: &'a str,
     pub(super) rank: (usize, usize, u8, i32),
     pub(super) handler: Handler<'a>,
+    pub(super) item: Option<&'a str>,
+    pub(super) fallback: bool,
 }
 
 impl<'a> Run<'a> {
@@ -29,23 +36,52 @@ impl<'a> Run<'a> {
         route_destination: Option<&str>,
         named_route: bool,
     ) -> bool {
-        let mut positions = std::collections::BTreeSet::from([0usize]);
+        !self
+            .pattern_bindings(tokens, pattern, route_destination, named_route)
+            .is_empty()
+    }
+    fn pattern_bindings(
+        &self,
+        tokens: &[&str],
+        pattern: &Pattern,
+        route_destination: Option<&str>,
+        named_route: bool,
+    ) -> Vec<Option<&'a str>> {
+        let mut positions = std::collections::BTreeSet::from([(0usize, None)]);
         for part in &pattern.parts {
+            if matches!(part, Part::ObjectInput) {
+                let mut next = std::collections::BTreeSet::new();
+                if let Some(names) = &self.index.object_names {
+                    for &(position, bound) in &positions {
+                        for start in self.entity_words.starts(tokens, position) {
+                            for (end, index) in names.matches(tokens, start) {
+                                let id = self.p.objects[index].id.as_str();
+                                if self.available(id) && bound.is_none_or(|prior| prior == id) {
+                                    next.insert((end, Some(id)));
+                                }
+                            }
+                        }
+                    }
+                }
+                positions = next;
+                continue;
+            }
             let alternatives = match part {
                 Part::Literal(words) => std::slice::from_ref(words),
                 Part::Entity(entity) => {
                     if !self.available(entity) && route_destination != Some(entity.as_str()) {
-                        return false;
+                        return vec![];
                     }
                     self.index.names.get(entity).map_or(&[][..], Vec::as_slice)
                 }
+                Part::ObjectInput => unreachable!(),
             };
             let mut next = std::collections::BTreeSet::new();
             for words in alternatives {
                 if words.is_empty() {
                     continue;
                 }
-                for &position in &positions {
+                for &(position, bound) in &positions {
                     let starts = if named_route || matches!(part, Part::Entity(_)) {
                         self.entity_words.starts(tokens, position)
                     } else {
@@ -53,17 +89,42 @@ impl<'a> Run<'a> {
                     };
                     for start in starts {
                         if word_prefix(&tokens[start..], words) {
-                            next.insert(start + words.len());
+                            next.insert((start + words.len(), bound));
                         }
                     }
                 }
             }
             if next.is_empty() {
-                return false;
+                return vec![];
             }
             positions = next;
         }
-        positions.contains(&tokens.len())
+        positions
+            .into_iter()
+            .filter_map(|(end, bound)| (end == tokens.len()).then_some(bound))
+            .collect()
+    }
+
+    fn match_bindings(
+        &self,
+        tokens: &[&str],
+        verb: &str,
+        pattern: &Pattern,
+    ) -> Vec<Option<&'a str>> {
+        let mut bindings = std::collections::BTreeSet::new();
+        if let Some(verb) = self.index.verbs.get(verb) {
+            for phrase in &verb.phrases {
+                if word_prefix(tokens, phrase) {
+                    bindings.extend(self.pattern_bindings(
+                        &tokens[phrase.len()..],
+                        pattern,
+                        None,
+                        false,
+                    ));
+                }
+            }
+        }
+        bindings.into_iter().collect()
     }
 
     pub(super) fn entity_matches(&self, tokens: &[&str], id: &str) -> bool {
@@ -101,11 +162,22 @@ impl<'a> Run<'a> {
     }
 
     pub(super) fn command_phrase(&self, verb: &str, pattern: &[PatternPart]) -> Option<String> {
+        self.command_phrase_with_item(verb, pattern, None)
+    }
+    pub(super) fn command_phrase_with_item(
+        &self,
+        verb: &str,
+        pattern: &[PatternPart],
+        item: Option<&str>,
+    ) -> Option<String> {
         let mut words = vec![self.verb(verb)?.canonical.trim()];
         for part in pattern {
             words.push(match part {
                 PatternPart::Literal { text } => text.trim(),
                 PatternPart::Entity { entity } => self.entity_name(entity)?.trim(),
+                PatternPart::ObjectInput => {
+                    item.and_then(|id| self.entity_name(id)).unwrap_or("<item>")
+                }
             });
         }
         Some(words.join(" "))
@@ -127,13 +199,18 @@ impl<'a> Run<'a> {
         let mut matches = vec![];
         for entry in self.index.actions(input, recorder.is_some()) {
             let owner = entry.owner.id(self.p);
-            let available = self.available(owner);
+            let a = &entry.owner.actions(self.p)[entry.position];
+            let available = self.available(owner) && a.standard.as_ref().is_none_or(|s| s.enabled);
             if !available && recorder.is_none() {
                 continue;
             }
             let scope = entry.owner.scope();
-            let a = &entry.owner.actions(self.p)[entry.position];
-            let matched = available && self.matches(&tokens, &a.verb, &entry.pattern, None, false);
+            let bindings = if available {
+                self.match_bindings(&tokens, &a.verb, &entry.pattern)
+            } else {
+                vec![]
+            };
+            let matched = !bindings.is_empty();
             if !matched && recorder.is_none() {
                 continue;
             }
@@ -165,13 +242,15 @@ impl<'a> Run<'a> {
                     },
                 );
             }
-            if matched {
+            for item in bindings {
                 matches.push(Candidate {
                     id: &a.id,
                     name: &a.name,
                     owner,
                     rank: (literals, entities, scope, a.priority),
                     handler: Handler::Action(a),
+                    item,
+                    fallback: a.standard.is_some(),
                 });
             }
         }
@@ -218,6 +297,8 @@ impl<'a> Run<'a> {
                         owner: &location.id,
                         rank: (literals, entities, 1, exit.priority),
                         handler: Handler::Exit(exit),
+                        item: None,
+                        fallback: false,
                     });
                     matched_rank = Some((literals, entities));
                     break;
@@ -251,7 +332,13 @@ impl<'a> Run<'a> {
                 );
             }
         }
-        matches.sort_by(|a, b| b.rank.cmp(&a.rank).then_with(|| a.id.cmp(b.id)));
+        matches.sort_by(|a, b| {
+            a.fallback
+                .cmp(&b.fallback)
+                .then_with(|| b.rank.cmp(&a.rank))
+                .then_with(|| a.id.cmp(b.id))
+                .then_with(|| a.item.cmp(&b.item))
+        });
         Ok(matches)
     }
 }

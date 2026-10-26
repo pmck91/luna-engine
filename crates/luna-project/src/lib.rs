@@ -112,9 +112,23 @@ pub fn load_project(root: &Path) -> Result<Project> {
     load_unlocked(root)
 }
 fn load_unlocked(root: &Path) -> Result<Project> {
+    // Check the header before deserializing entities with versioned enum variants.
+    #[derive(Deserialize)]
+    struct Header {
+        format_version: u32,
+    }
+    let game_path = confined(root, "game.json")?;
+    let bytes = read_bytes(&game_path)?;
+    let header: Header = serde_json::from_slice(&bytes).context("Invalid game format header")?;
+    ensure!(
+        supported_format(header.format_version),
+        "Unsupported game format {}; supported: 1 through {FORMAT_VERSION}",
+        header.format_version
+    );
+    let game = serde_json::from_slice(&bytes).context("Invalid game.json")?;
     let layout = confined(root, "editor/map-layout.json")?;
     Ok(Project {
-        game: json(&confined(root, "game.json")?)?,
+        game,
         vocabulary: json(&confined(root, "vocabulary.json")?)?,
         locations: entity_files(root, "locations")?,
         objects: entity_files(root, "objects")?,
@@ -168,6 +182,15 @@ pub fn revision(root: &Path) -> Result<String> {
     Ok(format!("{:x}", hash.finalize()))
 }
 pub fn project_files(p: &Project, editor: bool) -> Result<BTreeMap<String, String>> {
+    ensure!(
+        supported_format(p.game.format_version),
+        "Unsupported game format {}",
+        p.game.format_version
+    );
+    ensure!(
+        p.game.format_version >= p.minimum_format(),
+        "Upgrade this project explicitly to content format 2 before saving container features"
+    );
     let mut files = BTreeMap::from([
         ("game.json".into(), pretty(&p.game)?),
         ("vocabulary.json".into(), pretty(&p.vocabulary)?),
@@ -357,7 +380,7 @@ pub fn export_bundle(root: &Path, p: &Project) -> Result<Vec<u8>> {
         files.insert(asset.clone(), read_bytes(&confined(root, asset)?)?);
     }
     let manifest = Manifest {
-        format_version: FORMAT_VERSION,
+        format_version: p.game.format_version,
         game_id: p.game.id.clone(),
         content_version: p.game.content_version.clone(),
         files: files.iter().map(|(k, v)| (k.clone(), digest(v))).collect(),
@@ -420,8 +443,8 @@ pub fn extract_bundle(bytes: &[u8], staging: &Path) -> Result<Project> {
     let manifest: Manifest = json(&confined(staging, "manifest.json")?)
         .context("Missing or malformed bundle manifest")?;
     ensure!(
-        manifest.format_version == FORMAT_VERSION,
-        "Unsupported game format {}; supported: {FORMAT_VERSION}",
+        supported_format(manifest.format_version),
+        "Unsupported game format {}; supported: 1 through {FORMAT_VERSION}",
         manifest.format_version
     );
     ensure!(
@@ -438,7 +461,9 @@ pub fn extract_bundle(bytes: &[u8], staging: &Path) -> Result<Project> {
     }
     let p = load_unlocked(staging)?;
     ensure!(
-        p.game.id == manifest.game_id && p.game.content_version == manifest.content_version,
+        p.game.id == manifest.game_id
+            && p.game.content_version == manifest.content_version
+            && p.game.format_version == manifest.format_version,
         "Manifest identity does not match game.json"
     );
     let diagnostics = validate(&p);
@@ -478,6 +503,62 @@ pub fn read_bundle(path: &Path) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn unsupported_project_headers_precede_unknown_placements_and_legacy_stays_legacy() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut p = Project::blank("Legacy format");
+        p.game.format_version = 1;
+        p.objects.push(Object {
+            id: "legacy".into(),
+            name: "legacy".into(),
+            ..Default::default()
+        });
+        save_project(temp.path(), &p, None).unwrap();
+        assert_eq!(load_project(temp.path()).unwrap(), p);
+        let bytes = export_bundle(temp.path(), &p).unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let loaded = extract_bundle(&bytes, staging.path()).unwrap();
+        assert_eq!(loaded.game.format_version, 1);
+        let manifest: Manifest = json(&staging.path().join("manifest.json")).unwrap();
+        assert_eq!(manifest.format_version, 1);
+        let object = fs::read_to_string(temp.path().join("objects/legacy.json")).unwrap();
+        assert!(!object.contains("storage"));
+        let mut needs_upgrade = p.clone();
+        needs_upgrade.objects[0].storage = Some(ObjectStorage {
+            container: None,
+            surface: true,
+        });
+        let before = revision(temp.path()).unwrap();
+        assert!(
+            save_project(temp.path(), &needs_upgrade, Some(&before))
+                .unwrap_err()
+                .to_string()
+                .contains("Upgrade this project explicitly")
+        );
+        assert_eq!(revision(temp.path()).unwrap(), before);
+        needs_upgrade.game.format_version = 2;
+        save_project(temp.path(), &needs_upgrade, Some(&before)).unwrap();
+        assert_eq!(load_project(temp.path()).unwrap(), needs_upgrade);
+        let mut game = serde_json::to_value(&p.game).unwrap();
+        game["format_version"] = 999.into();
+        game["actions"] = serde_json::json!([{"future_action":true}]);
+        fs::write(
+            temp.path().join("game.json"),
+            serde_json::to_vec(&game).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            temp.path().join("objects/legacy.json"),
+            br#"{"placement":{"type":"future_placement"}}"#,
+        )
+        .unwrap();
+        assert!(
+            load_project(temp.path())
+                .unwrap_err()
+                .to_string()
+                .contains("Unsupported game format 999")
+        );
+    }
     #[test]
     fn stable_roundtrip_and_conflicts() {
         let tmp = tempfile::tempdir().unwrap();

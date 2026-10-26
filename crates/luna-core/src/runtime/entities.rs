@@ -1,7 +1,7 @@
 //! Authored entity lookup, player command scope, and target resolution.
 use super::{Run, index::Owner};
 use crate::CommandStatus;
-use luna_model::{Character, Ending, Location, Placement, Verb};
+use luna_model::{Character, Ending, Location, Verb};
 
 impl<'a> Run<'a> {
     pub(super) fn location(&self, id: &str) -> Option<&'a Location> {
@@ -51,15 +51,8 @@ impl<'a> Run<'a> {
         if id == self.p.game.id || id == self.state.location {
             return true;
         }
-        if let Some(o) = self.state.objects.get(id) {
-            return o.exists
-                && !o.consumed
-                && !o.hidden
-                && match &o.placement {
-                    Placement::Inventory => true,
-                    Placement::Location { location } => *location == self.state.location,
-                    Placement::Character { .. } | Placement::Absent => false,
-                };
+        if let Some(object) = self.state.objects.get(id) {
+            return self.object_available_state(id, object);
         }
         self.state
             .characters

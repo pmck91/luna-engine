@@ -1,0 +1,54 @@
+{
+  "id": "study",
+  "name": "Study",
+  "aliases": [],
+  "description": "An old chest stands beneath the window. A door leads east to the garden.",
+  "actions": [
+    {
+      "id": "study-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "study"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "study"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "exits": [
+    {
+      "id": "study-east",
+      "name": "east",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "garden",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "opened",
+        "object": "door"
+      },
+      "blocked_text": "The garden door is closed.",
+      "text": "",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

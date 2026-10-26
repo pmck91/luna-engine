@@ -65,6 +65,10 @@ impl<'a> Run<'a> {
                 .get(object)
                 .is_some_and(|o| o.exists && o.open),
             Condition::Visible { entity } => self.available(entity),
+            Condition::Possesses { object, character } => self.object_target(object).is_some_and(|id| self.possesses(id, character.as_deref())),
+            Condition::Reachable { object } => self.object_target(object).is_some_and(|id| self.object_available(id)),
+            Condition::InObject { object, parent, relation } => self.object_target(object).and_then(|id| self.state.objects.get(id)).is_some_and(|state| state.exists && !state.consumed && state.placement.parent_object() == Some((parent.as_str(), *relation))),
+            Condition::CanTransfer { object, placement } => self.object_target(object).is_some_and(|id| self.can_transfer(id, placement)),
         }
     }
 }

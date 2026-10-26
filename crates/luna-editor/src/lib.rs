@@ -269,6 +269,7 @@ pub fn router(app: App) -> Router {
         .route("/projects/{handle}/assets", post(asset))
         .route("/validate", post(diagnostics))
         .route("/templates/object-actions", post(object_actions))
+        .route("/templates/container-actions", post(container_actions))
         .route("/playtests", post(start_playtest))
         .route("/playtests/setup-status", post(setup_status))
         .route("/playtests/checks", post(run_check))
@@ -550,6 +551,29 @@ async fn diagnostics(Json(p): Json<Project>) -> Json<Vec<Diagnostic>> {
 }
 async fn object_actions(Json(o): Json<Object>) -> Json<Vec<Action>> {
     Json(starter_actions(&o))
+}
+#[derive(Deserialize, TS)]
+pub struct ContainerActionChoice {
+    pub interaction: StandardInteraction,
+    pub verb: String,
+}
+#[derive(Deserialize, TS)]
+pub struct ContainerActionsRequest {
+    pub object: Object,
+    pub interactions: Vec<ContainerActionChoice>,
+}
+async fn container_actions(Json(request): Json<ContainerActionsRequest>) -> Api<Json<Vec<Action>>> {
+    ensure!(
+        request.interactions.len() <= 8,
+        "Choose at most eight standard interactions"
+    );
+    Ok(Json(
+        request
+            .interactions
+            .into_iter()
+            .map(|choice| standard_action(&request.object, choice.interaction, &choice.verb))
+            .collect(),
+    ))
 }
 async fn command(
     State(app): State<App>,

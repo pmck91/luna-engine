@@ -22,6 +22,7 @@ export default function AuthoringHelp({
         {[
           ['start', 'First adventure'],
           ['blocks', 'Blocks and conditions'],
+          ['containers', 'Containers and surfaces'],
           ['test', 'Testing and sharing'],
           ['keyboard', 'Keyboard shortcuts'],
         ].map(([id, name]) => (
@@ -64,9 +65,10 @@ export default function AuthoringHelp({
           </p>
           <p>
             Requirements decide whether the command can run. IF / ELSE chooses which effects run
-            after it starts. CARRYING tests the player's inventory; CHARACTER CARRYING tests an item
-            owned by that character. VARIABLE reads a global value; PROPERTY reads a value on one
-            entity. ALL requires every child, ANY requires one, and NOT reverses a test.
+            after it starts. CARRYING and CHARACTER CARRYING test directly held items. HAS ITEM also
+            includes items inside carried containers; CAN REACH checks access through their lids and
+            placement. VARIABLE reads a global value; PROPERTY reads a value on one entity. ALL
+            requires every child, ANY requires one, and NOT reverses a test.
           </p>
           <p>
             Use Add block to choose a compatible connection and preview the insertion. Use Flow
@@ -81,6 +83,45 @@ export default function AuthoringHelp({
           <p>
             Validate links to exact problems. Used by previews references; Rename updates
             variable/property keys together. Project Undo restores a complete editing operation.
+          </p>
+        </section>
+      ) : topic === 'containers' ? (
+        <section>
+          <h3>Create a container or surface</h3>
+          <p>
+            Add or select an object. In its Storage settings, enable Can contain items, Items can be
+            placed on top, or both. Choose Always open or Can be opened and closed. Can be taken
+            makes the holder portable. Older projects first need Enable container features; this is
+            an explicit project upgrade.
+          </p>
+          <p>
+            Open Contents to create an item inside or on top, or move an existing object there. Move
+            previews its destination and keeps nested contents with it. Cancel leaves the project
+            alone; project Undo restores the whole change. Initial placement is another way to
+            choose a holder, with paths to distinguish objects with the same name.
+          </p>
+          <p>
+            Use Set up standard interactions to choose verbs and review commands and responses.
+            These become ordinary editable Actions, marked Standard behaviour. Existing custom
+            commands keep precedence even when their requirements fail. Setup adds each standard
+            interaction once. You can disable one from its action settings.
+          </p>
+          <p>
+            In an interaction that accepts an item, Command item refers to the object the player
+            named. PUT OBJECT, IS INSIDE / ON, and CAN TRANSFER can use it or a fixed object. SAY
+            WITH NAMES offers labelled name insertions alongside your variables and properties.
+          </p>
+          <p>
+            For a lock, add your usual property requirement. Can use carried item adds visible HAS
+            ITEM and CAN REACH requirements: a key in a closed carried bag is possessed but cannot
+            be used until the bag is opened. Closed interiors conceal contents from the player;
+            items on top remain accessible. The author-only World state inspector shows nested paths
+            and what blocks access.
+          </p>
+          <p>
+            Removing storage shows affected contents and logic for reassignment. Captured playtest
+            setups are preserved; replace or remove affected setups before applying an incompatible
+            storage change.
           </p>
         </section>
       ) : topic === 'test' ? (

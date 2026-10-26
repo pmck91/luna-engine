@@ -189,7 +189,8 @@ test('central triggers author command, lifecycle, and value rules with exported 
   const saved = JSON.parse(
     readFileSync(join(saves, game.id, game.content_version, 'autosave.json'), 'utf8'),
   );
-  expect(saved.save_format).toBe(2);
+  expect(game.format_version).toBe(2);
+  expect(saved.save_format).toBe(3);
   expect(saved.state.variables.health).toBe(-2);
   expect(saved.state.characters[goblin.id].hidden).toBe(true);
   await page.reload();

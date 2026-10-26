@@ -1,4 +1,83 @@
 @import url('./palette.css');
+.storage-settings {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 4px;
+}
+.storage-settings fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.storage-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.contents-workspace {
+  height: 100%;
+  overflow: auto;
+  padding: 24px;
+  overflow-wrap: anywhere;
+}
+.contents-workspace > .section-heading {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.contents-group {
+  margin-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.contents-group > .section-heading {
+  flex-wrap: wrap;
+}
+.contents-list {
+  padding: 0;
+  list-style: none;
+}
+.contents-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.contents-list strong,
+.contents-list small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.contents-list small,
+.tree-placement {
+  color: var(--muted);
+}
+.contents-notice {
+  padding: 12px;
+  border-left: 3px solid var(--purple);
+  background: var(--panel);
+}
+.interaction-choice,
+.interaction-review {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  min-width: 0;
+}
+.modal.container-setup {
+  width: min(760px, 92vw);
+}
+.tree-placement {
+  display: block;
+  font-size: 11px;
+}
 :root {
   font-family:
     Inter,

@@ -47,7 +47,7 @@ export default function Actions({
       items: entity.actions.map((action) => ({
         id: action.id,
         name: action.name || 'Unnamed action',
-        detail: p.vocabulary.find((verb) => verb.id === action.verb)?.canonical ?? 'Missing verb',
+        detail: `${p.vocabulary.find((verb) => verb.id === action.verb)?.canonical ?? 'Missing verb'}${action.standard ? ` · Standard behaviour${action.standard.enabled ? '' : ' (disabled)'}` : ''}`,
       })),
     },
     {

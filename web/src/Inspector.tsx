@@ -1,4 +1,8 @@
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
+import ContainerSettings, { ContainerUpgrade } from './ContainerSettings';
+import { hasCommandItem, localMessage } from './containerModel';
+import { ObjectTargetSelect } from './Forms';
+import type { ProjectEdit } from './projectHistory';
 import { action, owner, flow, id, entity, gameDataPages, colourNames } from './model';
 import {
   Check,
@@ -20,7 +24,7 @@ import { flowOwner } from './model';
 import { ReferenceButton, useReferenceActions } from './ReferenceManager';
 import { FindingSubject } from './FindingContext';
 import { commandEvents, stateEvents, triggerLabel, triggerPage } from './triggerModel';
-type Edit = (change: (p: Project) => void) => void;
+type Edit = ProjectEdit;
 const events: Event[] = [...stateEvents, ...commandEvents];
 export default function Inspector({
   project: p,
@@ -29,6 +33,8 @@ export default function Inspector({
   select,
   remove,
   error,
+  contents,
+  containerSetup,
 }: {
   project: Project;
   selected: string;
@@ -36,6 +42,8 @@ export default function Inspector({
   select: (key: string) => void;
   remove: (key: string) => void;
   error: (e: string) => void;
+  contents?: (id: string) => void;
+  containerSetup?: (id: string) => void;
 }) {
   const references = useReferenceActions();
   const selectedFlow = flow(p, selected);
@@ -189,6 +197,7 @@ export default function Inspector({
       </div>
       {isGame ? (
         <>
+          <ContainerUpgrade project={p} edit={edit} />
           <Text
             label="Title"
             path="title"
@@ -289,6 +298,7 @@ export default function Inspector({
                 label="Initial placement"
                 value={o.placement}
                 project={p}
+                source={o.id}
                 onChange={(placement) => update({ placement })}
               />
               <Check
@@ -301,7 +311,20 @@ export default function Inspector({
                 value={o.hidden}
                 onChange={(hidden) => update({ hidden })}
               />
-              <Check label="Initially open" value={o.open} onChange={(open) => update({ open })} />
+              {!o.storage?.container && (
+                <Check
+                  label="Initially open"
+                  value={o.open}
+                  onChange={(open) => update({ open })}
+                />
+              )}
+              <ContainerSettings
+                project={p}
+                object={o}
+                edit={edit}
+                contents={() => contents?.(o.id)}
+                setup={() => containerSetup?.(o.id)}
+              />
               <button
                 onClick={() => {
                   void request<Action[]>('/templates/object-actions', 'POST', o)
@@ -430,6 +453,7 @@ export default function Inspector({
         <button className="list-item" key={a.id} onClick={() => select(a.id)}>
           <span>▱</span>
           {a.name || 'Unnamed action'}
+          {a.standard && <small>Standard behaviour{a.standard.enabled ? '' : ' · disabled'}</small>}
           <span>→</span>
         </button>
       ))}
@@ -479,6 +503,7 @@ function FlowInspector({
 }) {
   const setPattern = (pattern: PatternPart[]) => update({ pattern });
   const [draft, setDraft] = useState(() => commandDraft(p, flowOwner(p, f.id)?.id ?? p.game.id));
+  const [usableItem, setUsableItem] = useState(p.objects[0]?.id ?? '');
   return (
     <>
       <div className="section-heading">
@@ -489,6 +514,20 @@ function FlowInspector({
       </div>
       {'name' in f && (
         <Text label="Name" path="name" value={f.name} onChange={(name) => update({ name })} />
+      )}
+      {'standard' in f && f.standard && (
+        <section className="contents-notice">
+          <strong>Standard behaviour</strong>
+          <p>
+            This is the complete editable handler. Custom commands take precedence, including when
+            their requirements fail.
+          </p>
+          <Check
+            label="Enable this standard interaction"
+            value={f.standard.enabled}
+            onChange={(enabled) => update({ standard: { ...f.standard, enabled } })}
+          />
+        </section>
       )}
       {'verb' in f && (
         <>
@@ -536,6 +575,8 @@ function FlowInspector({
                     setPattern(f.pattern.map((v, j) => (i === j ? { type: 'literal', text } : v)))
                   }
                 />
+              ) : part.type === 'object_input' ? (
+                <span>Command item</span>
               ) : (
                 <Select
                   label="Target"
@@ -586,9 +627,42 @@ function FlowInspector({
           <summary>Requirements</summary>
           <ConditionEditor
             project={p}
+            allowCommandItem={hasCommandItem(p, f.id)}
             value={f.requirements}
             onChange={(requirements) => update({ requirements })}
           />
+          {p.game.format_version >= 2 && (
+            <details>
+              <summary>Can use carried item preset</summary>
+              <Select
+                label="Required usable item"
+                value={usableItem}
+                items={p.objects}
+                onChange={setUsableItem}
+              />
+              <p className="muted">
+                Adds HAS ITEM and CAN REACH. An item inside a closed bag is possessed but cannot be
+                used.
+              </p>
+              <button
+                disabled={!p.objects.some((o) => o.id === usableItem)}
+                onClick={() =>
+                  update({
+                    requirements: {
+                      type: 'all',
+                      conditions: [
+                        ...(f.requirements.type === 'true' ? [] : [f.requirements]),
+                        { type: 'possesses', object: usableItem, character: null },
+                        { type: 'reachable', object: usableItem },
+                      ],
+                    },
+                  })
+                }
+              >
+                Add usable item requirement
+              </button>
+            </details>
+          )}
           <RichText
             project={p}
             label="Failed requirement response"
@@ -693,15 +767,78 @@ export function EffectText({
   effect,
   onChange,
   path,
+  allowCommandItem = false,
 }: {
   project: Project;
   effect: Effect;
   onChange: (effect: Effect) => void;
   path?: string | null;
+  allowCommandItem?: boolean;
 }) {
+  const message =
+    effect.type === 'say_with_inputs'
+      ? localMessage(p, effect.references, allowCommandItem, true)
+      : null;
   return (
     <>
-      {effect.type === 'say' ? (
+      {effect.type === 'say_with_inputs' && message ? (
+        <RichText
+          project={p}
+          label="SAY text"
+          path={path || undefined}
+          value={message.display(effect.text)}
+          extraValues={message.inserts}
+          onChange={(text) => {
+            const encoded = message.encode(text);
+            onChange({ ...effect, text: encoded, references: message.references(encoded) });
+          }}
+        />
+      ) : effect.type === 'transfer' ? (
+        <>
+          <ObjectTargetSelect
+            project={p}
+            value={effect.object}
+            onChange={(object) => onChange({ ...effect, object })}
+            allowCommandItem={allowCommandItem}
+          />
+          <PlacementSelect
+            label="Destination"
+            project={p}
+            source={typeof effect.object === 'string' ? effect.object : undefined}
+            current
+            absent={false}
+            value={effect.placement}
+            onChange={(placement) => onChange({ ...effect, placement })}
+          />
+          <p className="muted">
+            Scripted placement can stage closed or offstage storage. Keep a CAN TRANSFER requirement
+            for physical player restrictions.
+          </p>
+        </>
+      ) : effect.type === 'list_contents' ? (
+        <>
+          <Select
+            label="Relationship"
+            value={effect.relation}
+            items={[
+              { id: 'inside', name: 'Inside' },
+              { id: 'on', name: 'On top' },
+            ]}
+            onChange={(relation) => onChange({ ...effect, relation: relation as 'inside' | 'on' })}
+          />
+          <Select
+            label="Holder"
+            value={effect.object}
+            items={p.objects.filter((o) =>
+              effect.relation === 'inside' ? !!o.storage?.container : o.storage?.surface,
+            )}
+            onChange={(object) => onChange({ ...effect, object })}
+          />
+          <p className="muted">
+            Lists visible immediate contents. Closed interiors stay concealed.
+          </p>
+        </>
+      ) : effect.type === 'say' ? (
         <RichText
           project={p}
           label="SAY text"

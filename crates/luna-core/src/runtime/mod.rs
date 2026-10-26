@@ -9,6 +9,8 @@ use anyhow::{Result, ensure};
 use explanation::TraceSource;
 use luna_model::{EntityWords, Project};
 use std::borrow::Cow;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 mod commands;
 mod conditions;
@@ -21,6 +23,7 @@ mod hints;
 mod index;
 mod matching;
 mod presentation;
+mod relations;
 mod values;
 
 pub use commands::host_control;
@@ -41,6 +44,9 @@ pub(crate) struct Run<'a> {
     pub(crate) recording: Option<explanation::Recorder>,
     source: Option<TraceSource>,
     trace_parent: Option<usize>,
+    item_input: Option<&'a str>,
+    relations: RefCell<HashMap<usize, relations::Relation>>,
+    mutation_events: Vec<(luna_model::Event, String)>,
 }
 #[derive(PartialEq)]
 enum Flow {
@@ -70,7 +76,21 @@ impl<'a> Run<'a> {
             recording: None,
             source: None,
             trace_parent: None,
+            item_input: None,
+            relations: RefCell::new(HashMap::new()),
+            mutation_events: vec![],
         }
+    }
+    fn world_mut(&mut self) -> &mut GameState {
+        self.relations.get_mut().clear();
+        self.state.to_mut()
+    }
+
+    fn without_inputs<T>(&mut self, action: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+        let input = self.item_input.take();
+        let result = action(self);
+        self.item_input = input;
+        result
     }
     fn step(&mut self) -> Result<()> {
         ensure!(
