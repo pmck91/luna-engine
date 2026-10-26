@@ -71,7 +71,7 @@ fn project() -> Project {
                 id: "nested".into(),
                 responses: vec!["Again.".into()],
                 mode: SequenceMode::Loop,
-                fallback: String::new(),
+                fallback: String::new().into(),
                 exhaustion: ExhaustionMode::Once,
                 on_exhausted: vec![],
             }],

@@ -1,5 +1,6 @@
 import type {
   Action,
+  EntityRef,
   Character,
   Condition,
   Effect,
@@ -119,7 +120,8 @@ export const exit = (destination: string): Exit => ({
   text: '',
   effects: [],
 });
-export function entity(p: Project, key: string) {
+export function entity(p: Project, key: EntityRef) {
+  if (typeof key !== 'string') return undefined;
   return [...p.locations, ...p.objects, ...p.characters].find((e) => e.id === key);
 }
 export function hintStage(): HintStage {

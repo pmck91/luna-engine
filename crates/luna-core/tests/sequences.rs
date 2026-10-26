@@ -174,7 +174,7 @@ fn nested_sequences_and_conditions_use_live_state_and_independent_progress() {
         id: "inner".into(),
         responses: vec!["An extra warning.".into()],
         mode: SequenceMode::Fallback,
-        fallback: String::new(),
+        fallback: String::new().into(),
         exhaustion: ExhaustionMode::Once,
         on_exhausted: vec![punch()],
     };
@@ -386,7 +386,7 @@ fn validates_nested_text_references_sequence_ids_and_resets() {
             id: "replies".into(),
             responses: vec!["duplicate".into()],
             mode: SequenceMode::Loop,
-            fallback: String::new(),
+            fallback: String::new().into(),
             exhaustion: ExhaustionMode::Once,
             on_exhausted: vec![],
         },

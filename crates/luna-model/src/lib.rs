@@ -4,6 +4,8 @@ mod command_words;
 pub use assistance::*;
 mod containers;
 pub use containers::*;
+mod procedures;
+pub use procedures::*;
 mod state;
 pub use state::*;
 pub mod text;
@@ -15,7 +17,7 @@ use ts_rs::TS;
 pub use validation::*;
 
 /// Latest writable content format; format 1 retains its legacy flat semantics.
-pub const FORMAT_VERSION: u32 = 3;
+pub const FORMAT_VERSION: u32 = 4;
 /// Whether a content header is understood, before parsing versioned variants.
 pub fn supported_format(version: u32) -> bool {
     (1..=FORMAT_VERSION).contains(&version)
@@ -106,6 +108,11 @@ pub fn compare(a: &Value, op: Comparison, b: &Value) -> bool {
 pub enum Condition {
     #[default]
     True,
+    Compare {
+        left: Argument,
+        op: Comparison,
+        right: Argument,
+    },
     False,
     All {
         conditions: Vec<Condition>,
@@ -122,43 +129,43 @@ pub enum Condition {
         value: Value,
     },
     Property {
-        entity: String,
+        entity: EntityRef,
         name: String,
         op: Comparison,
         value: Value,
     },
     Carrying {
         /// Direct player inventory only. Use Possesses for nested ownership.
-        object: String,
+        object: EntityRef,
     },
     CharacterCarrying {
-        character: String,
-        object: String,
+        character: EntityRef,
+        object: EntityRef,
     },
     HintUsed {
         hint: String,
     },
     Exists {
-        object: String,
+        object: EntityRef,
     },
     At {
-        location: String,
+        location: EntityRef,
     },
     Visited {
-        location: String,
+        location: EntityRef,
         op: Comparison,
         count: i32,
     },
     Opened {
-        object: String,
+        object: EntityRef,
     },
     Visible {
-        entity: String,
+        entity: EntityRef,
     },
     /// Effective inventory ownership, including closed or hidden nested items.
     Possesses {
         object: ObjectTarget,
-        character: Option<String>,
+        character: Option<EntityRef>,
     },
     /// Current player access through every visible, open enclosing holder.
     Reachable {
@@ -167,13 +174,13 @@ pub enum Condition {
     /// An immediate relationship; this does not imply current player access.
     InObject {
         object: ObjectTarget,
-        parent: String,
+        parent: EntityRef,
         relation: ContentRelation,
     },
     /// Physical player transfer rules, including portability, access and cycles.
     CanTransfer {
         object: ObjectTarget,
-        placement: Placement,
+        placement: ScopedPlacement,
     },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
@@ -203,16 +210,26 @@ pub enum ArithmeticOperation {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum NumericOperand {
+    Input { input: String },
     Literal { value: i32 },
     Variable { name: String },
-    Property { entity: String, name: String },
+    Property { entity: EntityRef, name: String },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Effect {
+    Call {
+        id: String,
+        procedure: String,
+        arguments: BTreeMap<String, Argument>,
+    },
+    Assign {
+        target: ScopedValueTarget,
+        value: Argument,
+    },
     Say {
-        text: String,
+        text: MessageText,
     },
     /// Message-local typed names. Substituted names remain literal text.
     SayWithInputs {
@@ -223,25 +240,25 @@ pub enum Effect {
     /// closed/offstage containers. Pair with CanTransfer for player restrictions.
     Transfer {
         object: ObjectTarget,
-        placement: Placement,
+        placement: ScopedPlacement,
     },
     /// Read-only, player-visible direct contents; respects closed interiors.
     ListContents {
-        object: String,
+        object: EntityRef,
         relation: ContentRelation,
     },
     CharacterSays {
-        character: String,
-        text: String,
+        character: EntityRef,
+        text: MessageText,
     },
     PrintDescription {
-        entity: String,
+        entity: EntityRef,
     },
     Respond {
         id: String,
-        responses: Vec<String>,
+        responses: Vec<MessageText>,
         mode: SequenceMode,
-        fallback: String,
+        fallback: MessageText,
         #[serde(default)]
         exhaustion: ExhaustionMode,
         #[serde(default)]
@@ -255,7 +272,7 @@ pub enum Effect {
         value: Value,
     },
     SetProperty {
-        entity: String,
+        entity: EntityRef,
         name: String,
         value: Value,
     },
@@ -265,53 +282,53 @@ pub enum Effect {
         operand: NumericOperand,
     },
     UpdateProperty {
-        entity: String,
+        entity: EntityRef,
         name: String,
         op: ArithmeticOperation,
         operand: NumericOperand,
     },
     Give {
-        object: String,
+        object: EntityRef,
     },
     GiveCharacter {
-        object: String,
-        character: String,
+        object: EntityRef,
+        character: EntityRef,
     },
     Remove {
-        object: String,
+        object: EntityRef,
     },
     Consume {
-        object: String,
+        object: EntityRef,
     },
     Place {
-        object: String,
-        location: String,
+        object: EntityRef,
+        location: EntityRef,
     },
     Reveal {
-        entity: String,
+        entity: EntityRef,
     },
     Hide {
-        entity: String,
+        entity: EntityRef,
     },
     Open {
-        object: String,
+        object: EntityRef,
     },
     Close {
-        object: String,
+        object: EntityRef,
     },
     Move {
-        location: String,
+        location: EntityRef,
     },
     MoveCharacter {
-        character: String,
-        location: String,
+        character: EntityRef,
+        location: EntityRef,
     },
     Combine {
-        first: String,
-        second: String,
+        first: EntityRef,
+        second: EntityRef,
         consume_first: bool,
         consume_second: bool,
-        result: String,
+        result: EntityRef,
     },
     If {
         condition: Condition,
@@ -676,6 +693,9 @@ pub struct Project {
     pub locations: Vec<Location>,
     pub objects: Vec<Object>,
     pub characters: Vec<Character>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub procedures: Vec<Procedure>,
     #[serde(default)]
     pub editor: EditorLayout,
 }
@@ -718,6 +738,7 @@ impl Project {
             locations: vec![location],
             objects: vec![],
             characters: vec![],
+            procedures: vec![],
             editor: EditorLayout::default(),
         }
     }
@@ -905,7 +926,7 @@ pub fn starter_actions(object: &Object) -> Vec<Action> {
             "take",
             vec![
                 Effect::Give {
-                    object: object.id.clone(),
+                    object: object.id.clone().into(),
                 },
                 Effect::Say {
                     text: "Taken.".into(),
@@ -914,7 +935,7 @@ pub fn starter_actions(object: &Object) -> Vec<Action> {
         );
         take.requirements = Condition::Not {
             condition: Box::new(Condition::Carrying {
-                object: object.id.clone(),
+                object: object.id.clone().into(),
             }),
         };
         take.failure_text = "You already have that.".into();
@@ -923,7 +944,7 @@ pub fn starter_actions(object: &Object) -> Vec<Action> {
             "drop",
             vec![
                 Effect::Place {
-                    object: object.id.clone(),
+                    object: object.id.clone().into(),
                     location: "@current".into(),
                 },
                 Effect::Say {
@@ -932,7 +953,7 @@ pub fn starter_actions(object: &Object) -> Vec<Action> {
             ],
         );
         drop.requirements = Condition::Carrying {
-            object: object.id.clone(),
+            object: object.id.clone().into(),
         };
         drop.failure_text = "You are not carrying that.".into();
         v.push(drop);

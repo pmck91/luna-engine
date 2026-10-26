@@ -91,8 +91,11 @@ def main():
                     data=json.dumps(body).encode() if body is not None else None,
                     headers={"x-luna-token": token, "content-type": "application/json"},
                     method=method)
-                with opener.open(request, timeout=5) as response:
-                    return response.read() if raw else json.load(response)
+                try:
+                    with opener.open(request, timeout=5) as response:
+                        return response.read() if raw else json.load(response)
+                except urllib.error.HTTPError as error:
+                    raise RuntimeError(f"Packaged API failed ({method} {path}): {error.read().decode()}") from error
 
             with opener.open(base, timeout=5) as response:
                 html = response.read().decode()
@@ -152,7 +155,7 @@ def main():
             # New-game defaults and the permanent parser fixture use the packaged
             # API/export, not a handwritten runner-only substitute.
             fresh = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser defaults"})
-            assert fresh["project"]["game"]["format_version"] == 3
+            assert fresh["project"]["game"]["format_version"] == 4
             assert fresh["project"]["game"]["command_assistance"]["clarification"]
             assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
             gallery = api("open", "POST", {"folder": "parser-gallery"})
@@ -198,6 +201,53 @@ def main():
             assert "This playthrough has ended." in resumed and "Outcome:" not in resumed, resumed
             assert gallery_save()["state"] == finished
 
+            # Canonical procedure files and typed messages cross the packaged API,
+            # exact bundle manifest, named-save and independent process boundaries.
+            created_procedures = api("projects", "POST", {"folder": "smoke-procedures", "title": "Shared rewards"})
+            procedure_project = created_procedures["project"]
+            procedure_project["game"]["variables"] = {"rewards": 0}
+            procedure_project["procedures"] = [{
+                "id": "award", "name": "Award coins", "inputs": [{
+                    "id": "amount", "name": "Amount", "kind": "integer",
+                }], "effects": [
+                    {"type": "update_variable", "name": "rewards", "op": "add",
+                     "operand": {"type": "input", "input": "amount"}},
+                    {"type": "say", "text": {"text": "Awarded %amount% coins.", "references": {
+                        "amount": {"type": "procedure_input", "input": "amount"}}}},
+                    {"type": "respond", "id": "replies", "mode": "loop", "fallback": "",
+                     "responses": ["First reply", "Second reply"]},
+                ],
+            }, {"id": "unused", "name": "Unused definition", "inputs": [], "effects": []}]
+            procedure_project["game"]["actions"] = [{
+                "id": f"action-{word}", "name": word, "verb": "use",
+                "pattern": [{"type": "literal", "text": word}],
+                "effects": [{"type": "call", "id": f"call-{word}", "procedure": "award",
+                             "arguments": {"amount": {"type": "literal", "value": 1}}}],
+            } for word in ["bell", "lever"]]
+            procedure_handle = created_procedures["handle"]
+            api(f"projects/{procedure_handle}", "PUT", {
+                "project": procedure_project, "revision": created_procedures["revision"],
+            })
+            procedure_bundle = work / "procedures-from-editor.luna"
+            procedure_bundle.write_bytes(api(f"projects/{procedure_handle}/export", "POST", raw=True))
+            with zipfile.ZipFile(procedure_bundle) as exported:
+                assert "procedures/award.json" in exported.namelist()
+                assert "procedures/unused.json" in exported.namelist()
+            run(["import", str(procedure_bundle)], profile="procedures")
+            procedure_game = procedure_project["game"]
+            first = run(["run", procedure_game["id"], "--new"],
+                        "use bell\nsave first\nquit\n", profile="procedures")
+            assert "Awarded 1 coins." in first and "First reply" in first, first
+            resumed = run(["run", procedure_game["id"], "--load", "first"],
+                          "use bell\nuse lever\nquit\n", profile="procedures")
+            assert "Second reply" in resumed and "First reply" in resumed, resumed
+            procedure_autosave = work / "procedures/saves" / procedure_game["id"] / procedure_game["content_version"] / "autosave.json"
+            progress = json.loads(procedure_autosave.read_text())
+            assert progress["save_format"] == 4 and progress["state"]["variables"]["rewards"] == 3, progress
+            assert len(progress["state"]["procedure_sequences"]) == 2, progress
+            run(["run", procedure_game["id"], "--load", "autosave"], "look\nquit\n", profile="procedures")
+            assert json.loads(procedure_autosave.read_text())["state"] == progress["state"], "Restore replayed CALL effects"
+
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
             created = api("projects", "POST", {"folder": "smoke-outcome", "title": "No outcome"})
@@ -230,7 +280,7 @@ def main():
             assert "Outcome:" not in completed, completed
             autosave = work / "no-outcome/saves" / game["id"] / game["content_version"] / "autosave.json"
             state = json.loads(autosave.read_text())
-            assert state["save_format"] == (3 if game["format_version"] >= 2 else 2), state
+            assert state["save_format"] == (4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
             assert state["state"]["ending"] == "finish", state
         finally:
             if editor is not None and editor.poll() is None:
@@ -242,7 +292,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

@@ -66,26 +66,29 @@ fn messages_expand_live_variables_properties_and_sequences() {
         }],
         effects: vec![
             Effect::Say {
-                text: format!("<green>%chances% / %{room}.charges% / %ready% / %word%</green>"),
+                text: format!("<green>%chances% / %{room}.charges% / %ready% / %word%</green>")
+                    .into(),
             },
             Effect::SetVariable {
                 name: "chances".into(),
                 value: Value::Integer(1),
             },
             Effect::SetProperty {
-                entity: room.clone(),
+                entity: room.clone().into(),
                 name: "charges".into(),
                 value: Value::Integer(5),
             },
             Effect::Respond {
                 id: "replies".into(),
-                responses: vec![format!("%chances% / %{room}.charges%")],
+                responses: vec![format!("%chances% / %{room}.charges%").into()],
                 mode: SequenceMode::Fallback,
                 fallback: "No more than %chances%.".into(),
                 exhaustion: ExhaustionMode::Once,
                 on_exhausted: vec![],
             },
-            Effect::PrintDescription { entity: room },
+            Effect::PrintDescription {
+                entity: room.into(),
+            },
         ],
         ..Default::default()
     });
@@ -552,7 +555,7 @@ fn world() -> Project {
             id: "replies".into(),
             responses: vec!["First".into(), "Second".into()],
             mode: SequenceMode::RepeatLast,
-            fallback: String::new(),
+            fallback: String::new().into(),
             exhaustion: ExhaustionMode::Once,
             on_exhausted: vec![],
         }],
@@ -614,7 +617,9 @@ fn cycles_roll_back_output_and_state() {
         p.locations[i].triggers.push(Trigger {
             id: format!("cycle-{i}"),
             event: Event::Enter,
-            effects: vec![Effect::Move { location: to }],
+            effects: vec![Effect::Move {
+                location: to.into(),
+            }],
             ..Default::default()
         })
     }

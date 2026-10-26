@@ -5,24 +5,26 @@ use anyhow::{Context, Result, bail, ensure};
 use luna_model::{Effect, Event, ExhaustionMode, Placement, SequenceMode, ValueTarget, text};
 
 impl<'a> Run<'a> {
-    // Root identity is independent of optional explanation recording. R1's
-    // test-only CALL coordinator enters through the same action/exit/event path.
+    // Every action/exit/event owns a lexical/progress root, independent of
+    // optional recording. Active calls remain guarded across event dispatch.
     pub(super) fn flow_effects(&mut self, id: &str, effects: &[Effect]) -> Result<Flow> {
-        #[cfg(test)]
-        if self.procedures.is_some() {
-            return self.proof_flow(id, effects);
-        }
-        self.effects_at(effects, self.source_for(id, "effects"))
+        let invocation = super::procedures::Invocation {
+            root: id.into(),
+            ..Default::default()
+        };
+        let previous = std::mem::replace(&mut self.invocation, invocation);
+        let result = self.effects_at(effects, self.source_for(id, "effects"));
+        self.invocation = previous;
+        result
     }
-
     fn response_cursor(&self, id: &str) -> Result<usize> {
-        #[cfg(test)]
-        if self
-            .procedures
-            .as_ref()
-            .is_some_and(|execution| execution.in_procedure())
-        {
-            return self.proof_response_cursor(id);
+        if self.invocation.procedure.is_some() {
+            return Ok(self
+                .state
+                .procedure_sequences
+                .get(&self.procedure_path(id)?)
+                .copied()
+                .unwrap_or(0));
         }
         self.state
             .sequences
@@ -30,22 +32,23 @@ impl<'a> Run<'a> {
             .copied()
             .context("Unknown response sequence")
     }
-
     fn set_response_cursor(&mut self, id: &str, cursor: usize) -> Result<()> {
-        #[cfg(test)]
-        if self
-            .procedures
-            .as_ref()
-            .is_some_and(|execution| execution.in_procedure())
-        {
-            return self.proof_set_response_cursor(id, cursor);
+        if self.invocation.procedure.is_some() {
+            let path = self.procedure_path(id)?;
+            ensure!(
+                self.state.procedure_sequences.contains_key(&path)
+                    || self.state.procedure_sequences.len() < 100_000,
+                "Too many procedure response cursors"
+            );
+            self.state.to_mut().procedure_sequences.insert(path, cursor);
+        } else {
+            *self
+                .state
+                .to_mut()
+                .sequences
+                .get_mut(id)
+                .context("Unknown response sequence")? = cursor;
         }
-        *self
-            .state
-            .to_mut()
-            .sequences
-            .get_mut(id)
-            .context("Unknown response sequence")? = cursor;
         Ok(())
     }
 
@@ -92,7 +95,17 @@ impl<'a> Run<'a> {
 
     fn effect(&mut self, effect: &Effect) -> Result<Flow> {
         match effect {
-            Effect::Say { text } => self.say(text)?,
+            Effect::Call {
+                id,
+                procedure,
+                arguments,
+            } => return self.call_procedure(id, procedure, arguments),
+            Effect::Assign { target, value } => {
+                let target = self.scoped_target(target)?;
+                let value = self.scalar_argument(value)?;
+                self.set_value(&target, value)?;
+            }
+            Effect::Say { text } => self.say_message(text)?,
             Effect::SayWithInputs { text, references } => {
                 let message = self.message_with_inputs(text, references)?;
                 if !text.is_empty() {
@@ -104,20 +117,25 @@ impl<'a> Run<'a> {
                     .object_target(object)
                     .context("Command item is not bound")?
                     .to_owned();
-                self.transfer(&id, placement.clone())?;
+                self.transfer(&id, self.scoped_placement(placement)?)?;
             }
-            Effect::ListContents { object, relation } => self.list_contents(object, *relation)?,
+            Effect::ListContents { object, relation } => {
+                let object = self.entity_ref(object)?.to_owned();
+                self.list_contents(&object, *relation)?;
+            }
             Effect::CharacterSays { character, text } => {
-                let speaker = self.character(character).context("Unknown speaker")?;
+                let character = self.entity_ref(character)?.to_owned();
+                let speaker = self.character(&character).context("Unknown speaker")?;
                 self.result.messages.push(text::speech(
                     &speaker.name,
                     speaker.name_colour.as_deref(),
-                    self.message(text)?,
+                    self.message_text(text)?,
                 ));
             }
             Effect::PrintDescription { entity } => {
+                let entity = self.entity_ref(entity)?.to_owned();
                 let description = self
-                    .entity_description(entity)
+                    .entity_description(&entity)
                     .context("Unknown description entity")?;
                 self.say(description)?;
             }
@@ -133,7 +151,7 @@ impl<'a> Run<'a> {
                 let len = responses.len();
                 ensure!(len > 0, "Empty response sequence");
                 if *mode == SequenceMode::Fallback && cursor >= len {
-                    self.say(fallback)?;
+                    self.say_message(fallback)?;
                     if !on_exhausted.is_empty()
                         && (*exhaustion == ExhaustionMode::Repeat || cursor == len)
                     {
@@ -149,7 +167,7 @@ impl<'a> Run<'a> {
                     return Ok(Flow::Continue);
                 }
                 let text = responses.get(cursor).unwrap_or(fallback);
-                self.say(text)?;
+                self.say_message(text)?;
                 let next = match mode {
                     SequenceMode::RepeatLast => (cursor + 1).min(len - 1),
                     SequenceMode::Loop => (cursor + 1) % len,
@@ -170,7 +188,7 @@ impl<'a> Run<'a> {
             } => {
                 self.set_value(
                     &ValueTarget::Property {
-                        entity: entity.clone(),
+                        entity: self.entity_ref(entity)?.into(),
                         name: name.clone(),
                     },
                     value.clone(),
@@ -187,7 +205,7 @@ impl<'a> Run<'a> {
             } => {
                 self.update_value(
                     ValueTarget::Property {
-                        entity: entity.clone(),
+                        entity: self.entity_ref(entity)?.into(),
                         name: name.clone(),
                     },
                     *op,
@@ -195,17 +213,21 @@ impl<'a> Run<'a> {
                 )?;
             }
             Effect::Give { object } => {
-                self.transfer(object, Placement::Inventory)?;
+                let object = self.entity_ref(object)?.to_owned();
+                self.transfer(&object, Placement::Inventory)?;
             }
             Effect::GiveCharacter { object, character } => {
+                let object = self.entity_ref(object)?.to_owned();
+                let character = self.entity_ref(character)?.to_owned();
                 self.transfer(
-                    object,
+                    &object,
                     Placement::Character {
                         character: character.clone(),
                     },
                 )?;
             }
             Effect::Remove { object } | Effect::Consume { object } => {
+                let object = self.entity_ref(object)?.to_owned();
                 if matches!(effect, Effect::Consume { .. }) {
                     ensure!(
                         !self.state.objects.values().any(|state| state
@@ -218,56 +240,65 @@ impl<'a> Run<'a> {
                 let o = self
                     .world_mut()
                     .objects
-                    .get_mut(object)
+                    .get_mut(&object)
                     .context("Unknown object")?;
                 o.placement = Placement::Absent;
                 o.exists = false;
                 o.consumed = matches!(effect, Effect::Consume { .. });
             }
             Effect::Place { object, location } => {
+                let object = self.entity_ref(object)?.to_owned();
+                let location = self.entity_ref(location)?.to_owned();
                 self.transfer(
-                    object,
+                    &object,
                     Placement::Location {
                         location: location.clone(),
                     },
                 )?;
             }
             Effect::Reveal { entity } | Effect::Hide { entity } => {
+                let entity = self.entity_ref(entity)?.to_owned();
                 let hidden = matches!(effect, Effect::Hide { .. });
-                if let Some(o) = self.world_mut().objects.get_mut(entity) {
+                if let Some(o) = self.world_mut().objects.get_mut(&entity) {
                     o.hidden = hidden
-                } else if let Some(c) = self.world_mut().characters.get_mut(entity) {
+                } else if let Some(c) = self.world_mut().characters.get_mut(&entity) {
                     c.hidden = hidden
                 } else {
                     bail!("Unknown visibility target")
                 }
             }
             Effect::Open { object } | Effect::Close { object } => {
+                let object = self.entity_ref(object)?.to_owned();
                 let open = matches!(effect, Effect::Open { .. });
                 if !open {
-                    self.ensure_can_close(object)?;
+                    self.ensure_can_close(&object)?;
                 }
                 let o = self
                     .world_mut()
                     .objects
-                    .get_mut(object)
+                    .get_mut(&object)
                     .context("Unknown object")?;
                 ensure!(o.exists, "Object does not exist");
                 let changed = o.open != open;
                 o.open = open;
                 if changed {
-                    self.fire_mutation(if open { Event::Open } else { Event::Close }, object)?
+                    self.fire_mutation(if open { Event::Open } else { Event::Close }, &object)?
                 }
             }
-            Effect::Move { location } => self.move_to(location)?,
+            Effect::Move { location } => {
+                let location = self.entity_ref(location)?.to_owned();
+                self.move_to(&location)?;
+            }
             Effect::MoveCharacter {
                 character,
                 location,
             } => {
+                let character = self.entity_ref(character)?.to_owned();
+                let location = self.entity_ref(location)?.to_owned();
                 let destination = if location == "@current" {
                     &self.state.location
                 } else {
-                    location
+                    &location
                 };
                 ensure!(
                     self.location(destination).is_some(),
@@ -276,7 +307,7 @@ impl<'a> Run<'a> {
                 self.state
                     .to_mut()
                     .characters
-                    .get_mut(character)
+                    .get_mut(&character)
                     .context("Unknown character")?
                     .location = destination.clone();
                 // Enter/leave, room descriptions, and visits belong to player movement.
@@ -289,15 +320,18 @@ impl<'a> Run<'a> {
                 consume_second,
                 result,
             } => {
+                let first = self.entity_ref(first)?.to_owned();
+                let second = self.entity_ref(second)?.to_owned();
+                let result = self.entity_ref(result)?.to_owned();
                 ensure!(
-                    self.available(first) && self.available(second),
+                    self.available(&first) && self.available(&second),
                     "Both combination objects must be present and visible"
                 );
                 ensure!(
                     !self
                         .state
                         .objects
-                        .get(result)
+                        .get(&result)
                         .context("Unknown result object")?
                         .exists,
                     "Combination result already exists"
@@ -305,14 +339,16 @@ impl<'a> Run<'a> {
                 for (id, consume) in [(first, consume_first), (second, consume_second)] {
                     if *consume {
                         self.run_effect(
-                            &Effect::Consume { object: id.clone() },
+                            &Effect::Consume {
+                                object: id.clone().into(),
+                            },
                             self.source.clone(),
                         )?;
                     }
                 }
                 self.run_effect(
                     &Effect::Give {
-                        object: result.clone(),
+                        object: result.clone().into(),
                     },
                     self.source.clone(),
                 )?;
@@ -326,7 +362,7 @@ impl<'a> Run<'a> {
                     condition,
                     self.child_source("condition"),
                     "IF condition",
-                );
+                )?;
                 self.observe(
                     TraceKind::Branch {
                         taken: if taken { "THEN" } else { "ELSE" }.into(),

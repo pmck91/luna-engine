@@ -5,7 +5,29 @@ export type JsonValue = number | string | boolean | Array<JsonValue> | { [key in
 
 export type Value = boolean | number | string;
 
-export type ObjectTarget = string | { input: ObjectInput, };
+export type InputKind = "object" | "character" | "location" | "boolean" | "integer" | "text";
+
+export type EntityRef = string | { procedure_input: string, };
+
+export type MessageText = string | { text: string, references: { [key in string]?: InputTextReference }, };
+
+export type ProcedureInput = { id: string, name: string, kind: InputKind, required_properties?: { [key in string]?: InputKind }, };
+
+export type Procedure = { id: string, name: string, description: string, inputs: Array<ProcedureInput>, effects: Array<Effect>, };
+
+export type Argument = { "type": "literal", value: Value, } | { "type": "entity", kind: InputKind, id: string, } | { "type": "variable", name: string, } | { "type": "property", entity: EntityRef, name: string, } | { "type": "input", input: string, } | { "type": "command_item" };
+
+export type BoundArgument = { "type": "value", value: Value, } | { "type": "entity", kind: InputKind, id: string, };
+
+export type ScopedPlacement = { "type": "location", location: EntityRef, } | { "type": "character", character: EntityRef, } | { "type": "inside", object: EntityRef, } | { "type": "on", object: EntityRef, } | { "type": "inventory" } | { "type": "absent" };
+
+export type ScopedValueTarget = { "type": "variable", name: string, } | { "type": "property", entity: EntityRef, name: string, };
+
+export type ProcedurePath = { root: string, calls: Array<string>, sequence: string, };
+
+export type ProcedureCursor = { path: ProcedurePath, cursor: number, };
+
+export type ObjectTarget = string | { procedure_input: string, } | { input: ObjectInput, };
 
 export type ObjectInput = "item";
 
@@ -23,15 +45,15 @@ export type StandardAction = { interaction: StandardInteraction,
  */
 enabled: boolean, };
 
-export type InputTextReference = { "type": "item_name" } | { "type": "entity_name", entity: string, };
+export type InputTextReference = { "type": "item_name" } | { "type": "entity_name", entity: EntityRef, } | { "type": "procedure_input", input: string, } | { "type": "procedure_property", input: string, name: string, };
 
 export type Comparison = "eq" | "ne" | "gt" | "ge" | "lt" | "le";
 
-export type Condition = { "type": "true" } | { "type": "false" } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: string, name: string, op: Comparison, value: Value, } | { "type": "carrying",
+export type Condition = { "type": "true" } | { "type": "compare", left: Argument, op: Comparison, right: Argument, } | { "type": "false" } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: EntityRef, name: string, op: Comparison, value: Value, } | { "type": "carrying",
 /**
  * Direct player inventory only. Use Possesses for nested ownership.
  */
-object: string, } | { "type": "character_carrying", character: string, object: string, } | { "type": "hint_used", hint: string, } | { "type": "exists", object: string, } | { "type": "at", location: string, } | { "type": "visited", location: string, op: Comparison, count: number, } | { "type": "opened", object: string, } | { "type": "visible", entity: string, } | { "type": "possesses", object: ObjectTarget, character: string | null, } | { "type": "reachable", object: ObjectTarget, } | { "type": "in_object", object: ObjectTarget, parent: string, relation: ContentRelation, } | { "type": "can_transfer", object: ObjectTarget, placement: Placement, };
+object: EntityRef, } | { "type": "character_carrying", character: EntityRef, object: EntityRef, } | { "type": "hint_used", hint: string, } | { "type": "exists", object: EntityRef, } | { "type": "at", location: EntityRef, } | { "type": "visited", location: EntityRef, op: Comparison, count: number, } | { "type": "opened", object: EntityRef, } | { "type": "visible", entity: EntityRef, } | { "type": "possesses", object: ObjectTarget, character: EntityRef | null, } | { "type": "reachable", object: ObjectTarget, } | { "type": "in_object", object: ObjectTarget, parent: EntityRef, relation: ContentRelation, } | { "type": "can_transfer", object: ObjectTarget, placement: ScopedPlacement, };
 
 export type HelpMode = "off" | "basic" | "full";
 
@@ -67,9 +89,9 @@ export type ExhaustionMode = "once" | "repeat";
 
 export type ArithmeticOperation = "add" | "subtract" | "multiply" | "divide";
 
-export type NumericOperand = { "type": "literal", value: number, } | { "type": "variable", name: string, } | { "type": "property", entity: string, name: string, };
+export type NumericOperand = { "type": "input", input: string, } | { "type": "literal", value: number, } | { "type": "variable", name: string, } | { "type": "property", entity: EntityRef, name: string, };
 
-export type Effect = { "type": "say", text: string, } | { "type": "say_with_inputs", text: string, references: { [key in string]?: InputTextReference }, } | { "type": "transfer", object: ObjectTarget, placement: Placement, } | { "type": "list_contents", object: string, relation: ContentRelation, } | { "type": "character_says", character: string, text: string, } | { "type": "print_description", entity: string, } | { "type": "respond", id: string, responses: Array<string>, mode: SequenceMode, fallback: string, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: string, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: string, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: string, } | { "type": "give_character", object: string, character: string, } | { "type": "remove", object: string, } | { "type": "consume", object: string, } | { "type": "place", object: string, location: string, } | { "type": "reveal", entity: string, } | { "type": "hide", entity: string, } | { "type": "open", object: string, } | { "type": "close", object: string, } | { "type": "move", location: string, } | { "type": "move_character", character: string, location: string, } | { "type": "combine", first: string, second: string, consume_first: boolean, consume_second: boolean, result: string, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
+export type Effect = { "type": "call", id: string, procedure: string, arguments: { [key in string]?: Argument }, } | { "type": "assign", target: ScopedValueTarget, value: Argument, } | { "type": "say", text: MessageText, } | { "type": "say_with_inputs", text: string, references: { [key in string]?: InputTextReference }, } | { "type": "transfer", object: ObjectTarget, placement: ScopedPlacement, } | { "type": "list_contents", object: EntityRef, relation: ContentRelation, } | { "type": "character_says", character: EntityRef, text: MessageText, } | { "type": "print_description", entity: EntityRef, } | { "type": "respond", id: string, responses: Array<MessageText>, mode: SequenceMode, fallback: MessageText, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: EntityRef, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: EntityRef, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: EntityRef, } | { "type": "give_character", object: EntityRef, character: EntityRef, } | { "type": "remove", object: EntityRef, } | { "type": "consume", object: EntityRef, } | { "type": "place", object: EntityRef, location: EntityRef, } | { "type": "reveal", entity: EntityRef, } | { "type": "hide", entity: EntityRef, } | { "type": "open", object: EntityRef, } | { "type": "close", object: EntityRef, } | { "type": "move", location: EntityRef, } | { "type": "move_character", character: EntityRef, location: EntityRef, } | { "type": "combine", first: EntityRef, second: EntityRef, consume_first: boolean, consume_second: boolean, result: EntityRef, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
 
 export type PatternPart = { "type": "literal", text: string, } | { "type": "entity", entity: string, } | { "type": "object_input" };
 
@@ -137,7 +159,7 @@ export type PlaytestCheck = { id: string, name: string, start: CheckStart, help_
 
 export type PlaytestLibrary = { setups: Array<PlaytestSetup>, checks: Array<PlaytestCheck>, };
 
-export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, editor: EditorLayout, };
+export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, procedures?: Array<Procedure>, editor: EditorLayout, };
 
 export type Severity = "error" | "warning";
 
@@ -151,7 +173,7 @@ export type CharacterState = { location: string, hidden: boolean, };
 
 export type HintProgress = { clues_seen: number, solution_seen: boolean, };
 
-export type GameState = { game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, hints: { [key in string]?: HintProgress }, };
+export type GameState = { game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, procedure_sequences?: Array<ProcedureCursor>, hints: { [key in string]?: HintProgress }, };
 
 export type HostControl = { "type": "save",
 /**
@@ -187,7 +209,27 @@ before: JsonValue,
  */
 after: JsonValue, };
 
-export type TraceKind = { "type": "candidate",
+export type TraceKind = { "type": "call",
+/**
+ * Canonical occurrence identity at the caller source.
+ */
+call: string,
+/**
+ * Definition source, distinct from the caller source on the trace step.
+ */
+definition: TraceSource,
+/**
+ * Definition display name.
+ */
+name: string,
+/**
+ * Named bindings captured once, before executing the body.
+ */
+arguments: Array<ProcedureBinding>,
+/**
+ * Absent until completion, or when execution failed.
+ */
+returned: ProcedureReturn | null, } | { "type": "candidate",
 /**
  * Authored action or exit display name.
  */
@@ -304,6 +346,26 @@ eligible: boolean, } | { "type": "notice",
  * Human-readable information, separate from the player's transcript.
  */
 text: string, };
+
+export type ProcedureBinding = {
+/**
+ * Stable parameter ID in the called definition.
+ */
+input: string,
+/**
+ * Authored label captured for this explanation.
+ */
+name: string,
+/**
+ * Declared input kind.
+ */
+kind: InputKind,
+/**
+ * Immutable scalar or stable entity ID resolved at entry.
+ */
+value: BoundArgument, };
+
+export type ProcedureReturn = "returned" | "stopped" | "ended";
 
 export type TraceOutcome = "completed" | "failed";
 

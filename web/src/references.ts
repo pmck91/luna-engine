@@ -1,5 +1,7 @@
 import type {
   BlockTemplate,
+  EntityRef,
+  ScopedPlacement,
   Condition,
   ContentRelation,
   Effect,
@@ -16,12 +18,14 @@ import {
 } from './containerModel';
 import { allEffects, entity, flow, flowOwner, flows } from './model';
 import { decode, mapMessage } from './templates';
+import { entityKey, entityValue, procedureInputPrefix } from './procedureModel';
 
 export type ReferenceTarget =
   | { kind: 'variable'; name: string }
   | { kind: 'property'; entity: string; name: string }
   | {
-      kind: 'entity' | 'ending' | 'verb' | 'sequence' | 'puzzle' | 'template' | 'flow';
+      kind:
+        'entity' | 'ending' | 'verb' | 'sequence' | 'puzzle' | 'template' | 'flow' | 'procedure';
       id: string;
     };
 export type ReferenceSite = {
@@ -30,6 +34,7 @@ export type ReferenceSite = {
   scope: 'content' | 'message' | 'template' | 'draft' | 'metadata' | 'setup' | 'check';
   ownerId?: string;
   flowId?: string;
+  procedureId?: string;
   blockId?: string;
   puzzleId?: string;
   stageId?: string;
@@ -43,6 +48,7 @@ export type ReferenceUse = ReferenceSite & {
   numeric?: boolean;
   allowed?: string[];
   relation?: ContentRelation;
+  contract?: boolean;
 };
 type RecordValue = Record<string, any>;
 type Transform = (use: ReferenceUse) => ReferenceTarget | undefined;
@@ -65,6 +71,8 @@ export function referenceName(p: Project, target: ReferenceTarget): string {
   if (target.kind === 'property')
     return `${entity(p, target.entity)?.name ?? target.entity} · ${target.name}`;
   if (target.kind === 'entity') return entity(p, target.id)?.name ?? target.id;
+  if (target.kind === 'procedure')
+    return (p.procedures ?? []).find((procedure) => procedure.id === target.id)?.name ?? target.id;
   if (target.kind === 'ending')
     return p.game.endings.find((e) => e.id === target.id)?.name ?? target.id;
   if (target.kind === 'verb')
@@ -82,11 +90,13 @@ export function referenceName(p: Project, target: ReferenceTarget): string {
 export function referenceContext(p: Project, use: ReferenceSite): string {
   const owner = owners(p).find((o) => o.id === use.ownerId);
   const title = owner && ('title' in owner ? owner.title : owner.name);
-  const source = use.templateId
-    ? p.editor.templates.find((t) => t.id === use.templateId)?.name
-    : use.flowId
-      ? flow(p, use.flowId)?.name
-      : undefined;
+  const source = use.procedureId
+    ? (p.procedures ?? []).find((procedure) => procedure.id === use.procedureId)?.name
+    : use.templateId
+      ? p.editor.templates.find((t) => t.id === use.templateId)?.name
+      : use.flowId
+        ? flow(p, use.flowId)?.name
+        : undefined;
   const puzzle = use.puzzleId
     ? entities(p)
         .flatMap((owner) => owner.hints)
@@ -164,7 +174,7 @@ function scan(
   const emit = (
     target: ReferenceTarget,
     site: ReferenceSite,
-    details: Pick<ReferenceUse, 'allowed' | 'numeric' | 'relation'> = {},
+    details: Pick<ReferenceUse, 'allowed' | 'numeric' | 'relation' | 'contract'> = {},
   ) => {
     const use = {
       ...site,
@@ -180,7 +190,7 @@ function scan(
     key: string,
     target: ReferenceTarget,
     site: ReferenceSite,
-    details?: Pick<ReferenceUse, 'allowed' | 'numeric' | 'relation'>,
+    details?: Pick<ReferenceUse, 'allowed' | 'numeric' | 'relation' | 'contract'>,
   ) => {
     const next = emit(target, child(site, key), details);
     if (next.kind === 'variable') v[key] = next.name;
@@ -197,7 +207,19 @@ function scan(
     localNames: string[] = [],
   ) => {
     const record = v as RecordValue;
-    if (typeof record[key] !== 'string') return;
+    const value = record[key];
+    if (value && typeof value === 'object' && typeof value.text === 'string') {
+      message(
+        value,
+        'text',
+        child(site, String(key)),
+        template,
+        Object.keys(value.references ?? {}),
+      );
+      messageInputs(value.references ?? {}, child(site, `${String(key)}.references`));
+      return;
+    }
+    if (typeof value !== 'string') return;
     visitMessage?.(
       child(site, String(key)),
       record.type === 'say_with_inputs' && record.references
@@ -225,10 +247,40 @@ function scan(
           );
     });
   };
+  const entityReference = (
+    value: RecordValue,
+    key: string,
+    site: ReferenceSite,
+    details?: Pick<ReferenceUse, 'allowed' | 'numeric' | 'relation' | 'contract'>,
+  ) => {
+    if (
+      typeof value[key] === 'string' &&
+      value[key] !== '@current' &&
+      !value[key].startsWith(procedureInputPrefix)
+    )
+      reference(value, key, { kind: 'entity', id: value[key] }, site, details);
+  };
+  const propertyReference = (value: RecordValue, site: ReferenceSite, numeric = false) => {
+    if (typeof value.entity === 'string' && !value.entity.startsWith(procedureInputPrefix))
+      reference(value, 'name', { kind: 'property', entity: value.entity, name: value.name }, site, {
+        numeric,
+      });
+  };
+  const messageInputs = (references: RecordValue, site: ReferenceSite) => {
+    for (const [key, value] of Object.entries(references) as [string, RecordValue][])
+      if (value.type === 'entity_name') entityReference(value, 'entity', child(site, key));
+  };
+  const argument = (value: RecordValue, site: ReferenceSite) => {
+    if (!value || typeof value !== 'object') return;
+    if (value.type === 'entity') entityReference(value, 'id', site, { allowed: [value.kind] });
+    if (value.type === 'variable')
+      reference(value, 'name', { kind: 'variable', name: value.name }, site);
+    if (value.type === 'property') propertyReference(value, site);
+  };
   const placement = (value: RecordValue, site: ReferenceSite) => {
     const key = value.type === 'inside' || value.type === 'on' ? 'object' : value.type;
-    if (['object', 'location', 'character'].includes(key) && value[key] !== '@current')
-      reference(value, key, { kind: 'entity', id: value[key] }, site, {
+    if (['object', 'location', 'character'].includes(key))
+      entityReference(value, key, site, {
         allowed: [key],
         ...(value.type === 'inside' || value.type === 'on' ? { relation: value.type } : {}),
       });
@@ -246,9 +298,33 @@ function scan(
         numeric: kind === 'operand' || type === 'update_variable',
       });
     if (type === 'property' || type === 'set_property' || type === 'update_property')
-      reference(v, 'name', { kind: 'property', entity: v.entity, name: v.name }, site, {
-        numeric: kind === 'operand' || type === 'update_property',
-      });
+      propertyReference(v, site, kind === 'operand' || type === 'update_property');
+    if (type === 'call' && typeof v.procedure === 'string') {
+      reference(v, 'procedure', { kind: 'procedure', id: v.procedure }, site);
+      for (const [key, value] of Object.entries(v.arguments ?? {}) as [string, RecordValue][]) {
+        const at = child(site, `arguments.${key}`);
+        argument(value, at);
+        if (value.type === 'entity') {
+          const input = (resolve.procedures ?? [])
+            .find((procedure) => procedure.id === v.procedure)
+            ?.inputs.find((input) => input.id === key);
+          for (const name of Object.keys(input?.required_properties ?? {}))
+            emit(
+              { kind: 'property', entity: value.id, name },
+              child(at, `required_properties.${name}`),
+              { contract: true },
+            );
+        }
+      }
+    }
+    if (type === 'assign') {
+      argument(v.target, child(site, 'target'));
+      argument(v.value, child(site, 'value'));
+    }
+    if (type === 'compare') {
+      argument(v.left, child(site, 'left'));
+      argument(v.right, child(site, 'right'));
+    }
     const refs: Record<string, Record<string, string[]>> = {
       character_says: { character: ['character'] },
       print_description: { entity: ['location', 'object', 'character'] },
@@ -275,19 +351,18 @@ function scan(
     };
     for (const [key, allowed] of Object.entries(refs[type] ?? {}))
       if (v[key] !== '@current')
-        reference(v, key, { kind: 'entity', id: v[key] }, site, {
+        entityReference(v, key, site, {
           allowed,
           ...(type === 'list_contents' ? { relation: v.relation } : {}),
         });
     if (['possesses', 'reachable', 'in_object', 'can_transfer', 'transfer'].includes(type)) {
-      if (typeof v.object === 'string')
-        reference(v, 'object', { kind: 'entity', id: v.object }, site, { allowed: ['object'] });
+      if (typeof v.object === 'string') entityReference(v, 'object', site, { allowed: ['object'] });
       if (type === 'possesses' && v.character)
-        reference(v, 'character', { kind: 'entity', id: v.character }, site, {
+        entityReference(v, 'character', site, {
           allowed: ['character'],
         });
       if (type === 'in_object')
-        reference(v, 'parent', { kind: 'entity', id: v.parent }, site, {
+        entityReference(v, 'parent', site, {
           allowed: ['object'],
           relation: v.relation,
         });
@@ -295,14 +370,7 @@ function scan(
     }
     if (type === 'say_with_inputs') {
       message(v, 'text', site, template, Object.keys(v.references ?? {}));
-      for (const [key, ref] of Object.entries(v.references ?? {}) as [string, RecordValue][])
-        if (ref.type === 'entity_name')
-          reference(
-            ref,
-            'entity',
-            { kind: 'entity', id: ref.entity },
-            child(site, `references.${key}`),
-          );
+      messageInputs(v.references ?? {}, child(site, 'references'));
     }
     if (type === 'hint_used') reference(v, 'hint', { kind: 'puzzle', id: v.hint }, site);
     const internalReset =
@@ -315,7 +383,7 @@ function scan(
       ).some(({ effect }) => effect.type === 'respond' && effect.id === v.sequence);
     // A copied template sequence owns its resets; it does not depend on the
     // source flow's sequence even when their original IDs are the same.
-    if (type === 'reset_responses' && !internalReset)
+    if (type === 'reset_responses' && !internalReset && !site.procedureId)
       reference(v, 'sequence', { kind: 'sequence', id: v.sequence }, site);
     if (type === 'end') reference(v, 'ending', { kind: 'ending', id: v.ending }, site);
     if (type === 'say' || type === 'character_says') message(v, 'text', site, template);
@@ -404,6 +472,13 @@ function scan(
         }
       }
   }
+  for (const procedure of p.procedures ?? [])
+    flowNode(procedure, {
+      subject: procedure.id,
+      procedureId: procedure.id,
+      path: '',
+      scope: 'content',
+    });
   for (const ending of p.game.endings)
     message(ending, 'text', { subject: ending.id, path: '', scope: 'content' });
   for (const template of p.editor.templates) {
@@ -456,8 +531,14 @@ function scan(
     if (structuredTarget && typeof fields.object === 'string')
       fields.object = targetValue(fields.object);
     if (typeof fields.placement === 'string') fields.placement = placementValue(fields.placement);
+    for (const [key, value] of Object.entries(fields))
+      if (typeof value === 'string' && value.startsWith(procedureInputPrefix))
+        fields[key] = entityValue(value);
     if (/^(luna_|condition_|number_)/.test(type) && type !== 'luna_flow') {
-      node(fields, kind, at);
+      const opaque = ['luna_call', 'luna_assign', 'condition_compare', 'number_input'].includes(
+        type,
+      );
+      if (!opaque) node(fields, kind, at);
       for (const key of Object.keys(block.fields ?? {}))
         if (key in fields)
           block.fields[key] =
@@ -467,7 +548,11 @@ function scan(
                 ? localMessage(p, fields.references ?? {}).display(fields[key])
                 : structuredTarget && key === 'object'
                   ? targetKey(fields[key])
-                  : fields[key];
+                  : fields[key] &&
+                      typeof fields[key] === 'object' &&
+                      'procedure_input' in fields[key]
+                    ? entityKey(fields[key])
+                    : fields[key];
       if (typeof block.data === 'string') {
         try {
           const data = JSON.parse(block.data);
@@ -481,7 +566,7 @@ function scan(
             (data.on_exhausted ?? []).forEach((effect: RecordValue, i: number) =>
               node(effect, 'effect', child({ ...at, scope: 'metadata' }, `on_exhausted.${i}`)),
             );
-          } else node(data, kind, { ...at, scope: 'metadata' });
+          } else node(data, kind, opaque ? at : { ...at, scope: 'metadata' });
           if (transform) block.data = JSON.stringify(data);
         } catch {
           /* Unfinished or unrelated metadata is preserved. */
@@ -501,6 +586,7 @@ function scan(
     const site: ReferenceSite = {
       subject: hint?.hint ?? key,
       flowId: parent ? key : undefined,
+      procedureId: (p.procedures ?? []).some((procedure) => procedure.id === key) ? key : undefined,
       ownerId: hint?.owner ?? parent?.id,
       puzzleId: hint?.hint,
       path: '',
@@ -566,6 +652,21 @@ function scan(
       emit({ kind: 'entity', id }, child(site, `visits.${id}`), { allowed: ['location'] });
     for (const id of Object.keys(state.sequences))
       emit({ kind: 'sequence', id }, child(site, `sequences.${id}`));
+    for (const [index, row] of (state.procedure_sequences ?? []).entries()) {
+      const at = child(site, `procedure_sequences.${index}.path`);
+      emit({ kind: 'flow', id: row.path.root }, child(at, 'root'));
+      let body = flow(resolve, row.path.root)?.effects ?? [];
+      for (const [depth, id] of row.path.calls.entries()) {
+        const call = allEffects(body)
+          .map(({ effect }) => effect)
+          .find((effect) => effect.type === 'call' && effect.id === id);
+        if (call?.type !== 'call') break;
+        emit({ kind: 'procedure', id: call.procedure }, child(at, `calls.${depth}`));
+        body =
+          (resolve.procedures ?? []).find((procedure) => procedure.id === call.procedure)
+            ?.effects ?? [];
+      }
+    }
     for (const id of Object.keys(state.hints)) {
       const puzzle = entities(resolve)
         .flatMap((e) => e.hints)
@@ -636,6 +737,7 @@ export function usedBy(p: Project, target: ReferenceTarget): ReferenceUse[] {
       (matches(use, target) || children.some((t) => matches(use, t))) &&
       !(target.kind === 'entity' && use.ownerId === target.id) &&
       !(target.kind === 'flow' && use.flowId === target.id) &&
+      !(target.kind === 'procedure' && use.procedureId === target.id) &&
       !(target.kind === 'puzzle' && use.puzzleId === target.id),
   );
 }
@@ -652,6 +754,8 @@ function schema(p: Project, target: ReferenceTarget): Value | undefined {
 }
 function definitionExists(p: Project, t: ReferenceTarget): boolean {
   if (t.kind === 'variable' || t.kind === 'property') return schema(p, t) !== undefined;
+  if (t.kind === 'procedure')
+    return (p.procedures ?? []).some((procedure) => procedure.id === t.id);
   if (t.kind === 'entity') return !!entity(p, t.id);
   if (t.kind === 'ending') return p.game.endings.some((v) => v.id === t.id);
   if (t.kind === 'verb') return p.vocabulary.some((v) => v.id === t.id);
@@ -696,6 +800,11 @@ export function replacementTargets(p: Project, source: ReferenceTarget): Referen
   );
 }
 export function deleteDefinition(p: Project, target: ReferenceTarget) {
+  if (target.kind === 'procedure') {
+    p.procedures = (p.procedures ?? []).filter((procedure) => procedure.id !== target.id);
+    delete p.editor.blocks[target.id];
+    return;
+  }
   if (target.kind === 'variable') {
     delete p.game.variables[target.name];
     return;
@@ -753,14 +862,15 @@ export type ReferencePlan = { project: Project; uses: ReferenceUse[]; errors: st
 export function containerReferenceErrors(p: Project): string[] {
   const errors = new Set<string>();
   const objects = new Map(p.objects.map((o) => [o.id, o]));
-  const holder = (id: string, relation: 'inside' | 'on') => {
+  const holder = (id: EntityRef, relation: 'inside' | 'on') => {
+    if (typeof id !== 'string') return;
     const object = objects.get(id);
     if (!object || (relation === 'inside' ? !object.storage?.container : !object.storage?.surface))
       errors.add(
         `${object?.name ?? id} must support items ${relation === 'inside' ? 'inside' : 'on top'}.`,
       );
   };
-  const placement = (value: Placement) => {
+  const placement = (value: ScopedPlacement) => {
     if (value.type === 'inside' || value.type === 'on') holder(value.object, value.type);
   };
   const condition = (value: Condition) => {
@@ -812,6 +922,7 @@ export function containerReferenceErrors(p: Project): string[] {
         hint.stages.forEach((stage) => condition(stage.condition));
       }
   }
+  for (const procedure of p.procedures ?? []) effects(procedure.effects);
   for (const template of p.editor.templates) {
     if (template.content.type === 'action') {
       condition(template.content.action.requirements);
@@ -881,6 +992,12 @@ export function referencePlan(
     source.entity !== destination.entity
   )
     errors.push('Rename the property on its original entity.');
+  if (source.kind === 'procedure' && destination)
+    errors.push('Update procedure calls and their inputs before replacing a definition.');
+  if (source.kind === 'property' && uses.some((use) => use.contract))
+    errors.push(
+      'This property is required by a procedure input. Update the shared contract and its callers before renaming or deleting the property.',
+    );
   if (!destination && uses.length)
     errors.push('Choose a replacement before deleting referenced content.');
   if (
@@ -929,6 +1046,7 @@ export function referencePlan(
     !rename &&
     ((source.kind === 'entity' && use.ownerId === source.id) ||
       (source.kind === 'flow' && use.flowId === source.id) ||
+      (source.kind === 'procedure' && use.procedureId === source.id) ||
       (source.kind === 'puzzle' && use.puzzleId === source.id) ||
       ((source.kind === 'ending' || source.kind === 'template') && use.subject === source.id));
   for (const use of scan(next, p, (use) => retarget(use.target))) {

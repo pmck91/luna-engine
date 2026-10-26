@@ -116,7 +116,7 @@ impl<'a> Run<'a> {
                     &action.requirements,
                     self.source_for(&action.id, "requirements"),
                     "Action requirements",
-                ) {
+                )? {
                     self.result.status = CommandStatus::RequirementsFailed;
                     self.say(if action.failure_text.is_empty() {
                         "You cannot do that yet."
@@ -154,7 +154,7 @@ impl<'a> Run<'a> {
                     &exit.available,
                     self.source_for(&exit.id, "available"),
                     "Exit availability",
-                ) {
+                )? {
                     self.result.status = CommandStatus::RequirementsFailed;
                     self.say(if exit.blocked_text.is_empty() {
                         "That route is not available yet."

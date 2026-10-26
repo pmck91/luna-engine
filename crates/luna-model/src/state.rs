@@ -1,4 +1,4 @@
-//! Shared saved-state shape. Moving this contract does not change player save formats.
+//! Complete persistent state shared by the engine and its hosts.
 use crate::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
@@ -32,6 +32,9 @@ pub struct GameState {
     pub properties: BTreeMap<String, BTreeMap<String, Value>>,
     pub visits: BTreeMap<String, u32>,
     pub sequences: BTreeMap<String, usize>,
+    #[serde(default, skip_serializing_if = "ProcedureProgress::is_empty")]
+    #[ts(as = "Option<Vec<ProcedureCursor>>", optional)]
+    pub procedure_sequences: ProcedureProgress,
     #[serde(default)]
     pub hints: BTreeMap<String, HintProgress>,
 }

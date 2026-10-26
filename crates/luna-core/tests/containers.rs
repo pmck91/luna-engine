@@ -398,7 +398,8 @@ fn physical_requirements_refuse_while_scripted_placement_can_stage_a_closed_hold
             object: target("letter"),
             placement: Placement::Inside {
                 object: "chest".into(),
-            },
+            }
+            .into(),
         }],
     );
     let mut session = start(p);
@@ -432,7 +433,8 @@ fn cycle_errors_nonempty_consumption_and_later_effect_failure_roll_back_everythi
             object: target("chest"),
             placement: Placement::Inside {
                 object: "box".into(),
-            },
+            }
+            .into(),
         }],
     );
     script(
@@ -458,7 +460,7 @@ fn cycle_errors_nonempty_consumption_and_later_effect_failure_roll_back_everythi
             },
             Effect::Transfer {
                 object: target("key"),
-                placement: Placement::Inventory,
+                placement: Placement::Inventory.into(),
             },
             increment("overflow"),
         ],
@@ -489,7 +491,7 @@ fn removal_parks_contents_and_restoration_does_not_replay_them() {
         "restore",
         vec![Effect::Place {
             object: "chest".into(),
-            location: room,
+            location: room.into(),
         }],
     );
     let mut session = start(p);
@@ -592,7 +594,7 @@ fn scoped_messages_preserve_literal_names_global_variables_and_context_boundarie
         id: "invalid-input".into(),
         effects: vec![Effect::Transfer {
             object: ObjectTarget::command_item(),
-            placement: Placement::Inventory,
+            placement: Placement::Inventory.into(),
         }],
         ..Default::default()
     });

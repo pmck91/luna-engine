@@ -133,6 +133,7 @@ fn load_unlocked(root: &Path) -> Result<Project> {
         locations: entity_files(root, "locations")?,
         objects: entity_files(root, "objects")?,
         characters: entity_files(root, "characters")?,
+        procedures: entity_files(root, "procedures")?,
         editor: if layout.exists() {
             json(&layout)?
         } else {
@@ -167,6 +168,7 @@ pub fn revision(root: &Path) -> Result<String> {
         "locations",
         "objects",
         "characters",
+        "procedures",
         "editor",
         "assets",
     ] {
@@ -223,6 +225,18 @@ pub fn project_files(p: &Project, editor: bool) -> Result<BTreeMap<String, Strin
             "Duplicate character ID"
         );
     }
+    for procedure in &p.procedures {
+        ensure!(safe_id(&procedure.id), "Unsafe procedure ID");
+        ensure!(
+            files
+                .insert(
+                    format!("procedures/{}.json", procedure.id),
+                    pretty(procedure)?
+                )
+                .is_none(),
+            "Duplicate procedure ID"
+        );
+    }
     if editor {
         files.insert("editor/map-layout.json".into(), pretty(&p.editor)?);
     }
@@ -255,7 +269,7 @@ fn managed(path: &str) -> bool {
     path == "game.json"
         || path == "vocabulary.json"
         || path == "editor/map-layout.json"
-        || ["locations/", "objects/", "characters/"]
+        || ["locations/", "objects/", "characters/", "procedures/"]
             .iter()
             .any(|prefix| {
                 path.starts_with(prefix) && path.ends_with(".json") && path.split('/').count() == 2
@@ -313,6 +327,7 @@ pub fn save_project(root: &Path, p: &Project, expected: Option<&str>) -> Result<
         "locations",
         "objects",
         "characters",
+        "procedures",
     ] {
         collect(root, name, &mut old)?
     }
@@ -755,19 +770,38 @@ mod tests {
         let before = fs::read_to_string(tmp.path().join("game.json")).unwrap();
         p.game.title = "After".into();
         let after = pretty(&p.game).unwrap();
-        let txn = Transaction {
-            changes: vec![Change {
-                path: "game.json".into(),
-                before: Some(before),
-                after: Some(after),
+        let procedure = Procedure {
+            id: "recovered".into(),
+            name: "Recovered procedure".into(),
+            description: String::new(),
+            inputs: vec![],
+            effects: vec![Effect::Say {
+                text: "Recovered".into(),
             }],
+        };
+        let txn = Transaction {
+            changes: vec![
+                Change {
+                    path: "game.json".into(),
+                    before: Some(before),
+                    after: Some(after),
+                },
+                Change {
+                    path: "procedures/recovered.json".into(),
+                    before: None,
+                    after: Some(pretty(&procedure).unwrap()),
+                },
+            ],
         };
         atomic_write(
             &tmp.path().join(".luna-transaction.json"),
             pretty(&txn).unwrap().as_bytes(),
         )
         .unwrap();
-        assert_eq!(load_project(tmp.path()).unwrap().game.title, "After");
+        let recovered = load_project(tmp.path()).unwrap();
+        assert_eq!(recovered.game.title, "After");
+        assert_eq!(recovered.procedures, vec![procedure]);
+        assert!(!tmp.path().join(".luna-transaction.json").exists());
     }
     #[cfg(unix)]
     #[test]

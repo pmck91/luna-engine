@@ -7,8 +7,8 @@
 use super::Run;
 use anyhow::Result;
 use luna_model::{
-    ArithmeticOperation, Condition, Effect, Event, GameState, Value, ValueTarget, WatchMode,
-    normalize, text,
+    ArithmeticOperation, BoundArgument, Condition, Effect, Event, GameState, InputKind, Value,
+    ValueTarget, WatchMode, normalize, text,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as Json;
@@ -47,6 +47,29 @@ pub struct TraceChange {
     /// Attempted JSON value; null also represents a removed map entry.
     pub after: Json,
 }
+/// An immutable typed argument captured at procedure entry.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ProcedureBinding {
+    /// Stable parameter ID in the called definition.
+    pub input: String,
+    /// Authored label captured for this explanation.
+    pub name: String,
+    /// Declared input kind.
+    pub kind: InputKind,
+    /// Immutable scalar or stable entity ID resolved at entry.
+    pub value: BoundArgument,
+}
+/// How a procedure completed; an execution error is recorded on its trace step.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProcedureReturn {
+    /// Reached the end of the definition.
+    Returned,
+    /// STOP returned from this invocation.
+    Stopped,
+    /// A game ending propagated through this invocation.
+    Ended,
+}
 /// The operation or observation represented by an explanation step.
 ///
 /// A completed condition can be false, and a completed trigger can be skipped.
@@ -54,6 +77,19 @@ pub struct TraceChange {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TraceKind {
+    /// A shared definition invoked at one canonical CALL occurrence.
+    Call {
+        /// Canonical occurrence identity at the caller source.
+        call: String,
+        /// Definition source, distinct from the caller source on the trace step.
+        definition: TraceSource,
+        /// Definition display name.
+        name: String,
+        /// Named bindings captured once, before executing the body.
+        arguments: Vec<ProcedureBinding>,
+        /// Absent until completion, or when execution failed.
+        returned: Option<ProcedureReturn>,
+    },
     /// A potential command handler, including negative matches during explanation.
     Candidate {
         /// Authored action or exit display name.
@@ -379,51 +415,41 @@ impl Run<'_> {
             *result = Some(value.clone());
         }
     }
+    pub(super) fn procedure_return(&mut self, returned: ProcedureReturn) {
+        if let Some(step) = self.recording.as_mut().and_then(|recorder| {
+            self.trace_parent
+                .and_then(|index| recorder.steps.get_mut(index))
+        }) && let TraceKind::Call {
+            returned: result, ..
+        } = &mut step.kind
+        {
+            *result = Some(returned);
+        }
+    }
     pub(super) fn checked_condition(
         &mut self,
         condition: &Condition,
         source: Option<TraceSource>,
         label: &str,
-    ) -> bool {
+    ) -> Result<bool> {
         if self.recording.is_none() {
-            return self.condition(condition);
+            return self.evaluate_condition(condition);
         }
         let observed = match condition {
-            Condition::Variable { name, .. } => self
-                .variable(name)
-                .and_then(|v| serde_json::to_value(v).ok()),
-            Condition::Property { entity, name, .. } => self
-                .property(entity, name)
-                .and_then(|v| serde_json::to_value(v).ok()),
-            Condition::Carrying { object }
-            | Condition::CharacterCarrying { object, .. }
-            | Condition::Exists { object }
-            | Condition::Opened { object } => self
-                .state
-                .objects
-                .get(object)
-                .and_then(|v| serde_json::to_value(v).ok()),
+            Condition::Variable { name, .. } => self.variable(name).and_then(|value| serde_json::to_value(value).ok()),
+            Condition::Property { entity, name, .. } => self.entity_ref(entity).ok().and_then(|entity| self.property(entity, name)).and_then(|value| serde_json::to_value(value).ok()),
+            Condition::Carrying { object } | Condition::CharacterCarrying { object, .. } | Condition::Exists { object } | Condition::Opened { object } => self.entity_ref(object).ok().and_then(|id| self.state.objects.get(id)).and_then(|value| serde_json::to_value(value).ok()),
             Condition::At { .. } => Some(Json::String(self.state.location.clone())),
-            Condition::Visited { location, .. } => self
-                .state
-                .visits
-                .get(location)
-                .and_then(|v| serde_json::to_value(v).ok()),
+            Condition::Visited { location, .. } => self.entity_ref(location).ok().and_then(|id| self.state.visits.get(id)).and_then(|value| serde_json::to_value(value).ok()),
             Condition::Possesses { object, .. } | Condition::Reachable { object } | Condition::InObject { object, .. } | Condition::CanTransfer { object, .. } => self.object_target(object).map(|id| {
-                let mut path = vec![];
-                let mut current = id;
-                for _ in 0..=self.state.objects.len() {
-                    let Some(state) = self.state.objects.get(current) else { break };
-                    path.push(serde_json::json!({"id": current, "state": state}));
-                    let Some((parent, _)) = state.placement.parent_object() else { break };
-                    current = parent;
-                }
+                let mut path = vec![]; let mut current = id;
+                for _ in 0..=self.state.objects.len() { let Some(state) = self.state.objects.get(current) else { break }; path.push(serde_json::json!({"id": current, "state": state})); let Some((parent, _)) = state.placement.parent_object() else { break }; current = parent; }
                 serde_json::json!({"object": id, "reachable": self.object_available(id), "path": path})
             }),
             _ => None,
         };
-        let index = self.recording.as_mut().and_then(|r| {
-            r.push(
+        let index = self.recording.as_mut().and_then(|recorder| {
+            recorder.push(
                 TraceKind::Condition {
                     label: label.into(),
                     condition: condition.clone(),
@@ -436,41 +462,70 @@ impl Run<'_> {
         });
         let parent = self.trace_parent;
         self.trace_parent = index;
-        let value = match condition {
-            Condition::All { conditions } => conditions.iter().enumerate().all(|(i, c)| {
-                self.checked_condition(
-                    c,
-                    source.as_ref().map(|s| s.child(format!("conditions.{i}"))),
-                    "ALL member",
-                )
-            }),
-            Condition::Any { conditions } => conditions.iter().enumerate().any(|(i, c)| {
-                self.checked_condition(
-                    c,
-                    source.as_ref().map(|s| s.child(format!("conditions.{i}"))),
-                    "ANY member",
-                )
-            }),
-            Condition::Not { condition } => !self.checked_condition(
-                condition,
-                source.as_ref().map(|s| s.child("condition")),
-                "NOT operand",
-            ),
-            _ => self.condition(condition),
-        };
+        let result = (|| -> Result<bool> {
+            Ok(match condition {
+                Condition::All { conditions } => {
+                    let mut value = true;
+                    for (i, condition) in conditions.iter().enumerate() {
+                        if !self.checked_condition(
+                            condition,
+                            source.as_ref().map(|s| s.child(format!("conditions.{i}"))),
+                            "ALL member",
+                        )? {
+                            value = false;
+                            break;
+                        }
+                    }
+                    value
+                }
+                Condition::Any { conditions } => {
+                    let mut value = false;
+                    for (i, condition) in conditions.iter().enumerate() {
+                        if self.checked_condition(
+                            condition,
+                            source.as_ref().map(|s| s.child(format!("conditions.{i}"))),
+                            "ANY member",
+                        )? {
+                            value = true;
+                            break;
+                        }
+                    }
+                    value
+                }
+                Condition::Not { condition } => !self.checked_condition(
+                    condition,
+                    source.as_ref().map(|s| s.child("condition")),
+                    "NOT operand",
+                )?,
+                _ => self.evaluate_condition(condition)?,
+            })
+        })();
         self.trace_parent = parent;
-        if let (Some(i), Some(r)) = (index, &mut self.recording)
-            && let TraceKind::Condition {
-                value: recorded, ..
-            } = &mut r.steps[i].kind
-        {
-            *recorded = value;
+        if let (Some(index), Some(recorder)) = (index, &mut self.recording) {
+            let step = &mut recorder.steps[index];
+            match &result {
+                Ok(value) => {
+                    if let TraceKind::Condition {
+                        value: recorded, ..
+                    } = &mut step.kind
+                    {
+                        *recorded = *value;
+                    }
+                }
+                Err(error) => {
+                    step.outcome = TraceOutcome::Failed;
+                    step.error = Some(format!("{error:#}"));
+                    recorder.failed_step.get_or_insert(index);
+                }
+            }
         }
-        value
+        result
     }
 }
 pub(super) fn effect_name(effect: &Effect) -> &'static str {
     match effect {
+        Effect::Call { .. } => "CALL PROCEDURE",
+        Effect::Assign { .. } => "ASSIGN VALUE",
         Effect::SayWithInputs { .. } => "SAY",
         Effect::Transfer { .. } => "TRANSFER OBJECT",
         Effect::ListContents { .. } => "LIST CONTENTS",

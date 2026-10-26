@@ -1,3 +1,4 @@
+import { messageText } from './procedureModel';
 import { useState } from 'react';
 import type { Action, Object as GameObject, Project, StandardInteraction, Verb } from './contracts';
 import type { ProjectEdit } from './projectHistory';
@@ -222,7 +223,7 @@ export default function ContainerSetup({
                   <p key={i} className="muted">
                     Response:{' '}
                     {e.type === 'say'
-                      ? e.text
+                      ? messageText(e.text)
                       : e.type === 'say_with_inputs'
                         ? localMessage(preview, e.references).display(e.text)
                         : ''}

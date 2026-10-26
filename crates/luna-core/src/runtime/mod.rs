@@ -23,12 +23,10 @@ mod hints;
 mod index;
 mod matching;
 mod presentation;
+mod procedures;
 mod relations;
 pub(crate) mod resolution;
 mod values;
-
-#[cfg(test)]
-pub(crate) mod procedure_proof;
 
 pub use commands::host_control;
 pub(crate) use index::RuntimeIndex;
@@ -39,6 +37,9 @@ const EVENT_DEPTH_LIMIT: usize = 64;
 pub(crate) struct Run<'a> {
     p: &'a Project,
     index: &'a RuntimeIndex,
+    procedure_index: &'a crate::procedures::ProcedureIndex,
+    invocation: procedures::Invocation,
+    active_procedures: Vec<usize>,
     entity_words: &'a EntityWords,
     pub(crate) state: Cow<'a, GameState>,
     pub(crate) result: CommandResult,
@@ -52,8 +53,6 @@ pub(crate) struct Run<'a> {
     item_input: Option<&'a str>,
     relations: RefCell<HashMap<usize, relations::Relation>>,
     mutation_events: Vec<(luna_model::Event, String)>,
-    #[cfg(test)]
-    pub(crate) procedures: Option<procedure_proof::Execution>,
 }
 #[derive(PartialEq)]
 enum Flow {
@@ -74,6 +73,9 @@ impl<'a> Run<'a> {
         Self {
             p: definition.project(),
             index: definition.runtime(),
+            procedure_index: definition.procedures(),
+            invocation: procedures::Invocation::default(),
+            active_procedures: vec![],
             entity_words: &definition.runtime().entity_words,
             state,
             result: CommandResult::default(),
@@ -87,8 +89,6 @@ impl<'a> Run<'a> {
             item_input: None,
             relations: RefCell::new(HashMap::new()),
             mutation_events: vec![],
-            #[cfg(test)]
-            procedures: None,
         }
     }
     fn world_mut(&mut self) -> &mut GameState {

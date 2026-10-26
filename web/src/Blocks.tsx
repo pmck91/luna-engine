@@ -1,3 +1,13 @@
+import {
+  argumentLabel,
+  editMessage,
+  entityKey,
+  entityValue,
+  messageText,
+  inputLabel,
+  referenceLabel,
+  scopedPlacementValue,
+} from './procedureModel';
 import { bindWorkspaceHistory, type HistoryControls } from './workspaceHistory';
 import { useContext, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import * as Blockly from 'blockly/core';
@@ -29,6 +39,41 @@ import {
   targetKey,
   targetValue,
 } from './containerModel';
+/** Normal load/Undo keeps content IDs. Each native paste gets new CALL identities,
+ * including repeated pastes of the same clipboard item and nested chains. */
+export function remapPastedCalls(state: Blockly.serialization.blocks.State) {
+  const copy = structuredClone(state);
+  const visit = (block: Blockly.serialization.blocks.State) => {
+    if (block.type === 'luna_call' && block.data) {
+      const call = JSON.parse(block.data) as Extract<Effect, { type: 'call' }>;
+      call.id = id();
+      block.data = JSON.stringify(call);
+    }
+    for (const input of Object.values(block.inputs ?? {})) {
+      if (input.block) visit(input.block);
+      if (input.shadow) visit(input.shadow);
+    }
+    if (block.next?.block) visit(block.next.block);
+    if (block.next?.shadow) visit(block.next.shadow);
+  };
+  visit(copy);
+  return copy;
+}
+class LunaBlockPaster extends Blockly.clipboard.BlockPaster {
+  override paste(
+    data: Blockly.clipboard.BlockCopyData,
+    workspace: Blockly.WorkspaceSvg,
+    coordinate?: Blockly.utils.Coordinate,
+  ) {
+    return super.paste(
+      { ...data, blockState: remapPastedCalls(data.blockState) },
+      workspace,
+      coordinate,
+    );
+  }
+}
+Blockly.clipboard.registry.unregister(Blockly.clipboard.BlockPaster.TYPE);
+Blockly.clipboard.registry.register(Blockly.clipboard.BlockPaster.TYPE, new LunaBlockPaster());
 const workspaceFlows = new WeakMap<Blockly.Workspace, string>();
 export function registerBlockScope(workspace: Blockly.Workspace, flowId: string) {
   workspaceFlows.set(workspace, flowId);
@@ -166,12 +211,29 @@ function field(name: string, type: string): Blockly.Field {
       let original: unknown;
       try {
         original = block?.data ? JSON.parse(block.data)[name] : undefined;
+        if (original && typeof original === 'object') {
+          if (name === 'placement')
+            original = placementKey(original as import('./contracts').ScopedPlacement);
+          else if (name === 'object' && structuredTargets.includes(type))
+            original = targetKey(original as import('./contracts').ObjectTarget);
+          else if ('procedure_input' in original)
+            original = entityKey(original as import('./contracts').EntityRef);
+        }
       } catch {
         /* fresh block */
       }
       for (const value of [this.getValue(), original])
         if (typeof value === 'string' && value && !options.some(([, key]) => key === value))
-          options.push([`Missing: ${value}`, value]);
+          options.push([
+            value.startsWith('@procedure:')
+              ? referenceLabel(
+                  project,
+                  entityValue(value),
+                  block ? workspaceFlows.get(block.workspace) : undefined,
+                )
+              : `Missing: ${value}`,
+            value,
+          ]);
       return options;
     });
   if (name === 'object' && structuredTargets.includes(type))
@@ -715,9 +777,57 @@ function register() {
         setConditionCount(this, Math.max(0, Math.trunc(state.count ?? 2)));
       },
     };
+  // Canonical v4 nodes are losslessly viewable before the dedicated authoring
+  // controls are wired. Keep them out of the insertion catalogue for this slice.
+  for (const [type, label, output] of [
+    ['luna_call', 'CALL PROCEDURE', ''],
+    ['luna_assign', 'ASSIGN VALUE', ''],
+    ['condition_compare', 'COMPARE VALUES', 'Boolean'],
+    ['number_input', 'PROCEDURE INPUT', 'Number'],
+  ])
+    Blockly.Blocks[type] = {
+      init(this: Blockly.Block) {
+        this.appendDummyInput().appendField(new Blockly.FieldLabelSerializable(label), 'SUMMARY');
+        if (output) this.setOutput(true, output);
+        else {
+          this.setPreviousStatement(true);
+          this.setNextStatement(true);
+        }
+        this.setColour(
+          output === 'Boolean' ? '#916b31' : output === 'Number' ? '#426e85' : '#7161c6',
+        );
+      },
+    };
 }
 function setFields(block: Blockly.Block, data: Record<string, unknown>) {
   block.data = JSON.stringify(data);
+  if (block.getField('SUMMARY')) {
+    const argument = (value: unknown) =>
+      argumentLabel(
+        project,
+        value as import('./contracts').Argument,
+        workspaceFlows.get(block.workspace),
+      );
+    const procedure = (project.procedures ?? []).find(
+      (procedure) => procedure.id === data.procedure,
+    );
+    const summary =
+      data.type === 'call'
+        ? `CALL ${procedure?.name ?? data.procedure} · ${Object.entries(
+            (data.arguments ?? {}) as Record<string, unknown>,
+          )
+            .map(
+              ([key, value]) =>
+                `${procedure?.inputs.find((input) => input.id === key)?.name ?? key}: ${argument(value)}`,
+            )
+            .join(', ')}`
+        : data.type === 'compare'
+          ? `${argument(data.left)} ${data.op} ${argument(data.right)}`
+          : data.type === 'assign'
+            ? `ASSIGN ${argument(data.value)}`
+            : `INPUT ${inputLabel(project, String(data.input), workspaceFlows.get(block.workspace))}`;
+    block.setFieldValue(summary, 'SUMMARY');
+  }
   for (const [name, value] of Object.entries(data))
     if (block.getField(name)) {
       try {
@@ -738,7 +848,22 @@ function setFields(block: Blockly.Block, data: Record<string, unknown>) {
                         { type: 'say_with_inputs' }
                       >['references'],
                     ).display(String(value))
-                  : value;
+                  : name === 'text' && typeof value === 'object'
+                    ? messageText(value as import('./contracts').MessageText)
+                    : [
+                          'entity',
+                          'object',
+                          'character',
+                          'location',
+                          'parent',
+                          'first',
+                          'second',
+                          'result',
+                        ].includes(name) &&
+                        typeof value === 'object' &&
+                        value !== null
+                      ? entityKey(value as import('./contracts').EntityRef)
+                      : value;
         block.setFieldValue(
           name.startsWith('consume_') && typeof value === 'boolean'
             ? value
@@ -826,18 +951,35 @@ function fields(block: Blockly.Block, names: string[]): Record<string, unknown> 
       return [
         name,
         name === 'placement'
-          ? placementValue(raw)
+          ? scopedPlacementValue(raw)
           : name === 'object' && structuredTargets.includes(type)
             ? targetValue(raw)
             : name === 'character' && type === 'possesses'
-              ? raw || null
+              ? raw
+                ? entityValue(raw)
+                : null
               : name === 'value'
                 ? valueFrom(String(raw), schema(block))
                 : name.startsWith('consume_')
                   ? raw === 'TRUE'
                   : name === 'count'
                     ? Number(raw)
-                    : raw,
+                    : [
+                          'entity',
+                          'object',
+                          'character',
+                          'location',
+                          'parent',
+                          'first',
+                          'second',
+                          'result',
+                        ].includes(name)
+                      ? entityValue(raw)
+                      : name === 'text' &&
+                          block.data &&
+                          typeof JSON.parse(block.data).text === 'object'
+                        ? editMessage(JSON.parse(block.data).text, String(raw))
+                        : raw,
       ];
     }),
   );
@@ -845,6 +987,7 @@ function fields(block: Blockly.Block, names: string[]): Record<string, unknown> 
 export function readCondition(block: Blockly.Block | null): Condition {
   if (!block) return { type: 'true' };
   const type = block.type.replace('condition_', '') as Condition['type'];
+  if (type === 'compare' && block.data) return JSON.parse(block.data) as Condition;
   if (type === 'not') return { type, condition: readCondition(block.getInputTargetBlock('TEST')) };
   if (type === 'all' || type === 'any')
     return {
@@ -855,6 +998,7 @@ export function readCondition(block: Blockly.Block | null): Condition {
 }
 export function readOperand(block: Blockly.Block | null): NumericOperand {
   if (!block) return { type: 'literal', value: 1 };
+  if (block.type === 'number_input' && block.data) return JSON.parse(block.data) as NumericOperand;
   if (block.type === 'number_literal')
     return { type: 'literal', value: Number(block.getFieldValue('value')) };
   if (block.type === 'number_variable')
@@ -862,7 +1006,7 @@ export function readOperand(block: Blockly.Block | null): NumericOperand {
   if (block.type === 'number_property')
     return {
       type: 'property',
-      entity: block.getFieldValue('entity'),
+      entity: entityValue(block.getFieldValue('entity')),
       name: block.getFieldValue('name'),
     };
   throw new Error('Arithmetic requires a numeric value block');
@@ -872,7 +1016,9 @@ export function readEffects(first: Blockly.Block | null, limit = Infinity): Effe
   let block = first;
   while (block && effects.length < limit) {
     const type = block.type.replace('luna_', '') as Effect['type'];
-    if (type === 'if')
+    if ((type === 'call' || type === 'assign') && block.data)
+      effects.push(JSON.parse(block.data) as Effect);
+    else if (type === 'if')
       effects.push({
         type,
         condition: readCondition(block.getInputTargetBlock('TEST')),
@@ -1191,7 +1337,7 @@ export function describeBlock(
     value,
     fields: block.inputList.flatMap((input) =>
       input.fieldRow
-        .filter((f) => !!f.name && f.name !== 'FLOW_TITLE')
+        .filter((f) => !!f.name && f.name !== 'FLOW_TITLE' && f.name !== 'SUMMARY')
         .map((f) => ({
           name: f.name!,
           label: f.name!.replaceAll('_', ' '),

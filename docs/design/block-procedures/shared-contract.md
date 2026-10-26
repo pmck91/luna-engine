@@ -1,14 +1,16 @@
 # Procedures — R1 shared contract
 
-Status: **R1 feasibility verified; implementation contract frozen**, 26 October 2026, on `feature/block-procedures`. The owner accepted [R0](README.md) with “looks great.” This document fixes R2's representation and behaviour; it does **not** declare procedures available in the production editor or runner.
+Status: **R1 feasibility verified; implementation contract frozen**, 26 October 2026, on `feature/block-procedures`. The owner accepted [R0](README.md) with “looks great.” This document freezes R2's representation and behaviour. The [R2 foundation record](foundation-review.md) tracks its subsequent promotion; dedicated production authoring is still in progress.
 
 The [focused plan](../../plans/block-procedures.md) retains the accepted scope and authoring journey. Keep current Blockly shapes, colours, inline fields, connectors, and terminal-chain rendering. No extraction, return values, mutable locals, recursion, external libraries, or narrative feature expansion in F3.
 
 ## Proof and its limits
 
-The [test-only Rust coordinator](../../../crates/luna-core/src/runtime/procedure_proof.rs) enters through the ordinary selected action/exit/event execution and the real Session commit boundary. Its [22 regression cases](../../../crates/luna-core/src/procedure_tests.rs) prove typed entry binding, six input kinds, body/caller property contracts, explicit Command item forwarding, nested calls, lexical event isolation, callback recursion rejection, STOP/END propagation, shared operation/depth limits, safe message insertion, independent cursors, nested native RESPOND/reset/exhaustion, rollback, and ordinary/explained equivalence. Graph traversal is iterative; a 30-level branching DAG is constructed without expanding its billion possible invocation paths.
+At R1, a test-only Rust coordinator entered through the ordinary selected action/exit/event execution and the real Session commit boundary. Its 22 regression cases proved typed entry binding, six input kinds, body/caller property contracts, explicit Command item forwarding, nested calls, lexical event isolation, callback recursion rejection, STOP/END propagation, shared operation/depth limits, safe message insertion, independent cursors, nested native RESPOND/reset/exhaustion, rollback, and ordinary/explained equivalence. Graph traversal is iterative; a 30-level branching DAG is constructed without expanding its billion possible invocation paths.
 
-Native effects, conditions, arithmetic, watches, endings, response modes, and exhaustion follow-ups execute through existing Run methods. Only candidate CALL coordination and typed slot projection are experimental. Root-flow and response-cursor helpers centralise the existing runtime paths; all procedure fields/dispatch are compiled only in tests. The candidate progress map commits only when the same Session attempt succeeds. It is separate from shipped GameState until R2.
+The coordinator has since been retired. Its scenarios are now [canonical public-Session regressions](../../../crates/luna-core/tests/procedures.rs), backed by the [production CALL executor](../../../crates/luna-core/src/runtime/procedures.rs); the [foundation record](foundation-review.md) distinguishes delivered work from remaining gates.
+
+At R1, native effects, conditions, arithmetic, watches, endings, response modes, and exhaustion follow-ups executed through existing Run methods. At that stage, only candidate CALL coordination and typed slot projection were experimental. Root-flow and response-cursor helpers centralised the existing runtime paths; procedure fields/dispatch were compiled only in tests. The candidate progress map committed only when the same Session attempt succeeded and was separate from GameState until R2 promotion.
 
 The [Blockly model proof](../../../web/design/procedures/model-proof.ts) and its [six tests](../../../web/design/procedures/model-proof.test.ts) use installed **12.5.1**, independent workspace procedure maps, custom local parameter models, actual Integer sockets, JSON loading, draft retention, and one project-history snapshot. The [rendered browser proof](../../../web/design/procedures/verify-model.mjs) additionally passes native clipboard copy/repeated paste, rename, history, and reload in **Chromium and Firefox**, using Luna's real renderer. No globals, project API calls, or new dependency/plugin are involved.
 
@@ -159,10 +161,10 @@ Canonical files, conflict/recovery journals, revision hashes, Save As, exports, 
 3. Wire accepted Procedures/declarations/CALL arguments, Used by, exact caller return, signature/body repair, duplication/deletion, history/drafts/templates, search/findings/help, and clipboard integration. Retain values and disconnected blocks during type changes. Reuse actual project history, not the proof snapshot class.
 4. Give the owner a working authoring/player slice before R3 final fixture/package/parity/scaling acceptance. Preserve the three accepted examples and historical fixtures; public guides remain deferred.
 
-## Reproduce R1
+## Reproduce the retained proof and promoted regressions
 
 ```sh
-cargo test -p luna-core procedure_tests
+cargo test -p luna-core --test procedures
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo run -p luna-editor --example export_types -- --check

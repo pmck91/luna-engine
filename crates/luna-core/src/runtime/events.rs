@@ -74,7 +74,7 @@ impl<'a> Run<'a> {
                         &t.condition,
                         this.source_for(&t.id, "condition"),
                         "Trigger condition",
-                    ) {
+                    )? {
                         this.trigger_fired();
                         this.result
                             .trace
@@ -138,16 +138,15 @@ impl<'a> Run<'a> {
             .watchers(target)
             .iter()
             .map(|address| address.trigger(self.p));
-        let mut eligible = watchers
-            .map(|trigger| {
-                let before = self.checked_condition(
-                    &trigger.condition,
-                    self.source_for(&trigger.id, "condition"),
-                    "Before value change",
-                );
-                (trigger, before)
-            })
-            .collect::<Vec<_>>();
+        let mut checked = vec![];
+        for trigger in watchers {
+            let before = self.checked_condition(
+                &trigger.condition,
+                self.source_for(&trigger.id, "condition"),
+                "Before value change",
+            )?;
+            checked.push((trigger, before));
+        }
         let changed_to = value.clone();
         match target {
             ValueTarget::Variable { name } => {
@@ -162,26 +161,29 @@ impl<'a> Run<'a> {
                     .insert(name.clone(), value);
             }
         }
-        eligible.retain(|(trigger, before)| {
+        let mut eligible = vec![];
+        for (trigger, before) in checked {
             let mode = trigger.watch.as_ref().unwrap().mode;
-            let eligible = (!before || mode == WatchMode::EachChange)
+            let matches = (!before || mode == WatchMode::EachChange)
                 && self.checked_condition(
                     &trigger.condition,
                     self.source_for(&trigger.id, "condition"),
                     "After value change",
-                );
+                )?;
             self.observe(
                 TraceKind::Watch {
                     target: target.clone(),
                     before: previous.clone(),
                     after: changed_to.clone(),
                     mode,
-                    eligible,
+                    eligible: matches,
                 },
                 self.source_for(&trigger.id, "watch"),
             );
-            eligible
-        });
+            if matches {
+                eligible.push((trigger, before));
+            }
+        }
         if eligible.is_empty() {
             return Ok(());
         }
@@ -206,7 +208,7 @@ impl<'a> Run<'a> {
                         &trigger.condition,
                         this.source_for(&trigger.id, "condition"),
                         "Recheck before running",
-                    ) {
+                    )? {
                         this.trigger_fired();
                         this.result
                             .trace

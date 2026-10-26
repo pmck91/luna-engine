@@ -1,6 +1,6 @@
 # Reusable block procedures
 
-Status: **R0 accepted; R1 proof/contract complete; R2 next**, 26 October 2026. The owner accepted the interactive authoring design and STOP/progress rules with “looks great.” The focused feature precedes conversations/quests. The [R1 contract](../design/block-procedures/shared-contract.md) records verified feasibility, exact production representations, and the R2 promotion/storage gates. Production procedures remain unimplemented.
+Status: **R0 accepted; R1 complete; R2 foundation implemented, authoring in progress**, 26 October 2026. The owner accepted the interactive authoring design and STOP/progress rules with “looks great.” The focused feature precedes conversations/quests. The [R1 contract](../design/block-procedures/shared-contract.md) records verified feasibility, exact production representations, and the R2 promotion/storage gates. The canonical model/runtime and host persistence are implemented; the dedicated authoring journey remains the next part of R2. See the [foundation record](../design/block-procedures/foundation-review.md).
 
 Branch: `feature/block-procedures`, created from merged `main` at `d3c7860` (parser context, PR #3). Keep shared Rust content/runtime/storage, editor, runner, compatibility, and acceptance together on this branch. The [roadmap](gameplay-feature-roadmap.md) schedules the basic feature first, then conversations/quests, then turns/routines. Public user guides remain in the documentation milestone.
 
@@ -88,7 +88,7 @@ Successful load/restoration never calls a procedure or replays effects. A saved 
 
 ## Content, persistence, and editor architecture
 
-Current merged versions are content **3**, save **3**, and Blockly **12.5.1**. R1 reserves content/save **4/4** for authored procedures and structured per-call progress. The R1 contract freezes content/save 4, legacy read/write policy, and setup version 2; R2 edits constants with canonical types and actual host compatibility tests. R0 changes no runtime types, constants, generated contracts, installed dependencies, or existing fixtures.
+The merged baseline uses content **3**, save **3**, and Blockly **12.5.1**. R1 reserves content/save **4/4** for authored procedures and structured per-call progress. The R1 contract freezes content/save 4, legacy read/write policy, and setup version 2; R2 edits constants with canonical types and actual host compatibility tests. R0 changes no runtime types, constants, generated contracts, installed dependencies, or existing fixtures.
 
 Definitions are project-level `procedures/<id>.json`; editor workspace/layout and unfinished drafts remain in editor metadata. CALL effects reference definitions and canonical call-site IDs. Immutable GameDefinition compiles lookups/type/graph metadata; Session/Run owns local frames and shared execution budgets. Resolve calls from canonical Rust definitions even when no procedure workspace is open.
 
@@ -125,10 +125,10 @@ Installed Blockly exposes `Workspace.getProcedureMap()` and `IProcedureModel`/`I
 
 ### R2 — Complete the working slice
 
-- Implement canonical model/storage/type/reference/runtime/compatibility foundation and matching generated contracts from the frozen R1 contract. Promote the 22 cases to public Session APIs and retire the coordinator. Prove actual content/save-4 and setup-1/2 canonical/export/installed/named/autosave boundaries, not just the candidate snapshot.
-- Wire Procedures, declarations, CALL insertion/arguments, definition/caller navigation, Used by, signature impact/repair, normal history/drafts, and explanations. Preserve existing Blockly presentation.
-- Demonstrate one action and one trigger sharing a definition, a nested call, a failing transaction, independent response progress, save/reopen/export, source return, keyboard/compact use, and both browsers.
-- Present the real working authoring/player slice for owner feedback before final acceptance.
+- [x] Implement canonical model/storage/type/reference/runtime/compatibility foundation and matching generated contracts from the frozen R1 contract. Promote the 22 cases to public Session APIs and retire the coordinator. Prove actual content/save-4 and setup-1/2 canonical/export/installed/named/autosave boundaries, not just the candidate snapshot.
+- [ ] Wire Procedures, declarations, CALL insertion/arguments, definition/caller navigation, Used by, signature impact/repair, normal history/drafts, and explanations. Preserve existing Blockly presentation.
+- [ ] Demonstrate one action and one trigger sharing a definition, a nested call, a failing transaction, independent response progress, save/reopen/export, source return, keyboard/compact use, and both browsers.
+- [ ] Present the real working authoring/player slice for owner feedback before final acceptance.
 
 ### R3 — Acceptance and closeout
 
@@ -156,3 +156,7 @@ Reviewed 26 October 2026; these inform Luna's proposal rather than specifying it
 ## R1 verification
 
 The [shared contract](../design/block-procedures/shared-contract.md) records the proof, exact production wire decisions, and integration limits. The isolated proof uses no new plugin/dependency or shipped format. Twenty-two Rust scenarios and six Blockly model tests pass; native repeated clipboard paste and separate rendered workspace/history reload pass in Chromium and Firefox. Production frontend tests, generated-contract checks, Rust workspace tests/Clippy, and final checks are recorded in that contract. Canonical new-format persistence, production authoring, startup CALLs, typed comparison/assignment/message integration, and installed/process acceptance remain R2/R3, not claimed as delivered R1 behaviour.
+
+## R2 foundation
+
+R0/R1 was committed as `0912607`. The [foundation record](../design/block-procedures/foundation-review.md) describes the canonical implementation, promoted public-API regressions, actual storage/process boundaries, checks, and remaining authoring gates. This completes the first R2 task; it does not mark the working authoring slice or R3 accepted.

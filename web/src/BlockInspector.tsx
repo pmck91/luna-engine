@@ -1,3 +1,5 @@
+import type { EntityRef } from './contracts';
+import { fixedEntity } from './procedureModel';
 import { blockLocation } from './Blocks';
 import type { Condition, Effect, NumericOperand, Project } from './contracts';
 import type { BlockSelection, BlockValue } from './Blocks';
@@ -125,7 +127,7 @@ export default function BlockInspector({
                           ].includes(effect.type)
                         ? {
                             kind: 'entity' in effect ? 'property' : 'variable',
-                            ownerId: 'entity' in effect ? effect.entity : undefined,
+                            ownerId: 'entity' in effect ? fixedEntity(effect.entity) : undefined,
                             numberOnly: effect.type.startsWith('update_'),
                             onCreated: (name, initial) =>
                               update({
@@ -193,7 +195,7 @@ function OperandEditor({
   const variables = Object.entries(project.game.variables)
     .filter(([, v]) => typeof v === 'number')
     .map(([id]) => ({ id, name: id }));
-  const properties = (id: string) =>
+  const properties = (id: EntityRef) =>
     Object.entries(entity(project, id)?.state ?? {})
       .filter(([, v]) => typeof v === 'number')
       .map(([id]) => ({ id, name: id }));
@@ -232,6 +234,8 @@ function OperandEditor({
             onChange={(e) => onChange({ ...value, value: Number(e.target.value) })}
           />
         </Field>
+      ) : value.type === 'input' ? (
+        <p>Procedure input · {value.input}</p>
       ) : (
         <>
           {value.type === 'property' && (
@@ -248,7 +252,7 @@ function OperandEditor({
             label={value.type === 'variable' ? 'Variable' : 'Property'}
             create={{
               kind: value.type,
-              ownerId: value.type === 'property' ? value.entity : undefined,
+              ownerId: value.type === 'property' ? fixedEntity(value.entity) : undefined,
               numberOnly: true,
             }}
             value={value.name}

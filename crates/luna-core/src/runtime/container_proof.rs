@@ -135,7 +135,7 @@ fn attempt(run: &mut Run<'_>, standard: &Standard<'_>, input: &str) {
         }
     };
     if !run.condition(&Condition::Property {
-        entity: owner.clone(),
+        entity: owner.clone().into(),
         name: "locked".into(),
         op: luna_model::Comparison::Eq,
         value: Value::Bool(false),

@@ -1,7 +1,10 @@
 //! Semantic messages and world/ending descriptions; no event dispatch.
 use super::Run;
 use anyhow::{Context, Result};
-use luna_model::{ContentRelation, Ending, InputTextReference, Placement, TextReference, text};
+use luna_model::{
+    BoundArgument, ContentRelation, Ending, EntityRef, InputTextReference, MessageText, Placement,
+    TextReference, text,
+};
 use std::collections::BTreeMap;
 
 impl<'a> Run<'a> {
@@ -15,16 +18,33 @@ impl<'a> Run<'a> {
     ) -> Result<Vec<text::Span>> {
         text::format(t, |reference| {
             if let Some(local) = references.get(reference) {
-                let id = match local {
-                    InputTextReference::ItemName => {
-                        self.item_input.context("Command item is not bound")?
+                return match local {
+                    InputTextReference::ItemName => self
+                        .entity_name(self.item_input.context("Command item is not bound")?)
+                        .map(str::to_owned)
+                        .context("Missing message item"),
+                    InputTextReference::EntityName { entity } => self
+                        .entity_name(self.entity_ref(entity)?)
+                        .map(str::to_owned)
+                        .context("Missing message entity"),
+                    InputTextReference::ProcedureInput { input } => {
+                        Ok(match self.local(input)? {
+                            BoundArgument::Value { value } => value.to_string(),
+                            BoundArgument::Entity { id, .. } => {
+                                self.entity_name(id).context("Missing input entity")?.into()
+                            }
+                        })
                     }
-                    InputTextReference::EntityName { entity } => entity,
+                    InputTextReference::ProcedureProperty { input, name } => self
+                        .property(
+                            self.entity_ref(&EntityRef::Input {
+                                procedure_input: input.clone(),
+                            })?,
+                            name,
+                        )
+                        .map(ToString::to_string)
+                        .context("Missing input property"),
                 };
-                return self
-                    .entity_name(id)
-                    .map(str::to_owned)
-                    .context("Missing message name entity");
             }
             let value = match self.p.text_reference(reference) {
                 Some(TextReference::Variable(name)) => self.variable(name),
@@ -37,6 +57,18 @@ impl<'a> Run<'a> {
         })
     }
 
+    pub(super) fn message_text(&self, message: &MessageText) -> Result<Vec<text::Span>> {
+        match message {
+            MessageText::Plain(message) => self.message(message),
+            MessageText::Bound { text, references } => self.message_with_inputs(text, references),
+        }
+    }
+    pub(super) fn say_message(&mut self, message: &MessageText) -> Result<()> {
+        if !message.is_empty() {
+            self.result.messages.push(self.message_text(message)?);
+        }
+        Ok(())
+    }
     pub(crate) fn say(&mut self, t: &str) -> Result<()> {
         if !t.is_empty() {
             self.result.messages.push(self.message(t)?)

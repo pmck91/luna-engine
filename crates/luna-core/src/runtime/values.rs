@@ -19,8 +19,11 @@ impl<'a> Run<'a> {
     fn numeric_operand(&self, operand: &NumericOperand) -> Result<i32> {
         let value = match operand {
             NumericOperand::Literal { value } => return Ok(*value),
+            NumericOperand::Input { input } => Some(self.local(input)?.value()?),
             NumericOperand::Variable { name } => self.variable(name),
-            NumericOperand::Property { entity, name } => self.property(entity, name),
+            NumericOperand::Property { entity, name } => {
+                self.property(self.entity_ref(entity)?, name)
+            }
         };
         match value {
             Some(Value::Integer(value)) => Ok(*value),

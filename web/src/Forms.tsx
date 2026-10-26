@@ -1,3 +1,12 @@
+import {
+  entityKey,
+  entityValue,
+  editMessage,
+  messageText,
+  fixedEntity,
+  scopedPlacementValue,
+} from './procedureModel';
+import type { EntityRef, MessageText, ScopedPlacement } from './contracts';
 import { cloneElement, useContext, useId, useLayoutEffect, useRef, useState } from 'react';
 import type {
   Condition,
@@ -96,19 +105,20 @@ export function Check({
 }
 export function Select({
   label,
-  value,
+  value: inputValue,
   items,
   onChange,
   create,
   path,
 }: {
   label: string;
-  value: string;
+  value: EntityRef;
   items: Array<{ id: string; name: string }>;
   onChange: (v: string) => void;
   create?: ReferenceSpec & { onCreated?: (id: string, initial: Value) => void };
   path?: string;
 }) {
+  const value = entityKey(inputValue);
   return (
     <>
       <Field label={label} path={path}>
@@ -127,7 +137,7 @@ export function Select({
     </>
   );
 }
-export function PlacementSelect({
+export function PlacementSelect<T extends ScopedPlacement>({
   label,
   value,
   project,
@@ -138,9 +148,9 @@ export function PlacementSelect({
   absent = true,
 }: {
   label: string;
-  value: Placement;
+  value: T;
   project: Project;
-  onChange: (value: Placement) => void;
+  onChange: (value: T) => void;
   source?: string;
   state?: GameState;
   current?: boolean;
@@ -156,7 +166,7 @@ export function PlacementSelect({
       path="placement"
       value={key}
       items={items}
-      onChange={(v) => onChange(placementValue(v))}
+      onChange={(v) => onChange(scopedPlacementValue(v) as T)}
     />
   );
 }
@@ -219,21 +229,23 @@ export function recolour(text: string, start: number, end: number, colour: strin
     after
   );
 }
-export function RichText({
+export function RichText<T extends MessageText>({
   label,
-  value,
-  onChange,
+  value: inputValue,
+  onChange: emit,
   project,
   path,
   extraValues = [],
 }: {
   label: string;
-  value: string;
-  onChange: (v: string) => void;
+  value: T;
+  onChange: (v: T) => void;
   project?: Project;
   path?: string;
   extraValues?: Array<{ token: string; label: string }>;
 }) {
+  const value = messageText(inputValue);
+  const onChange = (text: string) => emit(editMessage(inputValue, text));
   const ref = useRef<HTMLTextAreaElement>(null);
   const insertionCursor = useRef<number | null>(null);
   const [plain, setPlain] = useState(false);
@@ -516,6 +528,13 @@ export function defaultCondition(type: Condition['type'], p: Project): Condition
       return { type, conditions: [{ type: 'true' }] };
     case 'not':
       return { type, condition: { type: 'true' } };
+    case 'compare':
+      return {
+        type,
+        left: { type: 'literal', value: 0 },
+        op: 'eq',
+        right: { type: 'literal', value: 0 },
+      };
     case 'variable':
       return { type, name, op: 'eq', value: p.game.variables[name] ?? false };
     case 'property':
@@ -759,7 +778,7 @@ export function ConditionEditor({
             allowCreation
               ? {
                   kind: 'property',
-                  ownerId: c.entity,
+                  ownerId: fixedEntity(c.entity),
                   onCreated: (name, value) => onChange({ ...c, name, value }),
                 }
               : undefined

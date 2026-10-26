@@ -1,3 +1,5 @@
+#[path = "procedure_validation.rs"]
+mod procedure_validation;
 use crate::*;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -98,6 +100,7 @@ struct Check<'a> {
     diagnostics: Vec<Diagnostic>,
     ids: BTreeSet<String>,
     item_input: bool,
+    procedure: Option<&'a Procedure>,
 }
 impl Check<'_> {
     fn report(
@@ -158,25 +161,17 @@ impl Check<'_> {
             self.error(s, f, e.to_string())
         }
     }
-    fn entity(&mut self, s: &str, f: &str, id: &str) {
-        if self.p.entity_name(id).is_none() {
-            self.error(s, f, format!("Missing entity: {id}"))
-        }
+    fn entity(&mut self, s: &str, f: &str, id: impl Into<EntityRef>) {
+        self.reference(s, f, &id.into(), None);
     }
-    fn object(&mut self, s: &str, f: &str, id: &str) {
-        if !self.p.objects.iter().any(|e| e.id == id) {
-            self.error(s, f, format!("Missing object: {id}"))
-        }
+    fn object(&mut self, s: &str, f: &str, id: impl Into<EntityRef>) {
+        self.reference(s, f, &id.into(), Some(InputKind::Object));
     }
-    fn character(&mut self, s: &str, f: &str, id: &str) {
-        if !self.p.characters.iter().any(|e| e.id == id) {
-            self.error(s, f, format!("Missing character: {id}"))
-        }
+    fn character(&mut self, s: &str, f: &str, id: impl Into<EntityRef>) {
+        self.reference(s, f, &id.into(), Some(InputKind::Character));
     }
-    fn location(&mut self, s: &str, f: &str, id: &str) {
-        if !self.p.locations.iter().any(|e| e.id == id) {
-            self.error(s, f, format!("Missing location: {id}"))
-        }
+    fn location(&mut self, s: &str, f: &str, id: impl Into<EntityRef>) {
+        self.reference(s, f, &id.into(), Some(InputKind::Location));
     }
     fn v2(&mut self, s: &str, f: &str) {
         if self.p.game.format_version < 2 {
@@ -190,14 +185,29 @@ impl Check<'_> {
     fn target(&mut self, s: &str, f: &str, target: &ObjectTarget) {
         match target {
             ObjectTarget::Fixed(id) => self.object(s, f, id),
+            ObjectTarget::ProcedureInput { procedure_input } => self.object(
+                s,
+                f,
+                EntityRef::Input {
+                    procedure_input: procedure_input.clone(),
+                },
+            ),
             ObjectTarget::Input { .. } if !self.item_input => {
                 self.error(s, f, "Command item is not declared by this action")
             }
             ObjectTarget::Input { .. } => {}
         }
     }
-    fn parent(&mut self, s: &str, f: &str, id: &str, relation: ContentRelation) {
-        self.object(s, f, id);
+    fn parent(
+        &mut self,
+        s: &str,
+        f: &str,
+        reference: impl Into<EntityRef>,
+        relation: ContentRelation,
+    ) {
+        let reference = reference.into();
+        self.object(s, f, &reference);
+        let Some(id) = reference.fixed() else { return };
         if let Some(parent) = self.p.objects.iter().find(|o| o.id == id)
             && match relation {
                 ContentRelation::Inside => parent.storage.unwrap_or_default().container.is_none(),
@@ -215,36 +225,44 @@ impl Check<'_> {
             );
         }
     }
-    fn placement(&mut self, s: &str, f: &str, placement: &Placement, scripted: bool) {
-        match placement {
-            Placement::Location { location } if scripted && location == "@current" => {}
-            Placement::Location { location } => self.location(s, f, location),
-            Placement::Character { character } => self.character(s, f, character),
-            Placement::Inside { object } => {
+    fn placement(
+        &mut self,
+        s: &str,
+        f: &str,
+        placement: impl Into<ScopedPlacement>,
+        scripted: bool,
+    ) {
+        match placement.into() {
+            ScopedPlacement::Location { location } if scripted && location == "@current" => {}
+            ScopedPlacement::Location { location } => self.location(s, f, &location),
+            ScopedPlacement::Character { character } => self.character(s, f, &character),
+            ScopedPlacement::Inside { object } => {
                 self.v2(s, f);
-                self.parent(s, f, object, ContentRelation::Inside);
+                self.parent(s, f, &object, ContentRelation::Inside);
             }
-            Placement::On { object } => {
+            ScopedPlacement::On { object } => {
                 self.v2(s, f);
-                self.parent(s, f, object, ContentRelation::On);
+                self.parent(s, f, &object, ContentRelation::On);
             }
-            Placement::Absent if scripted => {
+            ScopedPlacement::Absent if scripted => {
                 self.error(s, f, "Use REMOVE to park an object offstage")
             }
-            Placement::Inventory | Placement::Absent => {}
+            ScopedPlacement::Inventory | ScopedPlacement::Absent => {}
         }
     }
     fn value(
         &mut self,
         s: &str,
         f: &str,
-        schema: Option<&Value>,
+        schema: Option<InputKind>,
         value: &Value,
         op: Option<Comparison>,
     ) {
         match schema {
             None => self.error(s, f, "Unknown variable/property"),
-            Some(v) if !v.same_type(value) => self.error(s, f, "Value has an incompatible type"),
+            Some(kind) if kind != InputKind::of(value) => {
+                self.error(s, f, "Value has an incompatible type")
+            }
             _ => {}
         }
         if op.is_some_and(|o| !matches!(o, Comparison::Eq | Comparison::Ne))
@@ -253,31 +271,45 @@ impl Check<'_> {
             self.error(s, f, "Ordered comparisons require integers")
         }
     }
-    fn integer(&mut self, s: &str, f: &str, schema: Option<&Value>) {
+    fn integer(&mut self, s: &str, f: &str, schema: Option<InputKind>) {
         match schema {
             None => self.error(s, f, "Unknown variable/property"),
-            Some(Value::Integer(_)) => {}
+            Some(InputKind::Integer) => {}
             Some(_) => self.error(s, f, "Arithmetic requires integers"),
         }
     }
     fn operand(&mut self, s: &str, f: &str, op: ArithmeticOperation, operand: &NumericOperand) {
         let f = format!("{f}.operand");
         match operand {
+            NumericOperand::Input { input } => {
+                self.v4(s, &f);
+                let kind = self.argument_kind(
+                    s,
+                    &f,
+                    &Argument::Input {
+                        input: input.clone(),
+                    },
+                );
+                if kind != Some(InputKind::Integer) {
+                    self.error(s, &f, "Arithmetic requires an Integer input");
+                }
+            }
             NumericOperand::Literal { value: 0 } if op == ArithmeticOperation::Divide => {
                 self.error(s, &f, "Cannot divide by zero")
             }
             NumericOperand::Literal { .. } => {}
             NumericOperand::Variable { name } => {
-                self.integer(s, &f, self.p.game.variables.get(name))
+                self.integer(s, &f, self.p.game.variables.get(name).map(InputKind::of))
             }
             NumericOperand::Property { entity, name } => {
-                self.integer(s, &f, self.p.state_schema(entity).and_then(|m| m.get(name)))
+                self.integer(s, &f, self.property_kind(entity, name))
             }
         }
     }
     fn condition(&mut self, s: &str, f: &str, c: &Condition) {
         match c {
             Condition::True | Condition::False => {}
+            Condition::Compare { left, op, right } => self.comparison(s, f, left, *op, right),
             Condition::HintUsed { hint } => {
                 if !self
                     .p
@@ -294,21 +326,19 @@ impl Check<'_> {
                 }
             }
             Condition::Not { condition } => self.condition(s, &format!("{f}.condition"), condition),
-            Condition::Variable { name, op, value } => {
-                self.value(s, f, self.p.game.variables.get(name), value, Some(*op))
-            }
+            Condition::Variable { name, op, value } => self.value(
+                s,
+                f,
+                self.p.game.variables.get(name).map(InputKind::of),
+                value,
+                Some(*op),
+            ),
             Condition::Property {
                 entity,
                 name,
                 op,
                 value,
-            } => self.value(
-                s,
-                f,
-                self.p.state_schema(entity).and_then(|m| m.get(name)),
-                value,
-                Some(*op),
-            ),
+            } => self.value(s, f, self.property_kind(entity, name), value, Some(*op)),
             Condition::CharacterCarrying { character, object } => {
                 self.character(s, f, character);
                 self.object(s, f, object);
@@ -357,43 +387,19 @@ impl Check<'_> {
         for (i, e) in effects.iter().enumerate() {
             let f = format!("{f}.{i}");
             match e {
-                Effect::Say { text } => self.text(s, &f, text),
+                Effect::Call {
+                    id,
+                    procedure,
+                    arguments,
+                } => self.call(s, &f, id, procedure, arguments),
+                Effect::Assign { target, value } => self.assign(s, &f, target, value),
+                Effect::Say { text } => self.message(s, &f, text),
                 Effect::SayWithInputs {
                     text: message,
                     references,
                 } => {
                     self.v2(s, &f);
-                    for (key, reference) in references {
-                        if key.is_empty()
-                            || key.trim() != key
-                            || key.contains('%')
-                            || self.p.text_reference(key).is_some()
-                        {
-                            self.error(s, &format!("{f}.references"), "Message-local names must be nonempty, unambiguous, and must not shadow a variable/property");
-                        }
-                        match reference {
-                            InputTextReference::ItemName if !self.item_input => {
-                                self.error(s, &f, "Command item name is not available in this flow")
-                            }
-                            InputTextReference::EntityName { entity } => self.entity(s, &f, entity),
-                            _ => {}
-                        }
-                    }
-                    if let Err(error) = text::format(message, |key| match references.get(key) {
-                        Some(InputTextReference::ItemName) => Ok("item".into()),
-                        Some(InputTextReference::EntityName { entity }) => self
-                            .p
-                            .entity_name(entity)
-                            .map(str::to_owned)
-                            .ok_or_else(|| anyhow::anyhow!("Missing name entity: {entity}")),
-                        None => self
-                            .p
-                            .initial_text_value(key)
-                            .map(ToString::to_string)
-                            .ok_or_else(|| anyhow::anyhow!("Unknown message value: %{key}%")),
-                    }) {
-                        self.error(s, &f, error.to_string());
-                    }
+                    self.local_message(s, &f, message, references);
                 }
                 Effect::Transfer { object, placement } => {
                     self.v2(s, &f);
@@ -406,7 +412,7 @@ impl Check<'_> {
                 }
                 Effect::CharacterSays { character, text } => {
                     self.character(s, &format!("{f}.character"), character);
-                    self.text(s, &format!("{f}.text"), text);
+                    self.message(s, &format!("{f}.text"), text);
                 }
                 Effect::PrintDescription { entity } => self.entity(s, &f, entity),
                 Effect::Respond {
@@ -421,35 +427,38 @@ impl Check<'_> {
                         self.error(s, &f, "A response sequence requires at least one response")
                     }
                     for (index, t) in responses.iter().enumerate() {
-                        self.text(s, &format!("{f}.responses.{index}"), t)
+                        self.message(s, &format!("{f}.responses.{index}"), t)
                     }
-                    self.text(s, &format!("{f}.fallback"), fallback);
+                    self.message(s, &format!("{f}.fallback"), fallback);
                     self.effects(s, &format!("{f}.on_exhausted"), on_exhausted)
                 }
                 Effect::ResetResponses { sequence } => {
-                    if !all_effects(self.p)
+                    if !self
+                        .reset_sequences()
                         .iter()
                         .any(|e| matches!(e, Effect::Respond { id, .. } if id == sequence))
                     {
                         self.error(s, &f, format!("Missing response sequence: {sequence}"))
                     }
                 }
-                Effect::SetVariable { name, value } => {
-                    self.value(s, &f, self.p.game.variables.get(name), value, None)
-                }
+                Effect::SetVariable { name, value } => self.value(
+                    s,
+                    &f,
+                    self.p.game.variables.get(name).map(InputKind::of),
+                    value,
+                    None,
+                ),
                 Effect::SetProperty {
                     entity,
                     name,
                     value,
-                } => self.value(
-                    s,
-                    &f,
-                    self.p.state_schema(entity).and_then(|m| m.get(name)),
-                    value,
-                    None,
-                ),
+                } => self.value(s, &f, self.property_kind(entity, name), value, None),
                 Effect::UpdateVariable { name, op, operand } => {
-                    self.integer(s, &format!("{f}.name"), self.p.game.variables.get(name));
+                    self.integer(
+                        s,
+                        &format!("{f}.name"),
+                        self.p.game.variables.get(name).map(InputKind::of),
+                    );
                     self.operand(s, &f, *op, operand);
                 }
                 Effect::UpdateProperty {
@@ -458,11 +467,7 @@ impl Check<'_> {
                     op,
                     operand,
                 } => {
-                    self.integer(
-                        s,
-                        &format!("{f}.name"),
-                        self.p.state_schema(entity).and_then(|m| m.get(name)),
-                    );
+                    self.integer(s, &format!("{f}.name"), self.property_kind(entity, name));
                     self.operand(s, &f, *op, operand);
                 }
                 Effect::GiveCharacter { object, character } => {
@@ -632,7 +637,7 @@ fn possible_effects<'a>(effects: &'a [Effect], out: &mut Vec<&'a Effect>) {
         }
     }
 }
-pub fn all_effects(p: &Project) -> Vec<&Effect> {
+pub fn ordinary_effects(p: &Project) -> Vec<&Effect> {
     let mut out = vec![];
     for (_, actions, triggers) in p.owners() {
         for a in actions {
@@ -648,6 +653,14 @@ pub fn all_effects(p: &Project) -> Vec<&Effect> {
         }
     }
     out
+}
+
+pub fn all_effects(p: &Project) -> Vec<&Effect> {
+    let mut effects = ordinary_effects(p);
+    for procedure in &p.procedures {
+        walk_effects(&procedure.effects, &mut effects);
+    }
+    effects
 }
 
 fn command_forms(
@@ -710,6 +723,7 @@ pub fn validate_condition(p: &Project, condition: &Condition) -> Vec<Diagnostic>
         diagnostics: vec![],
         ids: BTreeSet::new(),
         item_input: false,
+        procedure: None,
     };
     check.condition(&p.game.id, "expectation", condition);
     check.diagnostics
@@ -720,6 +734,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         diagnostics: vec![],
         ids: BTreeSet::new(),
         item_input: false,
+        procedure: None,
     };
     let game = &p.game;
     for (owner, hints) in p.hint_owners() {
@@ -946,6 +961,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         c.text(&ch.id, "description", &ch.description);
         c.location(&ch.id, "location", &ch.location)
     }
+    c.procedures();
     let mut patterns = BTreeMap::new();
     let mut overlaps = BTreeSet::new();
     let mut trigger_keys = BTreeMap::new();
@@ -1089,26 +1105,49 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
             c.error(&game.id, "assets", format!("Unsafe asset path: {asset}"))
         }
     }
-    fn follow_effects(
-        effects: Vec<&Effect>,
+    fn follow_effects<'a>(
+        p: &'a Project,
+        mut effects: Vec<&'a Effect>,
         locations: &mut BTreeSet<String>,
         endings: &mut BTreeSet<String>,
         characters: &mut BTreeMap<String, BTreeSet<String>>,
     ) {
-        for effect in effects {
+        let mut seen = BTreeSet::new();
+        while let Some(effect) = effects.pop() {
             match effect {
+                Effect::Call { procedure, .. } if seen.insert(procedure) => {
+                    if let Some(procedure) = p
+                        .procedures
+                        .iter()
+                        .find(|definition| definition.id == *procedure)
+                    {
+                        possible_effects(&procedure.effects, &mut effects);
+                    }
+                }
                 Effect::Move { location } => {
-                    locations.insert(location.clone());
+                    if let Some(location) = location.fixed() {
+                        locations.insert(location.into());
+                    } else {
+                        locations.extend(p.locations.iter().map(|location| location.id.clone()));
+                    }
                 }
                 Effect::MoveCharacter {
                     character,
                     location,
                 } => {
-                    if let Some(positions) = characters.get_mut(character) {
-                        if location == "@current" {
-                            positions.extend(locations.iter().cloned());
-                        } else {
-                            positions.insert(location.clone());
+                    let destinations = if location == "@current" {
+                        locations.clone()
+                    } else if let Some(location) = location.fixed() {
+                        BTreeSet::from([location.into()])
+                    } else {
+                        p.locations
+                            .iter()
+                            .map(|location| location.id.clone())
+                            .collect()
+                    };
+                    for (id, positions) in characters.iter_mut() {
+                        if character.fixed().is_none_or(|character| character == id) {
+                            positions.extend(destinations.iter().cloned());
                         }
                     }
                 }
@@ -1161,6 +1200,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                 }
             }
             follow_effects(
+                p,
                 effects,
                 &mut reachable,
                 &mut reachable_endings,
@@ -1176,6 +1216,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                         let mut effects = vec![];
                         possible_effects(&e.effects, &mut effects);
                         follow_effects(
+                            p,
                             effects,
                             &mut reachable,
                             &mut reachable_endings,
@@ -1230,7 +1271,10 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
             if t.watch.is_none() && t.event == Event::Enter && constant(&t.condition) == Some(true)
             {
                 for effect in &t.effects {
-                    if let Effect::Move { location } = effect {
+                    if let Effect::Move {
+                        location: EntityRef::Fixed(location),
+                    } = effect
+                    {
                         graph
                             .entry(l.id.clone())
                             .or_default()

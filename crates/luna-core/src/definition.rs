@@ -26,6 +26,7 @@ struct Definition {
     project: Project,
     schema: StateSchema,
     runtime: RuntimeIndex,
+    procedures: crate::procedures::ProcedureIndex,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -138,7 +139,7 @@ impl GameDefinition {
                 .iter()
                 .map(|l| (l.id.clone(), 0))
                 .collect(),
-            sequences: all_effects(project)
+            sequences: ordinary_effects(project)
                 .into_iter()
                 .filter_map(|e| {
                     if let Effect::Respond { id, .. } = e {
@@ -149,6 +150,7 @@ impl GameDefinition {
                 })
                 .collect(),
             hints: BTreeMap::new(),
+            procedure_sequences: ProcedureProgress::default(),
         })
     }
 
@@ -213,7 +215,7 @@ impl GameDefinition {
                 )
                 .map(|(id, values)| (id.clone(), value_types(values)))
                 .collect(),
-            sequences: all_effects(&project)
+            sequences: ordinary_effects(&project)
                 .into_iter()
                 .filter_map(|effect| {
                     if let Effect::Respond {
@@ -254,11 +256,17 @@ impl GameDefinition {
                 .collect(),
         };
         let runtime = RuntimeIndex::new(&project);
+        let procedures = crate::procedures::ProcedureIndex::new(&project);
         Ok(Self(Arc::new(Definition {
             project,
             schema,
             runtime,
+            procedures,
         })))
+    }
+
+    pub(crate) fn procedures(&self) -> &crate::procedures::ProcedureIndex {
+        &self.0.procedures
     }
 
     pub(crate) fn runtime(&self) -> &RuntimeIndex {
@@ -441,6 +449,9 @@ impl GameDefinition {
             let cursor = state.sequences.get(id).context("Missing saved sequence")?;
             ensure!(cursor <= max_cursor, "Invalid response cursor for {id}");
         }
+        self.0
+            .procedures
+            .validate_progress(project, &state.procedure_sequences)?;
         for (id, progress) in &state.hints {
             let hint = schema
                 .hints

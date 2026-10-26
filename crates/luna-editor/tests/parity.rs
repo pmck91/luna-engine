@@ -659,7 +659,7 @@ async fn response_follow_ups_match_exported_runner_and_survive_every_save_bounda
                 id: "warnings".into(),
                 responses: vec!["First.".into(), "Second.".into(), "Third.".into()],
                 mode: SequenceMode::Fallback,
-                fallback: String::new(),
+                fallback: String::new().into(),
                 exhaustion: ExhaustionMode::Once,
                 on_exhausted: vec![Effect::If {
                     condition: Condition::True,
@@ -1219,7 +1219,7 @@ async fn arithmetic_exports_and_resumes_identically_in_editor_and_runner() {
                 operand: Operand::Literal { value: 1 },
             },
             Effect::UpdateProperty {
-                entity: room.clone(),
+                entity: room.clone().into(),
                 name: "charges".into(),
                 op: Op::Add,
                 operand: Operand::Variable {
@@ -1230,7 +1230,7 @@ async fn arithmetic_exports_and_resumes_identically_in_editor_and_runner() {
                 name: "chances".into(),
                 op: Op::Multiply,
                 operand: Operand::Property {
-                    entity: room.clone(),
+                    entity: room.clone().into(),
                     name: "charges".into(),
                 },
             },
@@ -1242,7 +1242,7 @@ async fn arithmetic_exports_and_resumes_identically_in_editor_and_runner() {
                 },
             },
             Effect::Say {
-                text: format!("%chances% chances; %{room}.charges% charges."),
+                text: format!("%chances% chances; %{room}.charges% charges.").into(),
             },
         ],
         ..Default::default()
@@ -1467,4 +1467,109 @@ async fn exported_description_and_value_messages_match_editor_playtesting() {
             serde_json::to_value(runner.state()).unwrap()
         );
     }
+}
+
+#[path = "../../../tests/support/procedures.rs"]
+mod procedure_fixture;
+
+#[tokio::test]
+async fn procedure_editor_runner_capture_and_legacy_setup_parity() {
+    let temp = tempfile::tempdir().unwrap();
+    let p = procedure_fixture::project();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let root = temp.path().join("source");
+    std::fs::create_dir(&root).unwrap();
+    let bundle = temp.path().join("procedures.luna");
+    std::fs::write(&bundle, luna_project::export_bundle(&root, &p).unwrap()).unwrap();
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let record = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let mut runner = Session::start(storage.load_game(&record).unwrap(), None)
+        .unwrap()
+        .0;
+    let mut editor = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"location":null,"help_mode":null,"setup":null}),
+    )
+    .await;
+    for input in ["use reward", "use other", "use reward"] {
+        let result = runner.command_explained(input);
+        editor = post(
+            app.clone(),
+            &format!(
+                "/api/v1/playtests/{}/commands",
+                editor["session"].as_str().unwrap()
+            ),
+            json!({"command":input,"explain":true}),
+        )
+        .await;
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(runner.state()).unwrap()
+        );
+        assert_eq!(
+            editor["result"]["messages"],
+            serde_json::to_value(result.messages).unwrap()
+        );
+    }
+    let captured = post(
+        app.clone(),
+        &format!(
+            "/api/v1/playtests/{}/capture",
+            editor["session"].as_str().unwrap()
+        ),
+        json!({"name":"Procedure checkpoint"}),
+    )
+    .await;
+    assert_eq!(captured["version"], 2);
+    assert_eq!(
+        captured["state"],
+        serde_json::to_value(runner.state()).unwrap()
+    );
+    let resumed = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":p,"location":null,"help_mode":null,"setup":captured}),
+    )
+    .await;
+    assert_eq!(resumed["state"], captured["state"]);
+    let mut earlier_project = p.clone();
+    earlier_project.game.format_version = 3;
+    earlier_project.procedures.clear();
+    for action in &mut earlier_project.game.actions {
+        action.effects.clear();
+    }
+    let earlier = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":earlier_project,"location":null,"help_mode":null,"setup":null}),
+    )
+    .await;
+    let earlier = post(
+        app.clone(),
+        &format!(
+            "/api/v1/playtests/{}/capture",
+            earlier["session"].as_str().unwrap()
+        ),
+        json!({"name":"Legacy checkpoint"}),
+    )
+    .await;
+    assert_eq!(earlier["version"], 1);
+    let legacy = post(
+        app,
+        "/api/v1/playtests",
+        json!({"project":p,"location":null,"help_mode":null,"setup":earlier}),
+    )
+    .await;
+    assert!(legacy["state"].get("procedure_sequences").is_none());
+    assert_eq!(legacy["state"]["variables"]["rewards"], 0);
 }
