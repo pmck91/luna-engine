@@ -681,6 +681,7 @@ fn disabled_standards_do_not_match_and_legacy_content_requires_explicit_upgrade(
     );
     let mut p = world();
     p.game.format_version = 1;
+    p.game.command_assistance = None;
     assert!(
         validate(&p)
             .iter()
@@ -688,6 +689,7 @@ fn disabled_standards_do_not_match_and_legacy_content_requires_explicit_upgrade(
     );
     let mut legacy = Project::blank("Legacy");
     legacy.game.format_version = 1;
+    legacy.game.command_assistance = None;
     legacy.objects.push(Object {
         id: "old-door".into(),
         name: "Old door".into(),

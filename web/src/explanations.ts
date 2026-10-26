@@ -1,6 +1,7 @@
 import { createContext } from 'react';
 import type {
   CommandExplanation,
+  InputResolution,
   CommandStatus,
   Condition,
   HelpMode,
@@ -24,6 +25,8 @@ export type ExplanationRecord = {
   help: HelpMode | '';
   status: CommandStatus;
   origin?: string;
+  input_resolution?: InputResolution;
+  selected_flow?: string | null;
 };
 export const ExplanationFocus = createContext<ReferenceSite | null>(null);
 const entities = (p: Project) => [...p.locations, ...p.objects, ...p.characters];

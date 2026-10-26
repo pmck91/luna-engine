@@ -149,6 +149,55 @@ def main():
             run(["run", packing_game["id"], "--load", "autosave"], "load packed\nquit\n", profile="packing")
             assert packed_save()["state"] == nested["state"], "Named load changed nested contents or replayed events"
 
+            # New-game defaults and the permanent parser fixture use the packaged
+            # API/export, not a handwritten runner-only substitute.
+            fresh = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser defaults"})
+            assert fresh["project"]["game"]["format_version"] == 3
+            assert fresh["project"]["game"]["command_assistance"]["clarification"]
+            assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
+            gallery = api("open", "POST", {"folder": "parser-gallery"})
+            gallery_game = gallery["project"]["game"]
+            gallery_bundle = work / "gallery-from-editor.luna"
+            gallery_bundle.write_bytes(api(f"projects/{gallery['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(gallery_bundle) as exported, zipfile.ZipFile(package / "examples/parser-gallery.luna") as checked:
+                assert json.loads(exported.read("manifest.json")) == json.loads(checked.read("manifest.json"))
+                assert not any(name.startswith("editor/") for name in exported.namelist())
+            run(["import", str(gallery_bundle)], profile="parser")
+            transcript = run(["run", gallery_game["id"], "--new"],
+                             "take key\nsave waiting\nuse unstable\nbrass\nexamine it\n"
+                             "put key on tray\nbrass\nsilver\nsave placed\nquit\n", profile="parser")
+            assert transcript.count("Which do you mean?") == 3, transcript
+            assert "brass key has a distinctive engraving" in transcript, transcript
+            assert all(name not in transcript for name in ["Copper key", "Hidden key", "Gold key"]), transcript
+            gallery_saves = work / "parser/saves" / gallery_game["id"] / gallery_game["content_version"]
+            def gallery_save():
+                return json.loads((gallery_saves / "autosave.json").read_text())
+            placed = gallery_save()
+            assert placed["save_format"] == 3
+            assert placed["state"]["variables"] == {"starts": 1, "takes": 1, "watches": 1, "placements": 1,
+                                                    "commands": 3, "zero": 0, "silver_free": False}
+            assert placed["state"]["objects"]["brass"]["placement"] == {"type": "on", "object": "silver-tray"}
+            assert "pending_clarification" not in json.dumps(placed) and "input_resolution" not in json.dumps(placed)
+            resumed = run(["run", gallery_game["id"], "--load", "waiting"],
+                          "1\nexamine it\nsave\nquit\n", profile="parser")
+            assert "Which do you mean?" not in resumed and "I can't tell what “it” refers to here." in resumed, resumed
+            # CLI startup from a named slot preserves the previous rolling save
+            # until a save/state change; explicitly save the read-only restore.
+            assert gallery_save()["state"]["variables"] == {"starts": 1, "takes": 0, "watches": 0,
+                                                           "placements": 0, "commands": 0, "zero": 0,
+                                                           "silver_free": False}
+            completed = run(["run", gallery_game["id"], "--load", "placed"],
+                            "take key\nsilver\nexamine it\nload placed\nexamine it\n"
+                            "use finish\nsave finished\nquit\n", profile="parser")
+            assert "The silver key is chained to the display." in completed, completed
+            assert "silver key has a distinctive engraving" in completed, completed
+            assert "I can't tell what “it” refers to here." in completed, completed
+            finished = gallery_save()["state"]
+            assert finished["ending"] == "complete" and finished["variables"] == placed["state"]["variables"]
+            resumed = run(["run", gallery_game["id"], "--load", "finished"], "2\nquit\n", profile="parser")
+            assert "This playthrough has ended." in resumed and "Outcome:" not in resumed, resumed
+            assert gallery_save()["state"] == finished
+
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
             created = api("projects", "POST", {"folder": "smoke-outcome", "title": "No outcome"})
@@ -193,7 +242,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, nested container restarts/saves, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

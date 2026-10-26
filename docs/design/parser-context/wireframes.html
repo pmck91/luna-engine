@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Luna — parser assistance design</title>
+    <link rel="stylesheet" href="../../../web/src/styles.css" />
+    <style>
+      body {
+        padding: 24px;
+      }
+      .prototype {
+        max-width: 1540px;
+        margin: auto;
+      }
+      .prototype header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .prototype h1 {
+        margin: 0;
+        font-size: 23px;
+      }
+      .prototype h2 {
+        margin: 0 0 16px;
+        font-size: 18px;
+      }
+      .prototype h3 {
+        font-size: 14px;
+      }
+      .prototype a {
+        color: #c5b6ff;
+      }
+      .prototype .badge {
+        padding: 5px 10px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        color: #f6dc9a;
+      }
+      .prototype .lead {
+        max-width: 900px;
+        color: #b8c1d3;
+        line-height: 1.6;
+      }
+      .prototype .grid {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr) 310px;
+        gap: 16px;
+        margin-top: 24px;
+        align-items: start;
+      }
+      .prototype .card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        padding: 20px;
+        min-width: 0;
+      }
+      .prototype label {
+        display: block;
+        line-height: 1.5;
+        margin: 14px 0 5px;
+      }
+      .prototype .check {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .prototype .check input {
+        margin-top: 3px;
+      }
+      .prototype textarea,
+      .prototype select {
+        width: 100%;
+      }
+      .prototype textarea {
+        min-height: 70px;
+        resize: vertical;
+        padding: 10px;
+      }
+      .prototype p,
+      .prototype li {
+        line-height: 1.6;
+      }
+      .prototype .muted {
+        color: #adb7ca;
+        font-size: 12px;
+      }
+      .prototype .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .prototype #transcript {
+        background: #181b22;
+        border: 1px solid var(--border);
+        padding: 18px;
+        border-radius: 6px;
+        min-height: 300px;
+        max-height: 510px;
+        overflow: auto;
+        margin-top: 18px;
+      }
+      .prototype #transcript p {
+        margin: 0 0 12px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .prototype #transcript .player {
+        color: #b8a7fa;
+      }
+      .prototype form {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .prototype #command {
+        min-width: 0;
+        flex: 1;
+        padding: 10px;
+      }
+      .prototype .notice {
+        border-left: 3px solid var(--purple);
+        background: #29263b;
+        padding: 12px;
+        margin: 16px 0;
+      }
+      .prototype dl {
+        margin: 0;
+      }
+      .prototype dt {
+        color: #adb7ca;
+        font-size: 12px;
+        margin-top: 18px;
+      }
+      .prototype dd {
+        margin: 5px 0 0;
+        overflow-wrap: anywhere;
+        line-height: 1.6;
+      }
+      .prototype #status {
+        margin-top: 16px;
+        font-variant-numeric: tabular-nums;
+      }
+      .prototype [hidden] {
+        display: none !important;
+      }
+      .prototype footer {
+        border-top: 1px solid var(--border);
+        margin-top: 26px;
+        padding: 16px 0;
+        color: #adb7ca;
+      }
+      @media (max-width: 1180px) {
+        .prototype .grid {
+          grid-template-columns: 300px minmax(0, 1fr);
+        }
+        .prototype .explanation {
+          grid-column: 1 / -1;
+        }
+      }
+      @media (max-width: 720px) {
+        body {
+          padding: 12px;
+        }
+        .prototype .grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .prototype .card {
+          padding: 16px;
+        }
+        .prototype form {
+          flex-wrap: wrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="prototype">
+      <header>
+        <h1>Luna · Command assistance</h1>
+        <span class="badge">F2 design proposal · scripted preview</span>
+        <a href="../../plans/parser-context.md"
+          >Read the behaviour and implementation plan</a
+        >
+      </header>
+      <p class="lead">
+        Try the proposed settings, player replies, and author explanation
+        together. This page uses scripted examples; it does not run the Rust
+        parser or edit a project. Existing action blocks keep their current
+        appearance and behaviour.
+      </p>
+      <div class="grid">
+        <section class="card" aria-labelledby="settings-title">
+          <p class="muted">Game settings → Command assistance</p>
+          <h2 id="settings-title">Command assistance</h2>
+          <label class="check"
+            ><input id="clarify" type="checkbox" checked /><span
+              >Ask which entity when a command is ambiguous</span
+            ></label
+          >
+          <p class="muted">
+            Players can reply with a name, distinguishing word, or option
+            number.
+          </p>
+          <label class="check"
+            ><input id="pronouns" type="checkbox" checked /><span
+              >Allow “it” to refer to a recently named object</span
+            ></label
+          >
+          <p class="muted">Example: examine brass key → take it</p>
+          <label for="question">Clarification message</label>
+          <textarea id="question">Which do you mean?</textarea>
+          <label for="retry">Retry message</label>
+          <textarea id="retry">Please choose one of the listed items.</textarea>
+          <label for="unavailable">Unavailable reference message</label>
+          <textarea id="unavailable">
+I can't tell what “it” refers to here. Use its full name.</textarea>
+          <p class="muted">
+            Production uses Luna's existing formatted message controls. Names
+            and numbered choices are appended automatically.
+          </p>
+          <div class="notice">
+            <strong>Proposed defaults</strong><br />On for new games. Existing
+            games keep their current behaviour until explicitly enabled.
+          </div>
+          <p class="muted">
+            Changing a switch resets this preview. In the editor, authored
+            changes use project Undo/Redo and require a playtest restart.
+          </p>
+        </section>
+        <section class="card" aria-labelledby="player-title">
+          <h2 id="player-title">Player view</h2>
+          <label for="scene">Example</label>
+          <select id="scene">
+            <option value="keys">Two visible keys</option>
+            <option value="two-slots">Two keys and two boxes</option>
+            <option value="locked">A failed requirement</option>
+            <option value="hidden">Reference no longer visible</option>
+            <option value="duplicate">Duplicate action handlers</option>
+            <option value="literal">An authored literal “it”</option>
+          </select>
+          <p id="scene-note" class="muted"></p>
+          <div class="buttons">
+            <button id="run" class="primary" type="button">Run example</button
+            ><button id="reset" type="button">Reset preview</button>
+          </div>
+          <div
+            id="transcript"
+            role="log"
+            aria-label="Scripted player transcript"
+            aria-live="polite"
+            aria-relevant="additions"
+          ></div>
+          <form id="command-form">
+            <input
+              id="command"
+              aria-label="Player command or clarification reply"
+              autocomplete="off"
+              placeholder="Type a command or reply…"
+            />
+            <button class="primary" type="submit">Send</button>
+          </form>
+          <div class="buttons">
+            <button id="cancel" type="button" hidden>
+              Cancel pending command
+            </button>
+          </div>
+          <p id="suggestion" class="muted"></p>
+        </section>
+        <aside class="card explanation" aria-labelledby="explanation-title">
+          <p class="muted">Author-only · Playtest explanation</p>
+          <h2 id="explanation-title">Input resolution</h2>
+          <div id="waiting" class="notice" hidden>
+            <strong>No action executed.</strong><br />Waiting for an entity
+            choice.
+          </div>
+          <dl>
+            <dt>Original command</dt>
+            <dd id="original">—</dd>
+            <dt>Resolution</dt>
+            <dd id="resolution">Run an example to begin.</dd>
+            <dt>Offered entities</dt>
+            <dd id="choices">—</dd>
+            <dt>Replies</dt>
+            <dd id="replies">—</dd>
+            <dt>Selected flow</dt>
+            <dd id="flow">—</dd>
+            <dt>Recent object for “it”</dt>
+            <dd id="focus">None</dd>
+          </dl>
+          <p id="status" class="muted">Dispatch attempts: 0 · Effect runs: 0</p>
+          <p class="muted">
+            Production links resolved entities to their names/aliases, and
+            selected flows to the existing action workspace. Hidden-state
+            details stay in this author view.
+          </p>
+          <a
+            href="../../plans/parser-context.md#playtest-explanation-and-player-presentation"
+            >Explanation design details</a
+          >
+        </aside>
+      </div>
+      <footer>
+        Review: settings and messages → take key / brass / examine it → fresh
+        command or cancel while waiting → two noun slots → failed requirement →
+        unavailable reference. Save/load clears pending and recent context; it
+        preserves all story progress. No game files or player saves are written
+        by this preview.
+      </footer>
+    </main>
+    <script>
+      const el = (id) => document.getElementById(id);
+      const objects = {
+        brass: {
+          name: "Brass key",
+          alias: "key",
+          description: "A small key with a worn brass bow.",
+        },
+        silver: {
+          name: "Silver key",
+          alias: "key",
+          description: "A silver key with a square bow.",
+        },
+        wooden: {
+          name: "Wooden box",
+          alias: "box",
+          description: "A wooden box with a sliding lid.",
+        },
+        iron: {
+          name: "Iron box",
+          alias: "box",
+          description: "A sturdy iron box.",
+        },
+        chest: {
+          name: "Chest",
+          alias: "chest",
+          description: "A locked oak chest.",
+        },
+      };
+      const examples = {
+        keys: {
+          command: "take key",
+          note: "Both keys are visible and share the alias “key”. A third hidden key is excluded.",
+          suggestion: "Try brass, silver key, or 1. Then try examine it.",
+        },
+        "two-slots": {
+          command: "put key in box",
+          note: "Resolve the item first, then the destination. The operation runs after both choices.",
+          suggestion: "Try brass, then iron. “It” will refer to the key.",
+        },
+        locked: {
+          command: "open chest",
+          note: "The authored requirement refuses opening. The uniquely named Chest still becomes the recent object.",
+          suggestion:
+            "Now try examine it. Assistance does not bypass the lock.",
+        },
+        hidden: {
+          command: "examine it",
+          note: "The previously named key has become hidden through gameplay and is no longer in scope.",
+          suggestion:
+            "The player response must not reveal its name or location.",
+        },
+        duplicate: {
+          command: "polish key",
+          note: "Two equally ranked actions target the same entity. A noun choice cannot repair this.",
+          suggestion:
+            "The author explanation identifies both handlers. No selection is offered.",
+        },
+        literal: {
+          command: "say it",
+          note: "An existing action has the literal pattern “say it”. Literal matching takes precedence.",
+          suggestion:
+            "No global text replacement: the ordinary authored action runs.",
+        },
+      };
+      let pending = null;
+      let focus = null;
+      let unavailable = false;
+      let attempts = 0;
+      let effects = 0;
+      let replies = [];
+      function line(text, player = false) {
+        const p = document.createElement("p");
+        p.textContent = player ? "> " + text : text;
+        if (player) p.className = "player";
+        el("transcript").append(p);
+        el("transcript").scrollTop = el("transcript").scrollHeight;
+      }
+      function sync() {
+        el("waiting").hidden = !pending;
+        el("cancel").hidden = !pending;
+        el("focus").textContent = focus
+          ? objects[focus].name + (unavailable ? " · outside player scope" : "")
+          : "None";
+        el("status").textContent =
+          `Dispatch attempts: ${attempts} · Effect runs: ${effects}`;
+        el("replies").textContent = replies.length ? replies.join(" → ") : "—";
+      }
+      function showChoices(retry = false) {
+        const names = pending.options.map(
+          (id, i) => `${i + 1}. ${objects[id].name}`,
+        );
+        line(
+          el(retry ? "retry" : "question").value +
+            "\n" +
+            names.join("\n") +
+            "\nReply with a name or number, type cancel, or enter a new command.",
+        );
+        el("choices").textContent = pending.options
+          .map((id) => objects[id].name)
+          .join(" · ");
+        el("resolution").textContent =
+          pending.stage === "box"
+            ? "Item chosen; waiting for destination."
+            : "Waiting for first noun choice.";
+        el("flow").textContent = "—";
+        sync();
+      }
+      function dispatch(id, text, failure = false) {
+        pending = null;
+        attempts++;
+        if (!failure) effects++;
+        if (id) focus = id;
+        unavailable = false;
+        line(text);
+        el("resolution").textContent = failure
+          ? "One resolved handler; its requirement failed."
+          : "Resolved and dispatched once.";
+        el("flow").textContent = failure
+          ? "Open Chest → requirements → refusal"
+          : "Ordinary action → existing effect blocks";
+        el("choices").textContent = "—";
+        sync();
+      }
+      function begin(command, twoSlots = false) {
+        el("original").textContent = command;
+        replies = [];
+        if (!el("clarify").checked) {
+          pending = null;
+          line(
+            "Please clarify your command. Type a more specific complete command; nothing has changed.",
+          );
+          el("resolution").textContent =
+            "Clarification assistance is disabled; no action executed.";
+          sync();
+          return;
+        }
+        pending = {
+          original: command,
+          stage: "key",
+          options: ["brass", "silver"],
+          twoSlots,
+        };
+        showChoices();
+      }
+      function submit(raw) {
+        const input = raw
+          .trim()
+          .toLowerCase()
+          .replace(/[.!?]+$/, "");
+        if (!input) return;
+        line(raw);
+        if (["look", "inventory", "help", "save", "saves"].includes(input)) {
+          line(
+            input === "look"
+              ? "You are in the Study. Two keys and two boxes are visible."
+              : `Preview: ${input} handled without changing reference context.`,
+          );
+          if (pending)
+            el("resolution").textContent =
+              "Read-only command; original question preserved.";
+          sync();
+          return;
+        }
+        if (input === "cancel" && pending) {
+          pending = null;
+          line("Command cancelled.");
+          el("resolution").textContent =
+            "Pending input cleared; no action executed.";
+          el("choices").textContent = "—";
+          sync();
+          return;
+        }
+        if (input === "take key" || input === "put key in box") {
+          begin(raw, input === "put key in box");
+          return;
+        }
+        if (input === "open chest" || input === "examine chest") {
+          el("original").textContent = raw;
+          replies = [];
+          dispatch(
+            "chest",
+            input === "open chest"
+              ? "The chest is locked."
+              : objects.chest.description,
+            input === "open chest",
+          );
+          return;
+        }
+        if (input === "say it") {
+          el("original").textContent = raw;
+          dispatch(null, "You say: it");
+          el("resolution").textContent =
+            "Exact authored literal matched; no pronoun substitution.";
+          return;
+        }
+        if (input === "polish key") {
+          pending = null;
+          el("original").textContent = raw;
+          line("That command is ambiguous. Please try a different command.");
+          el("resolution").textContent =
+            "Same noun binding; competing handlers require an author edit.";
+          el("flow").textContent =
+            "Polish key [polish-a] · Polish key [polish-b]";
+          el("choices").textContent = "No entity choice can resolve this tie.";
+          sync();
+          return;
+        }
+        if (input === "examine it" || input === "take it") {
+          pending = null;
+          el("original").textContent = raw;
+          replies = [];
+          if (!el("pronouns").checked || !focus || unavailable) {
+            line(
+              el("pronouns").checked
+                ? el("unavailable").value
+                : "That command does not match an available action.",
+            );
+            el("resolution").textContent =
+              "No usable recent reference; no action executed.";
+            el("flow").textContent = "—";
+            el("choices").textContent = "—";
+            sync();
+          } else {
+            const resolved = objects[focus].name;
+            dispatch(
+              focus,
+              input === "examine it"
+                ? objects[focus].description
+                : `You take the ${resolved.toLowerCase()}.`,
+            );
+            el("resolution").textContent =
+              `“it” → ${resolved}; dispatched the existing action once.`;
+          }
+          return;
+        }
+        if (/^(take|examine) (brass|silver) key$/.test(input)) {
+          const id = input.includes("brass") ? "brass" : "silver";
+          pending = null;
+          el("original").textContent = raw;
+          replies = [];
+          if (unavailable && id === focus) {
+            line("That command does not match an available action.");
+            el("resolution").textContent =
+              "Named target outside current scope; no action executed.";
+            sync();
+          } else
+            dispatch(
+              id,
+              input.startsWith("take")
+                ? `You take the ${objects[id].name.toLowerCase()}.`
+                : objects[id].description,
+            );
+          return;
+        }
+        if (pending) {
+          let matches = [];
+          if (/^[1-9]\d*$/.test(input)) {
+            const chosen = pending.options[Number(input) - 1];
+            if (chosen) matches = [chosen];
+          } else if (input === "it" && el("pronouns").checked && !unavailable) {
+            matches = pending.options.filter((id) => id === focus);
+          } else {
+            const words = input.replace(/^the /, "").split(/\s+/);
+            matches = pending.options.filter((id) =>
+              words.every((word) =>
+                objects[id].name.toLowerCase().split(" ").includes(word),
+              ),
+            );
+          }
+          if (matches.length === 1) {
+            replies.push(raw);
+            const chosen = matches[0];
+            if (pending.twoSlots && pending.stage === "key") {
+              pending.item = chosen;
+              pending.stage = "box";
+              pending.options = ["iron", "wooden"];
+              showChoices();
+            } else if (pending.stage === "box") {
+              const item = pending.item;
+              dispatch(
+                item,
+                `You put the ${objects[item].name.toLowerCase()} in the ${objects[chosen].name.toLowerCase()}.`,
+              );
+            } else
+              dispatch(
+                chosen,
+                `You take the ${objects[chosen].name.toLowerCase()}.`,
+              );
+            return;
+          }
+          if (matches.length > 1) pending.options = matches;
+          if (
+            !matches.length &&
+            /^(take|put|examine|open|close|hint)\b/.test(input)
+          ) {
+            pending = null;
+            line("That command does not match an available action.");
+            el("resolution").textContent =
+              "Fresh command abandoned the question; no matching action.";
+            el("choices").textContent = "—";
+            sync();
+          } else showChoices(true);
+          return;
+        }
+        line(
+          "This scripted preview supports the example commands and the suggested replies.",
+        );
+      }
+      function reset() {
+        pending = null;
+        focus = null;
+        unavailable = false;
+        attempts = 0;
+        effects = 0;
+        replies = [];
+        el("transcript").replaceChildren();
+        el("original").textContent = "—";
+        el("resolution").textContent = "Run an example to begin.";
+        el("flow").textContent = "—";
+        el("choices").textContent = "—";
+        el("scene-note").textContent = examples[el("scene").value].note;
+        el("suggestion").textContent = examples[el("scene").value].suggestion;
+        el("command").value = "";
+        sync();
+      }
+      function run() {
+        reset();
+        const scene = el("scene").value;
+        if (scene === "hidden") {
+          focus = "brass";
+          unavailable = true;
+        }
+        submit(examples[scene].command);
+        el("command").focus();
+      }
+      el("command-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        submit(el("command").value);
+        el("command").value = "";
+        el("command").focus();
+      });
+      el("run").addEventListener("click", run);
+      el("reset").addEventListener("click", reset);
+      el("scene").addEventListener("change", run);
+      el("clarify").addEventListener("change", run);
+      el("pronouns").addEventListener("change", run);
+      el("cancel").addEventListener("click", () => {
+        submit("cancel");
+        el("command").focus();
+      });
+      run();
+    </script>
+  </body>
+</html>

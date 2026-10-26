@@ -27,6 +27,179 @@ async fn post(app: axum::Router, path: &str, body: Value) -> Value {
 }
 
 #[tokio::test]
+async fn parser_assistance_matches_exported_runner_and_preserves_compatible_earlier_saves() {
+    use luna_model::*;
+    let temp = tempfile::tempdir().unwrap();
+    let mut project = Project::blank("Parser parity");
+    project.game.format_version = 2;
+    project.game.command_assistance = None;
+    project
+        .game
+        .variables
+        .insert("starts".into(), luna_model::Value::Integer(0));
+    project
+        .game
+        .variables
+        .insert("takes".into(), luna_model::Value::Integer(0));
+    project.game.triggers.push(Trigger {
+        id: "start-once".into(),
+        event: Event::Start,
+        effects: vec![Effect::UpdateVariable {
+            name: "starts".into(),
+            op: ArithmeticOperation::Add,
+            operand: NumericOperand::Literal { value: 1 },
+        }],
+        ..Default::default()
+    });
+    for (id, name) in [("brass", "Brass key"), ("silver", "Silver key")] {
+        let mut object = Object {
+            id: id.into(),
+            name: name.into(),
+            aliases: vec!["key".into()],
+            description: format!("Description of {name}."),
+            portable: true,
+            placement: Placement::Location {
+                location: project.game.starting_location.clone(),
+            },
+            ..Default::default()
+        };
+        object.actions = starter_actions(&object);
+        object
+            .actions
+            .iter_mut()
+            .find(|action| action.verb == "take")
+            .unwrap()
+            .effects
+            .push(Effect::UpdateVariable {
+                name: "takes".into(),
+                op: ArithmeticOperation::Add,
+                operand: NumericOperand::Literal { value: 1 },
+            });
+        project.objects.push(object);
+    }
+    let root = temp.path().join("source");
+    std::fs::create_dir(&root).unwrap();
+    let bundle = temp.path().join("parser.luna");
+    std::fs::write(
+        &bundle,
+        luna_project::export_bundle(&root, &project).unwrap(),
+    )
+    .unwrap();
+    let storage = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let old = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let previous = Session::start(storage.load_game(&old).unwrap(), None)
+        .unwrap()
+        .0;
+    storage
+        .write_save(
+            &old,
+            previous.definition(),
+            previous.state(),
+            Some("legacy"),
+        )
+        .unwrap();
+    project.game.format_version = 3;
+    project.game.command_assistance = Some(CommandAssistance::new_game());
+    luna_project::save_project(&root, &project, None).unwrap();
+    assert_eq!(luna_project::load_project(&root).unwrap(), project);
+    std::fs::write(
+        &bundle,
+        luna_project::export_bundle(&root, &project).unwrap(),
+    )
+    .unwrap();
+    let installed = storage
+        .install(storage.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let definition =
+        luna_core::GameDefinition::new(storage.load_game(&installed).unwrap()).unwrap();
+    let old_save = storage
+        .load_save(&installed, &definition, Some("legacy"))
+        .unwrap();
+    let mut runner = Session::restore_with_definition(definition, old_save.state).unwrap();
+    assert!(runner.pending_clarification().is_none());
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "parity".into(),
+        )
+        .unwrap(),
+    );
+    let mut editor = post(
+        app.clone(),
+        "/api/v1/playtests",
+        json!({"project":project,"location":null,"help_mode":null,"setup":null}),
+    )
+    .await;
+    for command in [
+        "examine brass key",
+        "take key",
+        "look",
+        "help it",
+        "brass",
+        "examine it",
+        "take key",
+        "silver",
+        "examine it",
+        "take key",
+        "cancel",
+    ] {
+        let result = runner.command(command).unwrap();
+        editor = post(
+            app.clone(),
+            &format!(
+                "/api/v1/playtests/{}/commands",
+                editor["session"].as_str().unwrap()
+            ),
+            json!({"command":command,"explain":true}),
+        )
+        .await;
+        assert_eq!(
+            editor["state"],
+            serde_json::to_value(runner.state()).unwrap(),
+            "{command}"
+        );
+        for (field, expected) in [
+            ("messages", serde_json::to_value(&result.messages).unwrap()),
+            ("status", serde_json::to_value(result.status).unwrap()),
+            (
+                "input_resolution",
+                serde_json::to_value(&result.input_resolution).unwrap(),
+            ),
+            (
+                "pending_clarification",
+                serde_json::to_value(&result.pending_clarification).unwrap(),
+            ),
+        ] {
+            assert_eq!(editor["result"][field], expected, "{command}: {field}");
+        }
+        for slot in [None, Some("checkpoint")] {
+            storage
+                .write_save(&installed, runner.definition(), runner.state(), slot)
+                .unwrap();
+            let saved = storage
+                .load_save(&installed, runner.definition(), slot)
+                .unwrap();
+            assert_eq!(saved.save_format, 3);
+            let restored =
+                Session::restore_with_definition(runner.definition().clone(), saved.state).unwrap();
+            assert_eq!(restored.state(), runner.state());
+            assert!(restored.pending_clarification().is_none());
+        }
+    }
+    assert_eq!(
+        runner.state().variables["starts"],
+        luna_model::Value::Integer(1)
+    );
+    assert_eq!(
+        runner.state().variables["takes"],
+        luna_model::Value::Integer(2)
+    );
+}
+
+#[tokio::test]
 async fn container_setup_templates_execute_as_the_same_editable_shared_actions() {
     use luna_model::*;
     let temp = tempfile::tempdir().unwrap();

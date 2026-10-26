@@ -1,6 +1,6 @@
 # Containers and surfaces
 
-Status: **C0–C3 complete and accepted**, 26 October 2026. C1 is committed as `4af6bc0`, C2 as `b841d92`, and the owner's homepage text as `f8af605` on the feature branch. The owner accepted the [working authoring slice](../design/containers/README.md) with “looks great lets commit,” then accepted C3 with “great looks good” and requested its commit. C3's [final review record](../design/containers/final-review.md) covers the permanent example, package, performance, compatibility, and regression evidence. Push and merge remain open. The [shared contract](../design/containers/shared-contract.md) records the implementation choices.
+Status: **C0–C3 complete, accepted, and merged**, 26 October 2026. C1 is committed as `4af6bc0`, C2 as `b841d92`, C3 as `9f681ab`, and the owner's homepage text as `f8af605`. The owner accepted the [working authoring slice](../design/containers/README.md) with “looks great lets commit,” then accepted C3 with “great looks good” and requested its commit. The complete branch is merged into `main` as `3b34bc5` (PR #2). C3's [final review record](../design/containers/final-review.md) covers the permanent example, package, performance, compatibility, and regression evidence. The [shared contract](../design/containers/shared-contract.md) records the implementation choices.
 
 Branch: `feature/containers-and-surfaces`, created from merged `main` at `835f009`. This is F1 in the [gameplay feature roadmap](gameplay-feature-roadmap.md). Keep the feature, compatibility work, working UX, and acceptance example together until tested and accepted.
 
@@ -303,7 +303,7 @@ Documentation scope updated at the owner's request on 26 October 2026: leave aut
 - [x] Update developer architecture/API/compatibility notes and the acceptance example's reproducible test walkthrough for the delivered behaviour. Defer user-facing guides and public reference pages to the full documentation-site work. Preserve the existing Locked Study and historical fixtures unless an example edit is separately agreed.
 - [x] Review the complete diff against fetched `origin/main` (`835f009`), resolve/retest affected changes, and record evidence in the [C3 review](../design/containers/final-review.md). Existing Locked Study inputs are unchanged; the owner's homepage commit is preserved.
 - [x] Obtain final owner acceptance of the complete feature and commit C3: accepted on 26 October 2026 with “great looks good,” followed by “lets commit.”
-- [ ] Push and merge the complete branch when requested.
+- [x] Push and merge the complete branch: merged as `3b34bc5` (PR #2), confirmed on 26 October 2026.
 
 ### C3 implementation and verification record
 
@@ -311,7 +311,7 @@ Added the permanent two-room [Packing the Study acceptance fixture](../../exampl
 
 Branch review found and fixed a destination-capability gap when replacing a holder referenced only by disconnected blocks. Changed typed references now require compatible storage, including draft fields/metadata, without imposing new checks on unrelated unfinished drafts. An actual Blockly serialization regression demonstrates the failure before the fix and success afterward.
 
-Final checks pass: **179 Rust tests/doctests**, **72 frontend unit tests**, **95 browser workflows** (48 Chromium, 47 Firefox; the existing Firefox zoom skip), frontend/prototype builds, generated contracts, Rust/frontend formatting, Clippy and core rustdoc with warnings denied, release packaging, and the extended package smoke check. The [review record](../design/containers/final-review.md) maps the acceptance matrix to evidence and reports the remaining performance tradeoffs. User-facing guides/public reference pages remain deferred. Final owner acceptance and the C3 commit are complete; push and merge remain pending.
+Final checks pass: **179 Rust tests/doctests**, **72 frontend unit tests**, **95 browser workflows** (48 Chromium, 47 Firefox; the existing Firefox zoom skip), frontend/prototype builds, generated contracts, Rust/frontend formatting, Clippy and core rustdoc with warnings denied, release packaging, and the extended package smoke check. The [review record](../design/containers/final-review.md) maps the acceptance matrix to evidence and reports the remaining performance tradeoffs. User-facing guides/public reference pages remain deferred. Final owner acceptance, commit, push, and merge are complete (`3b34bc5`, PR #2).
 
 The [C3 measurements](containers-c3-scaling.csv) and [fresh C1 recheck](containers-c3-c1-recheck.csv) retain all 18 benchmark cases. With 5,000 objects, the deepest typed-input probe is 3.20 ms versus 3.15 ms for the rechecked C1; deep-state validation is 3.68 ms and overwrite-save is 14.31 ms. Flat examination remains 1.47/2.61 ms for distributed/crowded layouts, close to the original H5/C1 observations. Initialization and explained watch-chain snapshot costs remain documented. Measurements use Rust 1.96.0, release optimization, identical fixtures/sample counts, and tmpfs without concurrent builds/browser tests; they are not CI thresholds or physical-disk guarantees.
 
@@ -344,4 +344,4 @@ Accepted first-slice direction following the working C0 review:
 4. **Keep direct CARRYING stable**, add explicit possession/reachability and a usable-item preset.
 5. **REMOVE parks contents; CONSUME nonempty fails safely**. The C1 contract and regression tests make these policies explicit.
 
-The accepted preview shows standard behaviour customization and resolved command inputs using the existing block renderer. C2 delivers those interactions against the shared C1 implementation. C3 verifies the complete working feature, now accepted by the owner; push and merge remain pending.
+The accepted preview shows standard behaviour customization and resolved command inputs using the existing block renderer. C2 delivers those interactions against the shared C1 implementation. C3 verifies the complete working feature, accepted by the owner and merged as `3b34bc5` (PR #2).

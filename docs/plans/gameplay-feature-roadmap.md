@@ -1,8 +1,8 @@
 # Gameplay features and designer UX
 
-Status: **Container engine/editor implemented; C0–C3 complete and accepted**, 26 October 2026. Push and merge remain open. The remaining feature directions are documented for later review and are not implemented. The container branch is not merged. User-facing feature guides and public references are deferred to the documentation-site milestone.
+Status: **Containers merged; F2 complete and accepted; merge pending**, 26 October 2026. C0–C3 are complete and accepted, merged as `3b34bc5` (PR #2). F2's P1 proof/contract is committed as `25b634c`; P2 is owner accepted and committed as `5c89b70`; P3 technical acceptance is complete and the owner accepted the feature with “very happy”; branch closeout remains pending. The remaining feature directions are not implemented. User-facing feature guides and public references are deferred to the documentation-site milestone.
 
-This follows the merged [shared-core hardening](core-hardening.md). The immediate work is the [container design](containers-and-surfaces.md), on `feature/containers-and-surfaces`, created from merged `main` at `835f009`. Documentation remains a v1 priority. This list does not make every proposed feature a requirement for v1; agree the release scope before scheduling the remaining branches. Browser publishing is explicitly after v1.
+This follows the merged [shared-core hardening](core-hardening.md) and [containers](containers-and-surfaces.md). The current work is [parser context](parser-context.md), on `feature/parser-context`, created from merged `main` at `3b34bc5`. Its design and live P2 feature are owner accepted; P3 technical acceptance is complete and owner accepted. The owner chose gameplay features before the documentation milestone on 26 October 2026. Documentation remains planned for v1. This list does not make every proposed feature a requirement for v1; agree the release scope before scheduling the remaining branches. Browser publishing is explicitly after v1.
 
 ## Agreed direction
 
@@ -16,17 +16,17 @@ The existing [conversations and quests plan](conversations-and-quests.md) remain
 
 ## Branches and dependencies
 
-| Feature                               | Branch                            | Scheduling and dependencies                                                                                                                               |
-| ------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| F1 — Containers and surfaces          | `feature/containers-and-surfaces` | Engine/editor implemented; C0–C3 complete and accepted. Push and merge remain open. |
-| F2 — Parser context and clarification | `feature/parser-context`          | Independent player convenience; integrate with F1's noun bindings if F1 has merged.                                                                       |
-| F3 — Reusable block procedures        | `feature/block-procedures`        | Prove typed inputs and definitions shared across workspaces before implementation.                                                                        |
-| F4 — Turns and scheduled events       | `feature/turn-events`             | Owns the turn clock and scheduling contract; may call procedures if F3 already exists, but does not require them.                                         |
-| F5 — Character routines               | `feature/character-routines`      | Depends on F4's turn clock; complements conversations without requiring the conversation update.                                                          |
-| F6 — Optional player undo             | `feature/player-undo`             | Uses complete runtime snapshots; adapt to whatever state-bearing features have merged.                                                                    |
-| F7 — Standalone browser player        | `feature/browser-player`          | Explicitly after v1; investigate Rust/WebAssembly portability and distribution separately.                                                                |
+| Feature                               | Branch                            | Scheduling and dependencies                                                                                       |
+| ------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| F1 — Containers and surfaces          | `feature/containers-and-surfaces` | Complete, accepted, and merged as `3b34bc5` (PR #2).                                                              |
+| F2 — Parser context and clarification | `feature/parser-context`          | P0–P3 accepted; final commit/push requested, merge pending. See the [detailed plan](parser-context.md).                     |
+| F3 — Reusable block procedures        | `feature/block-procedures`        | Prove typed inputs and definitions shared across workspaces before implementation.                                |
+| F4 — Turns and scheduled events       | `feature/turn-events`             | Owns the turn clock and scheduling contract; may call procedures if F3 already exists, but does not require them. |
+| F5 — Character routines               | `feature/character-routines`      | Depends on F4's turn clock; complements conversations without requiring the conversation update.                  |
+| F6 — Optional player undo             | `feature/player-undo`             | Uses complete runtime snapshots; adapt to whatever state-bearing features have merged.                            |
+| F7 — Standalone browser player        | `feature/browser-player`          | Explicitly after v1; investigate Rust/WebAssembly portability and distribution separately.                        |
 
-Only F1's branch exists as part of this planning work. Create the others from the latest merged, validated `main` when their work starts, rather than keeping seven branches drifting in parallel. Branch names are reserved planning names, not claims of delivered features.
+F1 is merged and F2's branch has been created from that merged baseline. Create the others from the latest merged, validated `main` when their work starts, rather than keeping seven branches drifting in parallel. Later branch names are reserved planning names, not claims of delivered features.
 
 ## Shared designer experience
 
@@ -43,13 +43,15 @@ For each feature: **authoring journey and wireframes → owner feedback → risk
 
 ## F1 — Containers and surfaces
 
-See the [detailed design, wireframes, decisions, and milestones](containers-and-surfaces.md), [accepted authoring reviews](../design/containers/README.md), [shared contract](../design/containers/shared-contract.md), and [C3 review evidence](../design/containers/final-review.md). The engine/persistence foundation and production authoring controls/blocks are implemented and accepted. C3's permanent example, package, scale, developer notes, and technical checks are complete and accepted; push and merge remain. Public author/player guides remain part of the later documentation-site work.
+See the [detailed design, wireframes, decisions, and milestones](containers-and-surfaces.md), [accepted authoring reviews](../design/containers/README.md), [shared contract](../design/containers/shared-contract.md), and [C3 review evidence](../design/containers/final-review.md). The engine/persistence foundation and production authoring controls/blocks are implemented and accepted. C3's permanent example, package, scale, developer notes, and technical checks are complete and accepted. The branch is merged as `3b34bc5`. Public author/player guides remain part of the later documentation-site work.
 
 The proposed journey is: select an object → enable **Can contain items** and/or **Items can be placed on top** → configure opening behaviour → add/move initial contents → review the offered standard interactions → playtest. Authors can use explicit placement/condition blocks for special puzzles without reimplementing containment itself.
 
 Objects stay ordinary objects. A chest may support items on its lid as well as contain items inside. Closing the chest affects the inside, not the top. General relationships such as behind/under, weight simulation, and transparency are outside the first slice.
 
 ## F2 — Parser context and clarification
+
+The owner accepted the [interactive wireframes](../design/parser-context/wireframes.html) with “works great” on 26 October 2026. The [detailed F2 plan](parser-context.md) and [P1 shared contract](../design/parser-context/shared-contract.md) record the reviewed interaction, real-matcher proof, compatibility decisions, and implementation milestones. P2 implements the live settings/player feature and production Session resolver; its [working-slice review](../design/parser-context/p2-review.md) is owner accepted. The [P3 acceptance record](../design/parser-context/final-review.md) covers the permanent fixture, paired production measurements, and passing final checks; the owner accepted the complete feature with “very happy”; the owner requested the final commit/push on 26 October 2026; merge remains pending.
 
 This is primarily a player interaction, **not a new block authors must put before every action**. For example:
 
@@ -71,7 +73,7 @@ Designer workflow:
 
 Do not infer puzzle solutions from unmet requirements. Choices must respect current scope and discovery; hidden objects and future conversation topics must not appear. Revalidate a pending choice after state changes. Duplicate handlers for the same entities are authoring ambiguities, not questions a player can solve by choosing a different noun.
 
-Before implementation, decide cancellation/new-command behaviour, interaction with help/hints and conversations, when reference context updates, and whether any context is saved. A restored choice must either be safely revalidated or explicitly cleared; it must not refer to a different action after editing.
+The accepted design and P1 contract define cancellation/new-command behaviour, help/hint handling, reference updates, and session-local context. Successful restore/state replacement clears both pending and recent context. Revalidate choices before dispatch; a reply must not refer to a different action after scope/content changes. Future conversations need an explicit separate reply-state precedence when that feature is implemented.
 
 Acceptance: two same-alias keys, an inaccessible key, a failed requirement, an intervening state change, an unrelated fresh command, and a pronoun referring to an entity no longer in scope. Verify no double execution, information leakage, or parser changes for existing explicit commands.
 
@@ -181,7 +183,7 @@ Investigate the existing Rust runtime compiled to WebAssembly, a separate access
 
 Each branch owns its complete model/runtime/editor/runner/persistence journey. Keep enum contracts generated from Rust, typed references stable, meaningful Rust documentation current, and editor-only layout/drafts out of exported runtime content and player saves.
 
-The merged baseline is content format 1 and save format 2. F1 now implements content 2/save 3 on its feature branch, with legacy reads/writes; those versions become the baseline when it merges. Allocate later versions according to actual merge order; the conversation plan's provisional numbers are not a reservation. New engines need explicit legacy reads/migrations or clear preserved-data errors; older engines must reject unsupported content before ignoring new relationships or state. Never silently flatten containment or replay start/reward/timer effects when restoring.
+The merged baseline is content format 2 and save format 3, with explicit legacy content-1/save-1–2 handling and retained legacy writes. Allocate later versions according to actual merge order; the conversation plan's provisional numbers are not a reservation. New engines need explicit legacy reads/migrations or clear preserved-data errors; older engines must reject unsupported content before ignoring new relationships or state. Never silently flatten containment or replay start/reward/timer effects when restoring.
 
 For each implementation, cover its invariants, rollback, save/load, editor/exported-runner parity, reference management, copied templates, stale playtest revisions, and relevant Chromium/Firefox authoring workflows. Measure large fixtures when adding ancestry traversal, dynamic bindings, snapshots, or scheduled work. Retain existing execution budgets and deterministic ordering.
 

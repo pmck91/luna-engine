@@ -1,6 +1,8 @@
 import { useState, type CSSProperties } from 'react';
 import type { Project, TraceChange } from './contracts';
 import Modal from './Modal';
+import InputResolutionView from './InputResolutionView';
+import type { ReferenceSite } from './references';
 import {
   changeTitle,
   detailedStep,
@@ -30,11 +32,13 @@ export default function CommandExplanation({
   project,
   close,
   inspect,
+  reveal,
 }: {
   record: ExplanationRecord;
   project: Project;
   close: () => void;
   inspect: (index: number) => void;
+  reveal: (site: ReferenceSite) => void;
 }) {
   const [selected, setSelected] = useState<number | null>(record.explanation.failed_step);
   const explanation = record.explanation;
@@ -123,6 +127,15 @@ export default function CommandExplanation({
         <button onClick={close}>Close</button>
       </div>
       <p className="explanation-command">&gt; {explanation.command}</p>
+      {record.input_resolution && (
+        <InputResolutionView
+          resolution={record.input_resolution}
+          project={record.project}
+          selectedFlow={record.selected_flow}
+          current={current}
+          reveal={reveal}
+        />
+      )}
       <p className={explanation.committed ? 'trace-success' : 'reference-error'}>
         {explanation.committed
           ? record.status === 'requirements_failed'

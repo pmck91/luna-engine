@@ -1,0 +1,111 @@
+{
+  "id": "chest",
+  "name": "Wooden chest",
+  "aliases": [
+    "chest"
+  ],
+  "description": "A stout wooden chest with a flat lid.",
+  "placement": {
+    "type": "location",
+    "location": "gallery"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "chest-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "chest"
+        }
+      ]
+    },
+    {
+      "id": "chest-open",
+      "name": "Open Wooden chest",
+      "verb": "open",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "opened",
+          "object": "chest"
+        }
+      },
+      "failure_text": "It is already open.",
+      "effects": [
+        {
+          "type": "open",
+          "object": "chest"
+        },
+        {
+          "type": "say",
+          "text": "Opened."
+        }
+      ],
+      "standard": {
+        "interaction": "open",
+        "enabled": true
+      }
+    },
+    {
+      "id": "chest-close",
+      "name": "Close Wooden chest",
+      "verb": "close",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "chest"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "opened",
+        "object": "chest"
+      },
+      "failure_text": "It is already closed.",
+      "effects": [
+        {
+          "type": "close",
+          "object": "chest"
+        },
+        {
+          "type": "say",
+          "text": "Closed."
+        }
+      ],
+      "standard": {
+        "interaction": "close",
+        "enabled": true
+      }
+    }
+  ],
+  "triggers": [],
+  "hints": [],
+  "storage": {
+    "container": "openable",
+    "surface": false
+  }
+}

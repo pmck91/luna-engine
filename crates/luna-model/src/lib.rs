@@ -1,5 +1,7 @@
 //! Versioned, host-independent Luna authoring contract.
+mod assistance;
 mod command_words;
+pub use assistance::*;
 mod containers;
 pub use containers::*;
 mod state;
@@ -13,7 +15,7 @@ use ts_rs::TS;
 pub use validation::*;
 
 /// Latest writable content format; format 1 retains its legacy flat semantics.
-pub const FORMAT_VERSION: u32 = 2;
+pub const FORMAT_VERSION: u32 = 3;
 /// Whether a content header is understood, before parsing versioned variants.
 pub fn supported_format(version: u32) -> bool {
     (1..=FORMAT_VERSION).contains(&version)
@@ -565,6 +567,9 @@ pub struct Game {
     pub help_text: String,
     #[serde(default = "default_unknown_command_text")]
     pub unknown_command_text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub command_assistance: Option<CommandAssistance>,
     #[serde(default)]
     pub help_mode: HelpMode,
     #[serde(default = "hints_enabled_default")]
@@ -698,6 +703,7 @@ impl Project {
                 opening_text: "Welcome to your adventure.".into(),
                 help_text: "Type commands to interact with the world.".into(),
                 unknown_command_text: default_unknown_command_text(),
+                command_assistance: Some(CommandAssistance::new_game()),
                 help_mode: HelpMode::Basic,
                 hints_enabled: true,
                 ignored_words: default_ignored_words(),

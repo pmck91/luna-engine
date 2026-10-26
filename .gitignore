@@ -9,6 +9,7 @@
 !.fixtures/*.luna
 !/examples/locked-study.luna
 !/examples/packing-study.luna
+!/examples/parser-gallery.luna
 /web/*.tsbuildinfo
 .luna-recovery/
 .luna-transaction.json

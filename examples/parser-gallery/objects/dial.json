@@ -1,0 +1,86 @@
+{
+  "id": "dial",
+  "name": "Dial",
+  "aliases": [
+    "dial"
+  ],
+  "description": "Dial belongs to the parser gallery.",
+  "placement": {
+    "type": "location",
+    "location": "gallery"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "dial-examine",
+      "name": "Dial Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "dial"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "dial"
+        }
+      ]
+    },
+    {
+      "id": "dial-first",
+      "name": "Dial First",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "dial"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "say",
+          "text": "First competing handler."
+        }
+      ]
+    },
+    {
+      "id": "dial-second",
+      "name": "Dial Second",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "dial"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "say",
+          "text": "Second competing handler."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

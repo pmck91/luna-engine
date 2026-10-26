@@ -1,0 +1,202 @@
+{
+  "id": "0aa9f603-989f-4ae1-8ace-665ebc7c263f",
+  "title": "The Parser Gallery",
+  "description": "Permanent parser clarification and recent-reference acceptance example.",
+  "author": "Luna Engine",
+  "format_version": 3,
+  "content_version": "1.0.0",
+  "starting_location": "gallery",
+  "opening_text": "Two keys and two trays invite careful commands. A closed chest stands beside the keeper. Try take key, then brass, then examine it.",
+  "help_text": "Try examine, take, put an item on a tray, open chest, go east/west, or say it. Use finish ends the demonstration. Acceptance notes explain the deliberately competing dial handlers and unstable action.",
+  "unknown_command_text": "The gallery does not recognise that command.",
+  "command_assistance": {
+    "clarification": true,
+    "recent_objects": true,
+    "clarification_text": "Which do you mean?",
+    "retry_text": "Please choose one of the listed items.",
+    "unavailable_reference_text": "I can't tell what “it” refers to here. Use its full name."
+  },
+  "help_mode": "full",
+  "hints_enabled": true,
+  "ignored_words": [
+    "a",
+    "an",
+    "the"
+  ],
+  "require_ending": true,
+  "variables": {
+    "commands": 0,
+    "placements": 0,
+    "silver_free": false,
+    "starts": 0,
+    "takes": 0,
+    "watches": 0,
+    "zero": 0
+  },
+  "endings": [
+    {
+      "id": "complete",
+      "name": "Gallery reviewed",
+      "text": "The gallery review is complete.",
+      "outcome": null
+    }
+  ],
+  "actions": [
+    {
+      "id": "say-literal-it",
+      "name": "Say Literal It",
+      "verb": "say",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "it"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "say",
+          "text": "The word it remains literal."
+        }
+      ]
+    },
+    {
+      "id": "finish-review",
+      "name": "Finish Review",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "finish"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "end",
+          "ending": "complete"
+        }
+      ]
+    },
+    {
+      "id": "unstable-review",
+      "name": "Unstable Review",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "unstable"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "takes",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "Discard this attempted output."
+        },
+        {
+          "type": "update_variable",
+          "name": "takes",
+          "op": "divide",
+          "operand": {
+            "type": "variable",
+            "name": "zero"
+          }
+        }
+      ]
+    }
+  ],
+  "triggers": [
+    {
+      "id": "count-start",
+      "name": "Count Start",
+      "event": "start",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "starts",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "count-command",
+      "name": "Count Command",
+      "event": "command",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "commands",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "watch-takes",
+      "name": "Watch Takes",
+      "event": "start",
+      "watch": {
+        "target": {
+          "type": "variable",
+          "name": "takes"
+        },
+        "mode": "each_change"
+      },
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "watches",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    }
+  ],
+  "assets": []
+}

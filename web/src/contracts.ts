@@ -35,6 +35,28 @@ object: string, } | { "type": "character_carrying", character: string, object: s
 
 export type HelpMode = "off" | "basic" | "full";
 
+export type CommandAssistance = {
+/**
+ * Ask for an entity choice before dispatching an ambiguous command.
+ */
+clarification: boolean,
+/**
+ * Resolve `it` to the prior explicitly named object when still in scope.
+ */
+recent_objects: boolean,
+/**
+ * Prompt preceding the generated literal numbered choices.
+ */
+clarification_text: string,
+/**
+ * Prompt used when an answer does not select an offered entity.
+ */
+retry_text: string,
+/**
+ * Generic response that does not disclose an unavailable object's identity.
+ */
+unavailable_reference_text: string, };
+
 export type HintStage = { id: string, name: string, condition: Condition, clues: Array<string>, solution: string | null, };
 
 export type HintSet = { id: string, name: string, available: Condition, solved: Condition, stages: Array<HintStage>, };
@@ -79,7 +101,7 @@ export type Outcome = "victory" | "loss" | "neutral";
 
 export type Ending = { id: string, name: string, text: string, outcome: Outcome | null, };
 
-export type Game = { id: string, title: string, description: string, author: string, format_version: number, content_version: string, starting_location: string, opening_text: string, help_text: string, unknown_command_text: string, help_mode: HelpMode, hints_enabled: boolean, ignored_words: Array<string>, require_ending: boolean, variables: { [key in string]?: Value }, endings: Array<Ending>, actions: Array<Action>, triggers: Array<Trigger>, assets: Array<string>, };
+export type Game = { id: string, title: string, description: string, author: string, format_version: number, content_version: string, starting_location: string, opening_text: string, help_text: string, unknown_command_text: string, command_assistance?: CommandAssistance, help_mode: HelpMode, hints_enabled: boolean, ignored_words: Array<string>, require_ending: boolean, variables: { [key in string]?: Value }, endings: Array<Ending>, actions: Array<Action>, triggers: Array<Trigger>, assets: Array<string>, };
 
 export type Point = { x: number, y: number, };
 
@@ -351,6 +373,114 @@ truncated: boolean, };
 
 export type CommandStatus = "ok" | "control" | "unmatched" | "ambiguous" | "requirements_failed" | "ended" | "error";
 
+export type NounOrigin = "name" | "recent_object" | "clarification";
+
+export type NounBinding = {
+/**
+ * Zero-based index in the selected flow's authored pattern.
+ */
+pattern_index: number,
+/**
+ * Stable entity identity, never an interpolated display name.
+ */
+entity: string,
+/**
+ * Whether this slot is F1's scoped Command item.
+ */
+command_item: boolean,
+/**
+ * Source of the resolved identity.
+ */
+origin: NounOrigin, };
+
+export type ClarificationChoice = {
+/**
+ * Stable entity identity for author navigation.
+ */
+entity: string,
+/**
+ * Current literal display name.
+ */
+name: string,
+/**
+ * Optional currently visible placement cue for repeated names.
+ */
+qualification: string | null, };
+
+export type ClarificationQuestion = {
+/**
+ * Original player input, preserving case and punctuation.
+ */
+original_command: string,
+/**
+ * Authored pattern position of the noun being clarified.
+ */
+pattern_index: number,
+/**
+ * Display order defines the positive, one-based answer numbers.
+ */
+choices: Array<ClarificationChoice>, };
+
+export type UnresolvedInputReason = "missing_reference" | "out_of_scope" | "stale_question";
+
+export type InputResolution = { "type": "pending",
+/**
+ * Current player-safe numbered question.
+ */
+question: ClarificationQuestion,
+/**
+ * Accepted raw answers in order; retries are not retained.
+ */
+replies: Array<string>,
+/**
+ * Whether older answers were omitted by the history budget.
+ */
+history_truncated: boolean, } | { "type": "resolved",
+/**
+ * Original command before clarification or pronoun resolution.
+ */
+original_command: string,
+/**
+ * Accepted raw clarification answers.
+ */
+replies: Array<string>,
+/**
+ * Whether accepted-answer history exceeded its budget.
+ */
+history_truncated: boolean,
+/**
+ * Ordered noun identities and provenance.
+ */
+bindings: Array<NounBinding>, } | { "type": "cancelled",
+/**
+ * Original command when a question was pending.
+ */
+original_command: string | null, } | { "type": "unresolved",
+/**
+ * Input associated with the failed resolution.
+ */
+original_command: string,
+/**
+ * Machine-readable failure reason, separate from generic player text.
+ */
+reason: UnresolvedInputReason, } | { "type": "author_ambiguity",
+/**
+ * Original submitted command.
+ */
+original_command: string,
+/**
+ * Competing definitions for author-only navigation.
+ */
+flows: Array<TraceSource>, } | { "type": "too_many",
+/**
+ * Original submitted command.
+ */
+original_command: string,
+/**
+ * Limit reached: choices, interpretations, or noun slots.
+ */
+limit: string, };
+
 export type CommandResult = {
 /**
  * Transcript lines, each represented as literal text with semantic colours.
@@ -379,7 +509,15 @@ selected_flow: string | null,
 /**
  * Structured observations, present only for explained execution.
  */
-explanation?: CommandExplanation, };
+explanation?: CommandExplanation,
+/**
+ * Structured resolution of this input, independent of gameplay changes.
+ */
+input_resolution?: InputResolution,
+/**
+ * Current question after this attempt, preserved across read-only commands.
+ */
+pending_clarification?: ClarificationQuestion, };
 
 export type Draft = { revision: string, project: Project, };
 

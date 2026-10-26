@@ -1,0 +1,53 @@
+{
+  "id": "gallery",
+  "name": "Gallery",
+  "aliases": [],
+  "description": "A gallery of keys, trays, and a deliberately troublesome dial.",
+  "actions": [
+    {
+      "id": "gallery-examine",
+      "name": "Gallery Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "gallery"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "gallery"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "exits": [
+    {
+      "id": "gallery-east",
+      "name": "east",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "alcove",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

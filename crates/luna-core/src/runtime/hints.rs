@@ -56,7 +56,7 @@ impl<'a> Run<'a> {
         } else {
             (query, false)
         };
-        let Some((entity, name)) = self.resolve_entity(query) else {
+        let Some((entity, name)) = self.resolve_entity(query)? else {
             return Ok(());
         };
         let Some((hint, stage)) = self.active_hint(&entity) else {

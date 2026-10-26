@@ -1,11 +1,27 @@
 //! Built-in controls and authored command dispatch within one transaction.
-use super::{Flow, Run, matching::Handler};
+use super::{
+    Flow, Run,
+    matching::{Candidate, Handler},
+};
 use crate::{CommandStatus, HostControl, TraceKind};
 use anyhow::{Result, ensure};
 use luna_model::{Event, normalize, reserved};
 
 impl<'a> Run<'a> {
     pub(crate) fn command(&mut self, input: &str) -> Result<()> {
+        if let Some(settings) = self.p.game.command_assistance.as_ref()
+            && (settings.clarification || settings.recent_objects)
+        {
+            let mut context = std::mem::take(&mut self.context);
+            let result = super::resolution::advance(self, &mut context, input, settings);
+            self.context = context;
+            return result;
+        }
+        self.context = super::resolution::InteractionContext::default();
+        self.command_explicit(input)
+    }
+
+    pub(super) fn command_explicit(&mut self, input: &str) -> Result<()> {
         let normalized = normalize(input);
         if self.recording.is_some() && (normalized.is_empty() || reserved(input)) {
             self.observe(
@@ -51,11 +67,7 @@ impl<'a> Run<'a> {
         let matches = self.candidates(&normalized, recorder.as_mut());
         self.recording = recorder;
         let matches = matches?;
-        for m in &matches {
-            self.result
-                .trace
-                .push(format!("Candidate '{}' [{}]: literal specificity {}, bound targets {}, scope {}, priority {}", m.name,m.id,m.rank.0,m.rank.1,match m.rank.2 { 2 => "object/character", 1 => "location", _ => "global" },m.rank.3))
-        }
+        self.candidate_trace(&matches);
         let Some(best) = matches.first().copied() else {
             self.result.status = CommandStatus::Unmatched;
             return self.say(&self.p.game.unknown_command_text);
@@ -69,6 +81,12 @@ impl<'a> Run<'a> {
             self.literal(&format!("Please clarify your command: {}. Type a more specific command; nothing has changed.",tied.iter().map(|m| match m.item { Some(id) => format!("{} ({})", m.name, self.entity_name(id).unwrap_or(id)), None => m.name.to_owned() }).collect::<Vec<_>>().join(" or ")));
             return Ok(());
         }
+        self.dispatch(best, &normalized)
+    }
+
+    // Resolution selects once; this shared path retains ordinary requirement,
+    // effect, event, exit, and explanation semantics for that selected handler.
+    pub(super) fn dispatch(&mut self, best: Candidate<'a>, normalized: &str) -> Result<()> {
         self.result.trace.push(format!(
             "Selected '{}' [{}] for normalized command '{normalized}'",
             best.name, best.id

@@ -1,7 +1,7 @@
 //! Command patterns, candidate ranking, and the same matching rules used by full help.
 use super::{
     Run, explanation,
-    index::{Part, Pattern},
+    index::{Owner, Part, Pattern},
 };
 use crate::TraceKind;
 use anyhow::{Context, Result};
@@ -26,38 +26,53 @@ pub(super) struct Candidate<'a> {
     pub(super) handler: Handler<'a>,
     pub(super) item: Option<&'a str>,
     pub(super) fallback: bool,
+    pub(super) recent_nouns: u32,
 }
 
 impl<'a> Run<'a> {
-    fn pattern_matches(
-        &self,
-        tokens: &[&str],
-        pattern: &Pattern,
-        route_destination: Option<&str>,
-        named_route: bool,
-    ) -> bool {
-        !self
-            .pattern_bindings(tokens, pattern, route_destination, named_route)
-            .is_empty()
+    pub(super) fn candidate_trace(&mut self, candidates: &[Candidate<'_>]) {
+        for m in candidates {
+            self.result.trace.push(format!("Candidate '{}' [{}]: literal specificity {}, bound targets {}, scope {}, priority {}", m.name, m.id, m.rank.0, m.rank.1, match m.rank.2 { 2 => "object/character", 1 => "location", _ => "global" }, m.rank.3));
+        }
     }
+
     fn pattern_bindings(
         &self,
         tokens: &[&str],
         pattern: &Pattern,
         route_destination: Option<&str>,
         named_route: bool,
-    ) -> Vec<Option<&'a str>> {
-        let mut positions = std::collections::BTreeSet::from([(0usize, None)]);
+        reference: Option<&str>,
+    ) -> Vec<(Option<&'a str>, u32)> {
+        let mut positions = std::collections::BTreeSet::from([(0usize, None, 0u32)]);
+        let mut noun_index = 0u32;
         for part in &pattern.parts {
+            let noun_bit = if matches!(part, Part::Entity(_) | Part::ObjectInput) {
+                let bit = 1u32.checked_shl(noun_index).unwrap_or(0);
+                noun_index += 1;
+                bit
+            } else {
+                0
+            };
             if matches!(part, Part::ObjectInput) {
                 let mut next = std::collections::BTreeSet::new();
                 if let Some(names) = &self.index.object_names {
-                    for &(position, bound) in &positions {
+                    for &(position, bound, provenance) in &positions {
                         for start in self.entity_words.starts(tokens, position) {
                             for (end, index) in names.matches(tokens, start) {
                                 let id = self.p.objects[index].id.as_str();
                                 if self.available(id) && bound.is_none_or(|prior| prior == id) {
-                                    next.insert((end, Some(id)));
+                                    next.insert((end, Some(id), provenance));
+                                }
+                            }
+                            if noun_bit != 0
+                                && tokens.get(start) == Some(&"it")
+                                && let Some(Owner::Object(index)) =
+                                    reference.and_then(|id| self.index.entities.get(id))
+                            {
+                                let id = self.p.objects[*index].id.as_str();
+                                if self.available(id) && bound.is_none_or(|prior| prior == id) {
+                                    next.insert((start + 1, Some(id), provenance | noun_bit));
                                 }
                             }
                         }
@@ -77,11 +92,24 @@ impl<'a> Run<'a> {
                 Part::ObjectInput => unreachable!(),
             };
             let mut next = std::collections::BTreeSet::new();
+            if let Part::Entity(entity) = part
+                && noun_bit != 0
+                && reference == Some(entity.as_str())
+                && matches!(self.index.entities.get(entity), Some(Owner::Object(_)))
+            {
+                for &(position, bound, provenance) in &positions {
+                    for start in self.entity_words.starts(tokens, position) {
+                        if tokens.get(start) == Some(&"it") {
+                            next.insert((start + 1, bound, provenance | noun_bit));
+                        }
+                    }
+                }
+            }
             for words in alternatives {
                 if words.is_empty() {
                     continue;
                 }
-                for &(position, bound) in &positions {
+                for &(position, bound, provenance) in &positions {
                     let starts = if named_route || matches!(part, Part::Entity(_)) {
                         self.entity_words.starts(tokens, position)
                     } else {
@@ -89,7 +117,7 @@ impl<'a> Run<'a> {
                     };
                     for start in starts {
                         if word_prefix(&tokens[start..], words) {
-                            next.insert((start + words.len(), bound));
+                            next.insert((start + words.len(), bound, provenance));
                         }
                     }
                 }
@@ -101,7 +129,9 @@ impl<'a> Run<'a> {
         }
         positions
             .into_iter()
-            .filter_map(|(end, bound)| (end == tokens.len()).then_some(bound))
+            .filter_map(|(end, bound, provenance)| {
+                (end == tokens.len()).then_some((bound, provenance))
+            })
             .collect()
     }
 
@@ -110,7 +140,8 @@ impl<'a> Run<'a> {
         tokens: &[&str],
         verb: &str,
         pattern: &Pattern,
-    ) -> Vec<Option<&'a str>> {
+        reference: Option<&str>,
+    ) -> Vec<(Option<&'a str>, u32)> {
         let mut bindings = std::collections::BTreeSet::new();
         if let Some(verb) = self.index.verbs.get(verb) {
             for phrase in &verb.phrases {
@@ -120,6 +151,7 @@ impl<'a> Run<'a> {
                         pattern,
                         None,
                         false,
+                        reference,
                     ));
                 }
             }
@@ -140,6 +172,37 @@ impl<'a> Run<'a> {
             })
     }
 
+    fn route_binding(
+        &self,
+        tokens: &[&str],
+        verb: &str,
+        pattern: &Pattern,
+        route_destination: Option<&str>,
+        named_route: bool,
+        reference: Option<&str>,
+    ) -> Option<u32> {
+        self.index
+            .verbs
+            .get(verb)?
+            .phrases
+            .iter()
+            .find_map(|phrase| {
+                if !word_prefix(tokens, phrase) {
+                    return None;
+                }
+                self.pattern_bindings(
+                    &tokens[phrase.len()..],
+                    pattern,
+                    route_destination,
+                    named_route,
+                    reference,
+                )
+                .first()
+                .map(|binding| binding.1)
+            })
+    }
+
+    #[cfg(test)]
     fn matches(
         &self,
         tokens: &[&str],
@@ -147,18 +210,17 @@ impl<'a> Run<'a> {
         pattern: &Pattern,
         route_destination: Option<&str>,
         named_route: bool,
+        reference: Option<&str>,
     ) -> bool {
-        self.index.verbs.get(verb).is_some_and(|verb| {
-            verb.phrases.iter().any(|phrase| {
-                word_prefix(tokens, phrase)
-                    && self.pattern_matches(
-                        &tokens[phrase.len()..],
-                        pattern,
-                        route_destination,
-                        named_route,
-                    )
-            })
-        })
+        self.route_binding(
+            tokens,
+            verb,
+            pattern,
+            route_destination,
+            named_route,
+            reference,
+        )
+        .is_some()
     }
 
     pub(super) fn command_phrase(&self, verb: &str, pattern: &[PatternPart]) -> Option<String> {
@@ -193,7 +255,18 @@ impl<'a> Run<'a> {
     pub(super) fn candidates(
         &self,
         input: &str,
+        recorder: Option<&mut explanation::Recorder>,
+    ) -> Result<Vec<Candidate<'a>>> {
+        self.candidates_with_reference(input, recorder, None)
+    }
+
+    // Only noun slots can consume the supplied object reference. Callers must
+    // prefer ordinary matches first so literal/name matches keep their meaning.
+    pub(super) fn candidates_with_reference(
+        &self,
+        input: &str,
         mut recorder: Option<&mut explanation::Recorder>,
+        reference: Option<&str>,
     ) -> Result<Vec<Candidate<'a>>> {
         let tokens = input.split_whitespace().collect::<Vec<_>>();
         let mut matches = vec![];
@@ -206,7 +279,7 @@ impl<'a> Run<'a> {
             }
             let scope = entry.owner.scope();
             let bindings = if available {
-                self.match_bindings(&tokens, &a.verb, &entry.pattern)
+                self.match_bindings(&tokens, &a.verb, &entry.pattern, reference)
             } else {
                 vec![]
             };
@@ -242,7 +315,12 @@ impl<'a> Run<'a> {
                     },
                 );
             }
-            for item in bindings {
+            let mut prior = None;
+            for (item, recent_nouns) in bindings {
+                if prior == Some(item) {
+                    continue;
+                }
+                prior = Some(item);
                 matches.push(Candidate {
                     id: &a.id,
                     name: &a.name,
@@ -251,6 +329,7 @@ impl<'a> Run<'a> {
                     handler: Handler::Action(a),
                     item,
                     fallback: a.standard.is_some(),
+                    recent_nouns,
                 });
             }
         }
@@ -283,12 +362,13 @@ impl<'a> Run<'a> {
             let mut matched_rank = None;
             let patterns = &self.index.exits[location_index][exit_index];
             for pattern in patterns {
-                if self.matches(
+                if let Some(recent_nouns) = self.route_binding(
                     &tokens,
                     &exit.verb,
                     pattern,
                     Some(&exit.destination),
                     exit.pattern.is_empty(),
+                    reference,
                 ) {
                     let (literals, entities) = pattern.specificity;
                     matches.push(Candidate {
@@ -299,6 +379,7 @@ impl<'a> Run<'a> {
                         handler: Handler::Exit(exit),
                         item: None,
                         fallback: false,
+                        recent_nouns,
                     });
                     matched_rank = Some((literals, entities));
                     break;

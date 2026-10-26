@@ -11,6 +11,10 @@ path = "src/main.rs"
 name = "scaling"
 harness = false
 
+[[bench]]
+name = "parser_context"
+harness = false
+
 [dependencies]
 luna-model = { path = "../luna-model" }
 luna-core = { path = "../luna-core" }

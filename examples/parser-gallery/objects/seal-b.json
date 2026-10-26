@@ -1,0 +1,42 @@
+{
+  "id": "seal-b",
+  "name": "Seal",
+  "aliases": [
+    "seal"
+  ],
+  "description": "A seal stamped with a moon.",
+  "placement": {
+    "type": "location",
+    "location": "gallery"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "seal-b-examine",
+      "name": "Seal B Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "seal-b"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "seal-b"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

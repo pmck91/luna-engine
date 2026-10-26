@@ -1,0 +1,81 @@
+{
+  "id": "remote",
+  "name": "Remote key",
+  "aliases": [
+    "key"
+  ],
+  "description": "The remote key has a distinctive engraving.",
+  "placement": {
+    "type": "location",
+    "location": "alcove"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "remote-examine",
+      "name": "Remote Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "remote"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "remote"
+        }
+      ]
+    },
+    {
+      "id": "remote-take",
+      "name": "Remote Take",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "remote"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "remote"
+        }
+      },
+      "failure_text": "You already carry that key.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "remote"
+        },
+        {
+          "type": "update_variable",
+          "name": "takes",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "You take the remote key."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}
