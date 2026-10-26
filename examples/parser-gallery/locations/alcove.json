@@ -1,0 +1,53 @@
+{
+  "id": "alcove",
+  "name": "Alcove",
+  "aliases": [],
+  "description": "A quiet alcove away from the gallery.",
+  "actions": [
+    {
+      "id": "alcove-examine",
+      "name": "Alcove Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "alcove"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "alcove"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "exits": [
+    {
+      "id": "alcove-west",
+      "name": "west",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "gallery",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

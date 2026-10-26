@@ -1,0 +1,81 @@
+{
+  "id": "brass",
+  "name": "Brass key",
+  "aliases": [
+    "key"
+  ],
+  "description": "The brass key has a distinctive engraving.",
+  "placement": {
+    "type": "location",
+    "location": "gallery"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "brass-examine",
+      "name": "Brass Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "brass"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "brass"
+        }
+      ]
+    },
+    {
+      "id": "brass-take",
+      "name": "Brass Take",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "brass"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "brass"
+        }
+      },
+      "failure_text": "You already carry that key.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "brass"
+        },
+        {
+          "type": "update_variable",
+          "name": "takes",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "You take the brass key."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

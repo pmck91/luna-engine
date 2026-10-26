@@ -1,8 +1,8 @@
 # Gameplay features and designer UX
 
-Status: **Containers merged; F2 P2 accepted; P3 next**, 26 October 2026. C0–C3 are complete and accepted, merged as `3b34bc5` (PR #2). F2's P1 proof/contract is committed as `25b634c`; P2's live implementation is owner accepted; P3 retains final feature acceptance. The remaining feature directions are not implemented. User-facing feature guides and public references are deferred to the documentation-site milestone.
+Status: **Containers merged; F2 complete and accepted; merge pending**, 26 October 2026. C0–C3 are complete and accepted, merged as `3b34bc5` (PR #2). F2's P1 proof/contract is committed as `25b634c`; P2 is owner accepted and committed as `5c89b70`; P3 technical acceptance is complete and the owner accepted the feature with “very happy”; branch closeout remains pending. The remaining feature directions are not implemented. User-facing feature guides and public references are deferred to the documentation-site milestone.
 
-This follows the merged [shared-core hardening](core-hardening.md) and [containers](containers-and-surfaces.md). The current work is [parser context](parser-context.md), on `feature/parser-context`, created from merged `main` at `3b34bc5`. Its design and live P2 feature are owner accepted; final feature acceptance remains P3. The owner chose gameplay features before the documentation milestone on 26 October 2026. Documentation remains planned for v1. This list does not make every proposed feature a requirement for v1; agree the release scope before scheduling the remaining branches. Browser publishing is explicitly after v1.
+This follows the merged [shared-core hardening](core-hardening.md) and [containers](containers-and-surfaces.md). The current work is [parser context](parser-context.md), on `feature/parser-context`, created from merged `main` at `3b34bc5`. Its design and live P2 feature are owner accepted; P3 technical acceptance is complete and owner accepted. The owner chose gameplay features before the documentation milestone on 26 October 2026. Documentation remains planned for v1. This list does not make every proposed feature a requirement for v1; agree the release scope before scheduling the remaining branches. Browser publishing is explicitly after v1.
 
 ## Agreed direction
 
@@ -19,7 +19,7 @@ The existing [conversations and quests plan](conversations-and-quests.md) remain
 | Feature                               | Branch                            | Scheduling and dependencies                                                                                       |
 | ------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | F1 — Containers and surfaces          | `feature/containers-and-surfaces` | Complete, accepted, and merged as `3b34bc5` (PR #2).                                                              |
-| F2 — Parser context and clarification | `feature/parser-context`          | P0–P2 accepted; P3 final acceptance next. See the [detailed plan](parser-context.md).                     |
+| F2 — Parser context and clarification | `feature/parser-context`          | P0–P3 accepted; final commit/push requested, merge pending. See the [detailed plan](parser-context.md).                     |
 | F3 — Reusable block procedures        | `feature/block-procedures`        | Prove typed inputs and definitions shared across workspaces before implementation.                                |
 | F4 — Turns and scheduled events       | `feature/turn-events`             | Owns the turn clock and scheduling contract; may call procedures if F3 already exists, but does not require them. |
 | F5 — Character routines               | `feature/character-routines`      | Depends on F4's turn clock; complements conversations without requiring the conversation update.                  |
@@ -51,7 +51,7 @@ Objects stay ordinary objects. A chest may support items on its lid as well as c
 
 ## F2 — Parser context and clarification
 
-The owner accepted the [interactive wireframes](../design/parser-context/wireframes.html) with “works great” on 26 October 2026. The [detailed F2 plan](parser-context.md) and [P1 shared contract](../design/parser-context/shared-contract.md) record the reviewed interaction, real-matcher proof, compatibility decisions, and implementation milestones. P2 implements the live settings/player feature and production Session resolver; its [working-slice review](../design/parser-context/p2-review.md) is owner accepted, with final acceptance in P3.
+The owner accepted the [interactive wireframes](../design/parser-context/wireframes.html) with “works great” on 26 October 2026. The [detailed F2 plan](parser-context.md) and [P1 shared contract](../design/parser-context/shared-contract.md) record the reviewed interaction, real-matcher proof, compatibility decisions, and implementation milestones. P2 implements the live settings/player feature and production Session resolver; its [working-slice review](../design/parser-context/p2-review.md) is owner accepted. The [P3 acceptance record](../design/parser-context/final-review.md) covers the permanent fixture, paired production measurements, and passing final checks; the owner accepted the complete feature with “very happy”; the owner requested the final commit/push on 26 October 2026; merge remains pending.
 
 This is primarily a player interaction, **not a new block authors must put before every action**. For example:
 

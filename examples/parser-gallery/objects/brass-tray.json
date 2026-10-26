@@ -1,0 +1,114 @@
+{
+  "id": "brass-tray",
+  "name": "Brass tray",
+  "aliases": [
+    "tray"
+  ],
+  "description": "Brass tray belongs to the parser gallery.",
+  "placement": {
+    "type": "location",
+    "location": "gallery"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "brass-tray-examine",
+      "name": "Brass Tray Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "brass-tray"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "brass-tray"
+        }
+      ]
+    },
+    {
+      "id": "brass-tray-put",
+      "name": "Put an item on Brass tray",
+      "verb": "put",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "on"
+        },
+        {
+          "type": "entity",
+          "entity": "brass-tray"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": {
+          "input": "item"
+        },
+        "placement": {
+          "type": "on",
+          "object": "brass-tray"
+        }
+      },
+      "failure_text": "You cannot put that there.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "on",
+            "object": "brass-tray"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You put %command_item_name% on %holder_name%.",
+          "references": {
+            "command_item_name": {
+              "type": "item_name"
+            },
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "brass-tray"
+            }
+          }
+        },
+        {
+          "type": "update_variable",
+          "name": "placements",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "put_on",
+        "enabled": true
+      }
+    }
+  ],
+  "triggers": [],
+  "hints": [],
+  "storage": {
+    "container": null,
+    "surface": true
+  }
+}

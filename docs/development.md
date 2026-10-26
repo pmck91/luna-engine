@@ -73,6 +73,8 @@ Rust feature tests cover transactional execution and malformed-state rejection. 
 
 The permanent [Packing the Study fixture](../examples/packing-study/ACCEPTANCE.md) supplies canonical content and a checked `.luna` export. `cargo test -p luna-editor --test packing_study` compares both with the real editor export and validates every named/autosave boundary through the packing sequence. `packing-study.spec.ts` covers captured-state reopening and separate runner processes in both browsers. Refresh the checked export through the editor after changing content; the parity test detects a stale bundle. These are acceptance/developer instructions, separate from the deferred public guides.
 
+The permanent [Parser Gallery fixture](../examples/parser-gallery/ACCEPTANCE.md) covers assisted input, multi-noun replies, failed requirements, duplicate handlers, rollback, and ephemeral context. `cargo test -p luna-editor --offline --test parser_gallery` compares canonical/checked/editor-exported content and installed sessions at every input and save boundary. `parser-gallery.spec.ts` covers setup reopening and separate runner processes in both browsers. The [P3 review](design/parser-context/final-review.md) records final compatibility and package evidence.
+
 ## Measure larger games
 
 ```sh
@@ -86,6 +88,8 @@ The dependency-free benchmark prints CSV for distributed and crowded rooms, adde
 Use the same compiler, fixtures, sample counts, and storage device for comparisons. Run measurements without concurrent builds/browser tests. Set `TMPDIR` to an existing writable directory on the intended filesystem when measuring storage; the checked-in results used tmpfs and exclude physical-disk latency. Timings are observations, not functional CI thresholds. See the [hardening methodology and results](plans/core-hardening.md#h5-implementation-and-measurements) and its linked raw CSV files.
 
 The [C3 review](design/containers/final-review.md#performance-record) includes a fresh archived-C1 build and current-branch measurements for all 18 cases, with raw CSVs and the retained initialization/explanation tradeoffs.
+
+Parser assistance has a separate paired production benchmark: `cargo bench -p luna-runner --offline --bench parser_context -- 100 1000 5000`. Identical distributed/crowded content is measured with assistance off/on, including explicit commands, recent references, questions/replies/cancellation, bounded overflow, explanations, and saves. The CSV counts token objects; each world additionally contains two key objects. The [P3 measurements and methodology](design/parser-context/final-review.md#production-performance) record timings and limits; the P1 coordinator CSV remains historical.
 
 The current tradeoffs are deliberate: immutable indexes add initialization work and retained data, read-only descriptions scan live entity state, and ordinary commands clone the complete state for rollback. Explained changing chains take additional full snapshots and JSON diffs. Profile real games before replacing these mechanisms with a more complex mutation or diagnostic model.
 

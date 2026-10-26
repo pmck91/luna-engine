@@ -1,0 +1,123 @@
+{
+  "id": "silver",
+  "name": "Silver key",
+  "aliases": [
+    "key"
+  ],
+  "description": "The silver key has a distinctive engraving.",
+  "placement": {
+    "type": "location",
+    "location": "gallery"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "silver-examine",
+      "name": "Silver Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "silver"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "silver"
+        }
+      ]
+    },
+    {
+      "id": "silver-take",
+      "name": "Silver Take",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "silver"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "variable",
+        "name": "silver_free",
+        "op": "eq",
+        "value": true
+      },
+      "failure_text": "The silver key is chained to the display.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "silver"
+        },
+        {
+          "type": "update_variable",
+          "name": "takes",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "You take the silver key."
+        }
+      ]
+    },
+    {
+      "id": "silver-standard-take",
+      "name": "Take Brass key",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "silver"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "silver",
+        "placement": {
+          "type": "inventory"
+        }
+      },
+      "failure_text": "You cannot take that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "silver",
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %holder_name%.",
+          "references": {
+            "holder_name": {
+              "type": "entity_name",
+              "entity": "silver"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take",
+        "enabled": true
+      }
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

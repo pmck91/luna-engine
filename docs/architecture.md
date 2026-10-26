@@ -1,6 +1,6 @@
 # Architecture, content formats 1–3, and save formats 1–3
 
-Containers are merged, including the content-2/save-3 foundation. Parser assistance adds authored content format 3 while retaining content-1/2 and save-1/2/3 compatibility; interaction context is session-local. See the [parser contract](design/parser-context/shared-contract.md) and [P2 review](design/parser-context/p2-review.md) for current branch status. Public author/player documentation remains deferred to the documentation-site milestone.
+Containers are merged, including the content-2/save-3 foundation. Parser assistance adds authored content format 3 while retaining content-1/2 and save-1/2/3 compatibility; interaction context is session-local. See the [parser contract](design/parser-context/shared-contract.md) and [P3 acceptance review](design/parser-context/final-review.md) for current branch status. Public author/player documentation remains deferred to the documentation-site milestone.
 
 | Crate | Responsibility |
 | --- | --- |

@@ -1,0 +1,81 @@
+{
+  "id": "held",
+  "name": "Copper key",
+  "aliases": [
+    "key"
+  ],
+  "description": "The copper key has a distinctive engraving.",
+  "placement": {
+    "type": "character",
+    "character": "keeper"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "held-examine",
+      "name": "Held Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "held"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "held"
+        }
+      ]
+    },
+    {
+      "id": "held-take",
+      "name": "Held Take",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "held"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "held"
+        }
+      },
+      "failure_text": "You already carry that key.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "held"
+        },
+        {
+          "type": "update_variable",
+          "name": "takes",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "You take the copper key."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

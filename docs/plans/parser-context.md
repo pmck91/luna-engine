@@ -1,6 +1,6 @@
 # Parser context and clarification
 
-Status: **P0–P2 accepted; P3 next**, 26 October 2026. The owner accepted the interactive design with “works great,” then accepted the live P2 feature with “p2 is working as expected” and requested its commit. P1 is committed as `25b634c`; P2 provides the live settings/player/explanation journey. See the [P2 review notes](../design/parser-context/p2-review.md). Final feature acceptance and branch closeout remain P3.
+Status: **P0–P3 accepted; merge pending**, 26 October 2026. The owner accepted the interactive design and live P2 feature; P1 is committed as `25b634c` and P2 as `5c89b70`. P3 adds the permanent Gallery, production measurements, final compatibility/browser/package evidence, and the minimum-format message fix. See the [final review](../design/parser-context/final-review.md). The owner accepted the complete feature on 26 October 2026 with “very happy,” with no changes requested. The owner requested the final commit and push on 26 October 2026; merge remains pending.
 
 Branch: `feature/parser-context`, created from merged `main` at `3b34bc5` after the container feature. This is F2 in the [gameplay roadmap](gameplay-feature-roadmap.md). The owner chose gameplay work before the public documentation milestone. Later gameplay features remain separate branches; this plan does not make F3–F6 v1 requirements.
 
@@ -175,12 +175,17 @@ Context changes share the command's commit boundary. Core runtime errors must no
 
 ### P3 — Acceptance and branch closeout
 
-- Add a separate small acceptance fixture with two same-alias keys, a closed holder, character-held/hidden keys, a two-object command, a failing requirement, and a duplicate-handler example. Preserve Locked Study and historical fixtures.
-- Verify question/retry/cancel have no story side effects; final replies execute once; both explicit and pronoun inputs preserve custom precedence; failed effects roll back story and context.
-- Verify fresh-command interruption, state replacement, ending behaviour, literal/name collisions, multi-slot narrowing, repeated display names, option bounds, and unknown text.
-- Save/restart in separate runner processes: no pending choice or referent is restored, no start/reward effects replay, and all story state/progress remains intact. Repeat through named saves, autosaves, exported bundles, and installed packages.
-- Run the relevant full core/editor/runner/browser/contracts/lint/build/package checks and matched scale measurements; document evidence and actual limits. Public user guides remain deferred to the documentation milestone.
-- Record final owner acceptance, commit/push when requested, and merge the whole feature before starting the next feature branch.
+- [x] Add the separate [Parser Gallery](../../examples/parser-gallery/ACCEPTANCE.md) canonical project and checked export, with same-alias keys, opaque/hidden/private/remote placements, two-object commands, failed requirements, repeated names, and duplicate handlers. Preserve Locked Study and historical fixtures.
+- [x] Verify questions/retries/cancellation have no story effects, final replies execute once, custom precedence is retained, and failed effects roll back story and context. Compare real editor/exported/installed normal/explained sessions and every named/autosave boundary.
+- [x] Verify interruption, replacement, endings, literal/name precedence, multi-slot narrowing, repeated names, unknown input, and all choice/interpretation/noun/input/history budgets through production APIs.
+- [x] Restore named/autosave/captured snapshots and separate runner processes: no pending question or referent returns, and starts/rewards/progress are not replayed. Repeat the permanent fixture through the packaged editor/exported runner.
+- [x] Complete 215 Rust tests/doctests, 74 frontend tests, 101 Chromium/Firefox workflows (one existing skip), contracts, lint, formatting, build, rustdoc, package smoke, branch review, and [111 production measurement rows](parser-context-p3-scaling.csv). Fix the save guard to report the actual required format. See the [acceptance record](../design/parser-context/final-review.md) for methodology, evidence, and limits. Public guides remain deferred.
+- [x] Record final owner acceptance: the owner reviewed the complete feature on 26 October 2026 and replied “very happy,” with no changes requested.
+- [ ] Merge the whole feature before starting the next feature branch. The owner requested the final commit and push on 26 October 2026.
+
+## P3 verification
+
+The [final review](../design/parser-context/final-review.md) records the complete technical acceptance and branch comparison against fetched `origin/main` at `3b34bc5`. The owner accepted the complete feature after reviewing the working slice and final handoff. The owner requested the final commit and push for GitHub review on 26 October 2026. Merge remains pending.
 
 ## P2 verification
 
@@ -204,7 +209,7 @@ The [15-row release CSV](parser-context-p1-scaling.csv) covers 100, 1,000, and 5
 | Ambiguous matching                          | 2.572 ms  |
 | Full bounded-question transaction           | 3.392 ms  |
 
-Each sample averages 30 repetitions in release mode with Rust 1.96.0. Matching-only cases reuse an immutable view/cache; the transaction case includes a new attempted state copy and the test coordinator. The reference path intentionally tries ordinary matching before its second pass. These are local observations, not timing assertions, old-revision comparisons, or installed-runner/persistence performance guarantees. No concurrent build/test ran during measurement. Full feature/export/browser/package acceptance remains P2/P3.
+Each sample averages 30 repetitions in release mode with Rust 1.96.0. Matching-only cases reuse an immutable view/cache; the transaction case includes a new attempted state copy and the test coordinator. The reference path intentionally tries ordinary matching before its second pass. These are local observations, not timing assertions, old-revision comparisons, or installed-runner/persistence performance guarantees. No concurrent build/test ran during measurement. These historical observations do not replace the completed P3 production/compatibility acceptance record.
 
 ## Design references
 

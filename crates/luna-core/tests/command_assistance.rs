@@ -264,3 +264,86 @@ fn cancellation_stays_read_only_after_an_ending() {
     ));
     assert_eq!(session.state(), &before);
 }
+
+#[test]
+fn interpretation_and_noun_limits_refuse_without_retaining_partial_choices() {
+    for nouns in [1, 33] {
+        let mut p = world();
+        let count = if nouns == 1 { 257 } else { 2 };
+        for index in 0..count {
+            p.game.actions.push(Action {
+                id: format!("bounded-{index}"),
+                verb: "use".into(),
+                pattern: (0..nouns)
+                    .map(|slot| PatternPart::Entity {
+                        entity: if slot + 1 == nouns && index % 2 == 1 {
+                            "silver"
+                        } else {
+                            "brass"
+                        }
+                        .into(),
+                    })
+                    .collect(),
+                effects: vec![Effect::Say {
+                    text: "Must not run.".into(),
+                }],
+                ..Default::default()
+            });
+        }
+        let (mut session, _) = Session::start(p, None).unwrap();
+        let before = session.state().clone();
+        let result = session
+            .command(&format!("use {}", vec!["key"; nouns].join(" ")))
+            .unwrap();
+        assert_eq!(result.status, CommandStatus::Ambiguous);
+        let Some(InputResolution::TooMany { limit, .. }) = result.input_resolution else {
+            panic!("missing limit metadata");
+        };
+        assert_eq!(
+            limit,
+            if nouns == 1 {
+                "interpretations"
+            } else {
+                "noun_slots"
+            }
+        );
+        assert!(session.pending_clarification().is_none());
+        assert_eq!(session.state(), &before);
+        assert!(
+            !result
+                .messages
+                .iter()
+                .any(|line| text::plain(line).contains("Must not run"))
+        );
+    }
+}
+
+#[test]
+fn accepted_answer_history_is_bounded_by_count_and_bytes_without_losing_choices() {
+    for answer in ["key".to_string(), format!("key{}", " ".repeat(3000))] {
+        let (mut session, _) = Session::start(world(), None).unwrap();
+        let before = session.state().clone();
+        session.command("take key").unwrap();
+        for _ in 0..70 {
+            session.command(&answer).unwrap();
+        }
+        let result = session.command("key").unwrap();
+        let Some(InputResolution::Pending {
+            replies,
+            history_truncated,
+            question,
+        }) = result.input_resolution
+        else {
+            panic!("question lost");
+        };
+        assert!(history_truncated);
+        assert!(replies.len() <= 64);
+        assert!(replies.iter().map(String::len).sum::<usize>() <= 16 * 1024);
+        assert_eq!(question.choices.len(), 2);
+        assert_eq!(session.state(), &before);
+        let resolved = session.command("silver").unwrap();
+        assert!(
+            matches!(resolved.input_resolution, Some(InputResolution::Resolved { history_truncated: true, ref bindings, .. }) if bindings[0].entity == "silver")
+        );
+    }
+}

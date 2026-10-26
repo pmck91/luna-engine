@@ -21,6 +21,8 @@ cp examples/README.md "$LUNA_PACKAGE_ROOT/examples/"
 cp -R examples/locked-study "$LUNA_PACKAGE_ROOT/examples/"
 cp examples/packing-study.luna "$LUNA_PACKAGE_ROOT/examples/"
 cp -R examples/packing-study "$LUNA_PACKAGE_ROOT/examples/"
+cp examples/parser-gallery.luna "$LUNA_PACKAGE_ROOT/examples/"
+cp -R examples/parser-gallery "$LUNA_PACKAGE_ROOT/examples/"
 find "$LUNA_PACKAGE_ROOT" -name '.luna-write.lock' -delete
 tar -czf dist/luna-engine-linux-x86_64.tar.gz -C "$LUNA_PACKAGE_STAGE" luna-engine-linux-x86_64
 sha256sum dist/luna-engine-linux-x86_64.tar.gz > dist/luna-engine-linux-x86_64.tar.gz.sha256

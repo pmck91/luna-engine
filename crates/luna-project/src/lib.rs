@@ -189,7 +189,8 @@ pub fn project_files(p: &Project, editor: bool) -> Result<BTreeMap<String, Strin
     );
     ensure!(
         p.game.format_version >= p.minimum_format(),
-        "Upgrade this project explicitly to content format 2 before saving container features"
+        "Upgrade this project explicitly to content format {} before saving these features",
+        p.minimum_format()
     );
     let mut files = BTreeMap::from([
         ("game.json".into(), pretty(&p.game)?),
@@ -503,6 +504,27 @@ pub fn read_bundle(path: &Path) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn assistance_under_an_old_header_reports_format_three_without_changing_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut project = Project::blank("Assistance upgrade");
+        project.game.command_assistance = None;
+        project.game.format_version = 2;
+        let before = save_project(temp.path(), &project, None).unwrap();
+        let original = project.clone();
+        project.game.command_assistance = Some(CommandAssistance::new_game());
+        for header in [1, 2] {
+            project.game.format_version = header;
+            let error = save_project(temp.path(), &project, Some(&before)).unwrap_err();
+            assert!(error.to_string().contains("content format 3"), "{error}");
+            assert_eq!(revision(temp.path()).unwrap(), before);
+            assert_eq!(load_project(temp.path()).unwrap(), original);
+            assert!(export_bundle(temp.path(), &project).is_err());
+        }
+        project.game.format_version = 3;
+        save_project(temp.path(), &project, Some(&before)).unwrap();
+        assert_eq!(load_project(temp.path()).unwrap(), project);
+    }
     #[test]
     fn unsupported_project_headers_precede_unknown_placements_and_legacy_stays_legacy() {
         let temp = tempfile::tempdir().unwrap();
