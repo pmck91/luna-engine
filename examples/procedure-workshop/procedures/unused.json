@@ -1,0 +1,12 @@
+{
+  "id": "unused",
+  "name": "Unused shared definition",
+  "description": "Unused definitions are included in canonical storage and bundle manifests.",
+  "inputs": [],
+  "effects": [
+    {
+      "type": "say",
+      "text": "Unused definition retained in the export."
+    }
+  ]
+}

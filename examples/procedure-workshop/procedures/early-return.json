@@ -1,0 +1,20 @@
+{
+  "id": "early-return",
+  "name": "Return immediately",
+  "description": "The caller continues after this STOP.",
+  "inputs": [],
+  "effects": [
+    {
+      "type": "stop"
+    },
+    {
+      "type": "update_variable",
+      "name": "stopped_tail",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    }
+  ]
+}

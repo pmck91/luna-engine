@@ -1,6 +1,6 @@
 # Reusable block procedures
 
-Status: **R0 accepted; R1 complete; R2 accepted; R3 next**, 26 October 2026. The owner accepted the working authoring/player slice after completing the UI walkthrough, with “thats working exactly as expected.” The [authoring record](../design/block-procedures/authoring-review.md) covers that acceptance and verification. The [R1 contract](../design/block-procedures/shared-contract.md) and [foundation record](../design/block-procedures/foundation-review.md) retain the execution/storage contract and implementation history. Final R3 fixture, measurements and branch acceptance remain outstanding.
+Status: **R0 accepted; R1 complete; R2 accepted; R3 accepted; push/merge pending**, 26 October 2026. The owner accepted the working authoring/player slice after completing the UI walkthrough, with “thats working exactly as expected.” The [authoring record](../design/block-procedures/authoring-review.md) covers that acceptance and verification. The [R1 contract](../design/block-procedures/shared-contract.md) and [foundation record](../design/block-procedures/foundation-review.md) retain the execution/storage contract and implementation history. The [R3 review](../design/block-procedures/final-review.md) records the permanent fixture, measurements and technical checks; the owner accepted R3 and requested its commit with “theyre good to commit.” Push/merge remain pending.
 
 Branch: `feature/block-procedures`, created from merged `main` at `d3c7860` (parser context, PR #3). Keep shared Rust content/runtime/storage, editor, runner, compatibility, and acceptance together on this branch. The [roadmap](gameplay-feature-roadmap.md) schedules the basic feature first, then conversations/quests, then turns/routines. Public user guides remain in the documentation milestone.
 
@@ -132,10 +132,11 @@ Installed Blockly exposes `Workspace.getProcedureMap()` and `IProcedureModel`/`I
 
 ### R3 — Acceptance and closeout
 
-- Add a separate permanent example/checked export and counter-backed editor/exported/installed runner tests for calls, progress, hooks, invalid changes, stopping, endings, and rollback.
-- Exercise legacy versions, migration/rejection, named/autosave/process/captured-state boundaries, drafts/templates/renames/deletion, Chromium/Firefox, contracts/lint/build/package, and measured large call graphs without exponential state construction.
-- Complete developer notes and branch review; public user guides stay deferred. Preserve Locked Study, Packing the Study, Parser Gallery, and historical fixtures.
-- Record final owner acceptance and commit/push/merge when requested. Start conversations/quests from that merged baseline on its own branch; advanced procedure extraction remains later scope.
+- [x] Add a separate permanent example/checked export and counter-backed editor/exported/installed runner tests for calls, progress, hooks, invalid changes, stopping, endings, and rollback.
+- [x] Exercise legacy versions, migration/rejection, named/autosave/process/captured-state boundaries, drafts/templates/renames/deletion, Chromium/Firefox, contracts/lint/build/package, and measured large call graphs without exponential state construction.
+- [x] Complete developer notes and branch review; public user guides stay deferred. Preserve Locked Study, Packing the Study, Parser Gallery, and historical fixtures.
+- [x] Record final owner acceptance and commit R3. Owner accepted on 26 October 2026 with “theyre good to commit.”
+- [ ] Push/merge when requested. Start conversations/quests from that merged baseline on its own branch; advanced procedure extraction remains later scope.
 
 ## R0 verification
 
@@ -163,4 +164,4 @@ R0/R1 was committed as `0912607`. The [foundation record](../design/block-proced
 
 ## R2 working authoring slice
 
-The foundation was committed as `665170c` before continuing. The [authoring review](../design/block-procedures/authoring-review.md) records the production UI, regression coverage, concrete review journey and owner acceptance of R2. R3 final fixture/measurements/acceptance remains separate.
+The foundation was committed as `665170c` before continuing. The [authoring review](../design/block-procedures/authoring-review.md) records the production UI, regression coverage, concrete review journey and owner acceptance of R2. R3 technical verification is recorded in the [final review](../design/block-procedures/final-review.md); owner final acceptance is recorded there; push/merge remain pending.

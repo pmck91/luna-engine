@@ -1,0 +1,35 @@
+{
+  "id": "audit",
+  "name": "Audit a hook",
+  "description": "Events and value watches have their own lexical scope and response roots.",
+  "inputs": [
+    {
+      "id": "message",
+      "name": "Message",
+      "kind": "text"
+    }
+  ],
+  "effects": [
+    {
+      "type": "say",
+      "text": {
+        "text": "Audit: %hook%.",
+        "references": {
+          "hook": {
+            "type": "procedure_input",
+            "input": "message"
+          }
+        }
+      }
+    },
+    {
+      "type": "respond",
+      "id": "audit-replies",
+      "responses": ["First hook reply.", "Second hook reply."],
+      "mode": "loop",
+      "fallback": "",
+      "exhaustion": "once",
+      "on_exhausted": []
+    }
+  ]
+}

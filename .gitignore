@@ -10,6 +10,7 @@
 !/examples/locked-study.luna
 !/examples/packing-study.luna
 !/examples/parser-gallery.luna
+!/examples/procedure-workshop.luna
 /web/*.tsbuildinfo
 .luna-recovery/
 .luna-transaction.json

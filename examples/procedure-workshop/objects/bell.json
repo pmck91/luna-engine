@@ -1,0 +1,60 @@
+{
+  "id": "bell",
+  "name": "Bell",
+  "aliases": [],
+  "description": "A workshop bell.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "hints": [],
+  "triggers": [],
+  "actions": [
+    {
+      "id": "bell-action",
+      "name": "Bell reward",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bell"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "bell-award",
+          "procedure": "award",
+          "arguments": {
+            "recipient": {
+              "type": "entity",
+              "kind": "character",
+              "id": "keeper"
+            },
+            "amount": {
+              "type": "literal",
+              "value": 2
+            },
+            "note": {
+              "type": "literal",
+              "value": "shared"
+            },
+            "reset": {
+              "type": "literal",
+              "value": false
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

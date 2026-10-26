@@ -203,6 +203,45 @@ def main():
 
             # Canonical procedure files and typed messages cross the packaged API,
             # exact bundle manifest, named-save and independent process boundaries.
+            # Permanent R3 fixture through the packaged API and real process boundaries.
+            workshop = api("open", "POST", {"folder": "procedure-workshop"})
+            workshop_game = workshop["project"]["game"]
+            workshop_bundle = work / "workshop-from-editor.luna"
+            workshop_bundle.write_bytes(api(f"projects/{workshop['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(workshop_bundle) as exported, zipfile.ZipFile(package / "examples/procedure-workshop.luna") as checked:
+                assert json.loads(exported.read("manifest.json")) == json.loads(checked.read("manifest.json"))
+                assert len([name for name in exported.namelist() if name.startswith("procedures/")]) == 6
+                assert "procedures/unused.json" in exported.namelist()
+                assert not any(name.startswith("editor/") for name in exported.namelist())
+            run(["import", str(workshop_bundle)], profile="workshop")
+            run(["run", workshop_game["id"], "--new"],
+                "use bell\nuse lever\nuse bell\nuse nested\nuse collect\nsave checkpoint\nquit\n", profile="workshop")
+            workshop_saves = work / "workshop/saves" / workshop_game["id"] / workshop_game["content_version"]
+            def workshop_state():
+                saved = json.loads((workshop_saves / "autosave.json").read_text())
+                assert saved["save_format"] == 4
+                return saved["state"]
+            before_failure = workshop_state()
+            assert before_failure["properties"]["keeper"]["coins"] == 10
+            assert before_failure["objects"]["token"]["placement"] == {"type": "inventory"}
+            for name, value in {"starts": 1, "awards": 5, "watch_events": 5, "take_events": 1, "commands": 5}.items():
+                assert before_failure["variables"][name] == value
+            failed = run(["run", workshop_game["id"], "--load", "checkpoint"], "use fail\nsave failed\nquit\n", profile="workshop")
+            assert "Discard this attempted output." not in failed
+            assert workshop_state() == before_failure, "Nested failure leaked story/hook/cursor changes"
+            repeated = run(["run", workshop_game["id"], "--load", "failed"], "use repeat\nuse repeat\nuse bell\nquit\n", profile="workshop")
+            assert repeated.count("First shared reply.") == 3
+            assert workshop_state()["properties"]["keeper"]["coins"] == 14
+            finished = run(["run", workshop_game["id"], "--load", "autosave"], "use stop\nuse finish\nsave completed\nquit\n", profile="workshop")
+            assert "The workshop review is complete." in finished and "Outcome:" not in finished
+            completed_workshop = workshop_state()
+            assert completed_workshop["ending"] == "complete"
+            assert completed_workshop["properties"]["keeper"]["coins"] == 15
+            for name, value in {"starts": 1, "awards": 9, "watch_events": 9, "ending_events": 1, "after_call": 2, "stopped_tail": 0, "ending_tail": 0}.items():
+                assert completed_workshop["variables"][name] == value
+            run(["run", workshop_game["id"], "--load", "completed"], "use bell\nquit\n", profile="workshop")
+            assert workshop_state() == completed_workshop, "Completion restore replayed a hook"
+
             created_procedures = api("projects", "POST", {"folder": "smoke-procedures", "title": "Shared rewards"})
             procedure_project = created_procedures["project"]
             procedure_project["game"]["variables"] = {"rewards": 0}
@@ -292,7 +331,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

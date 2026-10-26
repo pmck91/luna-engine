@@ -1,0 +1,109 @@
+{
+  "id": "award",
+  "name": "Award coins",
+  "description": "Called at startup, by two identical command callers and through nested definitions. Reset affects this invocation only.",
+  "inputs": [
+    {
+      "id": "recipient",
+      "name": "Recipient",
+      "kind": "character",
+      "required_properties": {
+        "coins": "integer"
+      }
+    },
+    {
+      "id": "amount",
+      "name": "Amount",
+      "kind": "integer"
+    },
+    {
+      "id": "note",
+      "name": "Note",
+      "kind": "text"
+    },
+    {
+      "id": "reset",
+      "name": "Reset",
+      "kind": "boolean"
+    }
+  ],
+  "effects": [
+    {
+      "type": "update_property",
+      "entity": {
+        "procedure_input": "recipient"
+      },
+      "name": "coins",
+      "op": "add",
+      "operand": {
+        "type": "input",
+        "input": "amount"
+      }
+    },
+    {
+      "type": "update_variable",
+      "name": "awards",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    },
+    {
+      "type": "say",
+      "text": {
+        "text": "%recipient-name% receives %amount-value% coins (%note-value%). Total: %coins-value%.",
+        "references": {
+          "recipient-name": {
+            "type": "procedure_input",
+            "input": "recipient"
+          },
+          "amount-value": {
+            "type": "procedure_input",
+            "input": "amount"
+          },
+          "note-value": {
+            "type": "procedure_input",
+            "input": "note"
+          },
+          "coins-value": {
+            "type": "procedure_property",
+            "input": "recipient",
+            "name": "coins"
+          }
+        }
+      }
+    },
+    {
+      "type": "if",
+      "condition": {
+        "type": "compare",
+        "left": {
+          "type": "input",
+          "input": "reset"
+        },
+        "op": "eq",
+        "right": {
+          "type": "literal",
+          "value": true
+        }
+      },
+      "then": [
+        {
+          "type": "reset_responses",
+          "sequence": "award-replies"
+        }
+      ],
+      "otherwise": []
+    },
+    {
+      "type": "respond",
+      "id": "award-replies",
+      "responses": ["First shared reply.", "Second shared reply."],
+      "mode": "loop",
+      "fallback": "",
+      "exhaustion": "once",
+      "on_exhausted": []
+    }
+  ]
+}

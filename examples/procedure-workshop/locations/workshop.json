@@ -1,0 +1,11 @@
+{
+  "id": "workshop",
+  "name": "Workshop",
+  "aliases": [],
+  "description": "A quiet workshop for reviewing shared rewards. Keeper waits beside a bell and a lever.",
+  "actions": [],
+  "triggers": [],
+  "exits": [],
+  "state": {},
+  "hints": []
+}

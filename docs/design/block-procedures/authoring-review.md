@@ -1,6 +1,6 @@
 # Procedures — R2 working authoring slice
 
-Status: **R2 accepted; R3 pending**, 26 October 2026, on `feature/block-procedures`. The canonical foundation was committed as `665170c` before this work. The [accepted preview](README.md), [frozen contract](shared-contract.md) and [implementation plan](../../plans/block-procedures.md) remain the design target. The owner completed the UI walkthrough and accepted the working slice with “thats working exactly as expected.” This record does not mark R3 accepted.
+Status: **R2 accepted; R3 tracked separately**, 26 October 2026, on `feature/block-procedures`. The canonical foundation was committed as `665170c` before this work. The [accepted preview](README.md), [frozen contract](shared-contract.md) and [implementation plan](../../plans/block-procedures.md) remain the design target. The owner completed the UI walkthrough and accepted the working slice with “thats working exactly as expected.” This record does not mark R3 accepted.
 
 ## Delivered journey
 
@@ -55,7 +55,7 @@ The initial full run identified the expected menu-list update and the compact in
 
 The pure `findingSites` module keeps source navigation independent of Blockly initialization and avoids a React/diagnostics/registration import cycle. Library usage counts are indexed once per project revision rather than rescanning every reference for each definition. Ordinary flows retain their existing API; procedure-aware callers use the separate script helpers.
 
-R3 still needs its separate permanent example/checked export, final branch measurements and acceptance matrix, developer closeout and owner acceptance. Conversations/quests follow on their own branch after F3 merges. Automatic extraction/refactoring remains deferred. Locked Study, Packing the Study, Parser Gallery and historical fixtures remain unchanged; public user guides remain deferred to the documentation milestone.
+The subsequent [R3 review](final-review.md) records the separate permanent example/checked export, final branch measurements, acceptance matrix and developer closeout; final owner acceptance is recorded there; push/merge remain pending. Conversations/quests follow on their own branch after F3 merges. Automatic extraction/refactoring remains deferred. Locked Study, Packing the Study, Parser Gallery and historical fixtures remain unchanged; public user guides remain deferred to the documentation milestone.
 
 ## Reproduce
 

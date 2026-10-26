@@ -1,0 +1,117 @@
+{
+  "id": "relay",
+  "name": "Deliver a reward",
+  "description": "All six input kinds and explicit forwarding. STOP returns to the initiating caller.",
+  "inputs": [
+    {
+      "id": "item",
+      "name": "Item",
+      "kind": "object"
+    },
+    {
+      "id": "recipient",
+      "name": "Recipient",
+      "kind": "character",
+      "required_properties": {
+        "coins": "integer"
+      }
+    },
+    {
+      "id": "destination",
+      "name": "Destination",
+      "kind": "location"
+    },
+    {
+      "id": "enabled",
+      "name": "Enabled",
+      "kind": "boolean"
+    },
+    {
+      "id": "amount",
+      "name": "Amount",
+      "kind": "integer"
+    },
+    {
+      "id": "note",
+      "name": "Note",
+      "kind": "text"
+    }
+  ],
+  "effects": [
+    {
+      "type": "if",
+      "condition": {
+        "type": "compare",
+        "left": {
+          "type": "input",
+          "input": "enabled"
+        },
+        "op": "eq",
+        "right": {
+          "type": "literal",
+          "value": true
+        }
+      },
+      "then": [
+        {
+          "type": "place",
+          "object": {
+            "procedure_input": "item"
+          },
+          "location": {
+            "procedure_input": "destination"
+          }
+        },
+        {
+          "type": "move_character",
+          "character": {
+            "procedure_input": "recipient"
+          },
+          "location": {
+            "procedure_input": "destination"
+          }
+        },
+        {
+          "type": "call",
+          "id": "relay-award",
+          "procedure": "award",
+          "arguments": {
+            "recipient": {
+              "type": "input",
+              "input": "recipient"
+            },
+            "amount": {
+              "type": "input",
+              "input": "amount"
+            },
+            "note": {
+              "type": "input",
+              "input": "note"
+            },
+            "reset": {
+              "type": "literal",
+              "value": false
+            }
+          }
+        }
+      ],
+      "otherwise": []
+    },
+    {
+      "type": "stop"
+    },
+    {
+      "type": "update_variable",
+      "name": "stopped_tail",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    },
+    {
+      "type": "say",
+      "text": "This relay tail must not run."
+    }
+  ]
+}
