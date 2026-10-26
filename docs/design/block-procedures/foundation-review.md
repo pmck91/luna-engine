@@ -1,6 +1,6 @@
 # Procedures — R2 canonical foundation
 
-Status: **first R2 task implemented; dedicated authoring and owner feedback outstanding**, 26 October 2026, on `feature/block-procedures`. R0/R1 was committed as `0912607` before starting this work. The accepted design and [frozen contract](shared-contract.md) remain the implementation target. This record does not mark the complete R2 working slice or R3 accepted.
+Status: **foundation committed as `665170c`; subsequent authoring tracked separately**, 26 October 2026, on `feature/block-procedures`. R0/R1 was committed as `0912607` before starting this work. The accepted design and [frozen contract](shared-contract.md) remain the implementation target. This is the foundation checkpoint. The subsequent [working authoring slice](authoring-review.md) is implemented and accepted after the owner completed the UI walkthrough; R3 is not yet accepted.
 
 ## Delivered foundation
 
@@ -24,21 +24,23 @@ Frontend regressions cover canonical node/message reload, fresh repeated/nested 
 
 Verified on 26 October 2026:
 
-| Check | Result |
-| --- | --- |
-| Rust workspace tests and doctests | **247 passed**, including 23 public procedure cases |
-| Production frontend tests | **80 passed** |
-| Retained isolated Blockly model proof | **6 passed** |
-| Full production Chromium/Firefox suite | **103 passed**, one existing Firefox skip for the Chromium extension zoom test |
-| Fresh native CALL clipboard check | **Both browsers passed**, including repeated paste and persisted distinct IDs |
-| Clippy, all workspace targets, warnings denied | Passed |
-| Generated contracts, production/preview TypeScript, rustdoc, formatting, local links, diff whitespace | Passed |
-| Production frontend/release package | Built; existing frontend large-chunk advisory remains |
-| Package smoke test outside the repository, with source UI hidden and no development tools on PATH | Passed, including canonical procedure export, unused definitions, independent caller progress, named/autosaves and process restore |
+| Check                                                                                                 | Result                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Rust workspace tests and doctests                                                                     | **247 passed**, including 23 public procedure cases                                                                                |
+| Production frontend tests                                                                             | **80 passed**                                                                                                                      |
+| Retained isolated Blockly model proof                                                                 | **6 passed**                                                                                                                       |
+| Full production Chromium/Firefox suite                                                                | **103 passed**, one existing Firefox skip for the Chromium extension zoom test                                                     |
+| Fresh native CALL clipboard check                                                                     | **Both browsers passed**, including repeated paste and persisted distinct IDs                                                      |
+| Clippy, all workspace targets, warnings denied                                                        | Passed                                                                                                                             |
+| Generated contracts, production/preview TypeScript, rustdoc, formatting, local links, diff whitespace | Passed                                                                                                                             |
+| Production frontend/release package                                                                   | Built; existing frontend large-chunk advisory remains                                                                              |
+| Package smoke test outside the repository, with source UI hidden and no development tools on PATH     | Passed, including canonical procedure export, unused definitions, independent caller progress, named/autosaves and process restore |
 
 The first concurrent browser attempts shared an artifact directory and collided during trace cleanup. The recorded full suite uses an isolated output directory and completed cleanly. The SVG click in the new clipboard test was also corrected to select the block body. No test was weakened or skipped to make this feature pass. Accepted example sources/bundles and historical fixtures have no diff.
 
-## Remaining R2/R3 work
+## Work after this foundation checkpoint
+
+The first three items below are now implemented and verified in the [authoring record](authoring-review.md); R2 owner acceptance is recorded there; R3 remains outstanding. They describe the boundary of this earlier foundation checkpoint.
 
 - Procedures under Game data; definition creation/declarations and real procedure-map projections; typed CALL insertion/argument controls; local input/property sockets and message insertion; current-definition reset choices.
 - Definition/Used by/caller return and exact trace navigation; parameter rename/reorder and reviewed signature repair; shared-change drafts and atomic project/Blockly Undo, including detached content.

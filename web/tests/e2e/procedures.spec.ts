@@ -73,7 +73,7 @@ test('canonical procedures render, persist and execute with independent progress
     .getByLabel('Logic block workspace')
     .locator('.blocklyBlockCanvas')
     .filter({ has: page.locator('.luna_flow') });
-  await expect(canvas.locator('.luna_call')).toContainText('CALL Award coins · Amount: 1');
+  await expect(canvas.locator('.luna_call')).toContainText(/CALL\s*Award\s+coins/);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('Saved');
   await page.reload();

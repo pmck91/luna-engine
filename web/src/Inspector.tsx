@@ -7,6 +7,7 @@ import type { ProjectEdit } from './projectHistory';
 import { action, owner, flow, id, entity, gameDataPages, colourNames } from './model';
 import {
   Check,
+  EntitySelect,
   ConditionEditor,
   Field,
   PlacementSelect,
@@ -830,7 +831,9 @@ export function EffectText({
             ]}
             onChange={(relation) => onChange({ ...effect, relation: relation as 'inside' | 'on' })}
           />
-          <Select
+          <EntitySelect
+            project={p}
+            kinds={['object']}
             label="Holder"
             value={effect.object}
             items={p.objects.filter((o) =>
@@ -848,11 +851,14 @@ export function EffectText({
           label="SAY text"
           path={path || undefined}
           value={effect.text}
+          procedureValues
           onChange={(text) => onChange({ ...effect, text })}
         />
       ) : effect.type === 'character_says' ? (
         <>
-          <Select
+          <EntitySelect
+            project={p}
+            kinds={['character']}
             label="Speaker"
             value={effect.character}
             items={p.characters}
@@ -863,6 +869,7 @@ export function EffectText({
             label="CHARACTER SAYS text"
             path={path || undefined}
             value={effect.text}
+            procedureValues
             onChange={(text) => onChange({ ...effect, text })}
           />
         </>
@@ -896,6 +903,7 @@ export function EffectText({
                 label={`Response ${i + 1}`}
                 path={path ? `${path}.responses.${i}` : undefined}
                 value={reply}
+                procedureValues
                 onChange={(text) =>
                   onChange({
                     ...effect,
@@ -964,6 +972,7 @@ export function EffectText({
                 label="Fallback response"
                 path={path ? `${path}.fallback` : undefined}
                 value={effect.fallback}
+                procedureValues
                 onChange={(fallback) => onChange({ ...effect, fallback })}
               />
               <Select
@@ -993,7 +1002,9 @@ export function EffectText({
       ) : effect.type === 'print_description' ? (
         <>
           <h4>Print description</h4>
-          <Select
+          <EntitySelect
+            project={p}
+            kinds={['object', 'character', 'location']}
             label="Description entity"
             value={effect.entity}
             items={[...p.locations, ...p.objects, ...p.characters]}

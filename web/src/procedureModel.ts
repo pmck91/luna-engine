@@ -65,3 +65,120 @@ export function scopedPlacementValue(key: string): ScopedPlacement {
       return { type: 'absent' };
   }
 }
+
+export const inputKinds: import('./contracts').InputKind[] = [
+  'object',
+  'character',
+  'location',
+  'boolean',
+  'integer',
+  'text',
+];
+export const kindName = (kind: import('./contracts').InputKind) =>
+  kind[0].toUpperCase() + kind.slice(1);
+export const procedure = (project: Project, id?: string) =>
+  (project.procedures ?? []).find((item) => item.id === id);
+export function localEntities(
+  project: Project,
+  scope: string | undefined,
+  kinds: import('./contracts').InputKind[],
+) {
+  return (procedure(project, scope)?.inputs ?? [])
+    .filter((input) => kinds.includes(input.kind))
+    .map((input) => ({
+      id: entityKey({ procedure_input: input.id }),
+      name: `Input · ${input.name}`,
+    }));
+}
+export function entityChoices(
+  project: Project,
+  kinds: import('./contracts').InputKind[],
+  scope?: string,
+) {
+  return [
+    ...localEntities(project, scope, kinds),
+    ...(kinds.includes('object') ? project.objects : []),
+    ...(kinds.includes('character') ? project.characters : []),
+    ...(kinds.includes('location') ? project.locations : []),
+  ];
+}
+export function referenceProperties(
+  project: Project,
+  reference: EntityRef,
+  scope?: string,
+): Record<string, import('./contracts').Value | undefined> {
+  if (typeof reference === 'string')
+    return Object.fromEntries(
+      Object.entries(
+        [...project.locations, ...project.objects, ...project.characters].find(
+          (entity) => entity.id === reference,
+        )?.state ?? {},
+      ).filter(([, value]) => value !== undefined),
+    );
+  const properties =
+    procedure(project, scope)?.inputs.find((input) => input.id === reference.procedure_input)
+      ?.required_properties ?? {};
+  return Object.fromEntries(
+    Object.entries(properties).map(([name, kind]) => [
+      name,
+      kind === 'integer' ? 0 : kind === 'boolean' ? false : '',
+    ]),
+  );
+}
+export function argumentKind(
+  project: Project,
+  argument: Argument,
+  scope?: string,
+): import('./contracts').InputKind | undefined {
+  switch (argument.type) {
+    case 'literal':
+      return typeof argument.value === 'number'
+        ? 'integer'
+        : typeof argument.value === 'boolean'
+          ? 'boolean'
+          : 'text';
+    case 'entity':
+      return argument.kind;
+    case 'variable': {
+      const value = project.game.variables[argument.name];
+      return value === undefined
+        ? undefined
+        : typeof value === 'number'
+          ? 'integer'
+          : typeof value === 'boolean'
+            ? 'boolean'
+            : 'text';
+    }
+    case 'property': {
+      const value = referenceProperties(project, argument.entity, scope)[argument.name];
+      return value === undefined
+        ? undefined
+        : typeof value === 'number'
+          ? 'integer'
+          : typeof value === 'boolean'
+            ? 'boolean'
+            : 'text';
+    }
+    case 'input':
+      return procedure(project, scope)?.inputs.find((input) => input.id === argument.input)?.kind;
+    case 'command_item':
+      return 'object';
+  }
+}
+export function defaultArgument(kind: import('./contracts').InputKind): Argument {
+  return ['object', 'character', 'location'].includes(kind)
+    ? { type: 'entity', kind, id: '' }
+    : { type: 'literal', value: kind === 'integer' ? 0 : kind === 'boolean' ? false : '' };
+}
+export function newCall(
+  definition?: import('./contracts').Procedure,
+): Extract<import('./contracts').Effect, { type: 'call' }> {
+  return {
+    type: 'call',
+    id: crypto.randomUUID(),
+    procedure: definition?.id ?? '',
+    arguments: Object.fromEntries(
+      (definition?.inputs ?? []).map((input) => [input.id, defaultArgument(input.kind)]),
+    ),
+  };
+}

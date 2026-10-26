@@ -1,5 +1,5 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from 'react';
-import { findingSite, type Finding } from './diagnostics';
+import { findingSite, type Finding } from './findingSites';
 import type { ReferenceSite } from './references';
 import { referenceContext } from './references';
 import type { Project } from './contracts';

@@ -5,7 +5,6 @@ import type {
   Condition,
   ContentRelation,
   Effect,
-  Placement,
   Project,
   Value,
 } from './contracts';
@@ -16,9 +15,9 @@ import {
   targetKey,
   targetValue,
 } from './containerModel';
-import { allEffects, entity, flow, flowOwner, flows } from './model';
+import { allEffects, entity, flow, flowOwner } from './model';
 import { decode, mapMessage } from './templates';
-import { entityKey, entityValue, procedureInputPrefix } from './procedureModel';
+import { entityKey, entityValue, procedure, procedureInputPrefix } from './procedureModel';
 
 export type ReferenceTarget =
   | { kind: 'variable'; name: string }
@@ -567,7 +566,25 @@ function scan(
               node(effect, 'effect', child({ ...at, scope: 'metadata' }, `on_exhausted.${i}`)),
             );
           } else node(data, kind, opaque ? at : { ...at, scope: 'metadata' });
-          if (transform) block.data = JSON.stringify(data);
+          if (transform) {
+            block.data = JSON.stringify(data);
+            if (type === 'luna_call' && block.fields) {
+              block.fields.procedure = data.procedure;
+              for (const [id, argument] of Object.entries(data.arguments ?? {}) as [
+                string,
+                RecordValue,
+              ][]) {
+                if (argument.type === 'entity') block.fields[`ARG_${id}`] = argument.id;
+                if (argument.type === 'literal')
+                  block.fields[`ARG_${id}`] =
+                    typeof argument.value === 'boolean'
+                      ? argument.value
+                        ? 'TRUE'
+                        : 'FALSE'
+                      : argument.value;
+              }
+            }
+          }
         } catch {
           /* Unfinished or unrelated metadata is preserved. */
         }
@@ -720,7 +737,9 @@ function ownedTargets(p: Project, target: ReferenceTarget): ReferenceTarget[] {
     ? [...owner.actions, ...owner.triggers, ...('exits' in owner ? owner.exits : [])]
     : target.kind === 'flow'
       ? [flow(p, target.id)].filter((f) => !!f)
-      : [];
+      : target.kind === 'procedure'
+        ? [procedure(p, target.id)].filter((item) => !!item)
+        : [];
   return [
     ...scripts.flatMap((script) =>
       allEffects(script.effects).flatMap(({ effect }) =>

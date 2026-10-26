@@ -341,9 +341,8 @@ describe('canonical procedure nodes', () => {
     registerBlocks(p);
     const ws = new Blockly.Workspace();
     const root = loadEffectBlocks(ws, effects);
-    expect(root.getInputTargetBlock('DO')?.getFieldValue('SUMMARY')).toContain(
-      'Award coins · Amount: 5',
-    );
+    expect(root.getInputTargetBlock('DO')?.getFieldValue('procedure')).toBe('reward');
+    expect(root.getInputTargetBlock('DO')?.getFieldValue('ARG_amount-id')).toBe(5);
     expect(readEffects(root.getInputTargetBlock('DO'))).toEqual(effects);
     const say = ws.getAllBlocks(false).find((block) => block.type === 'luna_say')!;
     say.setFieldValue('Reward: %amount%.', 'text');

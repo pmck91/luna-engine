@@ -1,14 +1,14 @@
 # Architecture, content formats 1–4, and save formats 1–4
 
-Containers are merged, including the content-2/save-3 foundation. Parser assistance adds authored content format 3 while retaining content-1/2 and save-1/2/3 compatibility; interaction context is session-local. See the [parser contract](design/parser-context/shared-contract.md) and [P3 acceptance review](design/parser-context/final-review.md) for current branch status. The `feature/block-procedures` branch adds the canonical content-4/save-4 foundation; its [implementation record](design/block-procedures/foundation-review.md) separates completed runtime/storage work from pending dedicated authoring. Public author/player documentation remains deferred to the documentation-site milestone.
+Containers are merged, including the content-2/save-3 foundation. Parser assistance adds authored content format 3 while retaining content-1/2 and save-1/2/3 compatibility; interaction context is session-local. See the [parser contract](design/parser-context/shared-contract.md) and [P3 acceptance review](design/parser-context/final-review.md) for current branch status. The `feature/block-procedures` branch adds the canonical content-4/save-4 foundation; its [implementation record](design/block-procedures/foundation-review.md) records the runtime/storage work committed as `665170c`; the [authoring record](design/block-procedures/authoring-review.md) covers the owner-accepted R2 working slice and pending R3 closeout. Public author/player documentation remains deferred to the documentation-site milestone.
 
-| Crate | Responsibility |
-| --- | --- |
-| `luna-model` | Serde content contract, validation, semantic text spans, starter actions |
-| `luna-core` | Parser, event dispatch, transactional execution, complete mutable state |
-| `luna-project` | Canonical files, disk revisions, recoverable saves, ZIP export/validation |
-| `luna-editor` | Authenticated loopback API, embedded UI, project operations, playtest host |
-| `luna-runner` | Immutable installations, CLI, player save storage, terminal host |
+| Crate          | Responsibility                                                             |
+| -------------- | -------------------------------------------------------------------------- |
+| `luna-model`   | Serde content contract, validation, semantic text spans, starter actions   |
+| `luna-core`    | Parser, event dispatch, transactional execution, complete mutable state    |
+| `luna-project` | Canonical files, disk revisions, recoverable saves, ZIP export/validation  |
+| `luna-editor`  | Authenticated loopback API, embedded UI, project operations, playtest host |
+| `luna-runner`  | Immutable installations, CLI, player save storage, terminal host           |
 
 The React/TypeScript editor uses React Flow for locations and exits and custom Blockly blocks for typed action flows. It never executes game rules in JavaScript. Rust types generate `web/src/contracts.ts`; CI checks that this file has not drifted.
 
@@ -18,25 +18,25 @@ The [development guide](development.md) covers building, embedding, verification
 
 The core's public imports remain available at the crate root. Its private implementation is divided by responsibility:
 
-| Module | Responsibility |
-| --- | --- |
-| [`lib.rs`](../crates/luna-core/src/lib.rs) | Public result/status/control types and API re-exports |
-| [`definition.rs`](../crates/luna-core/src/definition.rs) | Validated immutable content, initial state, and indexed saved-state compatibility checks |
-| [`input.rs`](../crates/luna-core/src/input.rs) | Typed ephemeral input resolution, noun provenance, and pending choices |
-| [`resolution.rs`](../crates/luna-core/src/runtime/resolution.rs) | Bounded clarification, recent references, revalidation, and once-only selected dispatch |
-| [`session.rs`](../crates/luna-core/src/session.rs) | Host lifecycle, creation/restoration, and committing or discarding a command attempt |
-| [`runtime/index.rs`](../crates/luna-core/src/runtime/index.rs) | Definition-owned entity/vocabulary lookups, normalized command patterns, and event/watch addresses |
-| [`procedures.rs`](../crates/luna-core/src/procedures.rs), [`runtime/procedures.rs`](../crates/luna-core/src/runtime/procedures.rs) | Direct CALL/sequence indexes, typed lexical binding, invocation identity and call/return coordination |
-| [`runtime/mod.rs`](../crates/luna-core/src/runtime/mod.rs) | One attempted transaction's state/output, shared operation/depth limits, and observation context |
-| [`commands.rs`](../crates/luna-core/src/runtime/commands.rs), [`matching.rs`](../crates/luna-core/src/runtime/matching.rs) | Control parsing, command dispatch, patterns, candidate ranking, and the matcher reused by full help |
-| [`entities.rs`](../crates/luna-core/src/runtime/entities.rs), [`values.rs`](../crates/luna-core/src/runtime/values.rs) | Shared borrowed definition/value lookup, player scope, entity resolution, and checked arithmetic |
-| [`conditions.rs`](../crates/luna-core/src/runtime/conditions.rs) | Read-only condition semantics |
-| [`relations.rs`](../crates/luna-core/src/runtime/relations.rs) | Cycle-safe ancestry, possession/access, structural and physical transfer checks, mutation event accounting |
-| [`events.rs`](../crates/luna-core/src/runtime/events.rs) | Ordered event dispatch, movement/entry, and value-watch before/after transitions |
-| [`effects.rs`](../crates/luna-core/src/runtime/effects.rs) | Effect chains, inventory/visibility mutations, response sequences, branches, stopping, and finalization |
-| [`help.rs`](../crates/luna-core/src/runtime/help.rs), [`hints.rs`](../crates/luna-core/src/runtime/hints.rs) | Player command discovery and authored clue/solution progress |
-| [`presentation.rs`](../crates/luna-core/src/runtime/presentation.rs) | Message formatting, world/inventory listings, live ending presentation, and read-only resume views |
-| [`explanation.rs`](../crates/luna-core/src/runtime/explanation.rs) | Bounded observations, source paths, condition/effect traces, and attempted-state diffs |
+| Module                                                                                                                             | Responsibility                                                                                             |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [`lib.rs`](../crates/luna-core/src/lib.rs)                                                                                         | Public result/status/control types and API re-exports                                                      |
+| [`definition.rs`](../crates/luna-core/src/definition.rs)                                                                           | Validated immutable content, initial state, and indexed saved-state compatibility checks                   |
+| [`input.rs`](../crates/luna-core/src/input.rs)                                                                                     | Typed ephemeral input resolution, noun provenance, and pending choices                                     |
+| [`resolution.rs`](../crates/luna-core/src/runtime/resolution.rs)                                                                   | Bounded clarification, recent references, revalidation, and once-only selected dispatch                    |
+| [`session.rs`](../crates/luna-core/src/session.rs)                                                                                 | Host lifecycle, creation/restoration, and committing or discarding a command attempt                       |
+| [`runtime/index.rs`](../crates/luna-core/src/runtime/index.rs)                                                                     | Definition-owned entity/vocabulary lookups, normalized command patterns, and event/watch addresses         |
+| [`procedures.rs`](../crates/luna-core/src/procedures.rs), [`runtime/procedures.rs`](../crates/luna-core/src/runtime/procedures.rs) | Direct CALL/sequence indexes, typed lexical binding, invocation identity and call/return coordination      |
+| [`runtime/mod.rs`](../crates/luna-core/src/runtime/mod.rs)                                                                         | One attempted transaction's state/output, shared operation/depth limits, and observation context           |
+| [`commands.rs`](../crates/luna-core/src/runtime/commands.rs), [`matching.rs`](../crates/luna-core/src/runtime/matching.rs)         | Control parsing, command dispatch, patterns, candidate ranking, and the matcher reused by full help        |
+| [`entities.rs`](../crates/luna-core/src/runtime/entities.rs), [`values.rs`](../crates/luna-core/src/runtime/values.rs)             | Shared borrowed definition/value lookup, player scope, entity resolution, and checked arithmetic           |
+| [`conditions.rs`](../crates/luna-core/src/runtime/conditions.rs)                                                                   | Read-only condition semantics                                                                              |
+| [`relations.rs`](../crates/luna-core/src/runtime/relations.rs)                                                                     | Cycle-safe ancestry, possession/access, structural and physical transfer checks, mutation event accounting |
+| [`events.rs`](../crates/luna-core/src/runtime/events.rs)                                                                           | Ordered event dispatch, movement/entry, and value-watch before/after transitions                           |
+| [`effects.rs`](../crates/luna-core/src/runtime/effects.rs)                                                                         | Effect chains, inventory/visibility mutations, response sequences, branches, stopping, and finalization    |
+| [`help.rs`](../crates/luna-core/src/runtime/help.rs), [`hints.rs`](../crates/luna-core/src/runtime/hints.rs)                       | Player command discovery and authored clue/solution progress                                               |
+| [`presentation.rs`](../crates/luna-core/src/runtime/presentation.rs)                                                               | Message formatting, world/inventory listings, live ending presentation, and read-only resume views         |
+| [`explanation.rs`](../crates/luna-core/src/runtime/explanation.rs)                                                                 | Bounded observations, source paths, condition/effect traces, and attempted-state diffs                     |
 
 All runtime modules work on the same private `Run` context. Helpers buffer output and mutate attempted state; `Session` owns the commit/rollback decision. Ordinary event dispatch and value watches enter the same operation/depth gate, retaining priority/scope/ID ordering and the finalization guard. Explanation recording observes these calls rather than running a separate gameplay interpreter. Definition/schema access and presentation are shared without combining runtime execution, authoring validation, and structural reachability, which have distinct semantics.
 
@@ -54,7 +54,11 @@ Explanations record at most 8,192 ordered steps and 256 changes per diff. A step
 
 CALLs use ordinary effects, fallible conditions, watches and formatting inside the same transaction and limits. STOP returns from the current procedure, END propagates, and errors roll back the whole initiating attempt. Event handlers establish their own root/scope, while an active definition guard also detects callback re-entry. Definitions are borrowed; direct graph indexes and lazy progress avoid expanding possible invocation paths.
 
-`GameState.procedure_sequences` defaults empty and serializes as structured root/CALL-path/sequence/cursor rows. Duplicate paths, removed edges/sequences, invalid cursor bounds and resource overflows are rejected. A procedure-local reset affects only its current invocation; external resets into a procedure are rejected. Save 4 and captured setup 2 retain progress without replay, and compatible older saves/setups restore with empty procedure progress. The [frozen contract](design/block-procedures/shared-contract.md) and [foundation record](design/block-procedures/foundation-review.md) document exact semantics and outstanding authoring work.
+`GameState.procedure_sequences` defaults empty and serializes as structured root/CALL-path/sequence/cursor rows. Duplicate paths, removed edges/sequences, invalid cursor bounds and resource overflows are rejected. A procedure-local reset affects only its current invocation; external resets into a procedure are rejected. Save 4 and captured setup 2 retain progress without replay, and compatible older saves/setups restore with empty procedure progress. The [frozen contract](design/block-procedures/shared-contract.md) and [foundation record](design/block-procedures/foundation-review.md) document exact semantics. The [authoring record](design/block-procedures/authoring-review.md) tracks the production editor and remaining acceptance work.
+
+The editor keeps ordinary `flow`/`flows` separate from `script`/`scripts`, which include procedures. `Procedures` owns the searchable library, declarations and familiar block workspace; `ProcedureCallInspector` and `ProcedureScope` project the current lexical inputs into argument, entity/property, arithmetic and message controls. `procedureBlocks` populates each native Blockly procedure map with independent copies; project history is the canonical writer, and workspace JSON never stores a competing definition. Call metadata retains old input names for readable signature repairs without duplicating canonical arguments.
+
+Shared signature changes retain callers, body references and disconnected drafts. The review applies one project-history edit; native reconciliation preserves stable identities and detaches replaced sockets. Contextual creation adds the definition and updates the selected CALL together. Definition navigation stores source selections and canvas views; nested return frames restore the exact caller without treating it as a breadcrumb parent. Used by, project search, findings and typed traces navigate procedures through the same reference sites. `findingSites` is a pure navigation helper, keeping React finding context independent of Blockly registration order.
 
 ### Parser assistance and session context
 
@@ -134,7 +138,7 @@ The [permanent Packing the Study acceptance fixture](../examples/packing-study/A
 
 `move_character` stores `character` and `location` references. The destination is a location ID or `@current`, resolved against the player's location at execution time. It changes only the character's live location; hidden state and every held object's canonical placement remain intact. Moving to the same room is a no-op. It does not run player Enter, FirstEnter, Leave, Take, Drop, or Speak events, increment visits, show a room description, or move the player. The enclosing action still emits its normal interaction/Command events. Author additional effects explicitly for arrival or departure behaviour. Player command scope and visibility immediately use the new position. Structural ending validation follows possible character positions without treating character destinations as rooms the player can reach.
 
-`character_says` stores `character` and formatted `text`. It reads the referenced character's current authored name and optional `name_colour`, then emits literal name, uncoloured ` says: `, and the message's formatted spans as one transcript line. The name is never parsed as markup or placeholders. The message uses the same live variable/property expansion and literal insertion rules as SAY. A speech effect does not fire Speak or gate output by speaker visibility; authors can add a visible condition. `text::speech` supplies the shared speaker-prefix formatting for future conversation features.
+`character_says` stores `character` and formatted `text`. It reads the referenced character's current authored name and optional `name_colour`, then emits literal name, uncoloured `says:`, and the message's formatted spans as one transcript line. The name is never parsed as markup or placeholders. The message uses the same live variable/property expansion and literal insertion rules as SAY. A speech effect does not fire Speak or gate output by speaker visibility; authors can add a visible condition. `text::speech` supplies the shared speaker-prefix formatting for future conversation features.
 
 `Character.name_colour` defaults to null for older content and accepts null or one of the existing 16 semantic colour names. Both new effects validate typed references and formatted messages, participate in nested IF/ELSE and response follow-ups, and share command rollback. The editor provides both blocks, synchronized inspector controls, a character name-colour picker/preview, and typed template replacement for speakers, destinations, and speech placeholders. Renaming a character preserves its references.
 
@@ -145,7 +149,12 @@ Character locations and held-item ownership already live in `GameState`, so cont
 `update_variable` targets a global variable by `name`; `update_property` targets a custom property by `entity` and `name`. Both include `op` (`add`, `subtract`, `multiply`, or `divide`) and a tagged `operand`: `literal` with an integer `value`, `variable` with a `name`, or `property` with an `entity` and `name`. For example:
 
 ```json
-{"type":"update_variable","name":"chances","op":"subtract","operand":{"type":"literal","value":1}}
+{
+  "type": "update_variable",
+  "name": "chances",
+  "op": "subtract",
+  "operand": { "type": "literal", "value": 1 }
+}
 ```
 
 The target and any referenced operand must have integer schemas. Literal zero divisors are validation errors; referenced divisors may start at zero and are checked against live state at execution. Each effect computes `target = current target OP current operand`, reading both before writing. Earlier effects are visible, including when an operand references the target itself. Calculations use checked signed 32-bit operations; division truncates toward zero. Zero division and overflow (including −2,147,483,648 divided by −1) fail the transaction and discard all its state and output.

@@ -1,7 +1,6 @@
 import type {
   Action,
   ScopedPlacement,
-  ContentRelation,
   GameState,
   InputTextReference,
   Object as GameObject,
@@ -221,6 +220,7 @@ export function localMessage(
   references: Record<string, InputTextReference | undefined>,
   offerItem = false,
   offerEntities = false,
+  scope?: string,
 ) {
   const refs = { ...references };
   if (offerItem && !Object.values(refs).some((r) => r?.type === 'item_name'))
@@ -242,7 +242,7 @@ export function localMessage(
       ref.type === 'item_name'
         ? 'Command item name'
         : ref.type === 'procedure_input' || ref.type === 'procedure_property'
-          ? `Input · ${inputLabel(p, ref.input)}${ref.type === 'procedure_property' ? ` · ${ref.name}` : ''}`
+          ? `Input · ${inputLabel(p, ref.input, scope)}${ref.type === 'procedure_property' ? ` · ${ref.name}` : ''}`
           : `${(entity(p, ref.entity)?.name ?? 'Missing entity').replace(/[&<>%\p{Cc}]/gu, (c) => ({ '&': '＆', '<': '‹', '>': '›', '%': '％' })[c] ?? ' ')} name`;
     let label = base;
     for (let i = 2; used.has(label); i++) label = `${base} (${i})`;

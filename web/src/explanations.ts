@@ -1,3 +1,4 @@
+import { script } from './model';
 import { argumentLabel, referenceLabel } from './procedureModel';
 import { createContext } from 'react';
 import type {
@@ -16,7 +17,7 @@ import type {
   TraceStep,
   ValueTarget,
 } from './contracts';
-import { allEffects, flow, flowOwner, flows } from './model';
+import { allEffects, flowOwner, flows } from './model';
 import { playContentKey } from './playtest';
 import type { ReferenceSite } from './references';
 
@@ -120,12 +121,12 @@ export function traceTitle(p: Project, kind: TraceKind): string {
 }
 export function traceContext(p: Project, step: TraceStep) {
   if (!step.source) return 'Built-in control';
-  const script = flow(p, step.source.subject);
+  const sourceScript = script(p, step.source.subject);
   const parent = flowOwner(p, step.source.subject);
   const owner = parent && ('title' in parent ? parent.title : parent.name);
   return [
     owner,
-    script?.name || (script ? 'Unnamed flow' : traceEntityName(p, step.source.subject)),
+    sourceScript?.name || (sourceScript ? 'Unnamed flow' : traceEntityName(p, step.source.subject)),
     step.source.path
       .replaceAll('otherwise', 'ELSE')
       .replaceAll('then', 'THEN')

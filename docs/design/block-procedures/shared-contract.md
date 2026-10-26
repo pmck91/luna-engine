@@ -1,6 +1,6 @@
 # Procedures — R1 shared contract
 
-Status: **R1 feasibility verified; implementation contract frozen**, 26 October 2026, on `feature/block-procedures`. The owner accepted [R0](README.md) with “looks great.” This document freezes R2's representation and behaviour. The [R2 foundation record](foundation-review.md) tracks its subsequent promotion; dedicated production authoring is still in progress.
+Status: **R1 feasibility verified; implementation contract frozen**, 26 October 2026, on `feature/block-procedures`. The owner accepted [R0](README.md) with “looks great.” This document freezes R2's representation and behaviour. The [R2 foundation record](foundation-review.md) tracks its subsequent promotion; the [working authoring slice](authoring-review.md) is accepted after the owner completed the UI walkthrough; R3 acceptance remains separate.
 
 The [focused plan](../../plans/block-procedures.md) retains the accepted scope and authoring journey. Keep current Blockly shapes, colours, inline fields, connectors, and terminal-chain rendering. No extraction, return values, mutable locals, recursion, external libraries, or narrative feature expansion in F3.
 

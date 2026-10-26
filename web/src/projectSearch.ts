@@ -57,6 +57,19 @@ export function searchIndex(p: Project): SearchEntry[] {
       for (const [name, value] of Object.entries(owner.state))
         add('Variables and properties', name, { ...at, path: `state.${name}` }, String(value));
   }
+  for (const definition of p.procedures ?? [])
+    add(
+      'Procedures',
+      definition.name,
+      {
+        subject: definition.id,
+        procedureId: definition.id,
+        flowId: definition.id,
+        scope: 'content',
+        path: '',
+      },
+      `${definition.description} ${definition.inputs.map((input) => `${input.name} ${input.kind}`).join(' ')}`,
+    );
   for (const [name, value] of Object.entries(p.game.variables))
     add(
       'Variables and properties',

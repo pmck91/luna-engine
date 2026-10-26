@@ -1,6 +1,6 @@
 # Reusable block procedures
 
-Status: **R0 accepted; R1 complete; R2 foundation implemented, authoring in progress**, 26 October 2026. The owner accepted the interactive authoring design and STOP/progress rules with “looks great.” The focused feature precedes conversations/quests. The [R1 contract](../design/block-procedures/shared-contract.md) records verified feasibility, exact production representations, and the R2 promotion/storage gates. The canonical model/runtime and host persistence are implemented; the dedicated authoring journey remains the next part of R2. See the [foundation record](../design/block-procedures/foundation-review.md).
+Status: **R0 accepted; R1 complete; R2 accepted; R3 next**, 26 October 2026. The owner accepted the working authoring/player slice after completing the UI walkthrough, with “thats working exactly as expected.” The [authoring record](../design/block-procedures/authoring-review.md) covers that acceptance and verification. The [R1 contract](../design/block-procedures/shared-contract.md) and [foundation record](../design/block-procedures/foundation-review.md) retain the execution/storage contract and implementation history. Final R3 fixture, measurements and branch acceptance remain outstanding.
 
 Branch: `feature/block-procedures`, created from merged `main` at `d3c7860` (parser context, PR #3). Keep shared Rust content/runtime/storage, editor, runner, compatibility, and acceptance together on this branch. The [roadmap](gameplay-feature-roadmap.md) schedules the basic feature first, then conversations/quests, then turns/routines. Public user guides remain in the documentation milestone.
 
@@ -126,9 +126,9 @@ Installed Blockly exposes `Workspace.getProcedureMap()` and `IProcedureModel`/`I
 ### R2 — Complete the working slice
 
 - [x] Implement canonical model/storage/type/reference/runtime/compatibility foundation and matching generated contracts from the frozen R1 contract. Promote the 22 cases to public Session APIs and retire the coordinator. Prove actual content/save-4 and setup-1/2 canonical/export/installed/named/autosave boundaries, not just the candidate snapshot.
-- [ ] Wire Procedures, declarations, CALL insertion/arguments, definition/caller navigation, Used by, signature impact/repair, normal history/drafts, and explanations. Preserve existing Blockly presentation.
-- [ ] Demonstrate one action and one trigger sharing a definition, a nested call, a failing transaction, independent response progress, save/reopen/export, source return, keyboard/compact use, and both browsers.
-- [ ] Present the real working authoring/player slice for owner feedback before final acceptance.
+- [x] Wire Procedures, declarations, CALL insertion/arguments, definition/caller navigation, Used by, signature impact/repair, normal history/drafts, and explanations. Preserve existing Blockly presentation.
+- [x] Demonstrate one action and one trigger sharing a definition, a nested call, a failing transaction, independent response progress, save/reopen/export, source return, keyboard/compact use, and both browsers.
+- [x] Present the real working authoring/player slice for owner feedback before final acceptance. Owner completed the UI walkthrough and accepted R2 on 26 October 2026 with “thats working exactly as expected.”
 
 ### R3 — Acceptance and closeout
 
@@ -160,3 +160,7 @@ The [shared contract](../design/block-procedures/shared-contract.md) records the
 ## R2 foundation
 
 R0/R1 was committed as `0912607`. The [foundation record](../design/block-procedures/foundation-review.md) describes the canonical implementation, promoted public-API regressions, actual storage/process boundaries, checks, and remaining authoring gates. This completes the first R2 task; it does not mark the working authoring slice or R3 accepted.
+
+## R2 working authoring slice
+
+The foundation was committed as `665170c` before continuing. The [authoring review](../design/block-procedures/authoring-review.md) records the production UI, regression coverage, concrete review journey and owner acceptance of R2. R3 final fixture/measurements/acceptance remains separate.
