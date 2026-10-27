@@ -97,7 +97,10 @@ impl<'a> Run<'a> {
         }
         if self.recording.is_none() {
             self.step()?;
-            return self.effect(effect);
+            let previous = std::mem::replace(&mut self.source, source);
+            let result = self.effect(effect);
+            self.source = previous;
+            return result;
         }
         self.traced(
             TraceKind::Effect {
@@ -113,11 +116,13 @@ impl<'a> Run<'a> {
     }
 
     fn effect(&mut self, effect: &Effect) -> Result<Flow> {
-        #[cfg(test)]
-        if let Some(flow) = self.turn_candidate_effect(effect)? {
-            return Ok(flow);
-        }
         match effect {
+            Effect::ScheduleTimer {
+                timer,
+                after,
+                pending,
+            } => self.schedule_timer(timer, after, *pending)?,
+            Effect::CancelTimer { timer } => self.cancel_timer(timer)?,
             Effect::StartConversation { conversation } => {
                 return self.start_conversation(conversation);
             }
@@ -427,8 +432,7 @@ impl<'a> Run<'a> {
                 }
                 let end = self.ending(ending).context("Unknown ending")?;
                 self.state.to_mut().ending = Some(ending.clone());
-                #[cfg(test)]
-                self.turn_candidate_end();
+                self.end_timers();
                 self.close_conversations();
                 self.finalizing = true;
                 self.fire(Event::Ending, &self.p.game.id)?;

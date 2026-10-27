@@ -26,6 +26,7 @@ pub fn stage(id: &str) -> Effect {
 }
 pub fn project() -> Project {
     let mut p = Project::blank("Keeper quest runtime");
+    p.game.format_version = 5;
     p.game.id = "quest-runtime".into();
     p.locations[0].id = "study".into();
     p.locations[0].actions.clear();

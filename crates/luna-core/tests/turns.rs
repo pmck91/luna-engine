@@ -1,6 +1,10 @@
-use super::*;
-use crate::CommandStatus;
-#[path = "../../../../../tests/support/conversations.rs"]
+use anyhow::{Result, ensure};
+use luna_core::{CommandResult, CommandStatus, GameDefinition, Session};
+use luna_model::*;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+include!("turns/support.rs");
+#[path = "../../../tests/support/conversations.rs"]
 mod narrative_fixture;
 
 fn say(text: &str) -> Effect {
@@ -47,7 +51,7 @@ fn timer(id: &str, effects: Vec<Effect>) -> Timer {
         name: id.into(),
         priority: 0,
         order: 0,
-        guard: Condition::True,
+        condition: Condition::True,
         effects,
     }
 }
@@ -114,7 +118,7 @@ fn output(r: &CommandResult) -> String {
         .join("\n")
 }
 fn remaining(h: &Harness) -> u32 {
-    h.clock.pending["door-closes"].deadline - h.clock.turn
+    h.clock().pending["door-closes"].deadline - h.clock().turn
 }
 fn count(h: &Harness) -> i32 {
     match h.session.state().variables["count"] {
@@ -123,12 +127,12 @@ fn count(h: &Harness) -> i32 {
     }
 }
 fn due_next(h: &mut Harness) {
-    let deadline = h.clock.turn + 1;
-    h.clock.pending.get_mut("door-closes").unwrap().deadline = deadline;
+    let deadline = h.clock().turn + 1;
+    h.edit_clock(|clock| clock.pending.get_mut("door-closes").unwrap().deadline = deadline);
 }
 fn error(h: &mut Harness, input: &str) -> CommandResult {
     let before = h.session.state().clone();
-    let clock = h.clock.clone();
+    let clock = h.clock().clone();
     let context = h.session.pending_clarification();
     let offer = h.session.conversation_view().cloned();
     let (r, e) = h.attempt(input, None, true);
@@ -137,7 +141,7 @@ fn error(h: &mut Harness, input: &str) -> CommandResult {
     assert!(r.messages.is_empty());
     assert!(!r.state_changed);
     assert_eq!(h.session.state(), &before);
-    assert_eq!(h.clock, clock);
+    assert_eq!(h.clock(), clock);
     assert_eq!(h.session.pending_clarification(), context);
     assert_eq!(h.session.conversation_view(), offer.as_ref());
     r
@@ -147,7 +151,7 @@ fn error(h: &mut Harness, input: &str) -> CommandResult {
 fn three_subsequent_turns_exclude_the_scheduling_action() {
     let mut h = start(project(), program());
     h.command("use open");
-    assert_eq!(h.clock.turn, 1);
+    assert_eq!(h.clock().turn, 1);
     assert_eq!(remaining(&h), 3);
     for input in [
         "look",
@@ -160,15 +164,15 @@ fn three_subsequent_turns_exclude_the_scheduling_action() {
         "quests",
     ] {
         h.command(input);
-        assert_eq!(h.clock.turn, 1, "{input}");
+        assert_eq!(h.clock().turn, 1, "{input}");
         assert_eq!(remaining(&h), 3);
     }
     h.command("WAIT");
     h.command("wait!");
-    assert_eq!((h.clock.turn, remaining(&h), count(&h)), (3, 1, 0));
+    assert_eq!((h.clock().turn, remaining(&h), count(&h)), (3, 1, 0));
     assert!(output(&h.command("wait")).contains("The door shuts."));
-    assert_eq!((h.clock.turn, count(&h)), (4, 1));
-    assert!(h.clock.pending.is_empty());
+    assert_eq!((h.clock().turn, count(&h)), (4, 1));
+    assert!(h.clock().pending.is_empty());
 }
 
 #[test]
@@ -179,47 +183,49 @@ fn free_opening_and_delay_one_use_the_correct_origin() {
         .insert("schedule".into(), schedule("door-closes", 1));
     let mut h = start(project(), g);
     h.command("use open");
-    assert_eq!((h.clock.turn, remaining(&h)), (0, 1));
+    assert_eq!((h.clock().turn, remaining(&h)), (0, 1));
     h.command("wait");
-    assert_eq!((h.clock.turn, count(&h)), (1, 1));
+    assert_eq!((h.clock().turn, count(&h)), (1, 1));
 }
 
 #[test]
 fn successful_message_only_action_spends_and_wait_only_changes_clock() {
     let mut h = start(project(), program());
-    let before = h.session.state().clone();
+    let mut before = h.session.state().clone();
     assert!(h.command("use message").state_changed);
+    before.turns.as_mut().unwrap().turn = 1;
     assert_eq!(h.session.state(), &before);
-    assert_eq!(h.clock.turn, 1);
+    assert_eq!(h.clock().turn, 1);
     assert!(h.command("wait").state_changed);
+    before.turns.as_mut().unwrap().turn = 2;
     assert_eq!(h.session.state(), &before);
-    assert_eq!(h.clock.turn, 2);
+    assert_eq!(h.clock().turn, 2);
 }
 
 #[test]
 fn independent_success_failure_defaults_and_overrides_are_typed() {
     let mut g = program();
     g.policy.actions = false;
-    g.policy.failed = true;
+    g.policy.failed_requirements = true;
     g.success.insert("action-open".into(), Cost::Spend);
     g.failure.insert("action-blocked".into(), Cost::Free);
     let mut h = start(project(), g);
     h.command("use message");
-    assert_eq!(h.clock.turn, 0);
+    assert_eq!(h.clock().turn, 0);
     h.command("use open");
     h.command("use blocked");
-    assert_eq!(h.clock.turn, 1);
+    assert_eq!(h.clock().turn, 1);
     let mut p = project();
     p.game.actions.push(action("other-blocked", vec![]));
     p.game.actions.last_mut().unwrap().requirements = Condition::False;
     let mut g = program();
-    g.policy.failed = true;
+    g.policy.failed_requirements = true;
     let mut h = start(p, g);
     assert_eq!(
         h.command("use other-blocked").status,
         CommandStatus::RequirementsFailed
     );
-    assert_eq!(h.clock.turn, 1);
+    assert_eq!(h.clock().turn, 1);
 }
 
 #[test]
@@ -239,7 +245,7 @@ fn look_and_hint_defaults_charge_without_deriving_cost_from_mutation() {
     let room = p.locations[0].name.clone();
     let mut h = start(p.clone(), program());
     assert!(h.command(&format!("hint {room}")).state_changed);
-    assert_eq!(h.clock.turn, 0);
+    assert_eq!(h.clock().turn, 0);
     assert_eq!(h.session.state().hints["clue"].clues_seen, 1);
     let mut g = program();
     g.policy.look = true;
@@ -247,7 +253,28 @@ fn look_and_hint_defaults_charge_without_deriving_cost_from_mutation() {
     let mut h = start(p, g);
     h.command("look");
     h.command("hint");
-    assert_eq!(h.clock.turn, 2);
+    assert_eq!(h.clock().turn, 2);
+}
+
+#[test]
+fn paid_hint_policy_leaves_disabled_and_unresolved_queries_free() {
+    let mut p = project();
+    let mut g = program();
+    g.policy.hints = true;
+    let mut enabled = start(p.clone(), g.clone());
+    assert_eq!(
+        enabled.command("hint nowhere").status,
+        CommandStatus::Unmatched
+    );
+    assert_eq!(enabled.clock().turn, 0);
+    p.game.hints_enabled = false;
+    let mut disabled = start(p, g);
+    let before = disabled.session.state().clone();
+    for input in ["hint", "hint nowhere"] {
+        let result = disabled.command(input);
+        assert!(output(&result).contains("Puzzle hints are disabled"));
+        assert_eq!(disabled.session.state(), &before);
+    }
 }
 
 #[test]
@@ -256,8 +283,8 @@ fn stop_spends_once_and_skips_later_schedule() {
     p.game.actions[0].effects = vec![Effect::Stop, say("schedule")];
     let mut h = start(p, program());
     h.command("use open");
-    assert_eq!(h.clock.turn, 1);
-    assert!(h.clock.pending.is_empty());
+    assert_eq!(h.clock().turn, 1);
+    assert!(h.clock().pending.is_empty());
 }
 
 #[test]
@@ -281,7 +308,7 @@ fn exit_success_failure_and_override_share_the_action_policy() {
     let mut h = start(p.clone(), g);
     h.command("go garden");
     assert_eq!(h.session.state().location, "garden");
-    assert_eq!((h.clock.turn, remaining(&h)), (0, 3));
+    assert_eq!((h.clock().turn, remaining(&h)), (0, 3));
     p.locations[0].exits[0].available = Condition::False;
     let mut g = program();
     g.failure.insert("route".into(), Cost::Spend);
@@ -290,8 +317,8 @@ fn exit_success_failure_and_override_share_the_action_policy() {
         h.command("go garden").status,
         CommandStatus::RequirementsFailed
     );
-    assert_eq!(h.clock.turn, 1);
-    assert!(h.clock.pending.is_empty());
+    assert_eq!(h.clock().turn, 1);
+    assert!(h.clock().pending.is_empty());
 }
 
 #[test]
@@ -318,7 +345,7 @@ fn wait_does_not_dispatch_the_authored_turn_verb_event_or_command_events() {
     h.command("wait");
     assert_eq!(count(&h), 0);
     h.command("turn");
-    assert_eq!((count(&h), h.clock.turn), (2, 2));
+    assert_eq!((count(&h), h.clock().turn), (2, 2));
 }
 
 #[test]
@@ -378,6 +405,25 @@ fn invalid_delay_values_and_types_roll_back_everything() {
                 pending: PendingPolicy::Restart,
             },
         );
+        assert!(Harness::start(p, g).is_err());
+    }
+    for delay in [0, -1] {
+        let mut p = project();
+        p.game
+            .variables
+            .insert("delay".into(), Value::Integer(delay));
+        p.game.actions[0].effects.insert(0, inc("count"));
+        let mut g = program();
+        g.operations.insert(
+            "schedule".into(),
+            Operation::Schedule {
+                timer: "door-closes".into(),
+                after: NumericOperand::Variable {
+                    name: "delay".into(),
+                },
+                pending: PendingPolicy::Restart,
+            },
+        );
         let mut h = start(p, g);
         error(&mut h, "use open");
     }
@@ -386,11 +432,11 @@ fn invalid_delay_values_and_types_roll_back_everything() {
 #[test]
 fn integer_and_deadline_boundaries_are_checked() {
     let mut h = start(project(), program());
-    h.clock.turn = u32::MAX;
+    h.edit_clock(|clock| clock.turn = u32::MAX);
     error(&mut h, "wait");
-    h.clock.turn = u32::MAX - 3;
+    h.edit_clock(|clock| clock.turn = u32::MAX - 3);
     error(&mut h, "use open"); // provisional T+3 fits; charged B+3 does not.
-    assert_eq!(h.clock.turn, u32::MAX - 3);
+    assert_eq!(h.clock().turn, u32::MAX - 3);
 }
 
 #[test]
@@ -405,7 +451,7 @@ fn native_start_and_entry_triggers_schedule_from_zero_without_a_turn() {
     g.operations
         .insert("schedule".into(), schedule("door-closes", 1));
     let mut h = start(p, g);
-    assert_eq!((h.clock.turn, remaining(&h)), (0, 1));
+    assert_eq!((h.clock().turn, remaining(&h)), (0, 1));
     h.command("wait");
     assert_eq!(count(&h), 1);
 }
@@ -452,7 +498,7 @@ fn nested_call_delay_uses_real_typed_local_then_current_boundary() {
     );
     let mut h = start(p, g);
     assert!(output(&h.command("use open")).contains("Returned."));
-    assert_eq!((h.clock.turn, remaining(&h), count(&h)), (1, 2, 0));
+    assert_eq!((h.clock().turn, remaining(&h), count(&h)), (1, 2, 0));
 }
 
 #[test]
@@ -477,7 +523,7 @@ fn native_watch_scheduling_shares_the_one_initiating_turn() {
     });
     let mut h = start(p, program());
     h.command("use open");
-    assert_eq!((h.clock.turn, remaining(&h)), (1, 3));
+    assert_eq!((h.clock().turn, remaining(&h)), (1, 3));
 }
 
 #[test]
@@ -498,12 +544,12 @@ fn keep_restart_and_cancel_have_independent_per_site_meanings() {
         h.command("use open");
         h.command("wait");
         h.command("use open");
-        assert_eq!(h.clock.turn, 3);
+        assert_eq!(h.clock().turn, 3);
         assert_eq!(remaining(&h), if keep { 1 } else { 3 });
         h.command("use secure");
-        assert!(h.clock.pending.is_empty());
+        assert!(h.clock().pending.is_empty());
         h.command("use secure"); // absent cancellation is harmless.
-        assert_eq!(h.clock.turn, 5);
+        assert_eq!(h.clock().turn, 5);
     }
 }
 
@@ -531,7 +577,7 @@ fn pending_is_visible_within_the_same_native_if_chain() {
     let mut h = start(p, program());
     assert!(output(&h.command("use open")).contains("Cancelled."));
     assert_eq!(count(&h), 1);
-    assert!(h.clock.pending.is_empty());
+    assert!(h.clock().pending.is_empty());
 }
 
 fn simultaneous(first: Vec<Effect>) -> (Project, Program) {
@@ -576,7 +622,7 @@ fn earlier_callback_cancel_or_restart_prevents_stale_due_firing() {
         let mut h = start(p, g);
         h.command("use open");
         assert!(!output(&h.command("wait")).contains("Second."));
-        if h.clock.pending.contains_key("other") {
+        if h.clock().pending.contains_key("other") {
             assert!(output(&h.command("wait")).contains("Second."));
         }
     }
@@ -603,7 +649,7 @@ fn self_schedule_runs_on_the_next_boundary_and_guard_sees_consumed_state() {
     let mut g = program();
     g.operations
         .insert("schedule".into(), schedule("door-closes", 1));
-    g.timers[0].guard = Condition::Not {
+    g.timers[0].condition = Condition::Not {
         condition: Box::new(Condition::Variable {
             name: "timer_pending".into(),
             op: Comparison::Eq,
@@ -616,7 +662,7 @@ fn self_schedule_runs_on_the_next_boundary_and_guard_sees_consumed_state() {
     for turn in 2..5 {
         h.command("wait");
         assert_eq!(
-            (h.clock.turn, count(&h), remaining(&h)),
+            (h.clock().turn, count(&h), remaining(&h)),
             (turn, (turn - 1) as i32, 1)
         );
     }
@@ -625,13 +671,13 @@ fn self_schedule_runs_on_the_next_boundary_and_guard_sees_consumed_state() {
 #[test]
 fn false_guard_consumes_and_does_not_retry_implicitly() {
     let mut g = program();
-    g.timers[0].guard = Condition::False;
+    g.timers[0].condition = Condition::False;
     let mut h = start(project(), g);
     h.command("use open");
     due_next(&mut h);
     h.command("wait");
     h.command("wait");
-    assert!(h.clock.pending.is_empty());
+    assert!(h.clock().pending.is_empty());
     assert_eq!(count(&h), 0);
 }
 
@@ -715,7 +761,7 @@ fn late_failure_rolls_back_the_player_action_all_timers_and_discarded_output() {
             .any(|m| text::plain(m).contains("Discard me."))
     );
     assert_eq!(count(&h), 0);
-    assert_eq!(h.clock.pending.len(), 2);
+    assert_eq!(h.clock().pending.len(), 2);
 }
 
 #[test]
@@ -741,10 +787,10 @@ fn end_in_action_clears_queue_and_ending_hooks_cannot_revive_it() {
     due_next(&mut h);
     h.command("use end");
     assert_eq!(h.session.state().ending.as_deref(), Some("finish"));
-    assert_eq!(h.clock.turn, 2);
-    assert!(h.clock.pending.is_empty());
+    assert_eq!(h.clock().turn, 2);
+    assert!(h.clock().pending.is_empty());
     h.command("wait");
-    assert_eq!((h.clock.turn, count(&h)), (2, 0));
+    assert_eq!((h.clock().turn, count(&h)), (2, 0));
 }
 
 #[test]
@@ -759,7 +805,7 @@ fn end_in_timer_skips_later_callbacks_and_clears_schedules_from_hooks() {
     h.command("use open");
     let out = output(&h.command("wait"));
     assert!(out.contains("Finished.") && !out.contains("Second."));
-    assert!(h.clock.pending.is_empty());
+    assert!(h.clock().pending.is_empty());
 }
 
 #[test]
@@ -805,13 +851,13 @@ fn save_and_setup_candidate_restore_does_not_fire_or_spend() {
         h.command("use open");
         h.command("wait");
         let bytes = h.snapshot(version);
-        let clock = h.clock.clone();
+        let clock = h.clock().clone();
         let world = h.session.state().clone();
         h.command("wait");
         h.command("wait");
         assert_eq!(count(&h), 1);
         h.restore(&bytes, version).unwrap();
-        assert_eq!(h.clock, clock);
+        assert_eq!(h.clock(), clock);
         assert_eq!(h.session.state(), &world);
         h.command("wait");
         assert_eq!(count(&h), 0);
@@ -827,17 +873,20 @@ fn invalid_snapshot_leaves_current_state_context_and_input_bytes_untouched() {
     let original = h.snapshot(SAVE_VERSION);
     for mutate in [
         |v: &mut serde_json::Value| v["version"] = 5.into(),
-        |v: &mut serde_json::Value| v["clock"]["pending"]["door-closes"]["deadline"] = 1.into(),
         |v: &mut serde_json::Value| {
-            v["clock"]["pending"]["door-closes"]["deadline"] = 4294967296u64.into()
+            v["world"]["turns"]["pending"]["door-closes"]["deadline"] = 1.into()
         },
         |v: &mut serde_json::Value| {
-            v["clock"]["pending"]["door-closes"]["source"] = "missing".into()
+            v["world"]["turns"]["pending"]["door-closes"]["deadline"] = 4294967296u64.into()
         },
         |v: &mut serde_json::Value| {
-            v["clock"]["pending"]["foreign"] = v["clock"]["pending"]["door-closes"].clone()
+            v["world"]["turns"]["pending"]["door-closes"]["source"] = "missing".into()
         },
-        |v: &mut serde_json::Value| v["clock"]["unexpected"] = true.into(),
+        |v: &mut serde_json::Value| {
+            v["world"]["turns"]["pending"]["foreign"] =
+                v["world"]["turns"]["pending"]["door-closes"].clone()
+        },
+        |v: &mut serde_json::Value| v["world"]["turns"]["unexpected"] = true.into(),
         |v: &mut serde_json::Value| v["world"]["ending"] = "finish".into(),
     ] {
         let mut value: serde_json::Value = serde_json::from_slice(&original).unwrap();
@@ -848,7 +897,7 @@ fn invalid_snapshot_leaves_current_state_context_and_input_bytes_untouched() {
         assert_eq!(bytes, unchanged);
         assert_eq!(h.snapshot(SAVE_VERSION), original);
     }
-    let duplicate = r#"{"turn":1,"pending":{"door-closes":{"deadline":4,"source":"schedule"},"door-closes":{"deadline":5,"source":"schedule"}}}"#;
+    let duplicate = r#"{"turn":1,"pending":{"door-closes":{"deadline":4,"source":{"root":"action-open","subject":"action-open","path":"effects.0"}},"door-closes":{"deadline":5,"source":{"root":"action-open","subject":"action-open","path":"effects.0"}}}}"#;
     assert!(serde_json::from_str::<Clock>(duplicate).is_err());
 }
 
@@ -872,7 +921,7 @@ fn disabled_games_keep_authored_wait_and_opt_in_detects_hidden_owner_alias_confl
         }],
         ..Default::default()
     });
-    assert_eq!(validation::wait_conflicts(&p), ["legacy-wait"]);
+    assert_eq!(wait_command_conflicts(&p), ["legacy-wait"]);
     assert!(Harness::start(p.clone(), program()).is_err());
     p.game.actions.push(Action {
         id: "global-wait".into(),
@@ -882,7 +931,7 @@ fn disabled_games_keep_authored_wait_and_opt_in_detects_hidden_owner_alias_confl
     });
     let mut h = start(p, Program::default());
     h.command("wait");
-    assert_eq!((count(&h), h.clock.turn), (1, 0));
+    assert_eq!((count(&h), h.clock().turn), (1, 0));
 }
 
 #[test]
@@ -928,7 +977,7 @@ fn accepted_number_and_button_reply_charge_once_and_stale_reply_is_free() {
     for buttons in [false, true] {
         let mut h = narrative(program());
         h.command("talk keeper");
-        assert_eq!(h.clock.turn, 1);
+        assert_eq!(h.clock().turn, 1);
         let offer = h.session.conversation_view().unwrap().clone();
         if buttons {
             let (_, e) = h.attempt("button", Some((&offer.offer_token, "accept")), false);
@@ -936,17 +985,17 @@ fn accepted_number_and_button_reply_charge_once_and_stale_reply_is_free() {
         } else {
             h.command("1");
         }
-        assert_eq!(h.clock.turn, 2);
+        assert_eq!(h.clock().turn, 2);
         assert_eq!(
             h.session.state().narrative.status("missing"),
             QuestStatus::Active
         );
         let (_, e) = h.attempt("button", Some((&offer.offer_token, "accept")), false);
         assert!(e.is_none());
-        assert_eq!(h.clock.turn, 2);
+        assert_eq!(h.clock().turn, 2);
         h.command("reply 99");
         h.command("bye");
-        assert_eq!(h.clock.turn, 2);
+        assert_eq!(h.clock().turn, 2);
     }
 }
 
@@ -962,7 +1011,7 @@ fn reply_override_and_game_default_can_make_dialogue_free() {
         let mut h = narrative(g);
         h.command("talk keeper");
         h.command("1");
-        assert_eq!(h.clock.turn, 1);
+        assert_eq!(h.clock().turn, 1);
     }
 }
 
@@ -973,13 +1022,13 @@ fn wait_preserves_dialogue_and_noun_question_then_clarified_action_charges_once(
     h.command("take key");
     let question = h.session.pending_clarification().unwrap();
     let offer = h.session.conversation_view().cloned();
-    assert_eq!(h.clock.turn, 1);
+    assert_eq!(h.clock().turn, 1);
     h.command("wait");
-    assert_eq!(h.clock.turn, 2);
+    assert_eq!(h.clock().turn, 2);
     assert_eq!(h.session.pending_clarification(), Some(question));
     assert_eq!(h.session.conversation_view(), offer.as_ref());
     h.command("brass");
-    assert_eq!(h.clock.turn, 3);
+    assert_eq!(h.clock().turn, 3);
     assert!(h.session.pending_clarification().is_none());
     assert_eq!(
         h.session.state().objects["key"].placement,
@@ -1028,7 +1077,7 @@ fn timer_runs_before_final_speaker_scope_reconciliation() {
     h.command("talk keeper");
     due_next(&mut h);
     h.command("1");
-    assert_eq!(h.clock.turn, 3);
+    assert_eq!(h.clock().turn, 3);
     assert!(h.session.conversation_view().is_none());
     assert!(h.session.state().narrative.active.is_none());
     assert_eq!(h.session.state().characters["keeper"].location, "garden");
@@ -1044,9 +1093,38 @@ fn normal_and_explained_native_attempts_commit_identical_story_and_clock() {
         let (explained, error) = b.attempt(input, None, true);
         assert!(error.is_none());
         assert_eq!(normal.messages, explained.messages);
-        assert_eq!(a.clock, b.clock);
+        assert_eq!(a.clock(), b.clock());
         assert_eq!(a.session.state(), b.session.state());
         assert!(explained.explanation.unwrap().committed);
+    }
+}
+
+#[test]
+fn schedule_explanation_resolves_the_actual_subsequent_turn_deadline() {
+    for free in [false, true] {
+        let mut g = program();
+        if free {
+            g.success.insert("action-open".into(), Cost::Free);
+        }
+        let mut h = start(project(), g);
+        let (result, error) = h.attempt("use open", None, true);
+        assert!(error.is_none());
+        let deadline = h.clock().pending["door-closes"].deadline;
+        assert_eq!(deadline, if free { 3 } else { 4 });
+        let steps = &result.explanation.unwrap().steps;
+        assert!(steps.iter().any(|step| matches!(
+            &step.kind,
+            luna_core::TraceKind::Timer {
+                operation: luna_core::TimerOperation::Schedule {
+                    after: 3,
+                    deadline: None,
+                    ..
+                }
+            }
+        )));
+        assert!(steps.iter().any(|step| matches!(&step.kind,
+            luna_core::TraceKind::Timer { operation:luna_core::TimerOperation::Deadline { deadline:d,.. } } if *d == deadline
+        ) && step.source.as_ref().is_some_and(|s| s.subject == "action-open" && s.path == "effects.0")));
     }
 }
 
@@ -1072,8 +1150,8 @@ fn pending_limit_and_aggregate_queue_work_fail_atomically() {
     p.game.actions[0].effects.pop();
     let mut h = start(p, g);
     h.command("use open");
-    assert_eq!(h.clock.pending.len(), MAX_PENDING);
-    assert_eq!(h.clock.turn, 0);
+    assert_eq!(h.clock().pending.len(), MAX_PENDING);
+    assert_eq!(h.clock().turn, 0);
     let r = error(&mut h, "wait");
     assert!(r.explanation.unwrap().error.unwrap().contains("2048"));
 }
@@ -1108,23 +1186,19 @@ fn independently_deserialized_definitions_restore_progress_without_running_hooks
     h.command("take key");
     assert!(h.session.pending_clarification().is_some());
     let world = h.session.state().clone();
-    let clock = h.clock.clone();
+    let clock = h.clock().clone();
     let old_token = h.session.conversation_view().unwrap().offer_token.clone();
     let project: Project =
         serde_json::from_slice(&serde_json::to_vec(h.session.project()).unwrap()).unwrap();
-    let program: Program =
-        serde_json::from_slice(&serde_json::to_vec(&*h.program).unwrap()).unwrap();
     let definition = GameDefinition::new(project).unwrap();
     let mut restored = Harness {
         session: Session::restore_with_definition(definition, world.clone()).unwrap(),
-        program: Arc::new(program),
-        clock: Clock::default(),
     };
     restored
         .restore(&h.snapshot(SAVE_VERSION), SAVE_VERSION)
         .unwrap();
     assert_eq!(restored.session.state(), &world);
-    assert_eq!(restored.clock, clock);
+    assert_eq!(restored.clock(), clock);
     assert!(restored.session.pending_clarification().is_none());
     assert_ne!(
         restored.session.conversation_view().unwrap().offer_token,
@@ -1152,23 +1226,25 @@ fn formats_one_through_five_retain_disabled_clock_and_authored_wait() {
         });
         let mut h = start(p, Program::default());
         h.command("wait");
-        assert_eq!((h.clock.turn, count(&h)), (0, 1));
+        assert_eq!((h.clock().turn, count(&h)), (0, 1));
     }
 }
 
 #[test]
 fn max_turn_free_inputs_remain_available_and_pending_keep_validates_delay() {
     let mut h = start(project(), program());
-    h.clock.turn = u32::MAX;
+    h.edit_clock(|clock| clock.turn = u32::MAX);
     h.command("help");
     h.command("look");
-    assert_eq!(h.clock.turn, u32::MAX);
+    assert_eq!(h.clock().turn, u32::MAX);
     let mut g = program();
     g.operations.insert(
         "keep-invalid".into(),
         Operation::Schedule {
             timer: "door-closes".into(),
-            after: literal(0),
+            after: NumericOperand::Variable {
+                name: "divisor".into(),
+            },
             pending: PendingPolicy::Keep,
         },
     );
@@ -1214,7 +1290,7 @@ fn quest_hook_schedule_uses_the_reply_boundary_and_does_not_add_a_turn() {
     let mut h = start(p, program());
     h.command("talk keeper");
     h.command("1");
-    assert_eq!((h.clock.turn, remaining(&h)), (2, 3));
+    assert_eq!((h.clock().turn, remaining(&h)), (2, 3));
 }
 
 #[test]
@@ -1227,7 +1303,7 @@ fn due_timer_can_start_native_dialogue_without_a_second_turn() {
     h.command("use open");
     due_next(&mut h);
     h.command("wait");
-    assert_eq!(h.clock.turn, 2);
+    assert_eq!(h.clock().turn, 2);
     assert!(h.session.conversation_view().is_some());
     assert_eq!(h.session.state().variables["entries"], Value::Integer(1));
 }
@@ -1235,7 +1311,7 @@ fn due_timer_can_start_native_dialogue_without_a_second_turn() {
 #[test]
 fn due_guard_reads_state_after_the_initiating_action_and_rejects_invalid_refs() {
     let mut g = program();
-    g.timers[0].guard = Condition::Variable {
+    g.timers[0].condition = Condition::Variable {
         name: "count".into(),
         op: Comparison::Eq,
         value: Value::Integer(1),
@@ -1248,7 +1324,7 @@ fn due_guard_reads_state_after_the_initiating_action_and_rejects_invalid_refs() 
     h.command("use increment");
     assert_eq!(count(&h), 2);
     let mut g = program();
-    g.timers[0].guard = Condition::Opened {
+    g.timers[0].condition = Condition::Opened {
         object: "missing".into(),
     };
     assert!(Harness::start(project(), g).is_err());
@@ -1280,5 +1356,64 @@ fn ending_hooks_observe_an_already_cleared_pending_queue() {
     let mut h = start(p, program());
     h.command("use open");
     assert!(output(&h.command("use end")).contains("No countdown remains."));
-    assert!(h.clock.pending.is_empty());
+    assert!(h.clock().pending.is_empty());
+}
+
+#[test]
+fn forged_root_and_procedure_source_addresses_cannot_restore_a_pending_timer() {
+    let p = compile_fixture(project(), program());
+    let (mut s, _) = Session::start(p, None).unwrap();
+    s.command("use open").unwrap();
+    let before = s.state().clone();
+    for change in [
+        |source: &mut TimerSource| source.root = "action-secure".into(),
+        |source: &mut TimerSource| source.subject = "missing".into(),
+        |source: &mut TimerSource| source.path = "effects.999".into(),
+        |source: &mut TimerSource| source.path = "x".repeat(TIMER_SOURCE_PATH_LIMIT + 1),
+    ] {
+        let mut edited = before.clone();
+        change(
+            &mut edited
+                .turns
+                .as_mut()
+                .unwrap()
+                .pending
+                .get_mut("door-closes")
+                .unwrap()
+                .source,
+        );
+        assert!(s.replace_state(edited).is_err());
+        assert_eq!(s.state(), &before);
+    }
+    let mut absent = before.clone();
+    absent.turns = None;
+    assert!(s.replace_state(absent).is_err());
+    assert_eq!(s.state(), &before);
+}
+
+#[test]
+fn native_timer_views_and_recording_off_addresses_are_read_only_and_immutable() {
+    let p = compile_fixture(project(), program());
+    let (mut s, _) = Session::start(p.clone(), None).unwrap();
+    let result = s.command("use open").unwrap();
+    let before = s.state().clone();
+    let view = s.turn_view().unwrap();
+    assert_eq!(view.turn, 1);
+    assert_eq!(view.pending[0].remaining, 3);
+    assert_eq!(
+        view.pending[0].source,
+        TimerSource {
+            root: "action-open".into(),
+            subject: "action-open".into(),
+            path: "effects.0".into()
+        }
+    );
+    assert_eq!(result.turns, Some(view.clone()));
+    assert_eq!(s.turn_view(), Some(view));
+    assert_eq!(s.state(), &before);
+    let mut changed = p;
+    changed.timers[0].name = "Changed definition".into();
+    let (fresh, _) = Session::start(changed, None).unwrap();
+    assert!(fresh.turn_view().unwrap().pending.is_empty());
+    assert_eq!(s.turn_view().unwrap().pending[0].name, "door-closes");
 }

@@ -5,6 +5,122 @@ export type JsonValue = number | string | boolean | Array<JsonValue> | { [key in
 
 export type Value = boolean | number | string;
 
+export type TurnPolicy = { actions: boolean, replies: boolean, failed_requirements: boolean, look: boolean, hints: boolean, };
+
+export type TurnCost = "default" | "free" | "spend";
+
+export type ActionTurnCost = { success: TurnCost, failed_requirements: TurnCost, };
+
+export type TimerPendingPolicy = "restart" | "keep";
+
+export type ScheduledTrigger = { id: string, name: string,
+/**
+ * Persisted author order, independent of filenames and UUIDs.
+ */
+order: number, priority: number, condition: Condition, effects: Array<Effect>, };
+
+export type TimerSource = { root: string, subject: string, path: string, };
+
+export type PendingTimer = { deadline: number, source: TimerSource, };
+
+export type TurnProgress = { turn: number, pending: { [key in string]?: PendingTimer }, };
+
+export type TurnInput = { "type": "free" } | { "type": "action",
+/**
+ * Stable action/exit identity.
+ */
+flow: string,
+/**
+ * Whether the selected requirements failed.
+ */
+failed: boolean, } | { "type": "reply",
+/**
+ * Stable response identity.
+ */
+reply: string, } | { "type": "look" } | { "type": "hint" } | { "type": "wait" };
+
+export type TurnView = {
+/**
+ * Number of charged player inputs.
+ */
+turn: number,
+/**
+ * Pending timers in execution order.
+ */
+pending: Array<PendingTimerView>, };
+
+export type PendingTimerView = {
+/**
+ * Named timer identity.
+ */
+timer: string,
+/**
+ * Captured authored name from this session's immutable definition.
+ */
+name: string,
+/**
+ * Absolute committed deadline.
+ */
+deadline: number,
+/**
+ * Subsequent charged turns remaining.
+ */
+remaining: number,
+/**
+ * Actual scheduling block address, available without debug recording.
+ */
+source: TimerSource, };
+
+export type TimerOperation = { "type": "schedule",
+/**
+ * Timer identity.
+ */
+timer: string,
+/**
+ * Evaluated positive delay requested by this instruction.
+ */
+after: number,
+/**
+ * Absolute deadline, absent until the initiating input's boundary is known.
+ */
+deadline: number | null,
+/**
+ * Requested duplicate policy.
+ */
+pending: TimerPendingPolicy,
+/**
+ * Whether an existing instance was retained.
+ */
+kept: boolean, } | { "type": "deadline",
+/**
+ * Timer identity.
+ */
+timer: string,
+/**
+ * Absolute deadline after resolving the initiating turn cost.
+ */
+deadline: number, } | { "type": "cancel",
+/**
+ * Timer identity.
+ */
+timer: string,
+/**
+ * Whether an instance existed.
+ */
+removed: boolean, } | { "type": "fire",
+/**
+ * Timer identity.
+ */
+timer: string,
+/**
+ * Whether effects ran.
+ */
+fired: boolean, } | { "type": "skip",
+/**
+ * Timer identity.
+ */
+timer: string, };
+
 export type InputKind = "object" | "character" | "location" | "boolean" | "integer" | "text";
 
 export type EntityRef = string | { procedure_input: string, };
@@ -21,7 +137,7 @@ export type ConversationEntry = { condition: Condition, node: string, };
 
 export type ConversationNode = { id: string, name: string, text: string, terminal: boolean, effects: Array<Effect>, replies: Array<ConversationReply>, };
 
-export type ConversationReply = { id: string, text: string, condition: Condition, once: boolean,
+export type ConversationReply = { turn_cost?: TurnCost, id: string, text: string, condition: Condition, once: boolean,
 /**
  * None ends the encounter; Some must belong to this conversation.
  */
@@ -141,7 +257,7 @@ export type InputTextReference = { "type": "item_name" } | { "type": "entity_nam
 
 export type Comparison = "eq" | "ne" | "gt" | "ge" | "lt" | "le";
 
-export type Condition = { "type": "true" } | { "type": "compare", left: Argument, op: Comparison, right: Argument, } | { "type": "false" } | { "type": "conversation_node_visited", conversation: string, node: string, } | { "type": "conversation_reply_chosen", conversation: string, reply: string, } | { "type": "quest_status", quest: string, status: QuestStatus, } | { "type": "quest_stage_completed", quest: string, stage: string, } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: EntityRef, name: string, op: Comparison, value: Value, } | { "type": "carrying",
+export type Condition = { "type": "timer_pending", timer: string, } | { "type": "true" } | { "type": "compare", left: Argument, op: Comparison, right: Argument, } | { "type": "false" } | { "type": "conversation_node_visited", conversation: string, node: string, } | { "type": "conversation_reply_chosen", conversation: string, reply: string, } | { "type": "quest_status", quest: string, status: QuestStatus, } | { "type": "quest_stage_completed", quest: string, stage: string, } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: EntityRef, name: string, op: Comparison, value: Value, } | { "type": "carrying",
 /**
  * Direct player inventory only. Use Possesses for nested ownership.
  */
@@ -183,11 +299,11 @@ export type ArithmeticOperation = "add" | "subtract" | "multiply" | "divide";
 
 export type NumericOperand = { "type": "input", input: string, } | { "type": "literal", value: number, } | { "type": "variable", name: string, } | { "type": "property", entity: EntityRef, name: string, };
 
-export type Effect = { "type": "start_conversation", conversation: string, } | { "type": "pause_conversation", conversation: string, } | { "type": "end_conversation", conversation: string, } | { "type": "start_quest", quest: string, } | { "type": "complete_quest_stage", quest: string, stage: string, } | { "type": "complete_quest", quest: string, } | { "type": "fail_quest", quest: string, } | { "type": "call", id: string, procedure: string, arguments: { [key in string]?: Argument }, } | { "type": "assign", target: ScopedValueTarget, value: Argument, } | { "type": "say", text: MessageText, } | { "type": "say_with_inputs", text: string, references: { [key in string]?: InputTextReference }, } | { "type": "transfer", object: ObjectTarget, placement: ScopedPlacement, } | { "type": "list_contents", object: EntityRef, relation: ContentRelation, } | { "type": "character_says", character: EntityRef, text: MessageText, } | { "type": "print_description", entity: EntityRef, } | { "type": "respond", id: string, responses: Array<MessageText>, mode: SequenceMode, fallback: MessageText, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: EntityRef, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: EntityRef, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: EntityRef, } | { "type": "give_character", object: EntityRef, character: EntityRef, } | { "type": "remove", object: EntityRef, } | { "type": "consume", object: EntityRef, } | { "type": "place", object: EntityRef, location: EntityRef, } | { "type": "reveal", entity: EntityRef, } | { "type": "hide", entity: EntityRef, } | { "type": "open", object: EntityRef, } | { "type": "close", object: EntityRef, } | { "type": "move", location: EntityRef, } | { "type": "move_character", character: EntityRef, location: EntityRef, } | { "type": "combine", first: EntityRef, second: EntityRef, consume_first: boolean, consume_second: boolean, result: EntityRef, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
+export type Effect = { "type": "schedule_timer", timer: string, after: NumericOperand, pending: TimerPendingPolicy, } | { "type": "cancel_timer", timer: string, } | { "type": "start_conversation", conversation: string, } | { "type": "pause_conversation", conversation: string, } | { "type": "end_conversation", conversation: string, } | { "type": "start_quest", quest: string, } | { "type": "complete_quest_stage", quest: string, stage: string, } | { "type": "complete_quest", quest: string, } | { "type": "fail_quest", quest: string, } | { "type": "call", id: string, procedure: string, arguments: { [key in string]?: Argument }, } | { "type": "assign", target: ScopedValueTarget, value: Argument, } | { "type": "say", text: MessageText, } | { "type": "say_with_inputs", text: string, references: { [key in string]?: InputTextReference }, } | { "type": "transfer", object: ObjectTarget, placement: ScopedPlacement, } | { "type": "list_contents", object: EntityRef, relation: ContentRelation, } | { "type": "character_says", character: EntityRef, text: MessageText, } | { "type": "print_description", entity: EntityRef, } | { "type": "respond", id: string, responses: Array<MessageText>, mode: SequenceMode, fallback: MessageText, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: EntityRef, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: EntityRef, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: EntityRef, } | { "type": "give_character", object: EntityRef, character: EntityRef, } | { "type": "remove", object: EntityRef, } | { "type": "consume", object: EntityRef, } | { "type": "place", object: EntityRef, location: EntityRef, } | { "type": "reveal", entity: EntityRef, } | { "type": "hide", entity: EntityRef, } | { "type": "open", object: EntityRef, } | { "type": "close", object: EntityRef, } | { "type": "move", location: EntityRef, } | { "type": "move_character", character: EntityRef, location: EntityRef, } | { "type": "combine", first: EntityRef, second: EntityRef, consume_first: boolean, consume_second: boolean, result: EntityRef, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
 
 export type PatternPart = { "type": "literal", text: string, } | { "type": "entity", entity: string, } | { "type": "object_input" };
 
-export type Action = { id: string, name: string, verb: string, pattern: Array<PatternPart>, priority: number, requirements: Condition, failure_text: string, effects: Array<Effect>, standard?: StandardAction, };
+export type Action = { turn_cost?: ActionTurnCost, id: string, name: string, verb: string, pattern: Array<PatternPart>, priority: number, requirements: Condition, failure_text: string, effects: Array<Effect>, standard?: StandardAction, };
 
 export type Event = "start" | "ending" | "enter" | "first_enter" | "leave" | "command" | "examine" | "take" | "drop" | "pull" | "push" | "turn" | "open" | "close" | "use" | "speak" | "interact";
 
@@ -201,7 +317,7 @@ export type Trigger = { id: string, name: string, event: Event, watch: TriggerWa
 
 export type Verb = { id: string, canonical: string, synonyms: Array<string>, event: Event | null, };
 
-export type Exit = { id: string, name: string, aliases: Array<string>, verb: string, priority: number, pattern: Array<PatternPart>, destination: string, visible: Condition, available: Condition, blocked_text: string, text: string, effects: Array<Effect>, };
+export type Exit = { turn_cost?: ActionTurnCost, id: string, name: string, aliases: Array<string>, verb: string, priority: number, pattern: Array<PatternPart>, destination: string, visible: Condition, available: Condition, blocked_text: string, text: string, effects: Array<Effect>, };
 
 export type Location = { id: string, name: string, aliases: Array<string>, description: string, actions: Array<Action>, triggers: Array<Trigger>, exits: Array<Exit>, state: { [key in string]?: Value }, hints: Array<HintSet>, };
 
@@ -215,7 +331,7 @@ export type Outcome = "victory" | "loss" | "neutral";
 
 export type Ending = { id: string, name: string, text: string, outcome: Outcome | null, };
 
-export type Game = { id: string, title: string, description: string, author: string, format_version: number, content_version: string, starting_location: string, opening_text: string, help_text: string, unknown_command_text: string, command_assistance?: CommandAssistance, help_mode: HelpMode, hints_enabled: boolean, ignored_words: Array<string>, require_ending: boolean, variables: { [key in string]?: Value }, endings: Array<Ending>, actions: Array<Action>, triggers: Array<Trigger>, assets: Array<string>, };
+export type Game = { turns?: TurnPolicy, id: string, title: string, description: string, author: string, format_version: number, content_version: string, starting_location: string, opening_text: string, help_text: string, unknown_command_text: string, command_assistance?: CommandAssistance, help_mode: HelpMode, hints_enabled: boolean, ignored_words: Array<string>, require_ending: boolean, variables: { [key in string]?: Value }, endings: Array<Ending>, actions: Array<Action>, triggers: Array<Trigger>, assets: Array<string>, };
 
 export type Point = { x: number, y: number, };
 
@@ -255,7 +371,7 @@ export type PlaytestCheck = { id: string, name: string, start: CheckStart, help_
 
 export type PlaytestLibrary = { setups: Array<PlaytestSetup>, checks: Array<PlaytestCheck>, };
 
-export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, procedures?: Array<Procedure>, conversations?: Array<Conversation>, quests?: Array<Quest>, editor: EditorLayout, };
+export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, procedures?: Array<Procedure>, conversations?: Array<Conversation>, quests?: Array<Quest>, timers?: Array<ScheduledTrigger>, editor: EditorLayout, };
 
 export type Severity = "error" | "warning";
 
@@ -269,7 +385,7 @@ export type CharacterState = { location: string, hidden: boolean, };
 
 export type HintProgress = { clues_seen: number, solution_seen: boolean, };
 
-export type GameState = { game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, procedure_sequences?: Array<ProcedureCursor>, narrative?: NarrativeProgress, hints: { [key in string]?: HintProgress }, };
+export type GameState = { turns?: TurnProgress, game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, procedure_sequences?: Array<ProcedureCursor>, narrative?: NarrativeProgress, hints: { [key in string]?: HintProgress }, };
 
 export type HostControl = { "type": "save",
 /**
@@ -305,7 +421,31 @@ before: JsonValue,
  */
 after: JsonValue, };
 
-export type TraceKind = { "type": "narrative",
+export type TraceKind = { "type": "turn",
+/**
+ * Clock before this input.
+ */
+before: number,
+/**
+ * Resulting boundary.
+ */
+after: number,
+/**
+ * Zero or one charged turn.
+ */
+cost: number,
+/**
+ * Core input classification.
+ */
+input: TurnInput,
+/**
+ * Authored override, or inheritance from game policy.
+ */
+override_cost: TurnCost, } | { "type": "timer",
+/**
+ * Typed operation and resulting timer state.
+ */
+operation: TimerOperation, } | { "type": "narrative",
 /**
  * Stable definition/node/reply/stage references.
  */
@@ -702,6 +842,10 @@ original_command: string,
 limit: string, };
 
 export type CommandResult = {
+/**
+ * Committed turn/queue view, present only for games using turns.
+ */
+turns?: TurnView,
 /**
  * Transcript lines, each represented as literal text with semantic colours.
  */

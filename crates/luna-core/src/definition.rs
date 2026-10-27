@@ -28,6 +28,7 @@ struct Definition {
     runtime: RuntimeIndex,
     procedures: crate::procedures::ProcedureIndex,
     narrative: crate::narrative::NarrativeIndex,
+    turns: crate::turns::TurnIndex,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -73,6 +74,9 @@ fn value_types(values: &BTreeMap<String, Value>) -> Values {
 }
 
 impl GameDefinition {
+    pub(crate) fn turns(&self) -> &crate::turns::TurnIndex {
+        &self.0.turns
+    }
     pub(crate) fn narrative(&self) -> &crate::narrative::NarrativeIndex {
         &self.0.narrative
     }
@@ -87,6 +91,7 @@ impl GameDefinition {
             "Unknown starting location"
         );
         Ok(GameState {
+            turns: project.game.turns.as_ref().map(|_| TurnProgress::default()),
             game_id: project.game.id.clone(),
             content_version: project.game.content_version.clone(),
             location: starting.clone(),
@@ -263,12 +268,14 @@ impl GameDefinition {
         let runtime = RuntimeIndex::new(&project);
         let procedures = crate::procedures::ProcedureIndex::new(&project);
         let narrative = crate::narrative::NarrativeIndex::new(&project);
+        let turns = crate::turns::TurnIndex::new(&project);
         Ok(Self(Arc::new(Definition {
             project,
             schema,
             runtime,
             procedures,
             narrative,
+            turns,
         })))
     }
 
@@ -319,6 +326,7 @@ impl GameDefinition {
     pub fn validate_state(&self, state: &GameState) -> Result<()> {
         let project = self.project();
         let schema = &self.0.schema;
+        self.0.turns.validate_state(project, state)?;
         ensure!(
             state.game_id == project.game.id
                 && state.content_version == project.game.content_version,

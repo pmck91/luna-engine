@@ -34,6 +34,7 @@ export type ReferenceTarget =
         | 'template'
         | 'flow'
         | 'procedure'
+        | 'timer'
         | NarrativeKind;
       id: string;
     };
@@ -78,6 +79,7 @@ const child = (site: ReferenceSite, path: string): ReferenceSite => ({
   path: site.path ? `${site.path}.${path}` : path,
 });
 export function referenceName(p: Project, target: ReferenceTarget): string {
+  if (target.kind === 'timer') return p.timers?.find((t) => t.id === target.id)?.name ?? target.id;
   if (target.kind === 'variable') return `Variable · ${target.name}`;
   if (target.kind === 'property')
     return `${entity(p, target.entity)?.name ?? target.entity} · ${target.name}`;
@@ -311,6 +313,9 @@ function scan(
   ) => {
     if (!v || typeof v !== 'object') return;
     const type = v.type as string;
+    if (['schedule_timer', 'cancel_timer', 'timer_pending'].includes(type))
+      reference(v, 'timer', { kind: 'timer', id: v.timer }, site);
+    if (type === 'schedule_timer') node(v.after, 'operand', child(site, 'after'), template);
     if (
       [
         'start_conversation',
@@ -519,6 +524,8 @@ function scan(
         }
       }
   }
+  for (const timer of p.timers ?? [])
+    flowNode(timer, { subject: timer.id, flowId: timer.id, path: '', scope: 'content' });
   for (const procedure of p.procedures ?? [])
     flowNode(procedure, {
       subject: procedure.id,

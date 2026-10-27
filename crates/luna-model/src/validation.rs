@@ -2,6 +2,8 @@
 mod narrative_validation;
 #[path = "procedure_validation.rs"]
 mod procedure_validation;
+#[path = "turn_validation.rs"]
+mod turn_validation;
 use crate::*;
 pub use narrative_validation::{narrative_command_conflicts, narrative_reserved};
 use serde_json::json;
@@ -283,30 +285,32 @@ impl Check<'_> {
         }
     }
     fn operand(&mut self, s: &str, f: &str, op: ArithmeticOperation, operand: &NumericOperand) {
-        let f = format!("{f}.operand");
+        self.operand_at(s, &format!("{f}.operand"), op, operand);
+    }
+    fn operand_at(&mut self, s: &str, f: &str, op: ArithmeticOperation, operand: &NumericOperand) {
         match operand {
             NumericOperand::Input { input } => {
-                self.v4(s, &f);
+                self.v4(s, f);
                 let kind = self.argument_kind(
                     s,
-                    &f,
+                    f,
                     &Argument::Input {
                         input: input.clone(),
                     },
                 );
                 if kind != Some(InputKind::Integer) {
-                    self.error(s, &f, "Arithmetic requires an Integer input");
+                    self.error(s, f, "Arithmetic requires an Integer input");
                 }
             }
             NumericOperand::Literal { value: 0 } if op == ArithmeticOperation::Divide => {
-                self.error(s, &f, "Cannot divide by zero")
+                self.error(s, f, "Cannot divide by zero")
             }
             NumericOperand::Literal { .. } => {}
             NumericOperand::Variable { name } => {
-                self.integer(s, &f, self.p.game.variables.get(name).map(InputKind::of))
+                self.integer(s, f, self.p.game.variables.get(name).map(InputKind::of))
             }
             NumericOperand::Property { entity, name } => {
-                self.integer(s, &f, self.property_kind(entity, name))
+                self.integer(s, f, self.property_kind(entity, name))
             }
         }
     }
@@ -319,6 +323,7 @@ impl Check<'_> {
             return;
         }
         match c {
+            Condition::TimerPending { timer } => self.timer_ref(s, f, timer),
             Condition::ConversationNodeVisited { conversation, node } => {
                 self.node_ref(s, f, conversation, node)
             }
@@ -409,6 +414,14 @@ impl Check<'_> {
         for (i, e) in effects.iter().enumerate() {
             let f = format!("{f}.{i}");
             match e {
+                Effect::ScheduleTimer { timer, after, .. } => {
+                    self.timer_ref(s, &f, timer);
+                    self.operand_at(s, &format!("{f}.after"), ArithmeticOperation::Add, after);
+                    if matches!(after, NumericOperand::Literal { value } if *value <= 0) {
+                        self.error(s, &format!("{f}.after"), "Timer delay must be positive");
+                    }
+                }
+                Effect::CancelTimer { timer } => self.timer_ref(s, &f, timer),
                 Effect::StartConversation { conversation }
                 | Effect::PauseConversation { conversation }
                 | Effect::EndConversation { conversation } => {
@@ -670,6 +683,9 @@ fn possible_effects<'a>(effects: &'a [Effect], out: &mut Vec<&'a Effect>) {
 }
 pub fn ordinary_effects(p: &Project) -> Vec<&Effect> {
     let mut out = vec![];
+    for timer in &p.timers {
+        walk_effects(&timer.effects, &mut out);
+    }
     for (_, actions, triggers) in p.owners() {
         for a in actions {
             walk_effects(&a.effects, &mut out)
@@ -999,6 +1015,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     }
     c.procedures();
     c.narratives();
+    c.turns();
     if p.game.format_version >= 5 {
         for id in narrative_command_conflicts(p) {
             c.error(&id, "command", "This command conflicts with conversation/quest controls in content format 5. Repair the command before upgrading.");

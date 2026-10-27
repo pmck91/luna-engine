@@ -1,6 +1,6 @@
 # Turns and timers — T0 design review
 
-Status: **T0 interaction accepted; T1 proof complete and contract frozen**, 27 October 2026. Branch `feature/turn-events` starts from merged `main bfe2c42` (conversations/quests, PR #5). The [T0–T4 plan](../../plans/turn-events.md) describes the proposed contract and implementation gates. The owner accepted the preview on 27 October 2026 with “that works as expected.” The [T1 contract](shared-contract.md) and [native/Blockly evidence](runtime-proof-review.md) specify the next implementation target; no production timer/clock or format change is implemented.
+Status: **T0 interaction accepted; T0/T1 committed as `b80861a`; T2 foundation implemented**, 27 October 2026. Branch `feature/turn-events` starts from merged `main bfe2c42` (conversations/quests, PR #5). The [T0–T4 plan](../../plans/turn-events.md) describes the contract and implementation gates. The owner accepted this preview with “that works as expected.” The [T1 contract](shared-contract.md) and [historical native/Blockly evidence](runtime-proof-review.md) remain the design basis; the [T2 foundation review](foundation-review.md) records the shipping native models/runtime/storage. This page documents the isolated preview; production authoring and another owner review remain T3.
 
 ## Open the preview
 
@@ -87,4 +87,4 @@ node design/turns/verify.mjs
 
 Use `LUNA_FIREFOX_EXECUTABLE` when selecting an already installed compatible Firefox. Locally, verification uses the installed `firefox-1532` executable. `LUNA_DESIGN_URL` and `LUNA_DESIGN_CAPTURES` can override the URL and capture directory.
 
-The owner accepted timer discoverability, creation/return, countdown explanation and visible cost defaults with “that works as expected.” T1 has proved candidate shared Rust execution/restore boundaries and frozen the contract. T2 now owns canonical state/format implementation, then production authoring and another owner review. Keep the complete feature on its branch through final parity and acceptance.
+The owner accepted timer discoverability, creation/return, countdown explanation and visible cost defaults with “that works as expected.” T1 proved candidate shared Rust execution/restore boundaries and froze the contract; T2 implements canonical state, runtime and storage. T3 now owns production authoring and another owner review. Keep the complete feature on its branch through final parity and acceptance.

@@ -75,6 +75,7 @@ pub fn project() -> Project {
                     ],
                     replies: vec![
                         ConversationReply {
+                            turn_cost: TurnCost::Default,
                             id: "accept".into(),
                             text: "Yes, I'll find it.".into(),
                             condition: status(QuestStatus::Undiscovered),
@@ -85,6 +86,7 @@ pub fn project() -> Project {
                             }],
                         },
                         ConversationReply {
+                            turn_cost: TurnCost::Default,
                             id: "decline".into(),
                             text: "Not now.".into(),
                             ..Default::default()
@@ -98,11 +100,13 @@ pub fn project() -> Project {
                     text: "Any news?".into(),
                     replies: vec![
                         ConversationReply {
+                            turn_cost: TurnCost::Default,
                             id: "later".into(),
                             text: "I'll keep looking.".into(),
                             ..Default::default()
                         },
                         ConversationReply {
+                            turn_cost: TurnCost::Default,
                             id: "handover".into(),
                             text: "Here is your key.".into(),
                             once: true,
@@ -126,6 +130,7 @@ pub fn project() -> Project {
                     text: "My key! Thank you. Here are ten coins for your trouble.".into(),
                     effects: vec![increment("thanks")],
                     replies: vec![ConversationReply {
+                        turn_cost: TurnCost::Default,
                         id: "farewell".into(),
                         text: "You're welcome.".into(),
                         ..Default::default()

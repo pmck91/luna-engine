@@ -4,7 +4,9 @@ Status: **T1 native/Blockly proof complete; contract frozen**, 27 October 2026, 
 
 ## What executes
 
-The [test-only coordinator](../../../crates/luna-core/src/runtime/turn_proof/mod.rs), [validation](../../../crates/luna-core/src/runtime/turn_proof/validation.rs) and [native cases](../../../crates/luna-core/src/runtime/turn_proof/tests.rs) run only in luna-core unit-test builds. Candidate operations are marker SAY leaves; pending queries are marker variable conditions. Every ordinary matcher, condition, IF/ELSE, effect, integer evaluator, CALL, response cursor, event/watch, quest/conversation hook and ending uses the real native runtime.
+This is the historical T1 record at commit `b80861a`. T2 removed the proof coordinator and promoted its cases to canonical public execution; see the [foundation review](foundation-review.md) for the current implementation and checks. The descriptions and reproduction commands below refer to the T1 snapshot.
+
+The [test-only coordinator](https://github.com/pmck91/luna-engine/blob/b80861a/crates/luna-core/src/runtime/turn_proof/mod.rs), [validation](https://github.com/pmck91/luna-engine/blob/b80861a/crates/luna-core/src/runtime/turn_proof/validation.rs) and [native cases](https://github.com/pmck91/luna-engine/blob/b80861a/crates/luna-core/src/runtime/turn_proof/tests.rs) run only in luna-core unit-test builds. Candidate operations are marker SAY leaves; pending queries are marker variable conditions. Every ordinary matcher, condition, IF/ELSE, effect, integer evaluator, CALL, response cursor, event/watch, quest/conversation hook and ending uses the real native runtime.
 
 A thin test-only Session entry delegates to the actual `execute_with` commit/rollback boundary. The candidate installs its clock before dispatch and processes the boundary inside that attempt before normal final conversation reconciliation. The sidecar clock commits only if that full attempt succeeds; native world, output and ephemeral context use Session's own commit decision. Normal shipping builds have no clock/adapter.
 

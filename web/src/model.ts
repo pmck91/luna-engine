@@ -170,7 +170,7 @@ export function flows(p: Project): Array<Action | Trigger | Exit> {
   ]);
 }
 export function scripts(p: Project) {
-  return [...flows(p), ...(p.procedures ?? []), ...narrativeScripts(p)];
+  return [...flows(p), ...(p.procedures ?? []), ...(p.timers ?? []), ...narrativeScripts(p)];
 }
 export function script(p: Project, key: string) {
   return scripts(p).find((item) => item.id === key);

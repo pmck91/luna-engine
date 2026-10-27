@@ -69,10 +69,13 @@ impl Session {
             let id = run.state.location.clone();
             run.enter(&id)?;
         }
+        run.finish_turn()?;
         run.finish_conversation()?;
         run.check_story_bounds()?;
         run.result.conversation = run.offer.clone();
         run.result.state_changed = true;
+        run.result.turns =
+            crate::runtime::turns::view(session.project(), &run.state, session.definition.turns());
         let Run {
             state,
             result,
@@ -140,6 +143,10 @@ impl Session {
     /// ```
     pub fn state(&self) -> &GameState {
         &self.state
+    }
+    /// Inspect the committed clock and ordered pending timers without executing effects.
+    pub fn turn_view(&self) -> Option<crate::TurnView> {
+        crate::runtime::turns::view(self.project(), &self.state, self.definition.turns())
     }
 
     /// Return the current player-safe question without changing story or context.
@@ -309,18 +316,6 @@ impl Session {
         self.execute_with(input, explain, |run| run.command(input))
     }
 
-    // T1 uses the real commit/rollback boundary; candidate state stays test-only
-    // until canonical model, storage and host promotion in T2.
-    #[cfg(test)]
-    pub(crate) fn turn_candidate_attempt(
-        &mut self,
-        input: &str,
-        explain: bool,
-        command: impl FnOnce(&mut Run<'_>) -> Result<()>,
-    ) -> (CommandResult, Option<anyhow::Error>) {
-        self.execute_with(input, explain, command)
-    }
-
     // Resolution, selected-handler execution, and explanations share this
     // commit boundary. Story and ephemeral input context commit together.
     fn execute_with(
@@ -336,6 +331,7 @@ impl Session {
             run.recording = Some(explanation::Recorder::default());
         }
         let error = command(&mut run)
+            .and_then(|()| run.finish_turn())
             .and_then(|()| run.finish_conversation())
             .and_then(|()| run.check_story_bounds())
             .err();
@@ -365,6 +361,7 @@ impl Session {
         }
         run.result.pending_clarification = self.context.question();
         run.result.conversation = self.offer.clone();
+        run.result.turns = self.turn_view();
         (run.result, error)
     }
 

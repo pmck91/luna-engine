@@ -1,6 +1,6 @@
 # Turns and scheduled events
 
-Status: **T0 accepted; T1 proof complete and shared contract frozen**, 27 October 2026. Branch `feature/turn-events` starts from merged `main` at `bfe2c42` (conversations/quests, PR #5). The owner authorized creating the branch and beginning this work. The owner accepted the T0 preview on 27 October 2026 with “that works as expected.” This accepts the interaction; native/storage acceptance remains separate. The [T1 contract](../design/turn-events/shared-contract.md) now specifies the production target and takes precedence over earlier proposals below.
+Status: **T0 accepted; T1 committed; T2 canonical implementation complete**, 27 October 2026. Branch `feature/turn-events` starts from merged `main` at `bfe2c42` (conversations/quests, PR #5). The owner accepted the T0 preview with “that works as expected,” then authorized committing and progressing. T0/T1 is committed as `b80861a`. The [T1 contract](../design/turn-events/shared-contract.md) takes precedence over earlier proposals below; the [T2 foundation review](../design/turn-events/foundation-review.md) records implementation and verification. T3 authoring and working-slice feedback are next.
 
 The [interactive preview and review guide](../design/turn-events/README.md) records the accepted interaction; the [T1 evidence](../design/turn-events/runtime-proof-review.md) distinguishes feasibility checks from production gates. Preserve the accepted block appearance and editor UX. This is F4 in the [gameplay roadmap](gameplay-feature-roadmap.md), ahead of character routines. Public guides remain in the later documentation milestone.
 
@@ -122,7 +122,7 @@ Each timer definition is a stable progress root for ordinary response sequences 
 
 Persist the clock, timer IDs, deadlines and any necessary deterministic instance/order metadata. A restored committed running state contains only valid pending references and future deadlines. Reject incompatible/malformed state, overflow, duplicate identities and impossible ended queues; preserve incompatible save bytes. Restore does not spend a turn, run hooks, fire overdue callbacks or replay messages. Captured playtest setups must restore the same complete state and immutable content snapshot.
 
-The baseline is content/save **5** and captured setup **3**. T1 reserves content/save **6** and setup **4** under the frozen shared contract. Production constants and writes remain unchanged until T2. Legacy games/saves keep explicit compatible paths; absent timer fields must not activate new WAIT dispatch. Editor-only layouts, drafts and warning acknowledgements stay outside exported runtime content and player saves. Update canonical file management, recovery, contract generation and strict validation together.
+The original baseline was content/save **5** and captured setup **3**. T1 reserved content/save **6** and setup **4** under the frozen shared contract; T2 implements them. Legacy games/saves keep explicit compatible paths; absent timer fields do not activate new WAIT dispatch. Editor-only layouts, drafts and warning acknowledgements stay outside exported runtime content and player saves. Canonical file management, recovery, contract generation and strict validation are updated together.
 
 ## Production playtest and explanations
 
@@ -151,9 +151,9 @@ Named setups and replay checks should support a pending countdown, dialogue inte
 
 ### T2 — Canonical model, storage and shared execution
 
-- [ ] Promote T1 cases to production public APIs; implement typed definitions/effects/conditions/cost policy, canonical files/contracts/validation, compiled lookup, atomic queue execution and core-produced views/traces.
-- [ ] Implement versioned state persistence, actual autosave/named-save/process restart and captured setup restore. Preserve legacy fixtures and explicit upgrade errors.
-- [ ] Connect editor/runner controls and shared reply dispatch, WAIT, explanations and help without a host-specific clock. Cover export and both hosts before claiming runnable new-format games.
+- [x] Promote T1 cases to production public APIs; implement typed definitions/effects/conditions/cost policy, canonical files/contracts/validation, compiled lookup, atomic queue execution and core-produced views/traces. Retire the proof coordinator; 54 public timer scenarios pass.
+- [x] Implement versioned state persistence, actual autosave/named-save/process restart and captured setup restore. Preserve legacy fixtures and explicit upgrade errors.
+- [x] Connect editor/runner controls and shared reply dispatch, WAIT, explanations and help without a host-specific clock. Cover export and both hosts before claiming runnable new-format games. See the [foundation review](../design/turn-events/foundation-review.md) for host/storage tests and regression results; authoring remains T3.
 
 ### T3 — Production authoring and owner review
 
@@ -183,4 +183,4 @@ Named setups and replay checks should support a pending countdown, dialogue inte
 | Authoring | Real block fields/inspector, independent caller bindings, draft create/bind Undo, exact return, safe refs/copy/templates/findings, reopen/export |
 | Parity and scale | Same committed turn/queue/output in both hosts, immutable-session source safety, measured large catalogue and final package acceptance |
 
-Design references and preview limitations are recorded with the [review guide](../design/turn-events/README.md). T0 screenshots and scripted counters are interaction evidence only; native proof and complete parity remain unchecked milestones above.
+Design references and preview limitations are recorded with the [review guide](../design/turn-events/README.md). T0 screenshots and scripted counters are interaction evidence only. The T2 foundation proves native/storage/host boundaries; production authoring and final complete acceptance remain T3/T4.

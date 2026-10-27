@@ -10,6 +10,8 @@ mod procedures;
 pub use procedures::*;
 mod state;
 pub use state::*;
+mod turns;
+pub use turns::*;
 pub mod text;
 mod validation;
 pub use command_words::EntityWords;
@@ -19,7 +21,7 @@ use ts_rs::TS;
 pub use validation::*;
 
 /// Latest writable content format; format 1 retains its legacy flat semantics.
-pub const FORMAT_VERSION: u32 = 5;
+pub const FORMAT_VERSION: u32 = 6;
 /// Whether a content header is understood, before parsing versioned variants.
 pub fn supported_format(version: u32) -> bool {
     (1..=FORMAT_VERSION).contains(&version)
@@ -108,6 +110,9 @@ pub fn compare(a: &Value, op: Comparison, b: &Value) -> bool {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Condition {
+    TimerPending {
+        timer: String,
+    },
     #[default]
     True,
     Compare {
@@ -237,6 +242,15 @@ pub enum NumericOperand {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Effect {
+    ScheduleTimer {
+        timer: String,
+        after: NumericOperand,
+        #[serde(default)]
+        pending: TimerPendingPolicy,
+    },
+    CancelTimer {
+        timer: String,
+    },
     StartConversation {
         conversation: String,
     },
@@ -391,6 +405,9 @@ pub enum PatternPart {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct Action {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub turn_cost: Option<ActionTurnCost>,
     pub id: String,
     pub name: String,
     pub verb: String,
@@ -514,6 +531,9 @@ impl Default for HintSet {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct Exit {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub turn_cost: Option<ActionTurnCost>,
     pub id: String,
     pub name: String,
     pub aliases: Vec<String>,
@@ -613,6 +633,9 @@ pub struct Ending {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Game {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub turns: Option<TurnPolicy>,
     pub id: String,
     pub title: String,
     pub description: String,
@@ -789,6 +812,9 @@ pub struct Project {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<_>", optional)]
     pub quests: Vec<Quest>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub timers: Vec<ScheduledTrigger>,
     #[serde(default)]
     pub editor: EditorLayout,
 }
@@ -827,6 +853,8 @@ impl<'de> Deserialize<'de> for Project {
             #[serde(default)]
             quests: Vec<Quest>,
             #[serde(default)]
+            timers: Vec<ScheduledTrigger>,
+            #[serde(default)]
             editor: EditorLayout,
         }
         let wire: Wire = serde_json::from_str(raw.get()).map_err(serde::de::Error::custom)?;
@@ -839,6 +867,7 @@ impl<'de> Deserialize<'de> for Project {
             procedures: wire.procedures,
             conversations: wire.conversations,
             quests: wire.quests,
+            timers: wire.timers,
             editor: wire.editor,
         })
     }
@@ -857,6 +886,7 @@ impl Project {
         location.actions.push(description_action(&location.id));
         Self {
             game: Game {
+                turns: None,
                 id: new_id(),
                 title: title.into(),
                 description: String::new(),
@@ -885,6 +915,7 @@ impl Project {
             procedures: vec![],
             conversations: vec![],
             quests: vec![],
+            timers: vec![],
             editor: EditorLayout::default(),
         }
     }

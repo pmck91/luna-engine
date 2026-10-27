@@ -626,6 +626,8 @@ export function defaultCondition(type: Condition['type'], p: Project): Condition
   const entity = object || location;
   const name = Object.keys(p.game.variables)[0] ?? '';
   switch (type) {
+    case 'timer_pending':
+      return { type, timer: p.timers?.[0]?.id ?? '' };
     case 'conversation_node_visited':
       return {
         type,

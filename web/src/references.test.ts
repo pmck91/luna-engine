@@ -57,6 +57,112 @@ function fixture(): Project {
   };
 }
 
+it('tracks timer references and refactors numeric delays and messages in timer bodies', () => {
+  const p = fixture();
+  p.game.format_version = 6;
+  p.game.turns = {
+    actions: true,
+    replies: true,
+    failed_requirements: false,
+    look: false,
+    hints: false,
+  };
+  p.timers = [
+    {
+      id: 'door-closes',
+      name: 'Door closes',
+      order: 0,
+      priority: 0,
+      condition: { type: 'timer_pending', timer: 'door-closes' },
+      effects: [
+        {
+          type: 'schedule_timer',
+          timer: 'door-closes',
+          after: { type: 'variable', name: 'chances' },
+          pending: 'restart',
+        },
+        {
+          type: 'schedule_timer',
+          timer: 'door-closes',
+          after: { type: 'property', entity: 'keeper.old', name: 'health' },
+          pending: 'keep',
+        },
+        { type: 'say', text: 'You have %chances% tries and %keeper.old.health% health.' },
+      ],
+    },
+  ];
+  expect(usedBy(p, { kind: 'timer', id: 'door-closes' }).map((use) => use.path)).toEqual([
+    'condition.timer',
+    'effects.0.timer',
+    'effects.1.timer',
+  ]);
+  const rename = referencePlan(
+    p,
+    { kind: 'variable', name: 'chances' },
+    { kind: 'variable', name: 'attempts' },
+    true,
+  );
+  expect(rename.errors).toEqual([]);
+  expect(rename.project.timers?.[0].effects[0]).toMatchObject({ after: { name: 'attempts' } });
+  const property = referencePlan(
+    rename.project,
+    { kind: 'property', entity: 'keeper.old', name: 'health' },
+    { kind: 'property', entity: 'keeper.old', name: 'stamina' },
+    true,
+  );
+  expect(property.errors).toEqual([]);
+  expect(property.project.timers?.[0].effects[1]).toMatchObject({ after: { name: 'stamina' } });
+  expect(property.project.timers?.[0].effects[2]).toMatchObject({
+    text: 'You have %attempts% tries and %keeper.old.stamina% health.',
+  });
+});
+
+it('explains the scheduling request separately from its confirmed input-boundary deadline', () => {
+  const p = fixture();
+  p.timers = [
+    {
+      id: 'door-closes',
+      name: 'Door closes',
+      order: 0,
+      priority: 0,
+      condition: { type: 'true' },
+      effects: [],
+    },
+  ];
+  expect(
+    traceTitle(p, {
+      type: 'timer',
+      operation: {
+        type: 'schedule',
+        timer: 'door-closes',
+        after: 3,
+        deadline: null,
+        pending: 'restart',
+        kept: false,
+      },
+    }),
+  ).toContain('After 3 subsequent turns');
+  expect(
+    traceTitle(p, {
+      type: 'timer',
+      operation: { type: 'deadline', timer: 'door-closes', deadline: 4 },
+    }),
+  ).toContain('Due at turn 4');
+  expect(
+    traceTitle(p, {
+      type: 'timer',
+      operation: {
+        type: 'schedule',
+        timer: 'door-closes',
+        after: 10,
+        deadline: 4,
+        pending: 'keep',
+        kept: true,
+      },
+    }),
+  ).toContain('Keep existing countdown');
+});
+
 it('tracks nested parents and typed action references without treating command inputs as IDs', () => {
   const p = fixture();
   p.game.format_version = 2;

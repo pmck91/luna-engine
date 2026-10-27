@@ -89,6 +89,8 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
     v.type === 'property' ? { ...v, entity: entity(v.entity) } : v;
   const condition = (v: Condition): Condition => {
     switch (v.type) {
+      case 'timer_pending':
+        return v;
       case 'compare':
         return { ...v, left: argument(v.left), right: argument(v.right) };
       case 'all':
@@ -153,6 +155,10 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
   };
   const effect = (v: Effect): Effect => {
     switch (v.type) {
+      case 'schedule_timer':
+        return { ...v, after: operand(v.after) };
+      case 'cancel_timer':
+        return v;
       case 'call':
         return {
           ...v,

@@ -4,7 +4,7 @@ Status: **T1 proof complete; implementation contract frozen**, 27 October 2026, 
 
 ## Canonical content target
 
-Reserve content/save **6** and captured setup **4**. T1 leaves the production constants at content/save 5/setup 3. T2 must update models, validation, strict versioned decoders, canonical storage, bundle manifests, recovery and generated TypeScript together.
+Reserve content/save **6** and captured setup **4**. T1 left the production constants at content/save 5/setup 3. The [T2 foundation](foundation-review.md) implements these versions across models, validation, strict versioned decoders, canonical storage, bundle manifests, recovery and generated TypeScript together. Production authoring and final feature acceptance remain T3/T4.
 
 | Model | Target |
 | --- | --- |

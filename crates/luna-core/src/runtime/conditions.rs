@@ -7,11 +7,17 @@ impl Run<'_> {
         self.evaluate_condition(condition).unwrap_or(false)
     }
     pub(super) fn evaluate_condition(&self, condition: &Condition) -> Result<bool> {
-        #[cfg(test)]
-        if let Some(pending) = self.turn_candidate_condition(condition)? {
-            return Ok(pending);
-        }
         Ok(match condition {
+            Condition::TimerPending { timer } => {
+                ensure!(
+                    self.turn_index.definitions.contains_key(timer),
+                    "Unknown timer"
+                );
+                self.state
+                    .turns
+                    .as_ref()
+                    .is_some_and(|clock| clock.pending.contains_key(timer))
+            }
             Condition::True => true,
             Condition::False => false,
             Condition::ConversationNodeVisited { conversation, node } => {
