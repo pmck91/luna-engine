@@ -172,6 +172,7 @@ impl<'a> Run<'a> {
         );
         if self.p.game.format_version >= 5 {
             self.literal("Quest log: quests, quest <title or alias>.");
+            self.literal("Conversations: choose a listed number or reply <number>; bye pauses the encounter.");
         }
         Ok(())
     }

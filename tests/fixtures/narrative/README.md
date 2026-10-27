@@ -1,6 +1,6 @@
 # Narrative foundation fixtures
 
-These are developer compatibility fixtures for N2 and a native quest specimen for N3, separate from the later playable Keeper example and the unchanged historical projects/saves.
+These are developer compatibility fixtures for N2 and native quest/conversation specimens for N3/N4, separate from the later playable Keeper example and the unchanged historical projects/saves.
 
 - [content5.json](content5.json) is the canonical content-5 Project shape. The shared [fixture builder](../../support/narrative.rs) must reproduce it exactly. It includes unused definitions, a conditional return entry, terminal dialogue, quest stages/status hooks, native CALLs and separate narrative response roots.
 - [state5.json](state5.json) is a structurally valid GameState with explicit synthetic progress: an active Entered checkpoint, visited/chosen history, an earned journal, lazy narrative cursors and structured procedure cursors. It is not a runner save envelope or evidence that the quest has been played through the production runtime.
@@ -10,4 +10,6 @@ Rust validates these shapes and rejects incompatible references/progress. TypeSc
 
 [quests5.json](quests5.json) is the separate **playable N3 quest specimen**, reproduced by [its shared Rust builder](../../support/quests.rs). `use accept`, `use find`, `use return`, and explicit `use complete` earn the journal and one ten-coin reward. `use fail` fails an active quest; `quests`/`quest key` show only earned history. Finding the key before acceptance is supported explicitly in the start hook. Rust/API/process, Chromium/Firefox and package checks use this specimen, keeping N2's synthetic state and historical fixtures unchanged.
 
-Production quest execution/logs are implemented in N3; conversation execution and the production authoring/player workspaces remain N4/N5. These developer fixtures do not replace N6's complete editor-authored Keeper acceptance example or the later public guides. Do not publish them as feature-release examples.
+[conversations5.json](conversations5.json) is the separate **playable N4 conversation specimen**, reproduced by [its Rust builder](../../support/conversations.rs). `talk keeper`, `1`, `take brass key`, `talk keeper`, `reply 2`, `1`, then `talk keeper` exercise entry, prewritten offers, world interruption, one reward, direct ending and a separate terminal acknowledgement. It uses the N3 quest/reward procedure; native/HTTP/UI/export/process/package checks share it. Entered checkpoint restoration re-presents stored speech without its entry response sequence or reward hooks. Tokens are ephemeral, not fixture/save content.
+
+Quest and conversation execution are implemented through N4; production authoring/player workspaces remain N5. These developer fixtures do not replace N6's complete editor-authored Keeper acceptance example or the later public guides. Do not publish them as feature-release examples.

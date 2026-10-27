@@ -1,6 +1,6 @@
 # Conversations and quests — N3 quest runtime and log
 
-Status: **N3 implemented and technically verified; N4 next**, 27 October 2026, on `feature/conversations-and-quests`. N2 is owner accepted and committed as `3ad459e`. This milestone implements the quest portion of the [frozen contract](interaction-contract.md); the accepted [N0 design](README.md) remains the production authoring target. Conversation execution and production authoring/player controls remain N4/N5 under the [plan](../../plans/conversations-and-quests.md).
+Status: **N3 owner accepted and committed as `35a01a4`**, 27 October 2026, on `feature/conversations-and-quests`. N2 is owner accepted and committed as `3ad459e`. This milestone implements the quest portion of the [frozen contract](interaction-contract.md); the accepted [N0 design](README.md) remains the production authoring target. The [N4 record](conversation-runtime-review.md) now covers native conversation execution; production authoring/player controls remain N5 under the [plan](../../plans/conversations-and-quests.md).
 
 ## Delivered behaviour
 
@@ -16,7 +16,7 @@ Ordinary responses inside narrative roots use lazy, root-checked `narrative.sequ
 
 `Session::quest_log()` returns generated `QuestLogEntry` views containing only discovered quest IDs/titles/statuses and earned journal. `quests` and bare `quest` list active quests first, then completed and failed, retaining author order within each group. `quest <title or alias>` uses normalized exact known-name matching; ambiguous queries list known titles without a numbered question. Unknown/undiscovered names produce the same neutral Unmatched result; `quests` with extra text produces a usage notice.
 
-These controls run before noun clarification dispatch, preserve pending/recent context, work after a game ending, and execute no authored command/verb events, hint use or hooks. Read-only queries cause no runner autosave; separate-process tests compare exact envelope bytes, including timestamps. General help lists the new controls for content 5. Content 1–4 retains authored quest/quests commands. Reply/bye controls remain N4 work. Content/save 5 and setup 3 are unchanged from N2; no further format allocation is needed.
+These controls run before noun clarification dispatch, preserve pending/recent context, work after a game ending, and execute no authored command/verb events, hint use or hooks. Read-only queries cause no runner autosave; separate-process tests compare exact envelope bytes, including timestamps. General help lists the new controls for content 5. Content 1–4 retains authored quest/quests commands. Reply/bye controls are now implemented in N4. Content/save 5 and setup 3 are unchanged from N2; no further format allocation is needed.
 
 ## Played persistence and host parity
 
@@ -24,7 +24,7 @@ The [playable developer specimen](../../../tests/fixtures/narrative/quests5.json
 
 Core tests exercise the native public Session rather than the N1 sidecar. Editor HTTP tests compare complete normal/explained results and state with that same specimen, capture actual earned setup-3 progress, restore, complete and capture/reopen the completed quest without replay. Runner tests export/install the specimen, earn active and completed save-5 progress, and continue named/autosaves in separate processes; journal, reward counters and structured cursors match the expected core session. Browser tests seed the canonical specimen and exercise the existing playtest command/transcript controls. Package smoke repeats the editor capture/export and separate CLI continuation with release binaries and embedded UI.
 
-The original 47 N1 candidates remain historical proof, including dialogue scenarios awaiting N4. Native N3 regressions now cover quest early discovery, prerequisites, optional/parallel stages, terminal status, snapshots, re-entrant/watch callbacks, CALL scoping/cursors/STOP/END, limits, read-only logs, F2 preservation, legacy vocabulary, normal/explained parity and late failure of a complete multi-stage journey. The combined feature is not yet a release: the specimen is developer acceptance data, not N6's complete editor-authored Keeper game or a public guide.
+The original 47 N1 candidates remain historical proof in Git; N4 retires the adapter after promoting canonical conversation/quest behaviours. Native N3 regressions now cover quest early discovery, prerequisites, optional/parallel stages, terminal status, snapshots, re-entrant/watch callbacks, CALL scoping/cursors/STOP/END, limits, read-only logs, F2 preservation, legacy vocabulary, normal/explained parity and late failure of a complete multi-stage journey. The combined feature is not yet a release: the specimen is developer acceptance data, not N6's complete editor-authored Keeper game or a public guide.
 
 ## Verification
 
@@ -50,4 +50,4 @@ python3 scripts/smoke-package.py
 
 Use `LUNA_FIREFOX_EXECUTABLE` for an installed compatible Firefox if needed. Run packaged smoke after browser tests: it temporarily hides source `web/dist` to verify the embedded release assets. The existing frontend chunk-size advisory remains.
 
-N4 must implement native conversation entry, reply authority, checkpoints, interruption and player views with quest integration. N5 supplies the reviewed quest/stage blocks and dedicated log workspace; N3 adds no production authoring controls or changes to block appearance. Final Keeper authoring/export/parity and owner acceptance remain N6. Keep the combined work on this branch until then.
+The N4 record covers implemented native entry, reply authority, checkpoints, interruption and player views with quest integration. N5 supplies the reviewed quest/stage blocks and dedicated log workspace; N3 adds no production authoring controls or changes to block appearance. Final Keeper authoring/export/parity and owner acceptance remain N6. Keep the combined work on this branch until then.

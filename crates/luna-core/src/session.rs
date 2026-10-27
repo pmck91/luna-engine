@@ -24,6 +24,7 @@ pub struct Session {
     definition: GameDefinition,
     state: GameState,
     context: InteractionContext,
+    offer: Option<crate::ConversationView>,
 }
 impl Session {
     /// Validate authored content and start a fresh playthrough.
@@ -58,6 +59,7 @@ impl Session {
             definition,
             state,
             context: InteractionContext::default(),
+            offer: None,
         };
         let mut run = Run::new(&session.definition, session.state.clone());
         run.say(&session.definition.project().game.title)?;
@@ -67,10 +69,18 @@ impl Session {
             let id = run.state.location.clone();
             run.enter(&id)?;
         }
+        run.finish_conversation()?;
         run.check_story_bounds()?;
+        run.result.conversation = run.offer.clone();
         run.result.state_changed = true;
-        let Run { state, result, .. } = run;
+        let Run {
+            state,
+            result,
+            offer,
+            ..
+        } = run;
         session.state = state.into_owned();
+        session.offer = offer;
         Ok((session, result))
     }
     /// Validate authored content and restore a compatible saved snapshot.
@@ -96,10 +106,16 @@ impl Session {
     /// Returns an error if saved state is incompatible with the definition.
     pub fn restore_with_definition(definition: GameDefinition, state: GameState) -> Result<Self> {
         definition.validate_state(&state)?;
+        let offer = {
+            let mut run = Run::view(&definition, &state);
+            run.prepare_conversation()?;
+            run.offer
+        };
         Ok(Self {
             definition,
             state,
             context: InteractionContext::default(),
+            offer,
         })
     }
     /// Borrow the immutable game definition shared with save storage.
@@ -132,6 +148,15 @@ impl Session {
     /// state replacement clears it; this view is never part of saved GameState.
     pub fn pending_clarification(&self) -> Option<crate::ClarificationQuestion> {
         self.context.question()
+    }
+
+    /// Borrow the prepared player-safe reply offer without running effects.
+    ///
+    /// Its ephemeral token survives unchanged read-only views, but successful
+    /// restore/replacement begins a new lifetime. Hosts must submit both the
+    /// token and a listed reply ID to [`Self::select_reply`].
+    pub fn conversation_view(&self) -> Option<&crate::ConversationView> {
+        self.offer.as_ref()
     }
 
     /// Return discovered quests, active first, then completed and failed.
@@ -179,8 +204,14 @@ impl Session {
     /// ```
     pub fn replace_state(&mut self, state: GameState) -> Result<()> {
         self.definition.validate_state(&state)?;
+        let offer = {
+            let mut run = Run::view(&self.definition, &state);
+            run.prepare_conversation()?;
+            run.offer
+        };
         self.state = state;
         self.context = InteractionContext::default();
+        self.offer = offer;
         Ok(())
     }
 
@@ -245,6 +276,35 @@ impl Session {
     pub fn command_explained(&mut self, input: &str) -> CommandResult {
         self.execute(input, true).0
     }
+    /// Select a prewritten reply from the current prepared offer.
+    ///
+    /// Rechecks live scope/eligibility and never accepts a foreign, stale or
+    /// future-node reply. Rejections return Unmatched with a neutral notice.
+    /// Noun clarification owns input until completed/cancelled. Selection shares
+    /// ordinary command rollback, effects, budgets and output semantics.
+    ///
+    /// # Errors
+    /// Returns an error for oversized selection input or failed hook execution;
+    /// the full attempted world, progress, transcript and offer roll back.
+    pub fn select_reply(&mut self, offer_token: &str, reply_id: &str) -> Result<CommandResult> {
+        let (result, error) = self.execute_with("[selected reply]", false, |run| {
+            run.select_conversation_reply(offer_token, reply_id)
+        });
+        if let Some(error) = error {
+            return Err(error);
+        }
+        Ok(result)
+    }
+    /// Execute the same selection once with bounded attempted-state diagnostics.
+    ///
+    /// Runtime failures return Error and preserve the previous offer and state,
+    /// with discarded output retained only in the explanation.
+    pub fn select_reply_explained(&mut self, offer_token: &str, reply_id: &str) -> CommandResult {
+        self.execute_with("[selected reply]", true, |run| {
+            run.select_conversation_reply(offer_token, reply_id)
+        })
+        .0
+    }
     fn execute(&mut self, input: &str, explain: bool) -> (CommandResult, Option<anyhow::Error>) {
         self.execute_with(input, explain, |run| run.command(input))
     }
@@ -259,10 +319,12 @@ impl Session {
     ) -> (CommandResult, Option<anyhow::Error>) {
         let mut run = Run::new(&self.definition, self.state.clone());
         run.context = self.context.clone();
+        run.offer = self.offer.clone();
         if explain {
             run.recording = Some(explanation::Recorder::default());
         }
         let error = command(&mut run)
+            .and_then(|()| run.finish_conversation())
             .and_then(|()| run.check_story_bounds())
             .err();
         if let Some(recorder) = run.recording.take() {
@@ -282,6 +344,7 @@ impl Session {
         if error.is_none() {
             run.result.state_changed = *run.state != self.state;
             self.context = run.context;
+            self.offer = run.offer;
             self.state = run.state.into_owned();
         } else {
             run.result.status = CommandStatus::Error;
@@ -289,20 +352,10 @@ impl Session {
             run.result.control = None;
         }
         run.result.pending_clarification = self.context.question();
+        run.result.conversation = self.offer.clone();
         (run.result, error)
     }
 
-    // N1's candidate coordinator shares the actual commit/rollback and recorder
-    // boundary. It is compiled out of all shipped editor/runner/library builds.
-    #[cfg(test)]
-    pub(crate) fn narrative_attempt(
-        &mut self,
-        input: &str,
-        explain: bool,
-        command: impl FnOnce(&mut Run<'_>) -> Result<()>,
-    ) -> (CommandResult, Option<anyhow::Error>) {
-        self.execute_with(input, explain, command)
-    }
     /// Describe the current location without entering it or advancing progress.
     ///
     /// # Errors
@@ -342,6 +395,9 @@ impl Session {
     pub fn resume_messages(&self) -> Result<Vec<Vec<text::Span>>> {
         let mut run = Run::view(&self.definition, &self.state);
         run.resume()?;
+        if let Some(offer) = &self.offer {
+            run.result.messages.extend(offer.messages());
+        }
         Ok(run.result.messages)
     }
     /// Read-only evaluation for author checks. Uses the same rules as gameplay.

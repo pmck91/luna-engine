@@ -152,10 +152,14 @@ pub(crate) async fn start_playtest(
             "Choose a setup or a starting location"
         );
         let runtime = restore(project, &setup)?;
-        let result = CommandResult {
+        let mut result = CommandResult {
             messages: runtime.description()?,
+            conversation: runtime.conversation_view().cloned(),
             ..Default::default()
         };
+        if let Some(offer) = runtime.conversation_view() {
+            result.messages.extend(offer.messages());
+        }
         (runtime, result)
     } else {
         Session::start(project, request.location.as_deref())?

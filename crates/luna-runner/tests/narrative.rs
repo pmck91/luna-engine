@@ -187,5 +187,7 @@ fn separate_runner_process_loads_and_saves_canonical_progress_without_node_or_qu
         .load_save(&record, &definition, Some("continued"))
         .unwrap();
     assert_eq!(saved.save_format, 5);
-    assert_eq!(saved.state, state);
+    let mut paused = state;
+    paused.narrative.active = None;
+    assert_eq!(saved.state, paused);
 }

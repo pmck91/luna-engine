@@ -1,6 +1,6 @@
 # Conversations and quests — N2 model and persistence
 
-Status: **N2 owner accepted and committed as `3ad459e`**, 27 October 2026, on `feature/conversations-and-quests`. N1 is committed as `ef05c93`; the owner accepted it and requested moving forward. The [frozen contract](interaction-contract.md) and [N1 evidence](runtime-proof-review.md) remain the target; the accepted [N0 preview](README.md) remains the authoring/player design. The [N3 review](quest-runtime-review.md) now covers canonical quest execution/logs; conversation selection and production authoring remain N4/N5 under the [implementation plan](../../plans/conversations-and-quests.md).
+Status: **N2 owner accepted and committed as `3ad459e`**, 27 October 2026, on `feature/conversations-and-quests`. N1 is committed as `ef05c93`; the owner accepted it and requested moving forward. The [frozen contract](interaction-contract.md) and [N1 evidence](runtime-proof-review.md) remain the target; the accepted [N0 preview](README.md) remains the authoring/player design. The [N3 review](quest-runtime-review.md) now covers canonical quest execution/logs; the [N4 record](conversation-runtime-review.md) covers conversation selection; production authoring remains N5 under the [implementation plan](../../plans/conversations-and-quests.md).
 
 ## Delivered foundation
 
@@ -10,7 +10,7 @@ Durable `GameState.narrative` contains active/checkpoint/history, quest status/s
 
 Native narrative conditions read that state through compiled indexes, including in ordinary actions/procedures/hints/checks. Unknown external query references retain the public read-only false policy. Ordinary required cursor maps remain exact; narrative cursors are sparse and independent. Procedure paths accept narrative node/reply/stage/status-hook roots and retain their structured ownership/bounds. Restoring/replacing a canonical snapshot runs no hooks.
 
-`NarrativeOperation`/`TraceKind::Narrative` provide typed operation identities and applied/no-op metadata; the existing bounded state diff now includes canonical narrative progress automatically. Production emission of those transition frames belongs to N3/N4. N1 still uses its explicitly test-only coordinator until its execution scenarios can be promoted; its fixture is pinned to the content-4 proxy baseline to keep that boundary honest.
+`NarrativeOperation`/`TraceKind::Narrative` provide typed operation identities and applied/no-op metadata; the existing bounded state diff now includes canonical narrative progress automatically. Production emission of those transition frames belongs to N3/N4. At N2 completion N1 retained its test-only coordinator pinned to a content-4 proxy baseline. N4 retires that adapter after promotion to canonical runtime tests.
 
 ## Storage, formats and compatibility
 
@@ -46,7 +46,7 @@ The complete browser run exposed an existing focus race: a delayed playtest resp
 
 The frontend build retains its existing large-chunk advisory. Focused tests live in the model/core/project/editor/runner narrative suites and `web/src/narrativeModel.test.ts`; they use shared canonical fixtures rather than the N1 sidecar as persistence evidence.
 
-This milestone does not make the combined feature playable. At N2 completion narrative effects returned an explicit execution error; N3 now replaces the quest guards with canonical execution, and conversation execution remains guarded until N4. The N3 record covers the quest log, native transition traces, startup/hooks and promotion of quest behaviours. The numbered/token-bearing conversation selection API, offer refresh and dialogue behavioural promotion remain N4 work. The N2 process tests continue an explicitly constructed valid checkpoint using native commands; they do not claim an authored production conversation has run. Production block/graph authoring and final UI/runner parity remain N5/N6. Do not publish a new-format narrative game until those gates pass.
+This milestone does not make the combined feature playable. At N2 completion narrative effects returned an explicit execution error; N3 now replaces the quest guards with canonical execution, and N4 replaces the conversation guards with canonical execution. The N3 record covers the quest log, native transition traces, startup/hooks and promotion of quest behaviours. The N4 record covers the numbered/token-bearing API, offer refresh and canonical dialogue regressions. The N2 process tests continue an explicitly constructed valid checkpoint using native commands; they do not claim an authored production conversation has run. Production block/graph authoring and final UI/runner parity remain N5/N6. Do not publish a new-format narrative game until those gates pass.
 
 Reproduce the principal checks:
 

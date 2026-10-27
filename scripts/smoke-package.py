@@ -324,7 +324,8 @@ def main():
             assert "The key was found." in transcript and "First" not in transcript, transcript
             slots = [json.loads(path.read_text()) for path in narrative_saves.glob("*.json")]
             continued = next(slot for slot in slots if slot.get("label") == "continued")
-            assert continued["save_format"] == 5 and continued["state"] == narrative_state
+            paused_narrative = {**narrative_state, "narrative": {**narrative_state["narrative"], "active": None}}
+            assert continued["save_format"] == 5 and continued["state"] == paused_narrative
 
             # N3 earns canonical quest progress through native effects. Compare
             # editor execution/captured setups with exported, separate CLI runs.
@@ -366,6 +367,58 @@ def main():
                 "quests\nquest unknown\nquest key\nquit\n", profile="quests")
             assert "Ten coins for your trouble." not in quest_transcript
             assert quest_auto.read_bytes() == auto_bytes, "Quest queries rewrote autosave"
+
+            # N4 uses the same native conversation in HTTP reply controls and
+            # numbered terminal input, including entered checkpoints/revisits.
+            conversation_project = json.loads((root / "tests/fixtures/narrative/conversations5.json").read_text())
+            created_conversation = api("projects", "POST", {"folder": "smoke-conversations", "title": "Conversations"})
+            conversation_handle = created_conversation["handle"]
+            api(f"projects/{conversation_handle}", "PUT", {
+                "project": conversation_project, "revision": created_conversation["revision"],
+            })
+            conversation_play = api("playtests", "POST", {"project": conversation_project})
+            conversation_id = conversation_play["session"]
+            greeting = api(f"playtests/{conversation_id}/commands", "POST", {"command": "talk keeper"})
+            old_offer = greeting["result"]["conversation"]
+            conversation_setup = api(f"playtests/{conversation_id}/capture", "POST", {"name": "Keeper greeting"})
+            conversation_resumed = api("playtests", "POST", {"project": conversation_project, "setup": conversation_setup})
+            conversation_id = conversation_resumed["session"]
+            current_offer = conversation_resumed["result"]["conversation"]
+            assert current_offer["offer_token"] != old_offer["offer_token"]
+            assert conversation_resumed["state"] == greeting["state"]
+            rejected = api(f"playtests/{conversation_id}/replies", "POST", {
+                "offer_token": old_offer["offer_token"], "reply_id": "accept",
+            })
+            assert rejected["result"]["status"] == "unmatched" and rejected["state"] == greeting["state"]
+            api(f"playtests/{conversation_id}/replies", "POST", {
+                "offer_token": current_offer["offer_token"], "reply_id": "accept", "explain": True,
+            })
+            api(f"playtests/{conversation_id}/commands", "POST", {"command": "take brass key"})
+            current_offer = api(f"playtests/{conversation_id}/commands", "POST", {"command": "talk keeper"})["result"]["conversation"]
+            exchange = api(f"playtests/{conversation_id}/replies", "POST", {
+                "offer_token": current_offer["offer_token"], "reply_id": "handover", "explain": True,
+            })
+            assert exchange["state"]["variables"]["rewards"] == 1
+            for command in ["1", "talk keeper", "talk keeper"]:
+                conversation_final = api(f"playtests/{conversation_id}/commands", "POST", {"command": command})
+            assert "conversation" not in conversation_final["result"]
+            conversation_bundle = work / "conversations-from-editor.luna"
+            conversation_bundle.write_bytes(api(f"projects/{conversation_handle}/export", "POST", raw=True))
+            run(["import", str(conversation_bundle)], profile="conversations")
+            conversation_game = conversation_project["game"]
+            run(["run", conversation_game["id"], "--new"], "talk keeper\nsave greeting\nquit\n", profile="conversations")
+            conversation_saves = work / "conversations/saves" / conversation_game["id"] / conversation_game["content_version"]
+            conversation_auto = conversation_saves / "autosave.json"
+            assert json.loads(conversation_auto.read_text())["state"] == greeting["state"]
+            exchange_text = run(["run", conversation_game["id"], "--load", "greeting"],
+                "1\ntake brass key\ntalk keeper\nreply 2\nsave exchange\nquit\n", profile="conversations")
+            assert exchange_text.count("Ten coins for your trouble.") == 1
+            assert json.loads(conversation_auto.read_text())["state"] == exchange["state"]
+            revisit_text = run(["run", conversation_game["id"], "--load", "exchange"],
+                "1\ntalk keeper\ntalk keeper\nsave completed\nquit\n", profile="conversations")
+            assert "Ten coins for your trouble." not in revisit_text
+            assert revisit_text.count("Thank you again for finding my key.") == 2
+            assert json.loads(conversation_auto.read_text())["state"] == conversation_final["state"]
 
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
@@ -411,7 +464,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, narrative persistence/quest execution, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, narrative persistence/quest/conversation execution, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

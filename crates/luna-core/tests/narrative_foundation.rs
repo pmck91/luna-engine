@@ -42,14 +42,18 @@ fn canonical_progress_restores_without_hooks_and_reads_through_native_conditions
         status: QuestStatus::Undiscovered
     }));
     let result = session.command_explained("use story");
-    assert!(!result.state_changed);
+    // N4 ordinary world actions now pause an active encounter. Restoration
+    // itself still preserves the exact supplied checkpoint and runs no hooks.
+    assert!(result.state_changed);
     assert!(
         result
             .messages
             .iter()
             .any(|m| text::plain(m) == "The key was found.")
     );
-    assert_eq!(session.state(), &state);
+    let mut paused = state;
+    paused.narrative.active = None;
+    assert_eq!(session.state(), &paused);
     assert!(result.explanation.unwrap().committed);
 }
 #[test]

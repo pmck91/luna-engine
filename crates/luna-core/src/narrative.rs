@@ -1,7 +1,36 @@
 //! Compiled narrative ownership and structural snapshot compatibility.
 use anyhow::{Context, Result, ensure};
 use luna_model::*;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
+
+/// One eligible prewritten response in authored order.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+pub struct ConversationChoice {
+    /// Stable reply identity, scoped by its offer rather than its displayed text.
+    pub id: String,
+    /// Current formatted semantic response, with resolved values kept literal.
+    pub text: Vec<text::Span>,
+}
+
+/// Prepared, player-safe dialogue and reply authority for the current encounter.
+///
+/// Tokens are ephemeral, never saved. Hosts submit the token and a listed reply
+/// ID together; only Session decides whether that selection remains eligible.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+pub struct ConversationView {
+    /// Opaque identity retained while the visible offer remains unchanged.
+    pub offer_token: String,
+    /// Active conversation identity.
+    pub conversation: String,
+    /// Entered dialogue identity within that conversation.
+    pub node: String,
+    /// Saved semantic prompt; reading it never replays entry effects.
+    pub prompt: Vec<text::Span>,
+    /// Eligible replies only, preserving the author's order.
+    pub replies: Vec<ConversationChoice>,
+    /// False while noun clarification owns input. The offer token stays stable.
+    pub selection_enabled: bool,
+}
 
 /// A discovered quest's player-safe log, in earned journal order.
 ///
@@ -56,9 +85,12 @@ pub(crate) struct NarrativeIndex {
     pub quests: BTreeMap<String, usize>,
     nodes: BTreeMap<String, (usize, usize)>,
     replies: BTreeMap<String, (usize, usize)>,
+    reply_positions: BTreeMap<String, usize>,
     stages: BTreeMap<String, (usize, usize)>,
     sequences: BTreeMap<String, usize>,
     sequence_roots: BTreeMap<String, String>,
+    world_roots: HashSet<String>,
+    starters: HashSet<String>,
 }
 impl NarrativeIndex {
     pub fn new(p: &Project) -> Self {
@@ -67,9 +99,56 @@ impl NarrativeIndex {
             out.conversations.insert(c.id.clone(), ci);
             for (ni, n) in c.nodes.iter().enumerate() {
                 out.nodes.insert(n.id.clone(), (ci, ni));
-                for r in &n.replies {
+                for (ri, r) in n.replies.iter().enumerate() {
                     out.replies.insert(r.id.clone(), (ci, ni));
+                    out.reply_positions.insert(r.id.clone(), ri);
                 }
+            }
+        }
+        // Index interruption across every ordinary owner/exit. Propagate native
+        // START capability through CALL edges once, without expanding call paths.
+        let roots: Vec<_> = p
+            .owners()
+            .into_iter()
+            .flat_map(|(_, actions, _)| {
+                actions
+                    .iter()
+                    .map(|a| (a.id.as_str(), a.effects.as_slice()))
+            })
+            .chain(p.locations.iter().flat_map(|l| {
+                l.exits
+                    .iter()
+                    .map(|e| (e.id.as_str(), e.effects.as_slice()))
+            }))
+            .collect();
+        out.world_roots
+            .extend(roots.iter().map(|(id, _)| (*id).to_owned()));
+        let mut callers: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+        let mut queue = VecDeque::new();
+        for (root, body) in roots.into_iter().chain(
+            p.procedures
+                .iter()
+                .map(|p| (p.id.as_str(), p.effects.as_slice())),
+        ) {
+            let mut effects = vec![];
+            walk_effects(body, &mut effects);
+            for e in effects {
+                match e {
+                    Effect::StartConversation { .. } => {
+                        queue.push_back(root);
+                    }
+                    Effect::Call { procedure, .. } => {
+                        callers.entry(procedure).or_default().push(root)
+                    }
+                    _ => {}
+                }
+            }
+        }
+        while let Some(root) = queue.pop_front() {
+            if out.starters.insert(root.into())
+                && let Some(parents) = callers.get(root)
+            {
+                queue.extend(parents);
             }
         }
         for (qi, q) in p.quests.iter().enumerate() {
@@ -110,6 +189,19 @@ impl NarrativeIndex {
             .get(stage)
             .filter(|(owner, _)| *owner == quest)
             .map(|(_, si)| *si)
+    }
+    pub fn node(&self, conversation: usize, node: &str) -> Option<usize> {
+        self.nodes
+            .get(node)
+            .filter(|(owner, _)| *owner == conversation)
+            .map(|(_, ni)| *ni)
+    }
+    pub fn reply(&self, conversation: usize, node: usize, reply: &str) -> Option<usize> {
+        (self.replies.get(reply) == Some(&(conversation, node)))
+            .then(|| self.reply_positions[reply])
+    }
+    pub fn interrupts(&self, root: &str) -> bool {
+        self.world_roots.contains(root) && !self.starters.contains(root)
     }
     pub fn owns_sequence(&self, root: &str, sequence: &str) -> bool {
         self.sequence_roots

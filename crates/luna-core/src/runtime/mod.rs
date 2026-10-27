@@ -14,6 +14,7 @@ use std::collections::HashMap;
 
 mod commands;
 mod conditions;
+mod conversations;
 mod effects;
 mod entities;
 mod events;
@@ -22,8 +23,6 @@ mod help;
 mod hints;
 mod index;
 mod matching;
-#[cfg(test)]
-pub(crate) mod narrative_proof;
 mod presentation;
 mod procedures;
 mod quests;
@@ -38,8 +37,6 @@ const OPERATION_LIMIT: usize = 2048;
 const EVENT_DEPTH_LIMIT: usize = 64;
 
 pub(crate) struct Run<'a> {
-    #[cfg(test)]
-    pub(crate) narrative: Option<narrative_proof::Execution>,
     p: &'a Project,
     story_index: &'a crate::narrative::NarrativeIndex,
     index: &'a RuntimeIndex,
@@ -60,6 +57,10 @@ pub(crate) struct Run<'a> {
     relations: RefCell<HashMap<usize, relations::Relation>>,
     mutation_events: Vec<(luna_model::Event, String)>,
     story_usage: (usize, usize),
+    pub(crate) offer: Option<crate::ConversationView>,
+    encounter_epoch: u64,
+    entry_counter: u64,
+    entering: HashMap<String, u64>,
 }
 #[derive(PartialEq)]
 enum Flow {
@@ -79,8 +80,6 @@ impl<'a> Run<'a> {
     fn with_state(definition: &'a GameDefinition, state: Cow<'a, GameState>) -> Self {
         let story_usage = (state.narrative.entry_count(), state.narrative.text_bytes());
         Self {
-            #[cfg(test)]
-            narrative: None,
             p: definition.project(),
             story_index: definition.narrative(),
             index: definition.runtime(),
@@ -101,6 +100,10 @@ impl<'a> Run<'a> {
             relations: RefCell::new(HashMap::new()),
             mutation_events: vec![],
             story_usage,
+            offer: None,
+            encounter_epoch: 0,
+            entry_counter: 0,
+            entering: HashMap::new(),
         }
     }
     fn world_mut(&mut self) -> &mut GameState {
@@ -135,3 +138,6 @@ impl<'a> Run<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod conversation_tests;

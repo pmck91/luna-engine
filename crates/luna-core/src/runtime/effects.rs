@@ -8,15 +8,17 @@ impl<'a> Run<'a> {
     // Every action/exit/event owns a lexical/progress root, independent of
     // optional recording. Active calls remain guarded across event dispatch.
     pub(super) fn flow_effects(&mut self, id: &str, effects: &[Effect]) -> Result<Flow> {
+        if self.story_index.interrupts(id)
+            && let Some(active) = self.state.narrative.active.clone()
+        {
+            self.pause_conversation(&active, false)?;
+        }
         let invocation = super::procedures::Invocation {
             root: id.into(),
             ..Default::default()
         };
         let previous = std::mem::replace(&mut self.invocation, invocation);
-        #[cfg(not(test))]
         let result = self.effects_at(effects, self.source_for(id, "effects"));
-        #[cfg(test)]
-        let result = self.narrative_flow(id, effects);
         self.invocation = previous;
         result
     }
@@ -28,10 +30,6 @@ impl<'a> Run<'a> {
                 .get(&self.procedure_path(id)?)
                 .copied()
                 .unwrap_or(0));
-        }
-        #[cfg(test)]
-        if let Some(cursor) = self.narrative_cursor(id)? {
-            return Ok(cursor);
         }
         if self.story_index.owns_sequence(&self.invocation.root, id) {
             return Ok(self.state.narrative.sequences.get(id).copied().unwrap_or(0));
@@ -52,10 +50,6 @@ impl<'a> Run<'a> {
             );
             self.state.to_mut().procedure_sequences.insert(path, cursor);
         } else {
-            #[cfg(test)]
-            if self.narrative_set_cursor(id, cursor)? {
-                return Ok(());
-            }
             if self.story_index.owns_sequence(&self.invocation.root, id) {
                 if !self.state.narrative.sequences.contains_key(id) {
                     self.reserve_story(1, 0)?;
@@ -120,11 +114,15 @@ impl<'a> Run<'a> {
 
     fn effect(&mut self, effect: &Effect) -> Result<Flow> {
         match effect {
-            Effect::StartConversation { .. }
-            | Effect::PauseConversation { .. }
-            | Effect::EndConversation { .. } => anyhow::bail!(
-                "Conversation execution is not yet available on this feature branch (N4)"
-            ),
+            Effect::StartConversation { conversation } => {
+                return self.start_conversation(conversation);
+            }
+            Effect::PauseConversation { conversation } => {
+                self.pause_conversation(conversation, false)?;
+            }
+            Effect::EndConversation { conversation } => {
+                self.pause_conversation(conversation, true)?;
+            }
             Effect::StartQuest { quest } => {
                 return self.quest_transition(quest, luna_model::QuestStatus::Active, None);
             }
@@ -425,6 +423,7 @@ impl<'a> Run<'a> {
                 }
                 let end = self.ending(ending).context("Unknown ending")?;
                 self.state.to_mut().ending = Some(ending.clone());
+                self.close_conversations();
                 self.finalizing = true;
                 self.fire(Event::Ending, &self.p.game.id)?;
                 self.finalizing = false;

@@ -1,10 +1,10 @@
 # Conversations and quests — N1 runtime proof
 
-Status: **N1 proof complete; N2 foundation and N3 quests implemented**, 27 October 2026, on `feature/conversations-and-quests`. The owner accepted the revised [N0 design](README.md) with “perfect that looks much better”; it is committed as `4b613a9`. The [shared contract](interaction-contract.md) freezes the next implementation target. N1 is committed as `ef05c93`; the [N2 record](foundation-review.md) now covers canonical models/persistence. The [N3 review](quest-runtime-review.md) now covers canonical quest runtime/log regressions and played host persistence; the candidate quest checks remain historical proof alongside them. Conversation execution, production authoring and final acceptance remain outstanding under [N4–N6](../../plans/conversations-and-quests.md#implementation-milestones-on-the-feature-branch).
+Status: **N1 proof archived; canonical N2–N4 implementation complete**, 27 October 2026, on `feature/conversations-and-quests`. The owner accepted the revised [N0 design](README.md) with “perfect that looks much better”; it is committed as `4b613a9`. The [shared contract](interaction-contract.md) freezes the next implementation target. N1 is committed as `ef05c93`; the [N2 record](foundation-review.md) now covers canonical models/persistence. The [N3 review](quest-runtime-review.md) now covers canonical quest runtime/log regressions and played host persistence; the [N4 record](conversation-runtime-review.md) covers canonical conversation execution and retirement of the test adapter. Production authoring and final acceptance remain outstanding under [N5/N6](../../plans/conversations-and-quests.md#implementation-milestones-on-the-feature-branch).
 
 ## What executes
 
-The [candidate coordinator](../../../crates/luna-core/src/runtime/narrative_proof.rs), [structural checks](../../../crates/luna-core/src/runtime/narrative_proof/validation.rs) and [47 regressions](../../../crates/luna-core/src/runtime/narrative_proof/tests.rs) compile only in luna-core unit tests. A small cfg-test Session entry uses the existing commit/rollback boundary and recorder. Test builds without an attached candidate delegate to the unchanged native executor. Production builds contain none of the narrative coordinator or interception hooks.
+The [candidate coordinator](https://github.com/pmck91/luna-engine/blob/ef05c93f56ff18dcd5250fd35800782f4e888ac6/crates/luna-core/src/runtime/narrative_proof.rs), [structural checks](https://github.com/pmck91/luna-engine/blob/ef05c93f56ff18dcd5250fd35800782f4e888ac6/crates/luna-core/src/runtime/narrative_proof/validation.rs) and [47 regressions](https://github.com/pmck91/luna-engine/blob/ef05c93f56ff18dcd5250fd35800782f4e888ac6/crates/luna-core/src/runtime/narrative_proof/tests.rs) compiled only in luna-core unit tests during N1–N3. The links preserve the N1 commit. N4 removes this adapter and its cfg-test Session/effect/cursor interception after promotion to canonical tests; current test builds use the same executor as shipping builds. The historical results below describe the proof, not an alternate current engine.
 
 The candidate uses the real command matcher, F2 clarification/recent references, condition evaluator, effects, procedures, ordinary/procedure response cursors, value watches and ending handlers. Native effects are never reimplemented. Only the proposed narrative definitions/progress/input dispatch are experimental. Native proxy roots let today's content-4 validator check narrative hooks' native leaves. They are test scaffolding, not canonical actions or a proposed migration strategy.
 
@@ -48,7 +48,7 @@ Verified on 27 October 2026:
 - **295 Rust tests/doctests pass across the workspace**, including those 47; zero failed or ignored.
 - Workspace/all-target Clippy with warnings denied, generated-contract verification, Rust formatting, local documentation targets and whitespace checks pass.
 
-Reproduce from the repository root:
+Reproduce these historical results from an `ef05c93` checkout. Current canonical checks are in the [N4 record](conversation-runtime-review.md):
 
 ```sh
 cargo test -p luna-core --offline --lib narrative_proof

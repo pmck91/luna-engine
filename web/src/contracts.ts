@@ -65,6 +65,42 @@ status: QuestStatus,
  */
 journal: Array<JournalEntry>, };
 
+export type ConversationChoice = {
+/**
+ * Stable reply identity, scoped by its offer rather than its displayed text.
+ */
+id: string,
+/**
+ * Current formatted semantic response, with resolved values kept literal.
+ */
+text: Array<Span>, };
+
+export type ConversationView = {
+/**
+ * Opaque identity retained while the visible offer remains unchanged.
+ */
+offer_token: string,
+/**
+ * Active conversation identity.
+ */
+conversation: string,
+/**
+ * Entered dialogue identity within that conversation.
+ */
+node: string,
+/**
+ * Saved semantic prompt; reading it never replays entry effects.
+ */
+prompt: Array<Span>,
+/**
+ * Eligible replies only, preserving the author's order.
+ */
+replies: Array<ConversationChoice>,
+/**
+ * False while noun clarification owns input. The offer token stays stable.
+ */
+selection_enabled: boolean, };
+
 export type Argument = { "type": "literal", value: Value, } | { "type": "entity", kind: InputKind, id: string, } | { "type": "variable", name: string, } | { "type": "property", entity: EntityRef, name: string, } | { "type": "input", input: string, } | { "type": "command_item" };
 
 export type BoundArgument = { "type": "value", value: Value, } | { "type": "entity", kind: InputKind, id: string, };
@@ -691,7 +727,11 @@ input_resolution?: InputResolution,
 /**
  * Current question after this attempt, preserved across read-only commands.
  */
-pending_clarification?: ClarificationQuestion, };
+pending_clarification?: ClarificationQuestion,
+/**
+ * Current prepared reply offer after this attempt, including on rollback.
+ */
+conversation?: ConversationView, };
 
 export type Draft = { revision: string, project: Project, };
 
@@ -726,6 +766,8 @@ export type DiskView = { revision: string, project: Project, };
 export type StartPlaytest = { project: Project, location: string | null, help_mode: HelpMode | null, setup: PlaytestSetup | null, };
 
 export type CommandRequest = { command: string, explain: boolean, };
+
+export type ReplyRequest = { offer_token: string, reply_id: string, explain: boolean, };
 
 export type StateRequest = { state: GameState, };
 

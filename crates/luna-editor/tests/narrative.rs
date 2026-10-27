@@ -91,8 +91,10 @@ async fn captured_setup_three_and_state_replacement_round_trip_canonical_progres
         json!({"command":"use story","explain":true}),
     )
     .await;
-    assert_eq!(result["state"], changed["state"]);
-    assert_eq!(result["result"]["state_changed"], false);
+    let mut paused = state.clone();
+    paused.narrative.active = None;
+    assert_eq!(result["state"], serde_json::to_value(paused).unwrap());
+    assert_eq!(result["result"]["state_changed"], true);
     let mut bad = state.clone();
     bad.narrative.active = Some("unknown".into());
     assert_eq!(

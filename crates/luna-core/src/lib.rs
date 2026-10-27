@@ -68,7 +68,7 @@ mod runtime;
 mod session;
 
 pub use definition::{GameDefinition, validate_state};
-pub use narrative::QuestLogEntry;
+pub use narrative::{ConversationChoice, ConversationView, QuestLogEntry};
 pub use runtime::explanation::{
     CommandExplanation, NarrativeOperation, ProcedureBinding, ProcedureReturn, TraceChange,
     TraceKind, TraceOutcome, TraceSource, TraceStep,
@@ -157,6 +157,10 @@ pub struct CommandResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub pending_clarification: Option<ClarificationQuestion>,
+    /// Current prepared reply offer after this attempt, including on rollback.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub conversation: Option<ConversationView>,
 }
 impl Default for CommandResult {
     fn default() -> Self {
@@ -170,6 +174,7 @@ impl Default for CommandResult {
             explanation: None,
             input_resolution: None,
             pending_clarification: None,
+            conversation: None,
         }
     }
 }

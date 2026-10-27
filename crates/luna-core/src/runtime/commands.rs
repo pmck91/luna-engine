@@ -9,9 +9,8 @@ use luna_model::{Event, normalize, reserved};
 
 impl<'a> Run<'a> {
     pub(crate) fn command(&mut self, input: &str) -> Result<()> {
-        #[cfg(test)]
-        if self.narrative.as_ref().is_some_and(|n| !n.dispatching) {
-            return self.narrative_command(input);
+        if self.conversation_control(input)? {
+            return Ok(());
         }
         // Read-only quest controls own their prefix before F2 resolution. They
         // preserve both an outstanding noun question and recent-object context.
