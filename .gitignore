@@ -11,6 +11,7 @@
 !/examples/packing-study.luna
 !/examples/parser-gallery.luna
 !/examples/procedure-workshop.luna
+!/examples/keeper-quest.luna
 /web/*.tsbuildinfo
 .luna-recovery/
 .luna-transaction.json

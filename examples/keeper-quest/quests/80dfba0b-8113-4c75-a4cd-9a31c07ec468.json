@@ -1,0 +1,72 @@
+{
+  "id": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+  "title": "The Missing Key",
+  "aliases": [
+    "key",
+    "missing key"
+  ],
+  "introduction": "The Keeper asked me to find a lost key.",
+  "completion": "The key is returned. I had %coins% coins before the reward.",
+  "failure": "I abandoned the search for the key.",
+  "stages": [
+    {
+      "id": "1f29313b-4c99-46f6-b699-f9db3a02d4da",
+      "name": "Found the key",
+      "text": "I found the brass key.",
+      "prerequisites": [],
+      "condition": {
+        "type": "true"
+      },
+      "required": true,
+      "effects": []
+    },
+    {
+      "id": "2dffe50c-e7c7-4ff7-b645-8ddb7a023904",
+      "name": "Returned the key",
+      "text": "I returned the key to the Keeper.",
+      "prerequisites": [
+        "1f29313b-4c99-46f6-b699-f9db3a02d4da"
+      ],
+      "condition": {
+        "type": "true"
+      },
+      "required": true,
+      "effects": [
+        {
+          "type": "give_character",
+          "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd",
+          "character": "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed"
+        }
+      ]
+    }
+  ],
+  "on_start": {
+    "id": "acc2b879-c7c3-4ce1-ae69-5659d9dd3c8b",
+    "effects": [
+      {
+        "type": "update_variable",
+        "name": "quest_starts",
+        "op": "add",
+        "operand": {
+          "type": "literal",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "on_complete": {
+    "id": "c1037153-505b-4f27-8ebb-2a121be9ec89",
+    "effects": [
+      {
+        "type": "call",
+        "id": "a7298d34-8955-47fd-99a7-87748906f844",
+        "procedure": "7caea0b0-bf58-49f6-b371-94da82cf16a6",
+        "arguments": {}
+      }
+    ]
+  },
+  "on_fail": {
+    "id": "a1c64e19-37df-47e1-acd0-dd299aba59b0",
+    "effects": []
+  }
+}

@@ -82,6 +82,8 @@ Graph positions/routes share editor-only layout maps keyed by native UUIDs. Card
 
 `PlaytestView.quest_log` and `CheckRun.quest_log` expose `Session::quest_log()` at every host continuation boundary. Check reports also expose their final prepared conversation view. Player buttons submit the existing native offer token/reply ID, preserving noun-clarification precedence and transaction semantics. Journal rendering uses earned semantic spans and invokes no game command. Debug source links require the current immutable playtest content.
 
+The [complete narrative acceptance record](design/conversations-and-quests/final-review.md) connects the editor-authored Keeper example to native/API, save/setup, exported-process and packaged checks. A larger synthetic definition exercises populated encounter history, mixed token/numeric selections and shared-definition restoration. Its timings are observations; resource bounds and deterministic correctness remain the test assertions. The complete example and these checks add no new content/save/setup format.
+
 ### Quest execution and player log
 
 `runtime/quests.rs` runs explicit native quest effects on the existing `Run` transaction. Stages require an active quest, their same-quest prerequisites and a passing condition; completion additionally requires all required stages and an explicit COMPLETE QUEST. Completed/failed statuses are terminal. Status/stage marks and formatted semantic journal snapshots precede their hooks, so re-entry cannot duplicate progress or rewards. No quest event family or automatic stage inference is introduced.

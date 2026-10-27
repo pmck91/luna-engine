@@ -242,6 +242,65 @@ def main():
             run(["run", workshop_game["id"], "--load", "completed"], "use bell\nquit\n", profile="workshop")
             assert workshop_state() == completed_workshop, "Completion restore replayed a hook"
 
+            # The complete N6 project is authored through forms and blocks in the
+            # browser suite, then retained alongside its actual editor export.
+            keeper = api("open", "POST", {"folder": "keeper-quest"})
+            keeper_project = keeper["project"]
+            keeper_game = keeper_project["game"]
+            keeper_bundle = work / "keeper-from-editor.luna"
+            keeper_bundle.write_bytes(api(f"projects/{keeper['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(keeper_bundle) as exported, zipfile.ZipFile(package / "examples/keeper-quest.luna") as checked:
+                assert json.loads(exported.read("manifest.json")) == json.loads(checked.read("manifest.json"))
+                assert not any(name.startswith("editor/") for name in exported.namelist())
+            for setup in keeper_project["editor"]["playtest"]["setups"]:
+                restored = api("playtests", "POST", {"project": keeper_project, "setup": setup})
+                assert setup["version"] == 3 and restored["state"] == setup["state"]
+                assert not restored["result"]["state_changed"], "Setup restore replayed narrative hooks"
+            run(["import", str(keeper_bundle)], profile="keeper")
+            keeper_saves = work / "keeper/saves" / keeper_game["id"] / keeper_game["content_version"]
+            key_id = next(o["id"] for o in keeper_project["objects"] if o["name"] == "Brass key")
+            speaker_id = keeper_project["characters"][0]["id"]
+            quest_id = keeper_project["quests"][0]["id"]
+
+            def keeper_state():
+                saved = json.loads((keeper_saves / "autosave.json").read_text())
+                assert saved["save_format"] == 5
+                return saved["state"]
+
+            run(["run", keeper_game["id"], "--new"],
+                "talk keeper\nsave greeting\nreply 2\ntalk keeper\nreply 1\nreply 1\nreply 1\n"
+                "take brass key\ntalk keeper\nsave handover\nquit\n", profile="keeper")
+            before_handover = keeper_state()
+            assert before_handover["variables"] == {
+                "coins": 0, "rewards": 0, "greeting_entries": 2,
+                "progress_entries": 2, "quest_starts": 1, "zero": 0,
+            }
+            assert before_handover["objects"][key_id]["placement"] == {"type": "inventory"}
+            rejected = run(["run", keeper_game["id"], "--load", "handover"],
+                           "reply 4\nsave failed\nquit\n", profile="keeper")
+            assert "You receive ten coins." not in rejected
+            assert keeper_state() == before_handover, "Failed reply leaked reward, journal or placement"
+            run(["run", keeper_game["id"], "--load", "failed"],
+                "reply 3\nsave rewarded\nquit\n", profile="keeper")
+            rewarded_keeper = keeper_state()
+            assert rewarded_keeper["variables"]["coins"] == 10 and rewarded_keeper["variables"]["rewards"] == 1
+            assert rewarded_keeper["objects"][key_id]["placement"] == {"type": "character", "character": speaker_id}
+            assert rewarded_keeper["narrative"]["quests"][quest_id]["status"] == "completed"
+            assert len(rewarded_keeper["narrative"]["quests"][quest_id]["journal"]) == 4
+            repeated = run(["run", keeper_game["id"], "--load", "rewarded"],
+                           "look\nquests\nquest key\nreply 1\ntalk keeper\ntalk keeper\nquit\n", profile="keeper")
+            assert repeated.count("Thank you again for finding my key.") == 2
+            assert "You receive ten coins." not in repeated
+            assert keeper_state()["variables"] == rewarded_keeper["variables"]
+            run(["run", keeper_game["id"], "--new"],
+                "take brass key\ntalk keeper\nreply 1\nquit\n", profile="keeper")
+            found_id = keeper_project["quests"][0]["stages"][0]["id"]
+            assert keeper_state()["narrative"]["quests"][quest_id]["stages"] == [found_id]
+            run(["run", keeper_game["id"], "--new"],
+                "talk keeper\nreply 1\nreply 3\ntalk keeper\nquit\n", profile="keeper")
+            assert keeper_state()["narrative"]["quests"][quest_id]["status"] == "failed"
+            assert keeper_state()["variables"]["coins"] == 0
+
             created_procedures = api("projects", "POST", {"folder": "smoke-procedures", "title": "Shared rewards"})
             procedure_project = created_procedures["project"]
             procedure_project["game"]["variables"] = {"rewards": 0}
@@ -464,7 +523,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, narrative persistence/quest/conversation execution, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

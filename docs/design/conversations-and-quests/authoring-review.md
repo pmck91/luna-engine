@@ -1,6 +1,6 @@
 # Conversations and quests — N5 production authoring
 
-Status: **Implementation and technical verification complete; owner accepted**, 27 October 2026, on `feature/conversations-and-quests`. N4 is owner accepted and committed as `6ee10e9`. N5 continues the [accepted N0 design](README.md) and [frozen shared contract](interaction-contract.md). These are production editor surfaces connected to the native Rust runtime, separate from the historical standalone design preview. The owner accepted N5 and requested its commit and progression to N6 on 27 October 2026; the complete Keeper acceptance example and branch acceptance remain N6.
+Status: **Implementation and technical verification complete; owner accepted**, 27 October 2026, on `feature/conversations-and-quests`. N4 is owner accepted and committed as `6ee10e9`. N5 continues the [accepted N0 design](README.md) and [frozen shared contract](interaction-contract.md). These are production editor surfaces connected to the native Rust runtime, separate from the historical standalone design preview. The owner accepted N5 and requested its commit and progression to N6 on 27 October 2026; N5 is committed as `9ba843a`. The [N6 acceptance record](final-review.md) covers the complete Keeper example and branch review.
 
 ## Working authoring and player slice
 

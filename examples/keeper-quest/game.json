@@ -1,0 +1,39 @@
+{
+  "id": "53e7927f-363e-49e5-8fa7-aacf9bc2d9c1",
+  "title": "The Keeper's Key",
+  "description": "",
+  "author": "",
+  "format_version": 5,
+  "content_version": "0.1.0",
+  "starting_location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c",
+  "opening_text": "Welcome to your adventure.",
+  "help_text": "Type commands to interact with the world.",
+  "unknown_command_text": "I couldn't match that command. Try help, or use a visible object's name.",
+  "command_assistance": {
+    "clarification": true,
+    "recent_objects": true,
+    "clarification_text": "Which do you mean?",
+    "retry_text": "Please choose one of the listed items.",
+    "unavailable_reference_text": "I can't tell what “it” refers to here. Use its full name."
+  },
+  "help_mode": "basic",
+  "hints_enabled": true,
+  "ignored_words": [
+    "a",
+    "an",
+    "the"
+  ],
+  "require_ending": false,
+  "variables": {
+    "coins": 0,
+    "greeting_entries": 0,
+    "progress_entries": 0,
+    "quest_starts": 0,
+    "rewards": 0,
+    "zero": 0
+  },
+  "endings": [],
+  "actions": [],
+  "triggers": [],
+  "assets": []
+}

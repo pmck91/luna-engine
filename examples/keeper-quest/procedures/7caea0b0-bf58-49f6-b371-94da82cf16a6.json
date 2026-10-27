@@ -1,0 +1,30 @@
+{
+  "id": "7caea0b0-bf58-49f6-b371-94da82cf16a6",
+  "name": "Award ten coins",
+  "description": "",
+  "inputs": [],
+  "effects": [
+    {
+      "type": "update_variable",
+      "name": "coins",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 10
+      }
+    },
+    {
+      "type": "update_variable",
+      "name": "rewards",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    },
+    {
+      "type": "say",
+      "text": "<yellow>You receive ten coins.</yellow>"
+    }
+  ]
+}
