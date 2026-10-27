@@ -675,12 +675,40 @@ pub struct EditorLayout {
     pub blocks: BTreeMap<String, serde_json::Value>,
     pub routes: BTreeMap<String, RouteLayout>,
     pub templates: Vec<BlockTemplate>,
+    /// Unfinished narrative content is saved with the editor, never installed.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub narrative_drafts: Vec<NarrativeDraft>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub warning_acknowledgements: Option<Vec<WarningAcknowledgement>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub playtest: Option<PlaytestLibrary>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum NarrativeDraft {
+    Conversation {
+        conversation: Conversation,
+    },
+    Dialogue {
+        conversation: String,
+        node: ConversationNode,
+    },
+    Reply {
+        conversation: String,
+        node: String,
+        reply: ConversationReply,
+    },
+    Quest {
+        quest: Quest,
+    },
+    QuestStage {
+        quest: String,
+        stage: QuestStage,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -723,7 +751,27 @@ pub struct BlockTemplate {
     pub entities: Vec<TemplateEntity>,
     // Exact global names take precedence over entity-property placeholders.
     pub text_variables: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub narratives: Vec<TemplateNarrativeReference>,
     pub content: TemplateContent,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum NarrativeReferenceKind {
+    Conversation,
+    Dialogue,
+    Reply,
+    Quest,
+    QuestStage,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TemplateNarrativeReference {
+    pub id: String,
+    pub name: String,
+    pub kind: NarrativeReferenceKind,
+    pub parent: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, TS, PartialEq)]
 pub struct Project {

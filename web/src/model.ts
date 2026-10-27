@@ -23,6 +23,8 @@ export const gameDataPages = {
   endings: 'project:endings',
   triggers: 'project:triggers',
   procedures: 'project:procedures',
+  conversations: 'project:conversations',
+  quests: 'project:quests',
 } as const;
 export const yes: Condition = { type: 'true' };
 export const location = (name = 'New location'): Location => {
@@ -206,7 +208,8 @@ export function flowConditions(
   if (!f) return {};
   if ('requirements' in f) return { requirements: f.requirements };
   if ('condition' in f) return { condition: f.condition };
-  return 'visible' in f ? { visible: f.visible, available: f.available } : {};
+  if ('visible' in f) return { visible: f.visible, available: f.available };
+  return 'available' in f ? { available: f.available } : {};
 }
 export function allEffects(
   effects: Effect[],

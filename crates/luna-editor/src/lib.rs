@@ -127,6 +127,8 @@ pub struct PlaytestView {
     pub result: CommandResult,
     pub state: GameState,
     pub source: PlaytestSource,
+    /// Only earned journal entries, prepared by the shared runtime.
+    pub quest_log: Vec<luna_core::QuestLogEntry>,
 }
 #[derive(Deserialize)]
 struct AssetQuery {
@@ -604,6 +606,7 @@ async fn command(
     }
     let view = PlaytestView {
         session: id.clone(),
+        quest_log: session.runtime.quest_log(),
         result,
         state: session.runtime.state().clone(),
         source: session.source.clone(),
@@ -626,6 +629,7 @@ async fn set_state(
     current.runtime.replace_state(request.state)?;
     Ok(Json(PlaytestView {
         session: id,
+        quest_log: current.runtime.quest_log(),
         result: CommandResult {
             conversation: current.runtime.conversation_view().cloned(),
             ..Default::default()
@@ -655,6 +659,7 @@ async fn select_reply(
     };
     Ok(Json(PlaytestView {
         session: id,
+        quest_log: session.runtime.quest_log(),
         result,
         state: session.runtime.state().clone(),
         source: session.source.clone(),

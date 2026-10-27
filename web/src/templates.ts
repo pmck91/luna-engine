@@ -1,3 +1,6 @@
+import { narrativeDefinitions } from './narrativeModel';
+import { construction } from './narrativeAuthoring';
+import type { NarrativeReferenceKind, TemplateNarrativeReference } from './contracts';
 import type {
   BlockTemplate,
   EntityRef,
@@ -26,6 +29,7 @@ export function templateEntities(p: Project): TemplateEntity[] {
 }
 type Visitor = {
   entity: (id: string, allowed: TemplateEntityKind[]) => string;
+  narrative?: (id: string, kind: NarrativeReferenceKind) => string;
   text: (text: string, localNames?: string[]) => string;
 };
 // Visit typed references only: literal pattern words, property names, and stored
@@ -117,9 +121,25 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
       case 'visited':
         return { ...v, location: location(v.location) };
       case 'conversation_node_visited':
+        return {
+          ...v,
+          conversation: visitor.narrative?.(v.conversation, 'conversation') ?? v.conversation,
+          node: visitor.narrative?.(v.node, 'dialogue') ?? v.node,
+        };
       case 'conversation_reply_chosen':
+        return {
+          ...v,
+          conversation: visitor.narrative?.(v.conversation, 'conversation') ?? v.conversation,
+          reply: visitor.narrative?.(v.reply, 'reply') ?? v.reply,
+        };
       case 'quest_status':
+        return { ...v, quest: visitor.narrative?.(v.quest, 'quest') ?? v.quest };
       case 'quest_stage_completed':
+        return {
+          ...v,
+          quest: visitor.narrative?.(v.quest, 'quest') ?? v.quest,
+          stage: visitor.narrative?.(v.stage, 'quest_stage') ?? v.stage,
+        };
       case 'true':
       case 'false':
       case 'variable':
@@ -211,10 +231,20 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
       case 'start_conversation':
       case 'pause_conversation':
       case 'end_conversation':
+        return {
+          ...v,
+          conversation: visitor.narrative?.(v.conversation, 'conversation') ?? v.conversation,
+        };
       case 'start_quest':
-      case 'complete_quest_stage':
       case 'complete_quest':
       case 'fail_quest':
+        return { ...v, quest: visitor.narrative?.(v.quest, 'quest') ?? v.quest };
+      case 'complete_quest_stage':
+        return {
+          ...v,
+          quest: visitor.narrative?.(v.quest, 'quest') ?? v.quest,
+          stage: visitor.narrative?.(v.stage, 'quest_stage') ?? v.stage,
+        };
       case 'set_variable':
       case 'reset_responses':
       case 'end':
@@ -334,7 +364,24 @@ export function makeTemplate(
     text_variables: Object.keys(p.game.variables),
   };
   const usedVariables = new Set<string>();
+  const narratives = new Map<string, TemplateNarrativeReference>();
+  const definitions = narrativeDefinitions(p);
   visitContent(t.content, {
+    narrative: (id, kind) => {
+      const d = definitions.find((d) => d.id === id && d.kind === kind);
+      narratives.set(id, {
+        id,
+        kind,
+        name: d?.name ?? id,
+        parent:
+          d && 'conversationId' in d && kind !== 'conversation'
+            ? d.conversationId
+            : d && 'questId' in d && kind !== 'quest'
+              ? d.questId
+              : null,
+      });
+      return id;
+    },
     entity: (id) => id,
     text: (text, localNames = []) =>
       mapMessage(text, (reference) => {
@@ -345,6 +392,7 @@ export function makeTemplate(
   });
   t.entities = templateReferences(t).map(({ allowed: _, ...entity }) => entity);
   t.text_variables = [...usedVariables];
+  t.narratives = [...narratives.values()];
   return t;
 }
 export function defaultTemplateMapping(
@@ -353,15 +401,23 @@ export function defaultTemplateMapping(
   targetOwner: string,
 ): Record<string, string> {
   const entities = templateEntities(p);
-  return Object.fromEntries(
-    templateReferences(t).map((ref) => {
+  return Object.fromEntries([
+    ...templateReferences(t).map((ref) => {
       const target = entities.find(
         (e) =>
           e.id === (ref.id === t.source_owner && targetOwner !== p.game.id ? targetOwner : ref.id),
       );
       return [ref.id, target && ref.allowed.includes(target.kind) ? target.id : ''];
     }),
-  );
+    ...(t.narratives ?? []).map((ref) => [
+      ref.id,
+      narrativeDefinitions(p).some(
+        (d) => d.id === ref.id && d.kind === ref.kind && !construction(p, d.id),
+      )
+        ? ref.id
+        : '',
+    ]),
+  ]);
 }
 export function instantiateTemplate(
   t: BlockTemplate,
@@ -369,6 +425,7 @@ export function instantiateTemplate(
 ): TemplateContent {
   const replacement = (id: string) => (Object.hasOwn(mapping, id) ? mapping[id] : id);
   const copied = visitContent(t.content, {
+    narrative: replacement,
     entity: replacement,
     text: (text, localNames = []) =>
       mapMessage(text, (reference) => {
@@ -399,6 +456,36 @@ export function templateBindingErrors(
   effectsOnly = false,
 ): string[] {
   const errors = new Set<string>();
+  const definitions = narrativeDefinitions(p).filter((d) => !construction(p, d.id));
+  visitContent(t.content, {
+    entity: (id) => id,
+    text: (text) => text,
+    narrative: (id, kind) => {
+      const next = Object.hasOwn(mapping, id) ? mapping[id] : id;
+      if (!definitions.some((d) => d.id === next && d.kind === kind))
+        errors.add(
+          `Choose a ${kind.replaceAll('_', ' ')} for ${t.narratives?.find((d) => d.id === id)?.name ?? id}.`,
+        );
+      return id;
+    },
+  });
+  for (const reference of templateNarrativeReferences(t)) {
+    if (!reference.parent) continue;
+    const selected = definitions.find(
+      (d) => d.id === mapping[reference.id] && d.kind === reference.kind,
+    );
+    const parent =
+      selected &&
+      ('conversationId' in selected
+        ? selected.conversationId
+        : 'questId' in selected
+          ? selected.questId
+          : undefined);
+    if (selected && parent !== (mapping[reference.parent] ?? reference.parent))
+      errors.add(
+        `Choose a ${reference.kind.replaceAll('_', ' ')} belonging to the selected ${reference.kind === 'quest_stage' ? 'quest' : 'conversation'}.`,
+      );
+  }
   const declaredNames = new Set([
     ...Object.keys(p.game.variables),
     ...templateEntities(p).flatMap((entity) =>
@@ -437,4 +524,17 @@ export function templateBindingErrors(
     },
   });
   return [...errors];
+}
+
+export function templateNarrativeReferences(t: BlockTemplate): TemplateNarrativeReference[] {
+  const refs = new Map<string, TemplateNarrativeReference>();
+  visitContent(t.content, {
+    entity: (id) => id,
+    text: (text) => text,
+    narrative: (id, kind) => {
+      refs.set(id, t.narratives?.find((d) => d.id === id) ?? { id, kind, name: id, parent: null });
+      return id;
+    },
+  });
+  return [...refs.values()];
 }

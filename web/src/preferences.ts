@@ -1,3 +1,4 @@
+import { narrativeItem } from './narrativeAuthoring';
 import { useEffect, useRef } from 'react';
 import type { EditorPreferences, PanelLayout, Project } from './contracts';
 import type { HintSelection } from './HintBlocks';
@@ -13,7 +14,15 @@ export const defaultLayout: PanelLayout = {
 };
 export type SavedNavigation = {
   selected: string;
-  mode: 'map' | 'actions' | 'hints' | 'triggers' | 'contents' | 'procedures';
+  mode:
+    | 'map'
+    | 'actions'
+    | 'hints'
+    | 'triggers'
+    | 'contents'
+    | 'procedures'
+    | 'conversations'
+    | 'quests';
   search: string;
   triggerFilter: string;
   flowSelections: Record<string, string>;
@@ -26,6 +35,9 @@ export function restoredNavigation(project: Project, raw: unknown): SavedNavigat
   const valid = (id: string) =>
     !!owner(project, id) ||
     !!script(project, id) ||
+    !!narrativeItem(project, id) ||
+    (id.startsWith(`${gameDataPages.conversations}:`) &&
+      project.characters.some((c) => c.id === id.slice(gameDataPages.conversations.length + 1))) ||
     project.game.endings.some((e) => e.id === id) ||
     Object.values(gameDataPages).includes(id as any);
   const saved = (raw && typeof raw === 'object' ? raw : {}) as Partial<SavedNavigation>;
@@ -55,7 +67,16 @@ export function restoredNavigation(project: Project, raw: unknown): SavedNavigat
     selected,
     mode:
       saved.mode &&
-      ['map', 'actions', 'hints', 'triggers', 'contents', 'procedures'].includes(saved.mode)
+      [
+        'map',
+        'actions',
+        'hints',
+        'triggers',
+        'contents',
+        'procedures',
+        'conversations',
+        'quests',
+      ].includes(saved.mode)
         ? saved.mode
         : 'map',
     search: typeof saved.search === 'string' ? saved.search : '',

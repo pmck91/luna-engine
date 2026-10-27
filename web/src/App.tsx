@@ -1,3 +1,6 @@
+import Narrative, { NarrativeInspector } from './Narrative';
+import NarrativePlayer, { NarrativeJournal, NarrativeProgressInspector } from './NarrativePlayer';
+import { narrativeItem, narrativeRemovalDestination } from './narrativeAuthoring';
 import Procedures, { ProcedureInspector } from './Procedures';
 import { ProcedureScope } from './ProcedureScope';
 import { procedure } from './procedureModel';
@@ -102,7 +105,14 @@ export default function App() {
   const [playtestFocused, setPlaytestFocused] = useState(false);
   const flushPreferences = useRef<(() => void) | null>(null);
   const [mode, setMode] = useState<
-    'map' | 'actions' | 'hints' | 'triggers' | 'contents' | 'procedures'
+    | 'map'
+    | 'actions'
+    | 'hints'
+    | 'triggers'
+    | 'contents'
+    | 'procedures'
+    | 'conversations'
+    | 'quests'
   >('map');
   const [containerSetup, setContainerSetup] = useState<string | null>(null);
   const [procedureReturns, setProcedureReturns] = useState<
@@ -170,6 +180,7 @@ export default function App() {
   );
   const [input, setInput] = useState('');
   const [plain, setPlain] = useState(false);
+  const [showJournal, setShowJournal] = useState(false);
   const [showState, setShowState] = useState(false);
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
@@ -357,6 +368,8 @@ export default function App() {
       !owner(next, key) &&
       !flow(next, key) &&
       !procedure(next, key) &&
+      !narrativeItem(next, key) &&
+      !key.startsWith(`${gameDataPages.conversations}:`) &&
       !Object.values(gameDataPages).some((page) => page === key)
     ) {
       const caller = current.current.procedureReturns
@@ -368,15 +381,29 @@ export default function App() {
         setFlowBreadcrumb(caller.scriptId);
         const target = flow(next, caller.scriptId);
         setMode(
-          procedure(next, caller.scriptId)
-            ? 'procedures'
-            : target && 'event' in target
-              ? 'triggers'
-              : 'actions',
+          narrativeItem(next, caller.scriptId)
+            ? 'conversation' in narrativeItem(next, caller.scriptId)!
+              ? 'conversations'
+              : 'quests'
+            : procedure(next, caller.scriptId)
+              ? 'procedures'
+              : target && 'event' in target
+                ? 'triggers'
+                : 'actions',
         );
         if (target && 'event' in target) setTriggerFilter(flowOwner(next, target.id)?.id ?? '');
         setBlockSelections((old) => ({ ...old, [caller.scriptId]: caller.selection }));
         setProcedureReturns((old) => old.filter((frame) => frame.definition !== key));
+      } else if (previous && narrativeItem(previous, key)) {
+        const item = narrativeItem(previous, key)!;
+        const parent = narrativeRemovalDestination(previous, key, key)!;
+        const destination = narrativeItem(next, parent)
+          ? parent
+          : 'conversation' in item
+            ? gameDataPages.conversations
+            : gameDataPages.quests;
+        setSelected(destination);
+        setMode('conversation' in item ? 'conversations' : 'quests');
       } else if (previous && procedure(previous, key)) {
         setSelected(gameDataPages.procedures);
         setMode('procedures');
@@ -432,6 +459,27 @@ export default function App() {
     setPlaytestFocused(false);
     const project = current.current.doc;
     setFlowBreadcrumb('');
+    const narrative = project && narrativeItem(project, key);
+    if (
+      narrative ||
+      key === gameDataPages.conversations ||
+      key === gameDataPages.quests ||
+      key.startsWith(`${gameDataPages.conversations}:`)
+    ) {
+      setSelected(key);
+      setMode(
+        narrative
+          ? 'conversation' in narrative
+            ? 'conversations'
+            : 'quests'
+          : key === gameDataPages.quests
+            ? 'quests'
+            : 'conversations',
+      );
+      setConnecting(false);
+      setInspectorCollapsed(false);
+      return;
+    }
     if (key === gameDataPages.procedures || (project && procedure(project, key))) {
       setSelected(key);
       setMode('procedures');
@@ -475,6 +523,8 @@ export default function App() {
     } else if (
       mode === 'triggers' ||
       mode === 'procedures' ||
+      mode === 'conversations' ||
+      mode === 'quests' ||
       (mode === 'contents' &&
         !project?.objects.find((o) => o.id === key && (o.storage?.container || o.storage?.surface)))
     ) {
@@ -613,7 +663,7 @@ export default function App() {
       setBusy(false);
     }
   };
-  const send = async (submitted?: string) => {
+  const send = async (submitted?: string, reply?: { offer_token: string; reply_id: string }) => {
     const command = (submitted ?? input).trim();
     if (!play || !command || busy) return;
     const submittedFocus = document.activeElement;
@@ -626,10 +676,14 @@ export default function App() {
     setExplanationRecord(null);
     setExplanationFocus(null);
     try {
-      const result = await request<PlaytestView>(`/playtests/${play.session}/commands`, 'POST', {
-        command,
-        explain: recordExplanations,
-      });
+      const result = await request<PlaytestView>(
+        `/playtests/${play.session}/${reply ? 'replies' : 'commands'}`,
+        'POST',
+        {
+          ...(reply ?? { command }),
+          explain: recordExplanations,
+        },
+      );
       setPlay(result.result.control?.type === 'quit' ? null : result);
       setLogs((old) => [...old, ...result.result.messages.map((spans) => ({ spans }))]);
       if (result.result.explanation && playProject) {
@@ -726,11 +780,14 @@ export default function App() {
   };
   const remove = (key: string) => {
     if (!doc) return;
-    const target: ReferenceTarget = procedure(doc, key)
-      ? { kind: 'procedure', id: key }
-      : flow(doc, key)
-        ? { kind: 'flow', id: key }
-        : { kind: 'entity', id: key };
+    const narrative = narrativeItem(doc, key);
+    const target: ReferenceTarget = narrative
+      ? { kind: narrative.kind, id: key }
+      : procedure(doc, key)
+        ? { kind: 'procedure', id: key }
+        : flow(doc, key)
+          ? { kind: 'flow', id: key }
+          : { kind: 'entity', id: key };
     if (usedBy(doc, target).length) {
       setReferenceRequest({ target, action: 'delete' });
       return;
@@ -742,7 +799,17 @@ export default function App() {
       if (result.errors.length) throw new Error(result.errors.join(' '));
       Object.assign(p, result.project);
     });
-    if (target.kind === 'procedure') select(gameDataPages.procedures);
+    if (narrative)
+      select(
+        'conversation' in narrative
+          ? narrative.kind === 'conversation'
+            ? gameDataPages.conversations
+            : narrative.conversation.id
+          : narrative.kind === 'quest'
+            ? gameDataPages.quests
+            : narrative.quest.id,
+      );
+    else if (target.kind === 'procedure') select(gameDataPages.procedures);
     else setSelected(parent?.id ?? doc?.game.id ?? '');
   };
   const reveal = (site: ReferenceSite) => {
@@ -828,6 +895,8 @@ export default function App() {
       error(e);
     }
   };
+  const activeNarrative = doc ? narrativeItem(doc, selected) : undefined;
+  const activeNarrativeScript = doc && activeNarrative ? script(doc, selected) : undefined;
   const activeProcedure = doc ? procedure(doc, selected) : undefined;
   const activeFlow = doc && flow(doc, selected);
   const creationRoom = doc ? authoringRoom(doc, selected) : '';
@@ -861,10 +930,20 @@ export default function App() {
             ?.trigger
         : undefined;
   const inspectedFlow =
-    mode === 'procedures' ? activeProcedure : mode === 'triggers' ? activeTrigger : activeFlow;
+    mode === 'conversations' || mode === 'quests'
+      ? activeNarrativeScript
+      : mode === 'procedures'
+        ? activeProcedure
+        : mode === 'triggers'
+          ? activeTrigger
+          : activeFlow;
   const inspectedOwner = doc && inspectedFlow ? flowOwner(doc, inspectedFlow.id) : actionOwner;
   const inspectedBlock =
-    (mode === 'actions' || mode === 'triggers' || mode === 'procedures') &&
+    (mode === 'actions' ||
+      mode === 'triggers' ||
+      mode === 'procedures' ||
+      mode === 'conversations' ||
+      mode === 'quests') &&
     inspectedFlow &&
     blockSelections[inspectedFlow.id]?.kind !== 'root'
       ? blockSelections[inspectedFlow.id]
@@ -897,9 +976,7 @@ export default function App() {
           scriptId: from.flowId,
           blockId: from.blockId,
           selection: structuredClone(from),
-          name:
-            (doc && (flow(doc, from.flowId)?.name || procedure(doc, from.flowId)?.name)) ||
-            'caller',
+          name: (doc && script(doc, from.flowId)?.name) || 'caller',
         },
       ]);
     blocks.current?.selectBlock(null);
@@ -1523,15 +1600,19 @@ export default function App() {
                   { id: gameDataPages.vocabulary, name: 'Command vocabulary', icon: '⌘' },
                   { id: gameDataPages.triggers, name: 'Triggers', icon: '⚡' },
                   { id: gameDataPages.procedures, name: 'Procedures', icon: 'ƒ' },
+                  { id: gameDataPages.conversations, name: 'Conversations', icon: '☏' },
+                  { id: gameDataPages.quests, name: 'Quests', icon: '⚑' },
                   { id: gameDataPages.endings, name: 'Endings', icon: '⚑' },
                 ].map((item) => (
                   <button
                     key={item.id}
-                    className={`tree-item ${selected === item.id || (item.id === gameDataPages.triggers && mode === 'triggers') || (item.id === gameDataPages.procedures && mode === 'procedures') ? 'active' : ''}`}
+                    className={`tree-item ${selected === item.id || (item.id === gameDataPages.triggers && mode === 'triggers') || (item.id === gameDataPages.procedures && mode === 'procedures') || (item.id === gameDataPages.conversations && mode === 'conversations') || (item.id === gameDataPages.quests && mode === 'quests') ? 'active' : ''}`}
                     aria-current={
                       selected === item.id ||
                       (item.id === gameDataPages.triggers && mode === 'triggers') ||
-                      (item.id === gameDataPages.procedures && mode === 'procedures')
+                      (item.id === gameDataPages.procedures && mode === 'procedures') ||
+                      (item.id === gameDataPages.conversations && mode === 'conversations') ||
+                      (item.id === gameDataPages.quests && mode === 'quests')
                         ? 'page'
                         : undefined
                     }
@@ -1716,19 +1797,61 @@ export default function App() {
                 )}
                 <span aria-hidden="true">›</span>
                 <span>
-                  {mode === 'map'
-                    ? 'World map'
-                    : mode === 'hints'
-                      ? 'Hints'
-                      : mode === 'contents'
-                        ? 'Contents'
-                        : mode === 'procedures'
-                          ? 'Procedures'
-                          : mode === 'triggers'
-                            ? 'Triggers'
-                            : 'Actions'}
+                  {mode === 'conversations'
+                    ? 'Conversations'
+                    : mode === 'quests'
+                      ? 'Quests'
+                      : mode === 'map'
+                        ? 'World map'
+                        : mode === 'hints'
+                          ? 'Hints'
+                          : mode === 'contents'
+                            ? 'Contents'
+                            : mode === 'procedures'
+                              ? 'Procedures'
+                              : mode === 'triggers'
+                                ? 'Triggers'
+                                : 'Actions'}
                 </span>
-                {breadcrumbFlow && (
+                {activeNarrative && (
+                  <>
+                    <span aria-hidden="true">›</span>
+                    <button
+                      onClick={() =>
+                        select(
+                          'conversation' in activeNarrative
+                            ? activeNarrative.conversation.id
+                            : activeNarrative.quest.id,
+                        )
+                      }
+                    >
+                      {'conversation' in activeNarrative
+                        ? activeNarrative.conversation.name
+                        : activeNarrative.quest.title}
+                    </button>
+                    {activeNarrative.kind === 'reply' && (
+                      <>
+                        <span aria-hidden="true">›</span>
+                        <button onClick={() => select(activeNarrative.node.id)}>
+                          {activeNarrative.node.name}
+                        </button>
+                      </>
+                    )}
+                    {!['conversation', 'quest'].includes(activeNarrative.kind) && (
+                      <>
+                        <span aria-hidden="true">›</span>
+                        <span>
+                          {'name' in activeNarrative.value
+                            ? activeNarrative.value.name
+                            : activeNarrative.kind === 'reply'
+                              ? activeNarrative.reply.text || 'New reply'
+                              : 'Quest hook'}
+                        </span>
+                      </>
+                    )}
+                  </>
+                )}
+                {!activeNarrative && breadcrumbFlow && (
                   <>
                     <span aria-hidden="true">›</span>
                     <button
@@ -1744,7 +1867,7 @@ export default function App() {
                     >
                       {breadcrumbFlow.name ||
                         ('event' in breadcrumbFlow
-                          ? breadcrumbFlow.event.replaceAll('_', ' ')
+                          ? String(breadcrumbFlow.event).replaceAll('_', ' ')
                           : 'Action')}
                     </button>
                   </>
@@ -1764,7 +1887,8 @@ export default function App() {
                   <button
                     className={mode === 'map' ? 'active' : ''}
                     onClick={() => {
-                      if (mode === 'procedures') select(doc.game.id);
+                      if (mode === 'procedures' || mode === 'conversations' || mode === 'quests')
+                        select(doc.game.id);
                       setMode('map');
                     }}
                   >
@@ -1785,6 +1909,13 @@ export default function App() {
                   >
                     Actions
                   </button>
+                  {actionOwner && doc.characters.some((c) => c.id === actionOwner.id) && (
+                    <button
+                      onClick={() => select(`${gameDataPages.conversations}:${actionOwner.id}`)}
+                    >
+                      Conversations
+                    </button>
+                  )}
                   {storageOwner && (
                     <button
                       className={mode === 'contents' ? 'active' : ''}
@@ -1813,11 +1944,13 @@ export default function App() {
                 <button
                   onClick={() => {
                     const source =
-                      mode === 'actions'
-                        ? actionFlow
-                        : mode === 'triggers'
-                          ? activeTrigger
-                          : undefined;
+                      mode === 'conversations' || mode === 'quests'
+                        ? activeNarrativeScript
+                        : mode === 'actions'
+                          ? actionFlow
+                          : mode === 'triggers'
+                            ? activeTrigger
+                            : undefined;
                     setTemplateContext({
                       ownerId:
                         (source && flowOwner(doc, source.id)?.id) ?? actionOwner?.id ?? doc.game.id,
@@ -1845,17 +1978,21 @@ export default function App() {
                     ? connecting
                       ? 'Click a source room, then a target room · Esc cancels'
                       : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
-                    : mode === 'procedures'
-                      ? 'Shared definitions with typed local inputs'
-                      : mode === 'hints'
-                        ? 'Author progressive clues and optional solutions'
-                        : mode === 'triggers'
-                          ? 'Command, state, and value triggers'
-                          : mode === 'contents'
-                            ? 'Arrange initial contents and set up interactions'
-                            : actionOwner
-                              ? 'Choose an action or exit, then build its logic'
-                              : 'Select an object, location, or character'}
+                    : mode === 'conversations'
+                      ? 'Connect dialogue and authored replies, then build the selected logic'
+                      : mode === 'quests'
+                        ? 'Author stages, earned journal lines and status hooks'
+                        : mode === 'procedures'
+                          ? 'Shared definitions with typed local inputs'
+                          : mode === 'hints'
+                            ? 'Author progressive clues and optional solutions'
+                            : mode === 'triggers'
+                              ? 'Command, state, and value triggers'
+                              : mode === 'contents'
+                                ? 'Arrange initial contents and set up interactions'
+                                : actionOwner
+                                  ? 'Choose an action or exit, then build its logic'
+                                  : 'Select an object, location, or character'}
                 </span>
               </div>
               {mode === 'procedures' &&
@@ -1871,7 +2008,22 @@ export default function App() {
                   </div>
                 )}
               <div className="canvas">
-                {mode === 'procedures' ? (
+                {mode === 'conversations' || mode === 'quests' ? (
+                  <Narrative
+                    key={mode}
+                    project={doc}
+                    selected={selected}
+                    kind={mode}
+                    edit={edit}
+                    select={select}
+                    blocksRef={blocks}
+                    selectedBlock={blockSelections[selected]?.blockId}
+                    onBlockSelect={selectBlock}
+                    blockViews={blockViews}
+                    history={historyControls}
+                    error={error}
+                  />
+                ) : mode === 'procedures' ? (
                   <Procedures
                     project={doc}
                     active={activeProcedure}
@@ -1986,7 +2138,7 @@ export default function App() {
               />
             )}
             <section
-              className={`playtest ${playtestCollapsed ? 'is-collapsed' : ''}`}
+              className={`playtest ${playtestCollapsed ? 'is-collapsed' : ''} ${play?.result.conversation ? 'has-conversation' : ''}`}
               aria-label="Playtest"
             >
               <div className="playtest-toolbar">
@@ -2002,6 +2154,9 @@ export default function App() {
                     : 'Ready to start'}
                 </span>
                 <div className="playtest-controls" hidden={playtestCollapsed}>
+                  <button disabled={!play} onClick={() => setShowJournal(true)}>
+                    Quest log
+                  </button>
                   <button disabled={busy} onClick={() => setPlaytestTools({})}>
                     Setups &amp; checks
                   </button>
@@ -2111,6 +2266,18 @@ export default function App() {
                     </p>
                   )}
                 </div>
+                {play?.result.conversation && (
+                  <NarrativePlayer
+                    project={playProject!}
+                    view={play.result.conversation}
+                    plain={plain}
+                    busy={busy}
+                    select={(offer_token, reply_id, number) =>
+                      void send(`reply ${number}`, { offer_token, reply_id })
+                    }
+                    pause={() => void send('bye')}
+                  />
+                )}
                 {play?.result.pending_clarification && (
                   <div className="pending-command" role="note" aria-label="Pending command">
                     <span>
@@ -2206,7 +2373,32 @@ export default function App() {
           >
             <div className="inspector-toolbar">
               {!inspectorHidden &&
-                (mode === 'procedures' ? (
+                (mode === 'conversations' || mode === 'quests' ? (
+                  <button
+                    className="inspector-back"
+                    onClick={() => {
+                      if (inspectedBlock) {
+                        blocks.current?.selectBlock(null);
+                        setBlockSelections((old) => {
+                          const next = { ...old };
+                          delete next[selected];
+                          return next;
+                        });
+                      } else if (activeNarrative && activeNarrative.kind === 'reply')
+                        select(activeNarrative.node.id);
+                      else select(gameDataPages[mode]);
+                    }}
+                  >
+                    ←{' '}
+                    {inspectedBlock
+                      ? 'Narrative settings'
+                      : activeNarrative?.kind === 'reply'
+                        ? 'Back to node'
+                        : mode === 'conversations'
+                          ? 'Conversations'
+                          : 'Quests'}
+                  </button>
+                ) : mode === 'procedures' ? (
                   <button
                     className="inspector-back"
                     onClick={() => select(gameDataPages.procedures)}
@@ -2301,7 +2493,16 @@ export default function App() {
                     }
                   />
                 )}
-                {mode === 'procedures' && !inspectedBlock ? (
+                {(mode === 'conversations' || mode === 'quests') && !inspectedBlock ? (
+                  <NarrativeInspector
+                    key={selected}
+                    project={doc}
+                    selected={selected}
+                    edit={edit}
+                    select={select}
+                    reveal={reveal}
+                  />
+                ) : mode === 'procedures' && !inspectedBlock ? (
                   activeProcedure ? (
                     <ProcedureInspector
                       key={activeProcedure.id}
@@ -2374,6 +2575,13 @@ export default function App() {
             </div>
           </aside>
         </main>
+      )}
+      {showJournal && play && (
+        <NarrativeJournal
+          entries={play.quest_log}
+          plain={plain}
+          close={() => setShowJournal(false)}
+        />
       )}
       {showSearch && doc && (
         <ProjectSearch
@@ -2486,6 +2694,15 @@ export default function App() {
             <h2>World state</h2>
             <button onClick={() => setShowState(false)}>Close</button>
           </div>
+          <NarrativeProgressInspector
+            sourceCurrent={playSource === playVersion}
+            project={playProject}
+            state={play.state}
+            reveal={(id) => {
+              setShowState(false);
+              select(id);
+            }}
+          />
           <StateInspector
             state={play.state}
             project={playProject}
@@ -2538,16 +2755,20 @@ export default function App() {
           }}
           openRun={(run, snapshot, check) => {
             setPlay({
+              quest_log: run.quest_log,
               session: run.session,
               state: run.state,
               source: run.source,
-              result: run.steps.at(-1)?.result ?? {
-                messages: [],
-                trace: [],
-                state_changed: false,
-                status: 'ok',
-                control: null,
-                selected_flow: null,
+              result: {
+                ...(run.steps.at(-1)?.result ?? {
+                  messages: [],
+                  trace: [],
+                  state_changed: false,
+                  status: 'ok',
+                  control: null,
+                  selected_flow: null,
+                }),
+                conversation: run.conversation ?? undefined,
               },
             });
             setPlayProject(snapshot);
@@ -2660,6 +2881,10 @@ export default function App() {
             },
             { label: 'Delete unused content' },
           );
+          if ('id' in reference.target) {
+            const parent = narrativeRemovalDestination(doc, reference.target.id, selected);
+            if (parent) select(parent);
+          }
         } else setReferenceRequest(reference);
       }}
     >
@@ -2710,6 +2935,13 @@ export default function App() {
                   edit={edit}
                   reveal={reveal}
                   removed={(target) => {
+                    if ('id' in target) {
+                      const parent = narrativeRemovalDestination(doc, target.id, selected);
+                      if (parent) {
+                        select(parent);
+                        return;
+                      }
+                    }
                     if (
                       'id' in target &&
                       (selected === target.id || flowOwner(doc, selected)?.id === target.id)

@@ -115,6 +115,10 @@ async fn token_selection_matches_native_numbered_execution_and_setup_restore_rei
             actual["state"],
             serde_json::to_value(expected.state()).unwrap()
         );
+        assert_eq!(
+            actual["quest_log"],
+            serde_json::to_value(expected.quest_log()).unwrap()
+        );
         if i == 0 || i == 4 {
             let current = ok(
                 &app,
@@ -140,6 +144,7 @@ async fn token_selection_matches_native_numbered_execution_and_setup_restore_rei
             )
             .await;
             assert_eq!(resumed["state"], current["state"]);
+            assert_eq!(resumed["quest_log"], current["quest_log"]);
             assert_ne!(&resumed["result"]["conversation"]["offer_token"], old_token);
             id = resumed["session"].as_str().unwrap().to_owned();
             let rejected = ok(
@@ -239,4 +244,66 @@ async fn reply_endpoint_and_state_replacement_preserve_clarification_and_offer_o
     .await;
     assert_ne!(&replaced["result"]["conversation"]["offer_token"], token);
     assert_eq!(replaced["state"], changed);
+}
+
+#[tokio::test]
+async fn rejected_host_step_continues_with_native_offer_and_earned_log_without_replaying_setup() {
+    let temp = tempfile::tempdir().unwrap();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "conversation".into(),
+        )
+        .unwrap(),
+    );
+    let mut project = fixture::project();
+    let started = ok(&app, "POST", "/playtests", json!({"project":project})).await;
+    let id = started["session"].as_str().unwrap();
+    let greeting = ok(
+        &app,
+        "POST",
+        &format!("/playtests/{id}/commands"),
+        json!({"command":"talk keeper"}),
+    )
+    .await;
+    let setup = ok(
+        &app,
+        "POST",
+        &format!("/playtests/{id}/capture"),
+        json!({"name":"Greeting"}),
+    )
+    .await;
+    project.editor.playtest = Some(PlaytestLibrary {
+        setups: vec![serde_json::from_value(setup.clone()).unwrap()],
+        checks: vec![],
+    });
+    let report = ok(&app, "POST", "/playtests/checks", json!({"project":project,"check":{"id":"host-check","name":"Rejected host control","start":{"type":"setup","setup":setup["id"]},"help_mode":null,"steps":[{"command":"save scratch","transcript":null,"condition":null,"completion":null}]}})).await;
+    assert_eq!(report["passed"], false);
+    assert!(report["steps"][0]["result"].is_null());
+    assert_eq!(report["state"], greeting["state"]);
+    assert_eq!(report["quest_log"], json!([]));
+    assert_eq!(report["conversation"]["conversation"], "conversation");
+    assert_eq!(
+        report["conversation"]["replies"],
+        greeting["result"]["conversation"]["replies"]
+    );
+    let continued = ok(
+        &app,
+        "POST",
+        &format!("/playtests/{}/replies", report["session"].as_str().unwrap()),
+        json!({"offer_token":report["conversation"]["offer_token"],"reply_id":"accept"}),
+    )
+    .await;
+    assert_eq!(continued["state"]["variables"]["entries"], 1);
+    assert_eq!(continued["quest_log"][0]["status"], "active");
+    let replaced = ok(
+        &app,
+        "PUT",
+        &format!("/playtests/{}/state", report["session"].as_str().unwrap()),
+        json!({"state":continued["state"]}),
+    )
+    .await;
+    assert_eq!(replaced["quest_log"], continued["quest_log"]);
+    assert_eq!(replaced["state"], continued["state"]);
 }

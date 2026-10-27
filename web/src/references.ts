@@ -1,3 +1,4 @@
+import { authoringNarrative, construction, draftId, narrativeItem } from './narrativeAuthoring';
 import type {
   BlockTemplate,
   EntityRef,
@@ -525,8 +526,17 @@ function scan(
       path: '',
       scope: 'content',
     });
-  for (const c of p.conversations ?? []) {
-    const site: ReferenceSite = { subject: c.id, conversationId: c.id, path: '', scope: 'content' };
+  const drafts = p.editor.narrative_drafts ?? [];
+  for (const c of [
+    ...(p.conversations ?? []),
+    ...drafts.flatMap((d) => (d.type === 'conversation' ? [d.conversation] : [])),
+  ]) {
+    const site: ReferenceSite = {
+      subject: c.id,
+      conversationId: c.id,
+      path: '',
+      scope: construction(p, c.id) ? 'draft' : 'content',
+    };
     entityReference(c, 'character', site, { allowed: ['character'] });
     node(c.available, 'condition', child(site, 'available'));
     reference(c, 'default_entry', { kind: 'dialogue', id: c.default_entry }, site);
@@ -535,12 +545,28 @@ function scan(
       reference(entry, 'node', { kind: 'dialogue', id: entry.node }, at);
       node(entry.condition, 'condition', child(at, 'condition'));
     });
-    for (const n of c.nodes) {
-      const at = { ...site, subject: n.id };
+    for (const n of [
+      ...c.nodes,
+      ...drafts.flatMap((d) => (d.type === 'dialogue' && d.conversation === c.id ? [d.node] : [])),
+    ]) {
+      const at: ReferenceSite = {
+        ...site,
+        subject: n.id,
+        flowId: n.id,
+        scope: construction(p, n.id) ? 'draft' : 'content',
+      };
       message(n, 'text', at);
       n.effects.forEach((e, i) => node(e, 'effect', child(at, `effects.${i}`)));
-      for (const r of n.replies) {
-        const reply = { ...at, subject: r.id };
+      for (const r of [
+        ...n.replies,
+        ...drafts.flatMap((d) => (d.type === 'reply' && d.node === n.id ? [d.reply] : [])),
+      ]) {
+        const reply: ReferenceSite = {
+          ...at,
+          subject: r.id,
+          flowId: r.id,
+          scope: construction(p, r.id) ? 'draft' : 'content',
+        };
         message(r, 'text', reply);
         node(r.condition, 'condition', child(reply, 'condition'));
         if (r.destination)
@@ -549,11 +575,27 @@ function scan(
       }
     }
   }
-  for (const q of p.quests ?? []) {
-    const site: ReferenceSite = { subject: q.id, questId: q.id, path: '', scope: 'content' };
+  for (const q of [
+    ...(p.quests ?? []),
+    ...drafts.flatMap((d) => (d.type === 'quest' ? [d.quest] : [])),
+  ]) {
+    const site: ReferenceSite = {
+      subject: q.id,
+      questId: q.id,
+      path: '',
+      scope: construction(p, q.id) ? 'draft' : 'content',
+    };
     for (const key of ['introduction', 'completion', 'failure']) message(q, key, site);
-    for (const stage of q.stages) {
-      const at = { ...site, subject: stage.id };
+    for (const stage of [
+      ...q.stages,
+      ...drafts.flatMap((d) => (d.type === 'quest_stage' && d.quest === q.id ? [d.stage] : [])),
+    ]) {
+      const at: ReferenceSite = {
+        ...site,
+        subject: stage.id,
+        flowId: stage.id,
+        scope: construction(p, stage.id) ? 'draft' : 'content',
+      };
       message(stage, 'text', at);
       node(stage.condition, 'condition', child(at, 'condition'));
       stage.prerequisites.forEach((id, i) =>
@@ -567,13 +609,32 @@ function scan(
       stage.effects.forEach((e, i) => node(e, 'effect', child(at, `effects.${i}`)));
     }
     for (const key of ['on_start', 'on_complete', 'on_fail'] as const) {
-      const at = { ...site, subject: q[key].id };
+      const at = { ...site, subject: q[key].id, flowId: q[key].id };
       q[key].effects.forEach((e, i) => node(e, 'effect', child(at, `effects.${i}`)));
     }
   }
   for (const ending of p.game.endings)
     message(ending, 'text', { subject: ending.id, path: '', scope: 'content' });
   for (const template of p.editor.templates) {
+    for (const dependency of template.narratives ?? []) {
+      const at: ReferenceSite = {
+        subject: template.id,
+        templateId: template.id,
+        path: 'narratives',
+        scope: 'metadata',
+      };
+      reference(dependency, 'id', { kind: dependency.kind, id: dependency.id }, at);
+      if (dependency.parent)
+        reference(
+          dependency,
+          'parent',
+          {
+            kind: ['dialogue', 'reply'].includes(dependency.kind) ? 'conversation' : 'quest',
+            id: dependency.parent,
+          },
+          at,
+        );
+    }
     const original = resolve.editor.templates.find((t) => t.id === template.id) ?? template;
     const site: ReferenceSite = {
       subject: template.id,
@@ -693,9 +754,15 @@ function scan(
       .flatMap((o) => ('hints' in o ? o.hints.map((h) => ({ owner: o.id, hint: h.id })) : []))
       .find((h) => key === `hints:${h.hint}`);
     const parent = flowOwner(p, key);
+    const narrative = narrativeItem(p, key);
     const site: ReferenceSite = {
+      ...(narrative && 'conversation' in narrative
+        ? { conversationId: narrative.conversation.id }
+        : narrative && 'quest' in narrative
+          ? { questId: narrative.quest.id }
+          : {}),
       subject: hint?.hint ?? key,
-      flowId: parent ? key : undefined,
+      flowId: script(p, key) ? key : undefined,
       procedureId: (p.procedures ?? []).some((procedure) => procedure.id === key) ? key : undefined,
       ownerId: hint?.owner ?? parent?.id,
       puzzleId: hint?.hint,
@@ -836,6 +903,14 @@ function scan(
   }
   return uses;
 }
+/** Apply identity changes through the same typed walk as Used by/repair. */
+export function remapProjectReferences(p: Project, ids: ReadonlyMap<string, string>) {
+  scan(p, p, (use) =>
+    'id' in use.target && ids.has(use.target.id)
+      ? { ...use.target, id: ids.get(use.target.id)! }
+      : undefined,
+  );
+}
 export function projectReferences(p: Project): ReferenceUse[] {
   return scan(structuredClone(p)).filter((use) => use.scope !== 'metadata');
 }
@@ -872,6 +947,22 @@ function ownedTargets(p: Project, target: ReferenceTarget): ReferenceTarget[] {
     ];
   }
 
+  if (target.kind === 'dialogue') {
+    const item = narrativeItem(p, target.id);
+    if (item?.kind === 'dialogue') {
+      const node = authoringNarrative(p)
+        .conversations.find((c) => c.id === item.conversation.id)!
+        .nodes.find((n) => n.id === item.node.id)!;
+      return [
+        ...node.replies.map((r) => ({ kind: 'reply' as const, id: r.id })),
+        ...[node, ...node.replies].flatMap((root) =>
+          allEffects(root.effects).flatMap(({ effect }) =>
+            effect.type === 'respond' ? [{ kind: 'sequence' as const, id: effect.id }] : [],
+          ),
+        ),
+      ];
+    }
+  }
   const owner = target.kind === 'entity' ? entity(p, target.id) : undefined;
   const scripts = owner
     ? [...owner.actions, ...owner.triggers, ...('exits' in owner ? owner.exits : [])]
@@ -879,7 +970,9 @@ function ownedTargets(p: Project, target: ReferenceTarget): ReferenceTarget[] {
       ? [flow(p, target.id)].filter((f) => !!f)
       : target.kind === 'procedure'
         ? [procedure(p, target.id)].filter((item) => !!item)
-        : [];
+        : 'id' in target && narrativeItem(p, target.id)
+          ? [script(p, target.id)].filter((item) => !!item)
+          : [];
   return [
     ...scripts.flatMap((script) =>
       allEffects(script.effects).flatMap(({ effect }) =>
@@ -897,6 +990,11 @@ export function usedBy(p: Project, target: ReferenceTarget): ReferenceUse[] {
       !(target.kind === 'entity' && use.ownerId === target.id) &&
       !(target.kind === 'flow' && use.flowId === target.id) &&
       !(target.kind === 'procedure' && use.procedureId === target.id) &&
+      !(
+        ['dialogue', 'reply', 'quest_stage', 'narrative_hook'].includes(target.kind) &&
+        (use.subject === ('id' in target ? target.id : '') ||
+          children.some((t) => 'id' in t && t.id === use.subject))
+      ) &&
       !(target.kind === 'conversation' && use.conversationId === target.id) &&
       !(target.kind === 'quest' && use.questId === target.id) &&
       !(target.kind === 'puzzle' && use.puzzleId === target.id),
@@ -936,8 +1034,18 @@ function entityKind(p: Project, id: string) {
         : undefined;
 }
 export function replacementTargets(p: Project, source: ReferenceTarget): ReferenceTarget[] {
-  const choices: ReferenceTarget[] =
-    source.kind === 'variable'
+  const narrative = narrativeItem(p, 'id' in source ? source.id : '');
+  const choices: ReferenceTarget[] = narrative
+    ? narrativeDefinitions(p)
+        .filter(
+          (d) =>
+            d.kind === source.kind &&
+            (!('conversation' in narrative) ||
+              ('conversationId' in d && d.conversationId === narrative.conversation.id)) &&
+            (!('quest' in narrative) || ('questId' in d && d.questId === narrative.quest.id)),
+        )
+        .map((d) => ({ kind: d.kind, id: d.id }))
+    : source.kind === 'variable'
       ? Object.keys(p.game.variables).map((name) => ({ kind: 'variable', name }))
       : source.kind === 'property'
         ? Object.keys(entity(p, source.entity)?.state ?? {}).map((name) => ({ ...source, name }))
@@ -962,13 +1070,54 @@ export function replacementTargets(p: Project, source: ReferenceTarget): Referen
   );
 }
 export function deleteDefinition(p: Project, target: ReferenceTarget) {
+  const narrative = narrativeItem(p, 'id' in target ? target.id : '');
+  if (narrative && !['conversation', 'quest'].includes(target.kind)) {
+    if (narrative.kind === 'narrative_hook')
+      throw new Error('Quest status hooks cannot be deleted.');
+    const childIds = new Set(
+      narrative.kind === 'dialogue'
+        ? [
+            ...narrative.node.replies.map((r) => r.id),
+            ...(p.editor.narrative_drafts ?? []).flatMap((d) =>
+              d.type === 'reply' && d.node === narrative.value.id ? [d.reply.id] : [],
+            ),
+          ]
+        : [],
+    );
+    for (const id of childIds) {
+      delete p.editor.blocks[id];
+      delete p.editor.positions[id];
+      delete p.editor.routes[id];
+    }
+    p.editor.narrative_drafts = p.editor.narrative_drafts?.filter(
+      (d) => draftId(d) !== narrative.value.id && !childIds.has(draftId(d)),
+    );
+    if (narrative.kind === 'dialogue')
+      narrative.conversation.nodes = narrative.conversation.nodes.filter(
+        (n) => n.id !== narrative.value.id,
+      );
+    if (narrative.kind === 'reply')
+      narrative.node.replies = narrative.node.replies.filter((r) => r.id !== narrative.value.id);
+    if (narrative.kind === 'quest_stage')
+      narrative.quest.stages = narrative.quest.stages.filter((s) => s.id !== narrative.value.id);
+    delete p.editor.blocks[narrative.value.id];
+    delete p.editor.positions[narrative.value.id];
+    delete p.editor.routes[narrative.value.id];
+    return;
+  }
   if (target.kind === 'conversation' || target.kind === 'quest') {
     const owned = narrativeDefinitions(p).filter((d) =>
       target.kind === 'conversation'
         ? 'conversationId' in d && d.conversationId === target.id
         : 'questId' in d && d.questId === target.id,
     );
-    for (const child of owned) delete p.editor.blocks[child.id];
+    const ids = new Set(owned.map((d) => d.id));
+    p.editor.narrative_drafts = p.editor.narrative_drafts?.filter((d) => !ids.has(draftId(d)));
+    for (const child of owned) {
+      delete p.editor.blocks[child.id];
+      delete p.editor.positions[child.id];
+      delete p.editor.routes[child.id];
+    }
     if (target.kind === 'conversation')
       p.conversations = p.conversations?.filter((c) => c.id !== target.id);
     else p.quests = p.quests?.filter((q) => q.id !== target.id);

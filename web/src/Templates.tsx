@@ -1,6 +1,8 @@
+import { narrativeDefinitions } from './narrativeModel';
+import { construction, narrativeItem } from './narrativeAuthoring';
 import { useState } from 'react';
 import type { BlockTemplate, Diagnostic, Effect, Project, TemplateContent } from './contracts';
-import { allEffects, flow, owner } from './model';
+import { allEffects, flow, owner, script } from './model';
 import { Field, Select, Text } from './Forms';
 import { request } from './api';
 import { ReferenceButton, useReferenceActions } from './ReferenceManager';
@@ -14,6 +16,7 @@ import {
   templateEntities,
   templateReferences,
   templateBindingErrors,
+  templateNarrativeReferences,
 } from './templates';
 
 type Edit = (change: (p: Project) => void) => void;
@@ -43,12 +46,13 @@ export default function Templates({
   initialTemplate?: string;
 }) {
   const references = useReferenceActions();
-  const source = context.flowId ? flow(p, context.flowId) : undefined;
+  const source = context.flowId ? script(p, context.flowId) : undefined;
+  const actionSource = context.flowId ? flow(p, context.flowId) : undefined;
   const [name, setName] = useState(source && 'name' in source ? source.name : '');
   const [scope, setScope] = useState(
     context.selectedEffects?.length
       ? 'selection'
-      : source && 'requirements' in source
+      : actionSource && 'requirements' in actionSource
         ? 'action'
         : 'effects',
   );
@@ -89,7 +93,9 @@ export default function Templates({
             label="Save from"
             value={scope}
             items={[
-              ...('requirements' in source ? [{ id: 'action', name: 'Whole command action' }] : []),
+              ...(actionSource && 'requirements' in actionSource
+                ? [{ id: 'action', name: 'Whole command action' }]
+                : []),
               ...(context.selectedEffects?.length
                 ? [{ id: 'selection', name: 'Selected block and following chain' }]
                 : []),
@@ -101,8 +107,8 @@ export default function Templates({
             disabled={!canSave}
             onClick={() => {
               const content: TemplateContent =
-                scope === 'action' && 'requirements' in source
-                  ? { type: 'action', action: source }
+                scope === 'action' && actionSource && 'requirements' in actionSource
+                  ? { type: 'action', action: actionSource }
                   : {
                       type: 'effects',
                       effects: scope === 'selection' ? context.selectedEffects! : source.effects,
@@ -248,10 +254,16 @@ function TemplateUse({
   const [busy, setBusy] = useState(false);
   const references = templateReferences(template);
   const entities = templateEntities(p);
-  const complete = references.every((ref) =>
-    entities.some((entity) => entity.id === mapping[ref.id] && ref.allowed.includes(entity.kind)),
-  );
-  const destination = context.flowId ? flow(p, context.flowId) : undefined;
+  const narratives = templateNarrativeReferences(template);
+  const narrativeChoices = narrativeDefinitions(p).filter((d) => !construction(p, d.id));
+  const complete =
+    narratives.every((ref) =>
+      narrativeChoices.some((d) => d.kind === ref.kind && d.id === mapping[ref.id]),
+    ) &&
+    references.every((ref) =>
+      entities.some((entity) => entity.id === mapping[ref.id] && ref.allowed.includes(entity.kind)),
+    );
+  const destination = context.flowId ? script(p, context.flowId) : undefined;
   const insert = async (asAction: boolean) => {
     setErrors([]);
     setBusy(true);
@@ -271,8 +283,11 @@ function TemplateUse({
         target.actions.push(copied.action);
         affected = copied.action.id;
       } else {
-        const target = context.flowId ? flow(proposed, context.flowId) : undefined;
-        if (!target) throw new Error('Open an action or trigger before appending blocks.');
+        const target = context.flowId
+          ? (narrativeItem(proposed, context.flowId)?.value ?? script(proposed, context.flowId))
+          : undefined;
+        if (!target || !('effects' in target))
+          throw new Error('Open an effect workspace before appending blocks.');
         target.effects.push(...effectsOf(copied));
         affected = target.id;
       }
@@ -307,6 +322,33 @@ function TemplateUse({
     <fieldset className="template-bindings" disabled={busy}>
       <legend>Insert a copy</legend>
       {references.length > 0 && <p className="muted">Choose which entities this copy uses.</p>}
+      {narratives.map((ref) => (
+        <Select
+          key={ref.id}
+          label={`${ref.kind.replaceAll('_', ' ')} · ${ref.name}`}
+          value={mapping[ref.id] ?? ''}
+          items={narrativeChoices
+            .filter(
+              (d) =>
+                d.kind === ref.kind &&
+                (!ref.parent ||
+                  ('conversationId' in d ? d.conversationId : 'questId' in d ? d.questId : '') ===
+                    mapping[ref.parent]),
+            )
+            .map((d) => ({ id: d.id, name: d.name }))}
+          onChange={(id) =>
+            setMapping((old) => ({
+              ...old,
+              [ref.id]: id,
+              ...Object.fromEntries(
+                narratives
+                  .filter((child) => child.parent === ref.id)
+                  .map((child) => [child.id, '']),
+              ),
+            }))
+          }
+        />
+      ))}
       {references.map((ref) => (
         <Field key={ref.id} label={`Replace ${ref.name}`}>
           <select

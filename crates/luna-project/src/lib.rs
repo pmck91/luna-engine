@@ -718,6 +718,7 @@ mod tests {
         let mut p = Project::blank("Template metadata");
         p.editor.templates = vec![
             BlockTemplate {
+                narratives: vec![],
                 id: "template-action".into(),
                 name: "Stored action".into(),
                 source_owner: Some("deleted-source".into()),
@@ -743,6 +744,7 @@ mod tests {
                 },
             },
             BlockTemplate {
+                narratives: vec![],
                 id: "template-effects".into(),
                 name: "Stored blocks".into(),
                 source_owner: None,

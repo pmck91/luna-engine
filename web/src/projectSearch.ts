@@ -1,3 +1,4 @@
+import { narrativeDefinitions } from './narrativeModel';
 import type { Project } from './contracts';
 import { gameDataPages } from './model';
 import { placementLabel } from './containerModel';
@@ -57,6 +58,13 @@ export function searchIndex(p: Project): SearchEntry[] {
       for (const [name, value] of Object.entries(owner.state))
         add('Variables and properties', name, { ...at, path: `state.${name}` }, String(value));
   }
+  for (const d of narrativeDefinitions(p))
+    add('conversationId' in d ? 'Conversations' : 'Quests', d.name || d.kind.replaceAll('_', ' '), {
+      subject: d.id,
+      path: '',
+      scope: 'content',
+      ...('conversationId' in d ? { conversationId: d.conversationId } : { questId: d.questId }),
+    });
   for (const definition of p.procedures ?? [])
     add(
       'Procedures',

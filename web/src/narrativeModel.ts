@@ -1,8 +1,10 @@
-import type { Effect, Project } from './contracts';
+import { authoringNarrative } from './narrativeAuthoring';
+import type { Project } from './contracts';
 
 export type NarrativeKind =
   'conversation' | 'dialogue' | 'reply' | 'quest' | 'quest_stage' | 'narrative_hook';
-export function narrativeDefinitions(p: Project) {
+export function narrativeDefinitions(project: Project) {
+  const p = authoringNarrative(project);
   return [
     ...(p.conversations ?? []).flatMap((c) => [
       { kind: 'conversation' as const, id: c.id, name: c.name, conversationId: c.id },
@@ -34,9 +36,8 @@ export function narrativeDefinitions(p: Project) {
   ];
 }
 /** Ordinary effect roots shared by reference/CALL/sequence discovery. */
-export function narrativeScripts(
-  p: Project,
-): Array<{ id: string; name: string; effects: Effect[] }> {
+export function narrativeScripts(project: Project) {
+  const p = authoringNarrative(project);
   return [
     ...(p.conversations ?? []).flatMap((c) =>
       c.nodes.flatMap((n) => [n, ...n.replies.map((r) => ({ ...r, name: r.text }))]),

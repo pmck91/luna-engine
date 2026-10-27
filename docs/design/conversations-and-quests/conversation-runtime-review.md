@@ -1,6 +1,6 @@
 # Conversations and quests — N4 conversation runtime
 
-Status: **N4 implemented and technically verified; N5 next**, 27 October 2026, on `feature/conversations-and-quests`. N3 is owner accepted and committed as `35a01a4`. This milestone implements the conversation portion of the [frozen contract](interaction-contract.md), using the [N2 foundation](foundation-review.md), [N3 quest executor](quest-runtime-review.md) and accepted [N0 design](README.md). Production authoring/choice controls and full feature acceptance remain N5/N6 under the [plan](../../plans/conversations-and-quests.md).
+Status: **N4 owner accepted and committed as `6ee10e9`**, 27 October 2026, on `feature/conversations-and-quests`. N3 is owner accepted and committed as `35a01a4`. The [N5 working-slice record](authoring-review.md) now covers production editor/player controls; its owner review and N6 acceptance remain. This milestone implements the conversation portion of the [frozen contract](interaction-contract.md), using the [N2 foundation](foundation-review.md), [N3 quest executor](quest-runtime-review.md) and accepted [N0 design](README.md). Production authoring/choice controls and full feature acceptance remain N5/N6 under the [plan](../../plans/conversations-and-quests.md).
 
 ## Native execution
 

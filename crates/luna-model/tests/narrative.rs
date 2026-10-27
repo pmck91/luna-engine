@@ -104,6 +104,7 @@ fn resets_stay_local_and_new_forms_require_format_five_even_in_templates() {
     });
     assert_eq!(p.minimum_format(), 5);
     p.editor.templates.push(BlockTemplate {
+        narratives: vec![],
         id: "template".into(),
         name: "Template".into(),
         source_owner: None,

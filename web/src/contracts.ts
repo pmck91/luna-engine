@@ -33,6 +33,12 @@ export type QuestStage = { id: string, name: string, text: string, prerequisites
 
 export type NarrativeHook = { id: string, effects: Array<Effect>, };
 
+export type NarrativeDraft = { "type": "conversation", conversation: Conversation, } | { "type": "dialogue", conversation: string, node: ConversationNode, } | { "type": "reply", conversation: string, node: string, reply: ConversationReply, } | { "type": "quest", quest: Quest, } | { "type": "quest_stage", quest: string, stage: QuestStage, };
+
+export type NarrativeReferenceKind = "conversation" | "dialogue" | "reply" | "quest" | "quest_stage";
+
+export type TemplateNarrativeReference = { id: string, name: string, kind: NarrativeReferenceKind, parent: string | null, };
+
 export type QuestStatus = "undiscovered" | "active" | "completed" | "failed";
 
 export type NarrativeProgress = { active: string | null, conversations: { [key in string]?: ConversationProgress }, quests: { [key in string]?: QuestProgress }, sequences: { [key in string]?: number }, };
@@ -225,9 +231,13 @@ export type TemplateEntity = { id: string, name: string, kind: TemplateEntityKin
 
 export type TemplateContent = { "type": "action", action: Action, } | { "type": "effects", effects: Array<Effect>, };
 
-export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, content: TemplateContent, };
+export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, narratives?: Array<TemplateNarrativeReference>, content: TemplateContent, };
 
-export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, warning_acknowledgements?: Array<WarningAcknowledgement>, playtest?: PlaytestLibrary, };
+export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>,
+/**
+ * Unfinished narrative content is saved with the editor, never installed.
+ */
+narrative_drafts?: Array<NarrativeDraft>, warning_acknowledgements?: Array<WarningAcknowledgement>, playtest?: PlaytestLibrary, };
 
 export type WarningAcknowledgement = { warning_key: string, subject: string, field: string, message: string, reason: string, };
 
@@ -771,7 +781,11 @@ export type ReplyRequest = { offer_token: string, reply_id: string, explain: boo
 
 export type StateRequest = { state: GameState, };
 
-export type PlaytestView = { session: string, result: CommandResult, state: GameState, source: PlaytestSource, };
+export type PlaytestView = { session: string, result: CommandResult, state: GameState, source: PlaytestSource,
+/**
+ * Only earned journal entries, prepared by the shared runtime.
+ */
+quest_log: Array<QuestLogEntry>, };
 
 export type CaptureSetup = { name: string, };
 
@@ -783,5 +797,5 @@ export type RunCheck = { project: Project, check: PlaytestCheck, explain: boolea
 
 export type CheckStepResult = { index: number, command: string, result: CommandResult | null, failures: Array<string>, };
 
-export type CheckRun = { session: string, source: PlaytestSource, initial_state: GameState, initial_messages: Array<Array<Span>>, steps: Array<CheckStepResult>, state: GameState, passed: boolean, };
+export type CheckRun = { session: string, source: PlaytestSource, initial_state: GameState, initial_messages: Array<Array<Span>>, steps: Array<CheckStepResult>, state: GameState, passed: boolean, quest_log: Array<QuestLogEntry>, conversation: ConversationView | null, };
 

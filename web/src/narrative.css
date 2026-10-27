@@ -1,0 +1,272 @@
+.narrative-graph {
+  height: 440px;
+  position: relative;
+  border-block: 1px solid var(--border);
+  background: #191c24;
+}
+.narrative-dialogue-card {
+  border: 1px solid #5c527e;
+  border-radius: 9px;
+  background: #262331;
+  width: 215px;
+  box-shadow: 0 6px 16px #0002;
+}
+.narrative-dialogue-card.selected {
+  border: 2px solid #bca8fa;
+  box-shadow: 0 0 0 4px #9e8bf122;
+}
+.narrative-dialogue-card.draft {
+  border-style: dashed;
+}
+.narrative-dialogue-card button {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  line-height: 1.5;
+}
+.narrative-dialogue-card button:hover {
+  background: #3b324c;
+}
+.narrative-dialogue-card strong {
+  font-size: 14px;
+  color: #f0eaff;
+}
+.narrative-dialogue-card small {
+  color: #b4a7d1;
+  font-size: 10px;
+}
+.narrative-dialogue-card span {
+  font-size: 11px;
+  color: #c8c3d4;
+}
+.narrative-map-key {
+  position: absolute;
+  right: 12px;
+  bottom: 9px;
+  background: #191c24dd;
+  color: #aab0c3;
+  padding: 5px 7px;
+  font-size: 10px;
+  pointer-events: none;
+}
+.narrative-graph .react-flow__controls-button {
+  color: #ccd1df;
+  background: #292e39;
+  border-color: #444554;
+}
+.narrative-graph .react-flow__controls-button svg {
+  fill: #ccd1df;
+}
+
+.narrative-dialogue-card {
+  overflow-wrap: anywhere;
+}
+.narrative-dialogue-card button span {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.narrative-dialogue-card > .narrative-node-drag {
+  display: block;
+  padding: 9px 13px 0;
+  cursor: grab;
+}
+.narrative-dialogue-card > .narrative-node-drag:active {
+  cursor: grabbing;
+}
+.narrative-dialogue-card button {
+  padding-top: 6px;
+}
+
+.narrative-dialogue-card.terminal {
+  border-color: #8eaf9c;
+}
+.narrative-dialogue-card.terminal strong {
+  color: #c7e8d5;
+}
+.narrative-dialogue-card.end-badge {
+  width: 154px;
+  border-color: #746450;
+  background: #2c2823;
+}
+.narrative-dialogue-card.end-badge button {
+  padding: 9px 12px;
+  gap: 2px;
+}
+.narrative-dialogue-card.end-badge strong {
+  font-size: 11px;
+  color: #e2cfaf;
+}
+.narrative-dialogue-card.end-badge span {
+  font-size: 10px;
+  color: #b6a58b;
+}
+.narrative-edge-label {
+  position: absolute;
+  pointer-events: all;
+  width: 82px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid #625575;
+  border-radius: 4px;
+  background: #282331;
+  color: #e0d8ec;
+  font-size: 10px;
+  line-height: 20px;
+}
+.narrative-edge-label.selected {
+  border-color: #d1baf4;
+  background: #45365c;
+}
+.narrative-label-leader {
+  stroke: #a99bb9;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.narrative-workspace {
+  height: 100%;
+  overflow: auto;
+  min-width: 0;
+}
+.narrative-library {
+  padding: 20px;
+  max-width: 1000px;
+  margin-inline: auto;
+}
+.narrative-library-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.narrative-heading {
+  padding: 12px 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.narrative-heading h2 {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.narrative-detail {
+  display: grid;
+  grid-template-columns: minmax(170px, 240px) minmax(0, 1fr);
+  min-height: 470px;
+}
+.narrative-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+.narrative-parts > button {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.narrative-parts [aria-current='page'] {
+  border-color: var(--purple);
+  background: #38304f;
+}
+.narrative-logic {
+  min-width: 0;
+  min-height: 470px;
+  display: flex;
+}
+.narrative-logic > .flow-surface {
+  flex: 1;
+  height: 470px;
+  min-width: 0;
+}
+.narrative-inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.narrative-dialogue-player {
+  padding: 10px 14px;
+  border-block: 1px solid #5c527e;
+  background: #262331;
+  max-height: 220px;
+  overflow: auto;
+}
+.narrative-dialogue-player ol {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 8px 0 0;
+}
+.narrative-dialogue-player button {
+  text-align: left;
+  white-space: normal;
+}
+.narrative-journal {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.narrative-map-key {
+  max-width: calc(100% - 24px);
+}
+@media (max-width: 900px) {
+  .narrative-detail {
+    grid-template-columns: 1fr;
+  }
+  .narrative-parts {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* Keep current replies visible alongside the transcript at the default size. */
+.workspace:not(.playtest-focused) .playtest.has-conversation:not(.is-collapsed) {
+  height: min(max(var(--playtest-size, 240px), 320px), 65%);
+  min-height: min(320px, 55dvh);
+}
+.narrative-dialogue-player {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  padding: 8px 12px;
+  max-height: 150px;
+}
+.narrative-dialogue-player > strong {
+  font-size: 12px;
+}
+.narrative-dialogue-player ol {
+  flex: 1;
+  margin: 0;
+}
+.narrative-dialogue-player > p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.narrative-current-dialogue {
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.narrative-dialogue-player > button {
+  margin-left: auto;
+}
+.narrative-dialogue-player button {
+  font-size: 12px;
+  padding: 6px 9px;
+}

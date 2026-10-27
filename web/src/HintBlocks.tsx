@@ -1,3 +1,4 @@
+import { authoringNarrative } from './narrativeAuthoring';
 import { bindWorkspaceHistory, type HistoryControls } from './workspaceHistory';
 import type { EditContext } from './projectHistory';
 import { useContext, useEffect, useRef } from 'react';
@@ -7,6 +8,7 @@ import {
   blockWorkspaceOptions,
   conditionFieldChanged,
   conditionToolbox,
+  narrativeConditionToolbox,
   makeCondition,
   readCondition,
   refreshBlockFields,
@@ -265,8 +267,22 @@ const toolbox = {
       ],
     },
     { kind: 'category', name: 'Conditions', colour: '#916b31', contents: conditionToolbox },
+    {
+      kind: 'category',
+      name: 'Conversations & quests',
+      colour: '#7161c6',
+      contents: narrativeConditionToolbox,
+    },
   ],
 };
+function hintToolbox(project: Project) {
+  return {
+    ...toolbox,
+    contents: toolbox.contents.filter(
+      (category) => category.name !== 'Conversations & quests' || project.game.format_version >= 5,
+    ),
+  };
+}
 export default function HintBlocks({
   project,
   hint,
@@ -300,6 +316,8 @@ export default function HintBlocks({
   const current = useRef({ hint, saved, onChange, onSelect, onError, onViewChange, history });
   current.current = { hint, saved, onChange, onSelect, onError, onViewChange, history };
   const choiceVersion = JSON.stringify({
+    format: project.game.format_version,
+    narrative: authoringNarrative(project),
     entities: [...project.locations, ...project.objects, ...project.characters].map((e) => [
       e.id,
       e.name,
@@ -325,7 +343,7 @@ export default function HintBlocks({
     refreshChainEnds(ws);
   };
   useEffect(() => {
-    const ws = Blockly.inject(host.current!, blockWorkspaceOptions(toolbox));
+    const ws = Blockly.inject(host.current!, blockWorkspaceOptions(hintToolbox(project)));
     workspace.current = ws;
     if (current.current.history) bindWorkspaceHistory(ws, () => current.current.history!);
     Blockly.Events.disable();
@@ -402,6 +420,7 @@ export default function HintBlocks({
     if (!ws) return;
     Blockly.Events.disable();
     try {
+      ws.updateToolbox(hintToolbox(project));
       refreshBlockFields(ws);
     } finally {
       Blockly.Events.enable();

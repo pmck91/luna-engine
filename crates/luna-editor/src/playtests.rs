@@ -47,6 +47,8 @@ pub struct CheckRun {
     pub steps: Vec<CheckStepResult>,
     pub state: GameState,
     pub passed: bool,
+    pub quest_log: Vec<luna_core::QuestLogEntry>,
+    pub conversation: Option<luna_core::ConversationView>,
 }
 
 pub(crate) fn source(project: &Project) -> Result<PlaytestSource> {
@@ -167,6 +169,7 @@ pub(crate) async fn start_playtest(
     let id = new_id();
     let view = PlaytestView {
         session: id.clone(),
+        quest_log: runtime.quest_log(),
         result,
         state: runtime.state().clone(),
         source: source.clone(),
@@ -350,6 +353,8 @@ pub(crate) async fn run_check(
     }
     let id = new_id();
     let report = CheckRun {
+        quest_log: runtime.quest_log(),
+        conversation: runtime.conversation_view().cloned(),
         session: id.clone(),
         source: source.clone(),
         initial_state,

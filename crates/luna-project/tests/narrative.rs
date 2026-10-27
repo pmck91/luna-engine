@@ -146,3 +146,89 @@ fn runtime_bundle_excludes_layout_and_captured_progress_but_retains_unused_defin
     assert_eq!(runtime.editor, EditorLayout::default());
     assert!(!stage.path().join("editor").exists());
 }
+
+#[test]
+fn narrative_construction_and_template_bindings_reopen_but_never_enter_bundles() {
+    let root = tempfile::tempdir().unwrap();
+    let stage = tempfile::tempdir().unwrap();
+    let mut p = fixture::project();
+    let executable = project_files(&p, false).unwrap();
+    p.editor.narrative_drafts = vec![
+        NarrativeDraft::Conversation {
+            conversation: Conversation {
+                id: new_id(),
+                name: "Unfinished".into(),
+                ..Default::default()
+            },
+        },
+        NarrativeDraft::Dialogue {
+            conversation: "conversation".into(),
+            node: ConversationNode {
+                id: new_id(),
+                name: "Later".into(),
+                text: "%unfinished%".into(),
+                ..Default::default()
+            },
+        },
+        NarrativeDraft::Reply {
+            conversation: "conversation".into(),
+            node: "greeting".into(),
+            reply: ConversationReply {
+                id: new_id(),
+                ..Default::default()
+            },
+        },
+        NarrativeDraft::Quest {
+            quest: Quest {
+                id: new_id(),
+                title: "Future puzzle".into(),
+                ..Default::default()
+            },
+        },
+        NarrativeDraft::QuestStage {
+            quest: "missing".into(),
+            stage: QuestStage {
+                id: new_id(),
+                ..Default::default()
+            },
+        },
+    ];
+    p.editor.templates.push(BlockTemplate {
+        id: new_id(),
+        name: "Milestone".into(),
+        source_owner: None,
+        entities: vec![],
+        text_variables: vec![],
+        narratives: vec![TemplateNarrativeReference {
+            id: "found".into(),
+            name: "Find key".into(),
+            kind: NarrativeReferenceKind::QuestStage,
+            parent: Some("missing".into()),
+        }],
+        content: TemplateContent::Effects {
+            effects: vec![Effect::CompleteQuestStage {
+                quest: "missing".into(),
+                stage: "found".into(),
+            }],
+        },
+    });
+    let rev = save_project(root.path(), &p, None).unwrap();
+    assert_eq!(load_project(root.path()).unwrap(), p);
+    assert_eq!(project_files(&p, false).unwrap(), executable);
+    let bundle = export_bundle(root.path(), &p).unwrap();
+    let installed = extract_bundle(&bundle, stage.path()).unwrap();
+    assert!(installed.editor.narrative_drafts.is_empty());
+    assert!(installed.editor.templates.is_empty());
+    let mut changed = p.clone();
+    changed.editor.narrative_drafts.clear();
+    save_project(root.path(), &changed, Some(&rev)).unwrap();
+    assert_eq!(load_project(root.path()).unwrap(), changed);
+    p.game.actions[0].effects.push(Effect::StartConversation {
+        conversation: match &p.editor.narrative_drafts[0] {
+            NarrativeDraft::Conversation { conversation } => conversation.id.clone(),
+            _ => unreachable!(),
+        },
+    });
+    assert!(has_errors(&validate(&p)));
+    assert!(export_bundle(root.path(), &p).is_err());
+}
