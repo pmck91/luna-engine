@@ -13,7 +13,10 @@ impl<'a> Run<'a> {
             ..Default::default()
         };
         let previous = std::mem::replace(&mut self.invocation, invocation);
+        #[cfg(not(test))]
         let result = self.effects_at(effects, self.source_for(id, "effects"));
+        #[cfg(test)]
+        let result = self.narrative_flow(id, effects);
         self.invocation = previous;
         result
     }
@@ -25,6 +28,10 @@ impl<'a> Run<'a> {
                 .get(&self.procedure_path(id)?)
                 .copied()
                 .unwrap_or(0));
+        }
+        #[cfg(test)]
+        if let Some(cursor) = self.narrative_cursor(id)? {
+            return Ok(cursor);
         }
         self.state
             .sequences
@@ -42,6 +49,10 @@ impl<'a> Run<'a> {
             );
             self.state.to_mut().procedure_sequences.insert(path, cursor);
         } else {
+            #[cfg(test)]
+            if self.narrative_set_cursor(id, cursor)? {
+                return Ok(());
+            }
             *self
                 .state
                 .to_mut()

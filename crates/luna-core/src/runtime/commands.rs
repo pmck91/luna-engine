@@ -9,6 +9,10 @@ use luna_model::{Event, normalize, reserved};
 
 impl<'a> Run<'a> {
     pub(crate) fn command(&mut self, input: &str) -> Result<()> {
+        #[cfg(test)]
+        if self.narrative.as_ref().is_some_and(|n| !n.dispatching) {
+            return self.narrative_command(input);
+        }
         if let Some(settings) = self.p.game.command_assistance.as_ref()
             && (settings.clarification || settings.recent_objects)
         {

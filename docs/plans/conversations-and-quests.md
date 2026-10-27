@@ -1,16 +1,16 @@
 # Conversations and quests
 
-Status: **N0 accepted; N1 runtime proof next**, refreshed 26 October 2026. These features are not implemented. The owner agreed to basic procedures → conversations/quests → turns/routines and chose designer-written reply choices over free-text matching. Editor UX, containers, parser context, and focused procedures are merged; public guides remain in the later documentation milestone. See the [current TODO list](todo.md) and [procedures plan](block-procedures.md).
+Status: **N0 accepted; N1 proof/contract complete; N2 next**, refreshed 27 October 2026. Production model, runtime and authoring are not implemented. The owner agreed to basic procedures → conversations/quests → turns/routines and chose designer-written reply choices over free-text matching. Editor UX, containers, parser context, and focused procedures are merged; public guides remain in the later documentation milestone. See the [current TODO list](todo.md) and [procedures plan](block-procedures.md).
 
-Implementation branch: `feature/conversations-and-quests`, created on 26 October 2026 from merged `main` at `040715d`. The agreed reply-model planning changes were carried onto this branch. Keep the model, runtime, format changes, editor, runner, and acceptance example together on that branch until they work end to end. The owner accepted the revised [N0 review guide and interactive preview](../design/conversations-and-quests/README.md) on 26 October 2026 with “perfect that looks much better.” The [interaction contract](../design/conversations-and-quests/interaction-contract.md) is a proposal for the N1 proof, not a frozen runtime or schema contract.
+Implementation branch: `feature/conversations-and-quests`, created on 26 October 2026 from merged `main` at `040715d`. The agreed reply-model planning changes were carried onto this branch. Keep the model, runtime, format changes, editor, runner, and acceptance example together on that branch until they work end to end. The owner accepted the revised [N0 review guide and interactive preview](../design/conversations-and-quests/README.md) on 26 October 2026 with “perfect that looks much better.” N0 is committed as `4b613a9`. The [shared contract](../design/conversations-and-quests/interaction-contract.md) is now frozen following the [47-scenario N1 Rust proof](../design/conversations-and-quests/runtime-proof-review.md); it takes precedence over earlier proposals below. This is technical proof, not final production acceptance.
 
 ## Updated foundations and review boundary
 
-The merged baseline is focused procedures at `040715d` (PR #4): content formats 1–4 and save formats 1–4, container/private inventory scope, rich messages, session-local clarification/recent references, and typed shared procedure calls are implemented. Use the merged procedure contract when this branch begins; no narrative format number is reserved.
+The merged baseline is focused procedures at `040715d` (PR #4): content formats 1–4 and save formats 1–4, container/private inventory scope, rich messages, session-local clarification/recent references, and typed shared procedure calls are implemented. Use the merged procedure contract. N1 reserves content/save 5 and captured setup 3 for N2; shipped constants remain unchanged during the proof.
 
 Conversations and quest hooks should use ordinary effects, including shared CALL where useful. Forward typed inputs explicitly, reuse the agreed STOP/ending/rollback rules, and give each node/reply/hook a stable progress root for nested procedure response paths. Plain effect blocks remain sufficient for authors who do not use procedures. Narrative state must not introduce a second parameter evaluator or shared-call cursor scheme.
 
-The following parser/conversation boundary needs prototype review before freezing the runtime contract:
+The following parser/conversation boundaries were reviewed in N0 and proved against the native Session/executor in N1:
 
 - F2 clarification is ephemeral Session context; conversation checkpoints/history are saved story progress. Load clears the former and restores the latter without replaying effects.
 - Prewritten conversation choices, world commands, and parser clarification choices need one deterministic priority table. A number must belong to its last offered context and stable identities. Refresh stale lists before accepting a choice; never let a parser number select a conversation reply accidentally.
@@ -18,7 +18,7 @@ The following parser/conversation boundary needs prototype review before freezin
 - Preserve assisted `cancel` semantics when clarification is enabled and authored `cancel` when disabled. Review explicit `reply <number>`, conversation pause/bye, and reserved-prefix collision upgrades together; do not silently commandeer existing commands.
 - Conversation selection uses only the offered reply IDs at the active node. Reply labels have no accepted phrases, keywords, aliases, spelling correction, or fuzzy matching. Conversation replies do not invent a recent-object referent. Ordinary authored world commands retain the F2 reference policy; help/hints retain existing scoped ID resolution.
 
-These are integration requirements and runtime decisions to prove, not an implemented conversation precedence policy. The owner has accepted the revised N0 wireframes and prewritten choices; N1 must verify exact parser precedence and report any material visible change for feedback.
+These are frozen implementation requirements, not yet a production conversation policy. N1 proves the candidate dispatch/transaction; N2–N4 must promote it to canonical models and public Session regressions. Preserve the accepted N0 presentation and seek feedback for material visible changes.
 
 ## Goals and scope
 
@@ -28,7 +28,7 @@ Give players a quest log recording discovered goals and completed milestones. Co
 
 Both features belong to the shared Rust runtime, so editor playtests and exported terminal games behave alike. Reuse Luna's conditions, effects, message formatting, stable references, transactional commands, and persistence.
 
-Agreed reply model and proposed remaining first-release defaults:
+Agreed reply model and first-release scope:
 
 - Designer-written replies shown as numbered choices in the terminal and accessible selectable controls in the editor playtest. On 26 October 2026, the owner chose “a set of pre written responses” because free-text matching would make the logic prone to bugs. This replaces the earlier proposal for typed phrases/aliases and optional reply lists. Exact control styling and keyboard interaction will be reviewed in the prototype.
 - One active conversation at a time, with saved checkpoints and persistent reply history.
@@ -129,7 +129,7 @@ A terminal destination closes the conversation. A nonterminal node with no eligi
 | `hint` / `hint <entity>`                                                         | Retain existing clue progression/autosave rules; refresh any affected reply availability without replaying node entry effects                     |
 | Another successfully matched world action                                        | Pause the conversation before running that action, in the same transaction; failed, ambiguous, or unmatched commands leave it active              |
 
-Propose reserving `reply <number>` in the new content format. Explicit numeric selections and conversation controls need reviewed precedence against pending parser clarification and colliding world commands. Make that precedence visible in help and validation. Reply response text is display content and creates no command aliases; existing authored `yes`, `no`, and `ask` actions retain ordinary world-command handling and interruption rules. Keep bare numbers scoped to an active prompt rather than globally reserving them.
+Reserve the reply/quest/quests prefixes in content 5 with the collision checks and prompt precedence in the frozen contract. Make that precedence visible in help and validation. Reply response text is display content and creates no command aliases; existing authored `yes`, `no`, and `ask` actions retain ordinary world-command handling and interruption rules. Keep bare numbers scoped to an active prompt rather than globally reserving them.
 
 Numeric choices refer to the last offered reply list, not a freshly renumbered list that could mean something different. Recheck stale choices and refresh the prompt instead of executing a different reply. Numbered selections and selectable controls must pass through the same core validation. Displaying or restoring choices must not run node-entry effects again.
 
@@ -141,7 +141,7 @@ Default re-entry resumes an unfinished checkpoint. Once the conversation reaches
 
 If the player or character moves away, the character becomes hidden, or the playthrough ends, stop accepting replies for that encounter. If reply effects remove the speaker before its destination can be entered, keep that destination as a pending checkpoint and enter it once on a later valid resume. An already-entered checkpoint resumes without entry effects. Ending a game closes the active conversation and preserves only historical progress for inspection/save validation.
 
-Define dedicated END CONVERSATION and PAUSE CONVERSATION effects. Closing a conversation is distinct from END GAME and from STOP, which continues to stop only the current effect chain. A reply's normal transition proceeds after STOP unless a conversation-control effect or END GAME superseded it. Check that the original conversation is still active before following its transition.
+Define dedicated END CONVERSATION and PAUSE CONVERSATION effects. Closing a conversation is distinct from END GAME and from STOP, which continues to stop only the current effect chain. A reply's normal transition proceeds after STOP unless a conversation-control effect or END GAME superseded it. Check both the active conversation and its encounter generation before following a transition; END/START of the same ID supersedes the old transition too.
 
 ### Discovery and puzzle difficulty
 
@@ -204,11 +204,11 @@ The journal panel, dialogue reply controls, and conversation context should work
 
 ## Shared model, storage, and compatibility
 
-Proposed canonical additions are project-level `conversations` and `quests` collections, persisted as `conversations/<id>.json` and `quests/<id>.json`. Conversation ownership is a character reference. Keep graph layout, viewport state, notes, temporary drafts, and block workspaces in editor metadata, excluded from bundles.
+Canonical additions are project-level `conversations` and `quests` collections, persisted as `conversations/<id>.json` and `quests/<id>.json`. Conversation ownership is a character reference. Keep graph layout, viewport state, notes, temporary drafts, and block workspaces in editor metadata, excluded from bundles.
 
-Extend the shared state with one optional active conversation, per-conversation checkpoints/history, and per-quest status/completed stages/journal history. Checkpoints distinguish pending entry from already-entered nodes and preserve offered reply identities. A core-produced conversation view supplies the current rendered prompt and permitted replies; restoring/displaying that view does not re-run effects, advance response sequences, or reveal additional hints.
+Extend the shared state with one optional active conversation, per-conversation checkpoints/history, and per-quest status/completed stages/journal history. Checkpoints distinguish Pending from Entered nodes and preserve the entered semantic prompt. Offered reply IDs/tokens remain ephemeral Session context; restore reissues selection authority. A core-produced conversation view supplies the current rendered prompt and permitted replies; restoring/displaying that view does not re-run effects, advance response sequences, or reveal additional hints.
 
-Use the next available content/save formats after the merged **content 4/save 4** procedure foundation. Confirm allocation when freezing the narrative contract; no narrative number is reserved. New-format headers must let older engines reject unsupported data before ignoring unfamiliar files or state.
+Reserve **content 5/save 5/setup 3** after the merged content 4/save 4/setup 1–2 foundation. The frozen contract specifies legacy/default/rejection paths; N2 changes shipped constants with canonical storage and compatibility tests. New-format headers must let older engines reject unsupported data before ignoring unfamiliar files or state.
 
 Read all previously supported projects/bundles/saves through explicit compatibility paths, including content/save 1–4. Missing narrative state defaults to no active conversation, no conversation history, and all quests undiscovered; restoration must not infer milestones or replay game-start, node-entry, reward, or quest hooks. Retain existing hint history and all other saved state. Preserve game IDs, authored IDs, and existing content-version matching rules; this is not automatic migration between different released game versions.
 
@@ -234,8 +234,8 @@ Changes span more than the model structs:
 
 ### N1 — Runtime proof and frozen contract
 
-- [ ] Prove risky semantics against the actual shared Rust Session/executor and merged procedures. Use the [draft interaction contract](../design/conversations-and-quests/interaction-contract.md) as the checklist: prompt precedence, stale offer identities, speaker invalidation, entry/pending checkpoints, STOP/END/PAUSE, idempotent quest hooks, historical journal and complete rollback.
-- [ ] Audit reserved-command collisions, saved-state/captured-setup compatibility, stable hook roots and draft promotion. Freeze exact types, offered-context lifetime, format allocation and compatibility fixtures only after the proof and owner feedback. Do not publish new-format content from the design preview.
+- [x] Prove risky semantics against the actual shared Rust Session/executor and merged procedures. The [47-scenario proof](../design/conversations-and-quests/runtime-proof-review.md) and [frozen contract](../design/conversations-and-quests/interaction-contract.md) cover: prompt precedence, stale offer identities, speaker invalidation, entry/pending checkpoints, STOP/END/PAUSE, idempotent quest hooks, historical journal and complete rollback.
+- [x] Audit reserved-command collisions, saved-state/captured-setup compatibility, stable hook roots and draft promotion. Freeze the definition/state fields, offer lifetime and content/save 5/setup 3 allocation following N0 feedback and the Rust proof. Preserve historical fixtures; actual new-format storage/process tests remain N2–N6 gates. N1 has 295 passing Rust tests/doctests including 47 candidate regressions, with Clippy/contracts/format checks passing. Do not publish new-format games from the proof.
 
 ### N2 — Shared model and persistence
 
@@ -275,6 +275,6 @@ Each milestone should have focused commits and checks. The existing test suite m
 
 ## Decisions to revisit before implementation
 
-The revised N0 design and prewritten choices are accepted. Preserve the reviewed presentation, keyboard routes, terminal/revisit distinction, pause/resume journey and construction drafts. N1 must verify parser-prompt precedence and exact runtime/draft compatibility rules; material visible changes return for feedback. Free-text response matching is outside this feature's scope. Cross-project conversation libraries, timed dialogue, a global narrative-event trigger family, and repeatable quests are deliberately left for follow-up designs.
+The revised N0 design and prewritten choices are accepted. Preserve the reviewed presentation, keyboard routes, terminal/revisit distinction, pause/resume journey and construction drafts. N1 has frozen parser-prompt precedence and runtime/draft compatibility rules. N2–N6 must implement them; material visible changes return for feedback. Free-text response matching is outside this feature's scope. Cross-project conversation libraries, timed dialogue, a global narrative-event trigger family, and repeatable quests are deliberately left for follow-up designs.
 
 Relevant foundations: [current architecture](../architecture.md), [project todo](todo.md), [editor implementation milestones](../../spec/luna-editor-implementation-plan.md), and [runner specification](../../spec/luna-runner-spec.md). This proposal extends those foundations; it does not claim that the existing format or parser already supports these features.

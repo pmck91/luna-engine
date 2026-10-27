@@ -22,6 +22,8 @@ mod help;
 mod hints;
 mod index;
 mod matching;
+#[cfg(test)]
+pub(crate) mod narrative_proof;
 mod presentation;
 mod procedures;
 mod relations;
@@ -35,6 +37,8 @@ const OPERATION_LIMIT: usize = 2048;
 const EVENT_DEPTH_LIMIT: usize = 64;
 
 pub(crate) struct Run<'a> {
+    #[cfg(test)]
+    pub(crate) narrative: Option<narrative_proof::Execution>,
     p: &'a Project,
     index: &'a RuntimeIndex,
     procedure_index: &'a crate::procedures::ProcedureIndex,
@@ -71,6 +75,8 @@ impl<'a> Run<'a> {
 
     fn with_state(definition: &'a GameDefinition, state: Cow<'a, GameState>) -> Self {
         Self {
+            #[cfg(test)]
+            narrative: None,
             p: definition.project(),
             index: definition.runtime(),
             procedure_index: definition.procedures(),

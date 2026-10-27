@@ -1,8 +1,8 @@
 # Conversations and quests — N0 design review
 
-Status: **N0 accepted; N1 runtime proof next**, 26 October 2026, on `feature/conversations-and-quests`, from merged procedures baseline `040715d` (PR #4). The owner chose prewritten response choices and authorized the feature branch. The owner reviewed the first preview and requested clearer connections and distinct terminal/revisit dialogue. The owner accepted the revised design with “perfect that looks much better.” This is not runtime or file-format acceptance.
+Status: **N0 accepted; N1 proof/contract complete**, updated 27 October 2026, on `feature/conversations-and-quests`, from merged procedures baseline `040715d` (PR #4). The owner chose prewritten response choices and authorized the feature branch. The owner reviewed the first preview and requested clearer connections and distinct terminal/revisit dialogue. The owner accepted the revised design with “perfect that looks much better.” This is not runtime or file-format acceptance.
 
-The [implementation plan](../../plans/conversations-and-quests.md) schedules the shared Rust proof and production implementation after this accepted design. The [proposed interaction contract](interaction-contract.md) records decisions to test in N1. Existing Luna block appearance, inline fields, connection shapes, colours, and terminal-chain rendering remain required.
+The [implementation plan](../../plans/conversations-and-quests.md) schedules the shared Rust proof and production implementation after this accepted design. The [frozen shared contract](interaction-contract.md) and [N1 Rust evidence](runtime-proof-review.md) now guide N2. The accepted N0 preview is committed as `4b613a9`. Existing Luna block appearance, inline fields, connection shapes, colours, and terminal-chain rendering remain required.
 
 ## Open the preview
 
@@ -42,7 +42,7 @@ The main specimen deliberately stays small: one speaker, one quest and two prere
 6. Read the completed **Quest log**, restore the checkpoint, end the exchange, and talk again. Historical entries and the reward do not replay. The next conversation uses the configured **On return** entry, speaks “Thank you again for finding my key,” and closes. The original reward promise and ten-coin effect do not repeat; later talks can repeat the short acknowledgement.
 7. Change authoring text while the playtest is running. The current preview retains its original definition; **Fresh preview** applies the changed text/choice settings and clears that tab's checkpoint. Actual production setups and compatible story saves remain later implementation work.
 
-The preview's generic prose/formatting, hard-coded world commands, in-memory checkpoint and fixed counters are interaction illustrations. They do not prove shared Rust execution, rollback, canonical/save compatibility, hidden-speaker behaviour, live stale-offer rejection, or the pending-clarification precedence policy. N1 explicitly tests those boundaries before implementation.
+The preview's generic prose/formatting, hard-coded world commands, in-memory checkpoint and fixed counters are interaction illustrations. They do not prove shared Rust execution, rollback, canonical/save compatibility, hidden-speaker behaviour, live stale-offer rejection, or the pending-clarification precedence policy. The separate N1 Rust proof tests those candidate boundaries before production implementation.
 
 ## Proposed responsibilities
 
@@ -56,7 +56,7 @@ The preview's generic prose/formatting, hard-coded world commands, in-memory che
 | Player quest log           | Earned historical journal entries; reading never advances progress                   |
 | Author playtest inspection | Current checkpoint, stage/reward counters and source navigation                      |
 
-Construction drafts are an editor proposal, not a new runtime `draft` flag. The prototype keeps them in its own temporary display model. N1 must define promotion and executable references before any canonical schema is written. An executable reply targeting an unfinished draft must block a new production playtest/export with a useful finding, rather than silently dropping a destination.
+Construction drafts are an editor proposal, not a new runtime `draft` flag. The prototype keeps them in its own temporary display model. The frozen contract defines explicit promotion and executable references before N2 writes the canonical schema. An executable reply targeting an unfinished draft must block a new production playtest/export with a useful finding, rather than silently dropping a destination.
 
 ## Interaction checks
 
@@ -81,7 +81,7 @@ The revised preview provides explicit end destinations, a terminal dialogue sett
 
 Graph badges are authoring decorations, not extra canonical runtime nodes. The N0 adapter reuses the existing map router and separates connection endpoints; labels prefer clear route segments, with faint leaders only for detached labels. Browser checks sample rendered paths/leaders and compare label/card bounds before and after dragging. This small specimen does not establish an automatic layout guarantee for every graph or replace later crossing/loop/dense-layout review.
 
-The owner accepted these refinements and the N0 authoring/player design on 26 October 2026 with “perfect that looks much better.” Preserve the reviewed graph, prewritten choices, terminal/revisit distinction and existing blocks. Material visible changes return for feedback; the N1 runtime, format and compatibility contract is still a draft.
+The owner accepted these refinements and the N0 authoring/player design on 26 October 2026 with “perfect that looks much better.” Preserve the reviewed graph, prewritten choices, terminal/revisit distinction and existing blocks. Material visible changes return for feedback; N1 has since frozen the runtime/format target after the Rust proof; production authoring/runtime and final acceptance remain later gates.
 
 ## References and accepted design direction
 

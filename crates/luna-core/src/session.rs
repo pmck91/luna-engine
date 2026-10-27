@@ -279,6 +279,18 @@ impl Session {
         run.result.pending_clarification = self.context.question();
         (run.result, error)
     }
+
+    // N1's candidate coordinator shares the actual commit/rollback and recorder
+    // boundary. It is compiled out of all shipped editor/runner/library builds.
+    #[cfg(test)]
+    pub(crate) fn narrative_attempt(
+        &mut self,
+        input: &str,
+        explain: bool,
+        command: impl FnOnce(&mut Run<'_>) -> Result<()>,
+    ) -> (CommandResult, Option<anyhow::Error>) {
+        self.execute_with(input, explain, command)
+    }
     /// Describe the current location without entering it or advancing progress.
     ///
     /// # Errors
