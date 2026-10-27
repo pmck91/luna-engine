@@ -455,6 +455,8 @@ impl<'a> Run<'a> {
             .reply(ci, ni, id)
             .context("Unknown offered reply")?;
         let reply = &c.nodes[ni].replies[ri];
+        #[cfg(test)]
+        self.turn_candidate_input(super::turn_proof::Input::Reply(id.into()));
         self.traced(
             TraceKind::Narrative {
                 operation: NarrativeOperation::SelectReply {

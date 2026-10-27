@@ -113,6 +113,10 @@ impl<'a> Run<'a> {
     }
 
     fn effect(&mut self, effect: &Effect) -> Result<Flow> {
+        #[cfg(test)]
+        if let Some(flow) = self.turn_candidate_effect(effect)? {
+            return Ok(flow);
+        }
         match effect {
             Effect::StartConversation { conversation } => {
                 return self.start_conversation(conversation);
@@ -423,6 +427,8 @@ impl<'a> Run<'a> {
                 }
                 let end = self.ending(ending).context("Unknown ending")?;
                 self.state.to_mut().ending = Some(ending.clone());
+                #[cfg(test)]
+                self.turn_candidate_end();
                 self.close_conversations();
                 self.finalizing = true;
                 self.fire(Event::Ending, &self.p.game.id)?;

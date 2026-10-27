@@ -1,6 +1,6 @@
 # Conversations and quests — N6 acceptance
 
-Status: **Technical and owner acceptance complete; CI and merge pending**, 27 October 2026, on `feature/conversations-and-quests`. N5 is owner accepted and committed as `9ba843a`. This record closes the technical work after the [accepted production authoring slice](authoring-review.md), using the [frozen contract](interaction-contract.md). The owner accepted N6 on 27 October 2026 with “looks great lets commit and push.” Commit/push is authorized; GitHub CI and merge remain pending.
+Status: **Technical and owner acceptance complete; merged as `bfe2c42` (PR #5)**, 27 October 2026, on `feature/conversations-and-quests`. N5 is owner accepted and committed as `9ba843a`. This record closes the technical work after the [accepted production authoring slice](authoring-review.md), using the [frozen contract](interaction-contract.md). The owner accepted N6 on 27 October 2026 with “looks great lets commit and push.” N6 is committed as `d49f4cc`, pushed and merged as `bfe2c42` (PR #5), confirmed by the owner and local `main` on 27 October 2026.
 
 ## Complete editor-authored example
 
@@ -60,7 +60,7 @@ Verified on 27 October 2026:
 | Linux package and isolated packaged smoke                                 | Passed, including the complete Keeper project, its checked export, embedded assets and earlier regressions |
 | Documentation links, whitespace, earlier examples and historical fixtures | Links resolve and whitespace is clean; earlier examples/fixtures are unchanged                             |
 
-The new complete authoring scenario passed in both browsers in the full run. Local Firefox used the installed compatible executable through `LUNA_FIREFOX_EXECUTABLE`. No test retries or new skips were added. The package was tested with source `web/dist` hidden and development tools absent from PATH; the source assets were restored afterward. These checks are local evidence; the owner has accepted the feature, and GitHub CI remains required before merge.
+The new complete authoring scenario passed in both browsers in the full run. Local Firefox used the installed compatible executable through `LUNA_FIREFOX_EXECUTABLE`. No test retries or new skips were added. The package was tested with source `web/dist` hidden and development tools absent from PATH; the source assets were restored afterward. These checks are local evidence. The owner accepted the feature and subsequently confirmed its GitHub merge; this record does not independently report remote CI logs.
 
 Reproduce the final checks from the repository root:
 
@@ -84,4 +84,4 @@ Run packaging/smoke after browser tests: rebuilding assets or temporarily hiding
 
 For manual review, open `examples/keeper-quest` in the editor and follow its [checkpoint walkthrough](../../../examples/keeper-quest/ACCEPTANCE.md). Inspect the six-node graph, separate terminal acknowledgement, quest prerequisites, completion hook and reward CALL; restore each saved setup, try the rollback option and then finish normally. The review should focus on whether the authoring and played flow feel right. Automated checks do not substitute for owner acceptance or the separately tracked human screen-reader/new-author evaluations.
 
-Keep the accepted N0/N5 block appearance and workspace arrangement. Owner review is complete; merge after GitHub CI acceptance. Turns/routines begin later from the merged baseline on their own branches.
+Keep the accepted N0/N5 block appearance and workspace arrangement. Owner review and merge are complete. Turns/routines begin from the merged baseline on their own branches.

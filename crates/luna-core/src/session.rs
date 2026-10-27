@@ -309,6 +309,18 @@ impl Session {
         self.execute_with(input, explain, |run| run.command(input))
     }
 
+    // T1 uses the real commit/rollback boundary; candidate state stays test-only
+    // until canonical model, storage and host promotion in T2.
+    #[cfg(test)]
+    pub(crate) fn turn_candidate_attempt(
+        &mut self,
+        input: &str,
+        explain: bool,
+        command: impl FnOnce(&mut Run<'_>) -> Result<()>,
+    ) -> (CommandResult, Option<anyhow::Error>) {
+        self.execute_with(input, explain, command)
+    }
+
     // Resolution, selected-handler execution, and explanations share this
     // commit boundary. Story and ephemeral input context commit together.
     fn execute_with(

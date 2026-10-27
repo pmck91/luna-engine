@@ -7,6 +7,10 @@ impl Run<'_> {
         self.evaluate_condition(condition).unwrap_or(false)
     }
     pub(super) fn evaluate_condition(&self, condition: &Condition) -> Result<bool> {
+        #[cfg(test)]
+        if let Some(pending) = self.turn_candidate_condition(condition)? {
+            return Ok(pending);
+        }
         Ok(match condition {
             Condition::True => true,
             Condition::False => false,

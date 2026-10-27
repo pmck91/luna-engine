@@ -30,6 +30,9 @@ mod relations;
 pub(crate) mod resolution;
 mod values;
 
+#[cfg(test)]
+pub(crate) mod turn_proof;
+
 pub use commands::host_control;
 pub(crate) use index::RuntimeIndex;
 
@@ -61,6 +64,8 @@ pub(crate) struct Run<'a> {
     encounter_epoch: u64,
     entry_counter: u64,
     entering: HashMap<String, u64>,
+    #[cfg(test)]
+    turn_candidate: Option<turn_proof::Attempt>,
 }
 #[derive(PartialEq)]
 enum Flow {
@@ -104,6 +109,8 @@ impl<'a> Run<'a> {
             encounter_epoch: 0,
             entry_counter: 0,
             entering: HashMap::new(),
+            #[cfg(test)]
+            turn_candidate: None,
         }
     }
     fn world_mut(&mut self) -> &mut GameState {

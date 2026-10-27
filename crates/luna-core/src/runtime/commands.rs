@@ -53,11 +53,21 @@ impl<'a> Run<'a> {
         }
         if let Some(query) = normalized.strip_prefix("hint ") {
             ensure!(input.len() <= 4096, "Command is too long");
+            #[cfg(test)]
+            self.turn_candidate_input(super::turn_proof::Input::Hint);
             return self.entity_hint(Some(query));
         }
         match normalized.as_str() {
-            "hint" => return self.entity_hint(None),
-            "look" => return self.look(),
+            "hint" => {
+                #[cfg(test)]
+                self.turn_candidate_input(super::turn_proof::Input::Hint);
+                return self.entity_hint(None);
+            }
+            "look" => {
+                #[cfg(test)]
+                self.turn_candidate_input(super::turn_proof::Input::Look);
+                return self.look();
+            }
             "inventory" => {
                 self.inventory();
                 return Ok(());

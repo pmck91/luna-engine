@@ -31,6 +31,11 @@ impl<'a> Run<'a> {
         }
     }
 
+    #[cfg(test)]
+    pub(super) fn turn_candidate_operand(&self, operand: &NumericOperand) -> Result<i32> {
+        self.numeric_operand(operand)
+    }
+
     pub(super) fn value(&self, target: &ValueTarget) -> Result<&Value> {
         match target {
             ValueTarget::Variable { name } => self.variable(name),
