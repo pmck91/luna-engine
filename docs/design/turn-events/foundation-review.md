@@ -1,6 +1,6 @@
 # Turns and scheduled events — T2 foundation
 
-Status: **T2 complete; T3 production authoring next**, 27 October 2026, on `feature/turn-events`. T0/T1 was committed as `b80861a` after owner acceptance. This milestone implements the [frozen contract](shared-contract.md); production authoring and its owner review remain T3.
+Status: **T2 committed as `08dc93f`; T3 accepted, T4 next**, 27 October 2026, on `feature/turn-events`. T0/T1 was committed as `b80861a` after owner acceptance. This milestone implements the [frozen contract](shared-contract.md); the [T3 working-slice review](authoring-review.md) records owner-accepted production authoring and clarity feedback for T4.
 
 ## Shared execution
 
@@ -28,24 +28,24 @@ Generated TypeScript includes the new canonical models and result/view/trace typ
 
 ## Verification
 
-| Check | Result |
-| --- | --- |
-| Public native timer scenarios | 54 passed, including the 50 promoted T1 cases |
-| New model/storage/runner/editor timer boundary tests | 11 passed |
-| Full workspace Rust tests and doctests | 405 passed |
-| Frontend unit tests | 105 passed, including timer reference refactoring and explanation labels |
-| Isolated Blockly model proof and preview TypeScript | Six model cases and TypeScript passed |
-| TypeScript and production Vite build | Passed; existing large-chunk advisory remains |
-| Clippy and core rustdoc with warnings denied | Passed |
-| Generated contracts and Rust/frontend formatting | Passed |
-| Existing editor browser regressions | 135 passed across Chromium/Firefox; one existing Chromium-only zoom check skipped in Firefox |
-| Final rebuilt-editor hint browser checks | Four passed across Chromium/Firefox after the disabled-hint classification fix |
-| Release package smoke | Passed with source UI hidden and no development tools on PATH; includes timers, setup 4, save 6, separate processes and cancellation |
+| Check                                                | Result                                                                                                                               |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Public native timer scenarios                        | 54 passed, including the 50 promoted T1 cases                                                                                        |
+| New model/storage/runner/editor timer boundary tests | 11 passed                                                                                                                            |
+| Full workspace Rust tests and doctests               | 405 passed                                                                                                                           |
+| Frontend unit tests                                  | 105 passed, including timer reference refactoring and explanation labels                                                             |
+| Isolated Blockly model proof and preview TypeScript  | Six model cases and TypeScript passed                                                                                                |
+| TypeScript and production Vite build                 | Passed; existing large-chunk advisory remains                                                                                        |
+| Clippy and core rustdoc with warnings denied         | Passed                                                                                                                               |
+| Generated contracts and Rust/frontend formatting     | Passed                                                                                                                               |
+| Existing editor browser regressions                  | 135 passed across Chromium/Firefox; one existing Chromium-only zoom check skipped in Firefox                                         |
+| Final rebuilt-editor hint browser checks             | Four passed across Chromium/Firefox after the disabled-hint classification fix                                                       |
+| Release package smoke                                | Passed with source UI hidden and no development tools on PATH; includes timers, setup 4, save 6, separate processes and cancellation |
 
 Compatibility assertions for newly created projects now expect format/save 6 with no turn clock by default. Explicit older projects, checked exports and historical JSON fixtures retain their existing expectations and bytes. The packaged timer specimen matches native editor states after scheduling, setup restore and subsequent turns, retains unused definitions, resumes named saves in independent processes and cancels without firing. The optional-outcome and newly created procedure checks cover the new save envelope. Existing authored examples, including Locked Study and Keeper, are untouched.
 
 ## Next gate
 
-T3 adds the accepted Scheduled-trigger library, full-operand SCHEDULE/CANCEL/PENDING blocks and inspector, settings/overrides, explicit upgrade review, safe references, draft/history/template/search integration, native pending panel and source navigation. Keep the current block appearance and request owner feedback on that working slice. T4 supplies a separate permanent workshop/export, release workload measurements and complete feature acceptance; public user guides stay deferred.
+The [T3 working slice](authoring-review.md) implements the accepted Scheduled-trigger library, full-operand SCHEDULE/CANCEL/PENDING blocks and inspector, settings/overrides, explicit upgrade review, safe references, draft/history/template/search integration, native pending panel and source navigation. It retains the current block appearance and is owner accepted. The owner noted acceptable complexity; the T4 workshop should start with a simple schedule-and-fire journey. T4 supplies a separate permanent workshop/export, release workload measurements and complete feature acceptance; public user guides stay deferred.
 
 Reproduce the foundation checks with `cargo test --workspace --offline`, `cargo clippy --workspace --all-targets --offline -- -D warnings`, `RUSTDOCFLAGS='-D warnings' cargo doc -p luna-core --no-deps --offline`, `cargo run -p luna-editor --offline --example export_types -- --check`, and the frontend build/unit/browser scripts. Browser tests require a built editor/runner and installed Chromium/Firefox. Package smoke uses `./scripts/package.sh` followed by `python3 scripts/smoke-package.py` after browser checks finish.

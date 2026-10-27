@@ -1,3 +1,4 @@
+import { authoringTimers } from './turnModel';
 import { authoringNarrative } from './narrativeAuthoring';
 import { bindWorkspaceHistory, type HistoryControls } from './workspaceHistory';
 import type { EditContext } from './projectHistory';
@@ -6,6 +7,7 @@ import * as Blockly from 'blockly/core';
 import type { Condition, HintSet, HintStage, Project } from './contracts';
 import {
   blockWorkspaceOptions,
+  blockAvailable,
   conditionFieldChanged,
   conditionToolbox,
   narrativeConditionToolbox,
@@ -278,9 +280,15 @@ const toolbox = {
 function hintToolbox(project: Project) {
   return {
     ...toolbox,
-    contents: toolbox.contents.filter(
-      (category) => category.name !== 'Conversations & quests' || project.game.format_version >= 5,
-    ),
+    contents: toolbox.contents
+      .filter(
+        (category) =>
+          category.name !== 'Conversations & quests' || project.game.format_version >= 5,
+      )
+      .map((category) => ({
+        ...category,
+        contents: category.contents.filter((block) => blockAvailable(project, block.type)),
+      })),
   };
 }
 export default function HintBlocks({
@@ -317,6 +325,12 @@ export default function HintBlocks({
   current.current = { hint, saved, onChange, onSelect, onError, onViewChange, history };
   const choiceVersion = JSON.stringify({
     format: project.game.format_version,
+    turns: !!project.game.turns,
+    timers: authoringTimers(project).map((t) => [
+      t.id,
+      t.name,
+      project.editor.timer_drafts?.some((d) => d.id === t.id),
+    ]),
     narrative: authoringNarrative(project),
     entities: [...project.locations, ...project.objects, ...project.characters].map((e) => [
       e.id,

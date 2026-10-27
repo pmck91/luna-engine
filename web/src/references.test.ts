@@ -91,11 +91,11 @@ it('tracks timer references and refactors numeric delays and messages in timer b
       ],
     },
   ];
-  expect(usedBy(p, { kind: 'timer', id: 'door-closes' }).map((use) => use.path)).toEqual([
-    'condition.timer',
-    'effects.0.timer',
-    'effects.1.timer',
-  ]);
+  expect(
+    projectReferences(p)
+      .filter((use) => use.target.kind === 'timer')
+      .map((use) => use.path),
+  ).toEqual(['condition.timer', 'effects.0.timer', 'effects.1.timer']);
   const rename = referencePlan(
     p,
     { kind: 'variable', name: 'chances' },

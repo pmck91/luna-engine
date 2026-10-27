@@ -1,3 +1,4 @@
+import { timer, timerDraft } from './turnModel';
 import { narrativeDefinitions } from './narrativeModel';
 import { construction } from './narrativeAuthoring';
 import type { NarrativeReferenceKind, TemplateNarrativeReference } from './contracts';
@@ -28,6 +29,7 @@ export function templateEntities(p: Project): TemplateEntity[] {
   );
 }
 type Visitor = {
+  timer?: (id: string) => string;
   entity: (id: string, allowed: TemplateEntityKind[]) => string;
   narrative?: (id: string, kind: NarrativeReferenceKind) => string;
   text: (text: string, localNames?: string[]) => string;
@@ -90,7 +92,7 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
   const condition = (v: Condition): Condition => {
     switch (v.type) {
       case 'timer_pending':
-        return v;
+        return { ...v, timer: visitor.timer?.(v.timer) ?? v.timer };
       case 'compare':
         return { ...v, left: argument(v.left), right: argument(v.right) };
       case 'all':
@@ -156,9 +158,9 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
   const effect = (v: Effect): Effect => {
     switch (v.type) {
       case 'schedule_timer':
-        return { ...v, after: operand(v.after) };
+        return { ...v, timer: visitor.timer?.(v.timer) ?? v.timer, after: operand(v.after) };
       case 'cancel_timer':
-        return v;
+        return { ...v, timer: visitor.timer?.(v.timer) ?? v.timer };
       case 'call':
         return {
           ...v,
@@ -371,8 +373,13 @@ export function makeTemplate(
   };
   const usedVariables = new Set<string>();
   const narratives = new Map<string, TemplateNarrativeReference>();
+  const timers = new Map<string, { id: string; name: string }>();
   const definitions = narrativeDefinitions(p);
   visitContent(t.content, {
+    timer: (id) => {
+      timers.set(id, { id, name: timer(p, id)?.name ?? id });
+      return id;
+    },
     narrative: (id, kind) => {
       const d = definitions.find((d) => d.id === id && d.kind === kind);
       narratives.set(id, {
@@ -399,6 +406,7 @@ export function makeTemplate(
   t.entities = templateReferences(t).map(({ allowed: _, ...entity }) => entity);
   t.text_variables = [...usedVariables];
   t.narratives = [...narratives.values()];
+  t.timers = [...timers.values()];
   return t;
 }
 export function defaultTemplateMapping(
@@ -415,6 +423,10 @@ export function defaultTemplateMapping(
       );
       return [ref.id, target && ref.allowed.includes(target.kind) ? target.id : ''];
     }),
+    ...templateTimerReferences(t).map((ref) => [
+      ref.id,
+      timer(p, ref.id) && !timerDraft(p, ref.id) ? ref.id : '',
+    ]),
     ...(t.narratives ?? []).map((ref) => [
       ref.id,
       narrativeDefinitions(p).some(
@@ -431,6 +443,7 @@ export function instantiateTemplate(
 ): TemplateContent {
   const replacement = (id: string) => (Object.hasOwn(mapping, id) ? mapping[id] : id);
   const copied = visitContent(t.content, {
+    timer: replacement,
     narrative: replacement,
     entity: replacement,
     text: (text, localNames = []) =>
@@ -464,6 +477,14 @@ export function templateBindingErrors(
   const errors = new Set<string>();
   const definitions = narrativeDefinitions(p).filter((d) => !construction(p, d.id));
   visitContent(t.content, {
+    timer: (id) => {
+      const next = mapping[id] ?? id;
+      if (!p.game.turns || !timer(p, next) || timerDraft(p, next))
+        errors.add(
+          `Choose a finished timer for ${t.timers?.find((t) => t.id === id)?.name ?? id}.`,
+        );
+      return id;
+    },
     entity: (id) => id,
     text: (text) => text,
     narrative: (id, kind) => {
@@ -539,6 +560,19 @@ export function templateNarrativeReferences(t: BlockTemplate): TemplateNarrative
     text: (text) => text,
     narrative: (id, kind) => {
       refs.set(id, t.narratives?.find((d) => d.id === id) ?? { id, kind, name: id, parent: null });
+      return id;
+    },
+  });
+  return [...refs.values()];
+}
+
+export function templateTimerReferences(t: BlockTemplate) {
+  const refs = new Map<string, { id: string; name: string }>();
+  visitContent(t.content, {
+    entity: (id) => id,
+    text: (text) => text,
+    timer: (id) => {
+      refs.set(id, t.timers?.find((t) => t.id === id) ?? { id, name: id });
       return id;
     },
   });

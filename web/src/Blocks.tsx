@@ -1,3 +1,5 @@
+import { copyOwnedContent } from './scriptCopy';
+import { authoringTimers, timerChoices } from './turnModel';
 import { authoringNarrative } from './narrativeAuthoring';
 import { projectProcedures } from './procedureBlocks';
 import {
@@ -45,25 +47,10 @@ import {
   targetKey,
   targetValue,
 } from './containerModel';
-/** Normal load/Undo keeps content IDs. Each native paste gets new CALL identities,
- * including repeated pastes of the same clipboard item and nested chains. */
-export function remapPastedCalls(state: Blockly.serialization.blocks.State) {
-  const copy = structuredClone(state);
-  const visit = (block: Blockly.serialization.blocks.State) => {
-    if (block.type === 'luna_call' && block.data) {
-      const call = JSON.parse(block.data) as Extract<Effect, { type: 'call' }>;
-      call.id = id();
-      block.data = JSON.stringify(call);
-    }
-    for (const input of Object.values(block.inputs ?? {})) {
-      if (input.block) visit(input.block);
-      if (input.shadow) visit(input.shadow);
-    }
-    if (block.next?.block) visit(block.next.block);
-    if (block.next?.shadow) visit(block.next.shadow);
-  };
-  visit(copy);
-  return copy;
+/** Normal reload/Undo keeps IDs. Each native paste owns fresh CALL/response
+ * progress and remaps its internal RESET links; named timer references stay shared. */
+export function remapPastedContent(state: Blockly.serialization.blocks.State) {
+  return copyOwnedContent(state, { scope: 'clipboard', blockIds: false });
 }
 class LunaBlockPaster extends Blockly.clipboard.BlockPaster {
   override paste(
@@ -72,7 +59,7 @@ class LunaBlockPaster extends Blockly.clipboard.BlockPaster {
     coordinate?: Blockly.utils.Coordinate,
   ) {
     return super.paste(
-      { ...data, blockState: remapPastedCalls(data.blockState) },
+      { ...data, blockState: remapPastedContent(data.blockState) },
       workspace,
       coordinate,
     );
@@ -112,6 +99,8 @@ const newBlocks = [
   'condition_can_transfer',
 ];
 export const blockAvailable = (p: Project, type: string) =>
+  (!!p.game.turns ||
+    !['luna_schedule_timer', 'luna_cancel_timer', 'condition_timer_pending'].includes(type)) &&
   (p.game.format_version >= 5 ||
     !/^(luna_(start_conversation|pause_conversation|end_conversation|start_quest|complete_quest_stage|complete_quest|fail_quest)|condition_(conversation_node_visited|conversation_reply_chosen|quest_status|quest_stage_completed))$/.test(
       type,
@@ -141,6 +130,8 @@ const narrativeEffects = [
   'fail_quest',
 ];
 export const effectFields: Record<string, string[]> = {
+  schedule_timer: ['timer', 'pending'],
+  cancel_timer: ['timer'],
   start_conversation: ['conversation'],
   pause_conversation: ['conversation'],
   end_conversation: ['conversation'],
@@ -176,6 +167,7 @@ export const effectFields: Record<string, string[]> = {
   stop: [],
 };
 const conditionFields: Record<string, string[]> = {
+  timer_pending: ['timer'],
   conversation_node_visited: ['conversation', 'node'],
   conversation_reply_chosen: ['conversation', 'reply'],
   quest_status: ['quest', 'status'],
@@ -198,6 +190,7 @@ const conditionFields: Record<string, string[]> = {
   can_transfer: ['object', 'placement'],
 };
 const conditionNames: Record<string, string> = {
+  timer_pending: 'TIMER PENDING',
   compare: 'COMPARE VALUES',
   possesses: 'HAS ITEM',
   reachable: 'CAN REACH',
@@ -205,6 +198,8 @@ const conditionNames: Record<string, string> = {
   can_transfer: 'CAN TRANSFER',
 };
 export const labels: Record<string, string> = {
+  schedule_timer: 'SCHEDULE',
+  cancel_timer: 'CANCEL TIMER',
   start_conversation: 'START CONVERSATION',
   pause_conversation: 'PAUSE CONVERSATION',
   end_conversation: 'END CONVERSATION',
@@ -338,6 +333,12 @@ function field(name: string, type: string): Blockly.Field {
           ]);
       return options;
     });
+  if (name === 'timer') return dropdown(() => timerChoices(project));
+  if (name === 'pending')
+    return new Blockly.FieldDropdown([
+      ['Restart countdown', 'restart'],
+      ['Keep existing countdown', 'keep'],
+    ]);
   if (name === 'conversation') return dropdown(() => authoringNarrative(project).conversations);
   if (name === 'quest')
     return dropdown(() =>
@@ -878,7 +879,8 @@ function register() {
       init(this: Blockly.Block) {
         const input = this.appendDummyInput().appendField(labels[type]);
         for (const key of fields)
-          input.appendField(key.replaceAll('_', ' ')).appendField(field(key, type), key);
+          if (!(type === 'schedule_timer' && key === 'pending'))
+            input.appendField(key.replaceAll('_', ' ')).appendField(field(key, type), key);
         narrativeParentChanges(this);
         if (type === 'respond') {
           input.appendField('Edit replies in the inspector');
@@ -895,12 +897,20 @@ function register() {
             'In Separate fallback mode, these effects run on the interaction after the final reply. Reset this sequence to start again.',
           );
         }
-        if (type.startsWith('update_')) {
-          this.appendValueInput('OPERAND').setCheck('Number').appendField('by');
+        if (type.startsWith('update_') || type === 'schedule_timer') {
+          this.appendValueInput('OPERAND')
+            .setCheck('Number')
+            .appendField(type === 'schedule_timer' ? 'AFTER (subsequent turns)' : 'by');
           this.getInput('OPERAND')!.connection!.setShadowState({
             type: 'number_literal',
             fields: { value: 1 },
           });
+        }
+        if (type === 'schedule_timer') {
+          this.setInputsInline(false);
+          this.appendDummyInput('POLICY')
+            .appendField('if already pending')
+            .appendField(field('pending', type), 'pending');
         }
         this.setPreviousStatement(true);
         this.setNextStatement(true);
@@ -1225,13 +1235,18 @@ function makeEffects(
     next?.connect(block.previousConnection!);
     first ??= block;
     next = block.nextConnection!;
-    if (e.type === 'update_variable' || e.type === 'update_property') {
+    if (
+      e.type === 'update_variable' ||
+      e.type === 'update_property' ||
+      e.type === 'schedule_timer'
+    ) {
+      const value = e.type === 'schedule_timer' ? e.after : e.operand;
       const input = block.getInput('OPERAND')!.connection!;
-      if (e.operand.type === 'literal') {
-        input.setShadowState({ type: 'number_literal', fields: { value: e.operand.value } });
+      if (value.type === 'literal') {
+        input.setShadowState({ type: 'number_literal', fields: { value: value.value } });
       } else {
-        const operand = workspace.newBlock(`number_${e.operand.type}`);
-        setFields(operand, e.operand);
+        const operand = workspace.newBlock(`number_${value.type}`);
+        setFields(operand, value);
         input.connect(operand.outputConnection!);
       }
     }
@@ -1318,6 +1333,11 @@ function fields(block: Blockly.Block, names: string[]): Record<string, unknown> 
 export function readCondition(block: Blockly.Block | null): Condition {
   if (!block) return { type: 'true' };
   const type = block.type.replace('condition_', '') as Condition['type'];
+  if (type === 'timer_pending') {
+    const value: Condition = { type, timer: block.getFieldValue('timer') };
+    block.data = JSON.stringify(value);
+    return value;
+  }
   if (type === 'compare' && block.data) return JSON.parse(block.data) as Condition;
   if (type === 'not') return { type, condition: readCondition(block.getInputTargetBlock('TEST')) };
   if (type === 'all' || type === 'any')
@@ -1390,6 +1410,15 @@ export function readEffects(first: Blockly.Block | null, limit = Infinity): Effe
       };
       block.data = JSON.stringify(response);
       effects.push(response);
+    } else if (type === 'schedule_timer') {
+      const effect: Effect = {
+        type,
+        timer: block.getFieldValue('timer'),
+        after: readOperand(block.getInputTargetBlock('OPERAND')),
+        pending: block.getFieldValue('pending'),
+      };
+      block.data = JSON.stringify(effect);
+      effects.push(effect);
     } else if (type === 'update_variable' || type === 'update_property')
       effects.push({
         type,
@@ -1504,6 +1533,14 @@ const toolbox = {
   contents: [
     {
       kind: 'category',
+      name: 'Timers',
+      colour: '#555f7f',
+      contents: ['luna_schedule_timer', 'luna_cancel_timer', 'condition_timer_pending'].map(
+        (type) => ({ kind: 'block', type }),
+      ),
+    },
+    {
+      kind: 'category',
       name: 'Conversations & quests',
       colour: '#7161c6',
       contents: [
@@ -1556,6 +1593,7 @@ const toolbox = {
         .filter(
           (t) =>
             !narrativeEffects.includes(t) &&
+            !['schedule_timer', 'cancel_timer'].includes(t) &&
             ![
               'say',
               'say_with_inputs',
@@ -1619,6 +1657,7 @@ export function blockLocation(address: string | null) {
     otherwise: 'Else',
     on_exhausted: 'After last reply',
     operand: 'Amount',
+    after: 'Delay',
     visible: 'Visible when',
     available: 'Traversable when',
   };
@@ -1673,7 +1712,11 @@ export function blockAddresses(root: Blockly.Block): Map<string, string> {
       if (block.type === 'luna_respond')
         chain(block.getInputTargetBlock('ON_EXHAUSTED'), `${at}.on_exhausted`);
       const operand = block.getInputTargetBlock('OPERAND');
-      if (operand) result.set(operand.id, `${at}.operand`);
+      if (operand)
+        result.set(
+          operand.id,
+          `${at}.${block.type === 'luna_schedule_timer' ? 'after' : 'operand'}`,
+        );
       block = block.getNextBlock();
     }
   };
@@ -1788,8 +1831,16 @@ export function syncEffectWorkspace(
       }
       if (e.type === 'respond')
         n.children.ON_EXHAUSTED = chain(e.on_exhausted, `${at}.on_exhausted`);
-      if (e.type === 'update_variable' || e.type === 'update_property')
-        n.children.OPERAND = node(e.operand, 'number', `${at}.operand`);
+      if (
+        e.type === 'update_variable' ||
+        e.type === 'update_property' ||
+        e.type === 'schedule_timer'
+      )
+        n.children.OPERAND = node(
+          e.type === 'schedule_timer' ? e.after : e.operand,
+          'number',
+          `${at}.${e.type === 'schedule_timer' ? 'after' : 'operand'}`,
+        );
     }
     return n;
   };
@@ -1946,6 +1997,12 @@ export default function Blocks({
   const conditionVersion = JSON.stringify(conditions);
   const choiceVersion = JSON.stringify({
     format: p.game.format_version,
+    turns: !!p.game.turns,
+    timers: authoringTimers(p).map((t) => [
+      t.id,
+      t.name,
+      p.editor.timer_drafts?.some((d) => d.id === t.id),
+    ]),
     narrative: authoringNarrative(p),
     procedures: (p.procedures ?? []).map(({ id, name, inputs }) => ({ id, name, inputs })),
     input: hasCommandItem(p, flowId),
@@ -2024,6 +2081,20 @@ export default function Blocks({
             const effect = value as Effect;
             setFields(block, effect as unknown as Record<string, unknown>);
             if (effect.type === 'if') syncConditionInput(block, 'TEST', effect.condition);
+            if (effect.type === 'schedule_timer') {
+              const old = block.getInputTargetBlock('OPERAND');
+              if (old?.type === `number_${effect.after.type}`) setFields(old, effect.after);
+              else {
+                if (old) {
+                  old.unplug();
+                  if (old.isShadow()) old.dispose(false);
+                  else parkDraft(old);
+                }
+                const operand = ws.newBlock(`number_${effect.after.type}`);
+                setFields(operand, effect.after);
+                block.getInput('OPERAND')!.connection!.connect(operand.outputConnection!);
+              }
+            }
           } else if (selection.kind === 'condition') {
             const parent = block.outputConnection?.targetConnection;
             const next = syncConditionBlock(block, value as Condition);
@@ -2185,7 +2256,9 @@ export default function Blocks({
           ),
         }))
         .filter(
-          (category) => category.name !== 'Conversations & quests' || category.contents.length > 0,
+          (category) =>
+            !['Conversations & quests', 'Timers'].includes(category.name) ||
+            category.contents.length > 0,
         ),
     };
     const ws = Blockly.inject(host.current!, blockWorkspaceOptions(availableToolbox));
@@ -2293,7 +2366,8 @@ export default function Blocks({
           }))
           .filter(
             (category) =>
-              category.name !== 'Conversations & quests' || category.contents.length > 0,
+              !['Conversations & quests', 'Timers'].includes(category.name) ||
+              category.contents.length > 0,
           ),
       });
       refreshBlockFields(ws);

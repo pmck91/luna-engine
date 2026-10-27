@@ -94,3 +94,45 @@ fn old_and_future_headers_never_overwrite_timer_content() {
     );
     assert_eq!(fs::read(&path).unwrap(), b"future timer shape");
 }
+
+#[test]
+fn timer_construction_and_template_bindings_round_trip_only_as_editor_metadata() {
+    let root = tempfile::tempdir().unwrap();
+    let stage = tempfile::tempdir().unwrap();
+    let mut p = fixture::project();
+    p.editor.timer_drafts.push(ScheduledTrigger {
+        id: "unfinished".into(),
+        name: "Under construction".into(),
+        order: 50,
+        priority: 0,
+        condition: Condition::True,
+        effects: vec![],
+    });
+    p.editor.templates.push(BlockTemplate {
+        id: "timer-template".into(),
+        name: "Countdown".into(),
+        source_owner: None,
+        entities: vec![],
+        text_variables: vec![],
+        narratives: vec![],
+        timers: vec![TemplateTimerReference {
+            id: "door-closes".into(),
+            name: "Door closes".into(),
+        }],
+        content: TemplateContent::Effects {
+            effects: vec![Effect::ScheduleTimer {
+                timer: "door-closes".into(),
+                after: NumericOperand::Literal { value: 3 },
+                pending: TimerPendingPolicy::Restart,
+            }],
+        },
+    });
+    save_project(root.path(), &p, None).unwrap();
+    assert_eq!(load_project(root.path()).unwrap(), p);
+    assert!(!root.path().join("timers/unfinished.json").exists());
+    let exported = extract_bundle(&export_bundle(root.path(), &p).unwrap(), stage.path()).unwrap();
+    assert_eq!(exported.timers, p.timers);
+    assert!(exported.editor.timer_drafts.is_empty());
+    assert!(exported.editor.templates.is_empty());
+    assert!(!stage.path().join("editor").exists());
+}

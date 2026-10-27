@@ -698,6 +698,10 @@ pub struct EditorLayout {
     pub blocks: BTreeMap<String, serde_json::Value>,
     pub routes: BTreeMap<String, RouteLayout>,
     pub templates: Vec<BlockTemplate>,
+    /// Incomplete scheduled definitions stay outside executable timer content.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub timer_drafts: Vec<ScheduledTrigger>,
     /// Unfinished narrative content is saved with the editor, never installed.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<_>", optional)]
@@ -777,7 +781,16 @@ pub struct BlockTemplate {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<_>", optional)]
     pub narratives: Vec<TemplateNarrativeReference>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub timers: Vec<TemplateTimerReference>,
     pub content: TemplateContent,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TemplateTimerReference {
+    pub id: String,
+    pub name: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(rename_all = "snake_case")]

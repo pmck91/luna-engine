@@ -1,3 +1,4 @@
+import { authoringTimers, timer, timerDraft } from './turnModel';
 import { authoringNarrative, construction, draftId, narrativeItem } from './narrativeAuthoring';
 import type {
   BlockTemplate,
@@ -79,7 +80,7 @@ const child = (site: ReferenceSite, path: string): ReferenceSite => ({
   path: site.path ? `${site.path}.${path}` : path,
 });
 export function referenceName(p: Project, target: ReferenceTarget): string {
-  if (target.kind === 'timer') return p.timers?.find((t) => t.id === target.id)?.name ?? target.id;
+  if (target.kind === 'timer') return timer(p, target.id)?.name ?? target.id;
   if (target.kind === 'variable') return `Variable · ${target.name}`;
   if (target.kind === 'property')
     return `${entity(p, target.entity)?.name ?? target.entity} · ${target.name}`;
@@ -115,7 +116,7 @@ export function referenceContext(p: Project, use: ReferenceSite): string {
       : use.templateId
         ? p.editor.templates.find((t) => t.id === use.templateId)?.name
         : use.flowId
-          ? flow(p, use.flowId)?.name
+          ? script(p, use.flowId)?.name
           : undefined);
   const puzzle = use.puzzleId
     ? entities(p)
@@ -524,8 +525,13 @@ function scan(
         }
       }
   }
-  for (const timer of p.timers ?? [])
-    flowNode(timer, { subject: timer.id, flowId: timer.id, path: '', scope: 'content' });
+  for (const item of authoringTimers(p))
+    flowNode(item, {
+      subject: item.id,
+      flowId: item.id,
+      path: '',
+      scope: timerDraft(p, item.id) ? 'draft' : 'content',
+    });
   for (const procedure of p.procedures ?? [])
     flowNode(procedure, {
       subject: procedure.id,
@@ -623,6 +629,13 @@ function scan(
   for (const ending of p.game.endings)
     message(ending, 'text', { subject: ending.id, path: '', scope: 'content' });
   for (const template of p.editor.templates) {
+    for (const dependency of template.timers ?? [])
+      reference(
+        dependency,
+        'id',
+        { kind: 'timer', id: dependency.id },
+        { subject: template.id, templateId: template.id, path: 'timers', scope: 'metadata' },
+      );
     for (const dependency of template.narratives ?? []) {
       const at: ReferenceSite = {
         subject: template.id,
@@ -809,6 +822,26 @@ function scan(
         }
       }
     };
+    for (const [id, pending] of Object.entries(state.turns?.pending ?? {}) as [
+      string,
+      RecordValue,
+    ][]) {
+      emit({ kind: 'timer', id }, child(site, `turns.pending.${id}`));
+      for (const key of ['root', 'subject']) {
+        const root = pending.source[key];
+        emit(
+          {
+            kind: timer(resolve, root)
+              ? 'timer'
+              : resolve.procedures?.some((d) => d.id === root)
+                ? 'procedure'
+                : (narrativeItem(resolve, root)?.kind ?? 'flow'),
+            id: root,
+          },
+          child(site, `turns.pending.${id}.source.${key}`),
+        );
+      }
+    }
     keys(state.variables, child(site, 'variables'), (name) => ({ kind: 'variable', name }));
     for (const [id, values] of Object.entries(state.properties) as [string, RecordValue][]) {
       emit({ kind: 'entity', id }, child(site, `properties.${id}`));
@@ -839,7 +872,13 @@ function scan(
     for (const [index, row] of (state.procedure_sequences ?? []).entries()) {
       const at = child(site, `procedure_sequences.${index}.path`);
       const root = narrativeDefinitions(resolve).find((d) => d.id === row.path.root);
-      emit({ kind: root?.kind ?? 'flow', id: row.path.root }, child(at, 'root'));
+      emit(
+        {
+          kind: root?.kind ?? (timer(resolve, row.path.root) ? 'timer' : 'flow'),
+          id: row.path.root,
+        },
+        child(at, 'root'),
+      );
       let body = script(resolve, row.path.root)?.effects ?? [];
       for (const [depth, id] of row.path.calls.entries()) {
         const call = allEffects(body)
@@ -975,11 +1014,13 @@ function ownedTargets(p: Project, target: ReferenceTarget): ReferenceTarget[] {
     ? [...owner.actions, ...owner.triggers, ...('exits' in owner ? owner.exits : [])]
     : target.kind === 'flow'
       ? [flow(p, target.id)].filter((f) => !!f)
-      : target.kind === 'procedure'
-        ? [procedure(p, target.id)].filter((item) => !!item)
-        : 'id' in target && narrativeItem(p, target.id)
-          ? [script(p, target.id)].filter((item) => !!item)
-          : [];
+      : target.kind === 'timer'
+        ? [timer(p, target.id)].filter((item) => !!item)
+        : target.kind === 'procedure'
+          ? [procedure(p, target.id)].filter((item) => !!item)
+          : 'id' in target && narrativeItem(p, target.id)
+            ? [script(p, target.id)].filter((item) => !!item)
+            : [];
   return [
     ...scripts.flatMap((script) =>
       allEffects(script.effects).flatMap(({ effect }) =>
@@ -996,6 +1037,7 @@ export function usedBy(p: Project, target: ReferenceTarget): ReferenceUse[] {
       (matches(use, target) || children.some((t) => matches(use, t))) &&
       !(target.kind === 'entity' && use.ownerId === target.id) &&
       !(target.kind === 'flow' && use.flowId === target.id) &&
+      !(target.kind === 'timer' && use.flowId === target.id) &&
       !(target.kind === 'procedure' && use.procedureId === target.id) &&
       !(
         ['dialogue', 'reply', 'quest_stage', 'narrative_hook'].includes(target.kind) &&
@@ -1019,6 +1061,7 @@ function schema(p: Project, target: ReferenceTarget): Value | undefined {
     : undefined;
 }
 function definitionExists(p: Project, t: ReferenceTarget): boolean {
+  if (t.kind === 'timer') return !!timer(p, t.id);
   if (t.kind === 'variable' || t.kind === 'property') return schema(p, t) !== undefined;
   if (t.kind === 'procedure')
     return (p.procedures ?? []).some((procedure) => procedure.id === t.id);
@@ -1042,33 +1085,39 @@ function entityKind(p: Project, id: string) {
 }
 export function replacementTargets(p: Project, source: ReferenceTarget): ReferenceTarget[] {
   const narrative = narrativeItem(p, 'id' in source ? source.id : '');
-  const choices: ReferenceTarget[] = narrative
-    ? narrativeDefinitions(p)
-        .filter(
-          (d) =>
-            d.kind === source.kind &&
-            (!('conversation' in narrative) ||
-              ('conversationId' in d && d.conversationId === narrative.conversation.id)) &&
-            (!('quest' in narrative) || ('questId' in d && d.questId === narrative.quest.id)),
-        )
-        .map((d) => ({ kind: d.kind, id: d.id }))
-    : source.kind === 'variable'
-      ? Object.keys(p.game.variables).map((name) => ({ kind: 'variable', name }))
-      : source.kind === 'property'
-        ? Object.keys(entity(p, source.entity)?.state ?? {}).map((name) => ({ ...source, name }))
-        : source.kind === 'entity'
-          ? entities(p)
-              .filter((v) => entityKind(p, v.id) === entityKind(p, source.id))
-              .map((v) => ({ kind: 'entity', id: v.id }))
-          : source.kind === 'ending'
-            ? p.game.endings.map((v) => ({ kind: 'ending', id: v.id }))
-            : source.kind === 'verb'
-              ? p.vocabulary.map((v) => ({ kind: 'verb', id: v.id }))
-              : source.kind === 'puzzle'
-                ? entities(p).flatMap((owner) =>
-                    owner.hints.map((hint) => ({ kind: 'puzzle' as const, id: hint.id })),
-                  )
-                : [];
+  const choices: ReferenceTarget[] =
+    source.kind === 'timer'
+      ? (p.timers ?? []).map((t) => ({ kind: 'timer', id: t.id }))
+      : narrative
+        ? narrativeDefinitions(p)
+            .filter(
+              (d) =>
+                d.kind === source.kind &&
+                (!('conversation' in narrative) ||
+                  ('conversationId' in d && d.conversationId === narrative.conversation.id)) &&
+                (!('quest' in narrative) || ('questId' in d && d.questId === narrative.quest.id)),
+            )
+            .map((d) => ({ kind: d.kind, id: d.id }))
+        : source.kind === 'variable'
+          ? Object.keys(p.game.variables).map((name) => ({ kind: 'variable', name }))
+          : source.kind === 'property'
+            ? Object.keys(entity(p, source.entity)?.state ?? {}).map((name) => ({
+                ...source,
+                name,
+              }))
+            : source.kind === 'entity'
+              ? entities(p)
+                  .filter((v) => entityKind(p, v.id) === entityKind(p, source.id))
+                  .map((v) => ({ kind: 'entity', id: v.id }))
+              : source.kind === 'ending'
+                ? p.game.endings.map((v) => ({ kind: 'ending', id: v.id }))
+                : source.kind === 'verb'
+                  ? p.vocabulary.map((v) => ({ kind: 'verb', id: v.id }))
+                  : source.kind === 'puzzle'
+                    ? entities(p).flatMap((owner) =>
+                        owner.hints.map((hint) => ({ kind: 'puzzle' as const, id: hint.id })),
+                      )
+                    : [];
   return choices.filter(
     (target) =>
       !same(target, source) &&
@@ -1077,6 +1126,12 @@ export function replacementTargets(p: Project, source: ReferenceTarget): Referen
   );
 }
 export function deleteDefinition(p: Project, target: ReferenceTarget) {
+  if (target.kind === 'timer') {
+    p.timers = p.timers?.filter((t) => t.id !== target.id);
+    p.editor.timer_drafts = p.editor.timer_drafts?.filter((t) => t.id !== target.id);
+    delete p.editor.blocks[target.id];
+    return;
+  }
   const narrative = narrativeItem(p, 'id' in target ? target.id : '');
   if (narrative && !['conversation', 'quest'].includes(target.kind)) {
     if (narrative.kind === 'narrative_hook')
@@ -1324,6 +1379,8 @@ export function referencePlan(
     errors.push('Rename the property on its original entity.');
   if ((source.kind === 'conversation' || source.kind === 'quest') && destination)
     errors.push('Repair owned dialogue/stage references before replacing this definition.');
+  if (destination?.kind === 'timer' && timerDraft(p, destination.id))
+    errors.push('Choose a finished replacement timer.');
   if (source.kind === 'procedure' && destination)
     errors.push('Update procedure calls and their inputs before replacing a definition.');
   if (source.kind === 'property' && uses.some((use) => use.contract))
@@ -1378,6 +1435,7 @@ export function referencePlan(
     !rename &&
     ((source.kind === 'entity' && use.ownerId === source.id) ||
       (source.kind === 'flow' && use.flowId === source.id) ||
+      (source.kind === 'timer' && use.flowId === source.id) ||
       (source.kind === 'procedure' && use.procedureId === source.id) ||
       (source.kind === 'conversation' && use.conversationId === source.id) ||
       (source.kind === 'quest' && use.questId === source.id) ||

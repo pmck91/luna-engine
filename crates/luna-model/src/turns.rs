@@ -209,7 +209,10 @@ impl Project {
             .collect()
     }
     pub(crate) fn requires_turn_format(&self) -> bool {
-        if self.game.turns.is_some() || !self.timers.is_empty() {
+        if self.game.turns.is_some()
+            || !self.timers.is_empty()
+            || !self.editor.timer_drafts.is_empty()
+        {
             return true;
         }
         let mut conditions = vec![];
@@ -253,6 +256,9 @@ impl Project {
             }
         }
         for t in &self.editor.templates {
+            if !t.timers.is_empty() {
+                return true;
+            }
             match &t.content {
                 TemplateContent::Action { action } => {
                     if action.turn_cost.as_ref().is_some_and(|c| !c.is_default()) {

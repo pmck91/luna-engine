@@ -1,6 +1,6 @@
 # Turns and timers — T0 design review
 
-Status: **T0 interaction accepted; T0/T1 committed as `b80861a`; T2 foundation implemented**, 27 October 2026. Branch `feature/turn-events` starts from merged `main bfe2c42` (conversations/quests, PR #5). The [T0–T4 plan](../../plans/turn-events.md) describes the contract and implementation gates. The owner accepted this preview with “that works as expected.” The [T1 contract](shared-contract.md) and [historical native/Blockly evidence](runtime-proof-review.md) remain the design basis; the [T2 foundation review](foundation-review.md) records the shipping native models/runtime/storage. This page documents the isolated preview; production authoring and another owner review remain T3.
+Status: **T0 interaction accepted; T0/T1 committed as `b80861a`; T2 committed as `08dc93f`; T3 authoring accepted**, 27 October 2026. Branch `feature/turn-events` starts from merged `main bfe2c42` (conversations/quests, PR #5). The [T0–T4 plan](../../plans/turn-events.md) describes the contract and implementation gates. The owner accepted this preview with “that works as expected.” The [T1 contract](shared-contract.md) and [historical native/Blockly evidence](runtime-proof-review.md) remain the design basis; the [T2 foundation review](foundation-review.md) records the shipping native models/runtime/storage. This page documents the isolated preview. The [T3 working production UI](authoring-review.md) is owner accepted; T4 final acceptance follows.
 
 ## Open the preview
 
@@ -50,26 +50,26 @@ Production explanations must come from Rust and cover actual schedules, order, f
 
 These are captures of the interactive preview, using the real installed block renderer:
 
-| View | Review focus |
-| --- | --- |
-| [Timer definition](captures/definition.png) | Named root, due-time guard, ordinary effects and inspector |
-| [Scheduled library](captures/library.png) | Placement beside existing trigger families |
-| [Scheduling action](captures/schedule.png) | Typed reference, inline delay/policy and subsequent-turn explanation |
-| [Pending countdown](captures/playtest.png) | Turn, deadline, remaining count, source and checkpoint controls |
-| [Rollback illustration](captures/rollback.png) | Retaining the previous committed countdown after an error |
-| [Turn defaults](captures/settings.png) | Explicit cost policy and separate reply override |
-| [Compact layout](captures/compact.png) | Stacked panels, labels and collapse controls at 520 px |
+| View                                           | Review focus                                                         |
+| ---------------------------------------------- | -------------------------------------------------------------------- |
+| [Timer definition](captures/definition.png)    | Named root, due-time guard, ordinary effects and inspector           |
+| [Scheduled library](captures/library.png)      | Placement beside existing trigger families                           |
+| [Scheduling action](captures/schedule.png)     | Typed reference, inline delay/policy and subsequent-turn explanation |
+| [Pending countdown](captures/playtest.png)     | Turn, deadline, remaining count, source and checkpoint controls      |
+| [Rollback illustration](captures/rollback.png) | Retaining the previous committed countdown after an error            |
+| [Turn defaults](captures/settings.png)         | Explicit cost policy and separate reply override                     |
+| [Compact layout](captures/compact.png)         | Stacked panels, labels and collapse controls at 520 px               |
 
 ## Design references
 
 Primary references checked on 27 October 2026. These inform the interaction; they introduce no dependency and do not decide Luna's semantics.
 
-| Reference | Pattern adapted for Luna |
-| --- | --- |
-| [Construct 3 Timer behaviour](https://www.construct.net/en/make-games/manuals/construct-3/behavior-reference/timer) | Named timers, explicit start/stop and running queries. Luna shows a typed definition and a visible restart/keep policy at each caller, measured in turns. |
-| [Inform 7 future events](https://ganelson.github.io/inform-website/book/WI_9_11.html) | Named future rules scheduled by a number of turns. Luna makes the subsequent-turn origin visible beside the block and in the pending panel. |
-| [Inform 7 every-turn rules](https://ganelson.github.io/inform-website/book/WI_9_5.html) | An explicit position in turn processing. Luna must prove how that boundary fits its existing transactional calls, watches and narrative hooks. |
-| [Accepted Luna editor UX](../editor-ux/README.md) and [procedure caller/definition review](../block-procedures/README.md) | Contextual creation, selected-block inspector, exact return, shared usage review and ordinary block appearance. |
+| Reference                                                                                                                 | Pattern adapted for Luna                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Construct 3 Timer behaviour](https://www.construct.net/en/make-games/manuals/construct-3/behavior-reference/timer)       | Named timers, explicit start/stop and running queries. Luna shows a typed definition and a visible restart/keep policy at each caller, measured in turns. |
+| [Inform 7 future events](https://ganelson.github.io/inform-website/book/WI_9_11.html)                                     | Named future rules scheduled by a number of turns. Luna makes the subsequent-turn origin visible beside the block and in the pending panel.               |
+| [Inform 7 every-turn rules](https://ganelson.github.io/inform-website/book/WI_9_5.html)                                   | An explicit position in turn processing. Luna must prove how that boundary fits its existing transactional calls, watches and narrative hooks.            |
+| [Accepted Luna editor UX](../editor-ux/README.md) and [procedure caller/definition review](../block-procedures/README.md) | Contextual creation, selected-block inspector, exact return, shared usage review and ordinary block appearance.                                           |
 
 ## Verification and next review
 
@@ -87,4 +87,4 @@ node design/turns/verify.mjs
 
 Use `LUNA_FIREFOX_EXECUTABLE` when selecting an already installed compatible Firefox. Locally, verification uses the installed `firefox-1532` executable. `LUNA_DESIGN_URL` and `LUNA_DESIGN_CAPTURES` can override the URL and capture directory.
 
-The owner accepted timer discoverability, creation/return, countdown explanation and visible cost defaults with “that works as expected.” T1 proved candidate shared Rust execution/restore boundaries and froze the contract; T2 implements canonical state, runtime and storage. T3 now owns production authoring and another owner review. Keep the complete feature on its branch through final parity and acceptance.
+The owner accepted timer discoverability, creation/return, countdown explanation and visible cost defaults with “that works as expected.” T1 proved candidate shared Rust execution/restore boundaries and froze the contract; T2 implements canonical state, runtime and storage. The [T3 authoring review](authoring-review.md) now records the owner-accepted production UI and clarity feedback for T4. Keep the complete feature on its branch through final parity and acceptance.

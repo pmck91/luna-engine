@@ -1,3 +1,6 @@
+import ScheduledTimers, { TimerCreation, TimerInspector } from './ScheduledTimers';
+import PendingTimers from './PendingTimers';
+import { timer } from './turnModel';
 import Narrative, { NarrativeInspector } from './Narrative';
 import NarrativePlayer, { NarrativeJournal, NarrativeProgressInspector } from './NarrativePlayer';
 import { narrativeItem, narrativeRemovalDestination } from './narrativeAuthoring';
@@ -124,6 +127,7 @@ export default function App() {
       selection: BlockSelection;
     }>
   >([]);
+  const [timerCreation, setTimerCreation] = useState<BlockSelection | null>(null);
   const [triggerFilter, setTriggerFilter] = useState('');
   const [flowSelections, setFlowSelections] = useState<Record<string, string>>({});
   const [flowBreadcrumb, setFlowBreadcrumb] = useState('');
@@ -368,6 +372,7 @@ export default function App() {
       !owner(next, key) &&
       !flow(next, key) &&
       !procedure(next, key) &&
+      !timer(next, key) &&
       !narrativeItem(next, key) &&
       !key.startsWith(`${gameDataPages.conversations}:`) &&
       !Object.values(gameDataPages).some((page) => page === key)
@@ -387,7 +392,7 @@ export default function App() {
               : 'quests'
             : procedure(next, caller.scriptId)
               ? 'procedures'
-              : target && 'event' in target
+              : timer(next, caller.scriptId) || (target && 'event' in target)
                 ? 'triggers'
                 : 'actions',
         );
@@ -404,6 +409,9 @@ export default function App() {
             : gameDataPages.quests;
         setSelected(destination);
         setMode('conversation' in item ? 'conversations' : 'quests');
+      } else if (previous && timer(previous, key)) {
+        setSelected(gameDataPages.scheduled);
+        setMode('triggers');
       } else if (previous && procedure(previous, key)) {
         setSelected(gameDataPages.procedures);
         setMode('procedures');
@@ -478,6 +486,15 @@ export default function App() {
       );
       setConnecting(false);
       setInspectorCollapsed(false);
+      return;
+    }
+    if (key === gameDataPages.scheduled || (project && timer(project, key))) {
+      setSelected(key);
+      setMode('triggers');
+      setTriggerFilter('');
+      setConnecting(false);
+      setInspectorCollapsed(false);
+      setFlowBreadcrumb(key === gameDataPages.scheduled ? '' : key);
       return;
     }
     if (key === gameDataPages.procedures || (project && procedure(project, key))) {
@@ -783,11 +800,13 @@ export default function App() {
     const narrative = narrativeItem(doc, key);
     const target: ReferenceTarget = narrative
       ? { kind: narrative.kind, id: key }
-      : procedure(doc, key)
-        ? { kind: 'procedure', id: key }
-        : flow(doc, key)
-          ? { kind: 'flow', id: key }
-          : { kind: 'entity', id: key };
+      : timer(doc, key)
+        ? { kind: 'timer', id: key }
+        : procedure(doc, key)
+          ? { kind: 'procedure', id: key }
+          : flow(doc, key)
+            ? { kind: 'flow', id: key }
+            : { kind: 'entity', id: key };
     if (usedBy(doc, target).length) {
       setReferenceRequest({ target, action: 'delete' });
       return;
@@ -809,6 +828,7 @@ export default function App() {
             ? gameDataPages.quests
             : narrative.quest.id,
       );
+    else if (target.kind === 'timer') select(gameDataPages.scheduled);
     else if (target.kind === 'procedure') select(gameDataPages.procedures);
     else setSelected(parent?.id ?? doc?.game.id ?? '');
   };
@@ -898,6 +918,8 @@ export default function App() {
   const activeNarrative = doc ? narrativeItem(doc, selected) : undefined;
   const activeNarrativeScript = doc && activeNarrative ? script(doc, selected) : undefined;
   const activeProcedure = doc ? procedure(doc, selected) : undefined;
+  const activeTimer = doc ? timer(doc, selected) : undefined;
+  const scheduled = selected === gameDataPages.scheduled || !!activeTimer;
   const activeFlow = doc && flow(doc, selected);
   const creationRoom = doc ? authoringRoom(doc, selected) : '';
   const creationRoomName =
@@ -922,8 +944,9 @@ export default function App() {
     (doc && actionOwner && flow(doc, flowSelections[actionOwner.id])) ??
     actionOwner?.actions[0] ??
     (actionOwner && 'exits' in actionOwner ? actionOwner.exits[0] : undefined);
-  const activeTrigger =
-    activeFlow && 'event' in activeFlow
+  const activeTrigger = scheduled
+    ? undefined
+    : activeFlow && 'event' in activeFlow
       ? activeFlow
       : doc
         ? projectTriggers(doc).find((item) => !triggerFilter || item.ownerId === triggerFilter)
@@ -935,7 +958,9 @@ export default function App() {
       : mode === 'procedures'
         ? activeProcedure
         : mode === 'triggers'
-          ? activeTrigger
+          ? scheduled
+            ? activeTimer
+            : activeTrigger
           : activeFlow;
   const inspectedOwner = doc && inspectedFlow ? flowOwner(doc, inspectedFlow.id) : actionOwner;
   const inspectedBlock =
@@ -968,6 +993,17 @@ export default function App() {
       setTriggerFilter(actionOwner.id);
   }, [mode, activeFlow, actionOwner, triggerFilter]);
   const openDefinition = (id: string, from = inspectedBlock) => {
+    if (!from && inspectedFlow)
+      from = {
+        flowId: inspectedFlow.id,
+        blockId: '',
+        kind: 'root',
+        label: 'Flow settings',
+        connected: true,
+        address: '',
+        value: null,
+        fields: [],
+      };
     if (from)
       setProcedureReturns((old) => [
         ...old.slice(-30),
@@ -998,6 +1034,14 @@ export default function App() {
     }));
   };
   const createDefinition = () => {
+    if (
+      inspectedBlock &&
+      inspectedBlock.value &&
+      ['schedule_timer', 'cancel_timer', 'timer_pending'].includes(inspectedBlock.value.type)
+    ) {
+      setTimerCreation(structuredClone(inspectedBlock));
+      return;
+    }
     if (!inspectedBlock || inspectedBlock.value?.type !== 'call') return;
     const call = inspectedBlock.value;
     const definition = {
@@ -1813,6 +1857,12 @@ export default function App() {
                                 ? 'Triggers'
                                 : 'Actions'}
                 </span>
+                {mode === 'triggers' && scheduled && (
+                  <>
+                    <span aria-hidden="true">›</span>
+                    <button onClick={() => select(gameDataPages.scheduled)}>Scheduled</button>
+                  </>
+                )}
                 {activeNarrative && (
                   <>
                     <span aria-hidden="true">›</span>
@@ -1887,7 +1937,12 @@ export default function App() {
                   <button
                     className={mode === 'map' ? 'active' : ''}
                     onClick={() => {
-                      if (mode === 'procedures' || mode === 'conversations' || mode === 'quests')
+                      if (
+                        scheduled ||
+                        mode === 'procedures' ||
+                        mode === 'conversations' ||
+                        mode === 'quests'
+                      )
                         select(doc.game.id);
                       setMode('map');
                     }}
@@ -1949,8 +2004,12 @@ export default function App() {
                         : mode === 'actions'
                           ? actionFlow
                           : mode === 'triggers'
-                            ? activeTrigger
-                            : undefined;
+                            ? scheduled
+                              ? activeTimer
+                              : activeTrigger
+                            : mode === 'procedures'
+                              ? activeProcedure
+                              : undefined;
                     setTemplateContext({
                       ownerId:
                         (source && flowOwner(doc, source.id)?.id) ?? actionOwner?.id ?? doc.game.id,
@@ -1987,7 +2046,9 @@ export default function App() {
                           : mode === 'hints'
                             ? 'Author progressive clues and optional solutions'
                             : mode === 'triggers'
-                              ? 'Command, state, and value triggers'
+                              ? scheduled
+                                ? 'Schedule events after player turns'
+                                : 'Command, state, and value triggers'
                               : mode === 'contents'
                                 ? 'Arrange initial contents and set up interactions'
                                 : actionOwner
@@ -1995,18 +2056,38 @@ export default function App() {
                                   : 'Select an object, location, or character'}
                 </span>
               </div>
-              {mode === 'procedures' &&
-                activeProcedure &&
-                procedureReturns.at(-1)?.definition === activeProcedure.id && (
+              {(activeTimer || (mode === 'procedures' && activeProcedure)) &&
+                procedureReturns.at(-1)?.definition === (activeTimer ?? activeProcedure)?.id && (
                   <div className="procedure-return">
                     <button
                       disabled={!script(doc, procedureReturns.at(-1)!.scriptId)}
                       onClick={returnToCaller}
                     >
-                      ← Return to {procedureReturns.at(-1)!.name} → CALL
+                      ← Return to {procedureReturns.at(-1)!.name} →{' '}
+                      {procedureReturns.at(-1)!.selection.value?.type === 'call'
+                        ? 'CALL'
+                        : procedureReturns.at(-1)!.selection.label}
                     </button>
                   </div>
                 )}
+              {mode === 'triggers' && (
+                <div className="trigger-group-tabs tabs" role="group" aria-label="Trigger groups">
+                  <button
+                    className={!scheduled ? 'active' : ''}
+                    aria-pressed={!scheduled}
+                    onClick={() => select(gameDataPages.triggers)}
+                  >
+                    Command, state and value
+                  </button>
+                  <button
+                    className={scheduled ? 'active' : ''}
+                    aria-pressed={scheduled}
+                    onClick={() => select(gameDataPages.scheduled)}
+                  >
+                    Scheduled
+                  </button>
+                </div>
+              )}
               <div className="canvas">
                 {mode === 'conversations' || mode === 'quests' ? (
                   <Narrative
@@ -2061,6 +2142,19 @@ export default function App() {
                     }}
                     edit={edit}
                     connecting={connecting}
+                  />
+                ) : mode === 'triggers' && scheduled ? (
+                  <ScheduledTimers
+                    project={doc}
+                    active={activeTimer}
+                    edit={edit}
+                    select={select}
+                    history={historyControls}
+                    blocksRef={blocks}
+                    blockViews={blockViews}
+                    onBlockSelect={selectBlock}
+                    selectedBlock={activeTimer && blockSelections[activeTimer.id]?.blockId}
+                    error={error}
                   />
                 ) : mode === 'triggers' ? (
                   <Triggers
@@ -2266,6 +2360,16 @@ export default function App() {
                     </p>
                   )}
                 </div>
+                {play?.result.turns && (
+                  <PendingTimers
+                    view={play.result.turns}
+                    project={playProject!}
+                    sourceCurrent={playSource === playVersion}
+                    reveal={reveal}
+                    wait={() => void send('wait')}
+                    busy={busy || !!play.state.ending}
+                  />
+                )}
                 {play?.result.conversation && (
                   <NarrativePlayer
                     project={playProject!}
@@ -2398,6 +2502,13 @@ export default function App() {
                           ? 'Conversations'
                           : 'Quests'}
                   </button>
+                ) : mode === 'triggers' && scheduled ? (
+                  <button
+                    className="inspector-back"
+                    onClick={() => select(gameDataPages.scheduled)}
+                  >
+                    ← Scheduled triggers
+                  </button>
                 ) : mode === 'procedures' ? (
                   <button
                     className="inspector-back"
@@ -2527,7 +2638,23 @@ export default function App() {
                     select={(selection) => setHintSelection(selection)}
                     edit={edit}
                   />
-                ) : mode === 'triggers' && !activeTrigger ? (
+                ) : mode === 'triggers' && scheduled && !inspectedBlock ? (
+                  activeTimer ? (
+                    <TimerInspector
+                      key={activeTimer.id}
+                      project={doc}
+                      definition={activeTimer}
+                      edit={edit}
+                      select={select}
+                      remove={() => remove(activeTimer.id)}
+                    />
+                  ) : (
+                    <>
+                      <h2>Scheduled triggers</h2>
+                      <p>Select or add a named timer to build its guard and effects.</p>
+                    </>
+                  )
+                ) : mode === 'triggers' && !scheduled && !activeTrigger ? (
                   <>
                     <h2>Triggers</h2>
                     <p className="muted">Add a trigger to build its conditions and effects.</p>
@@ -2687,6 +2814,15 @@ export default function App() {
             <button className="primary">Create project</button>
           </form>
         </Modal>
+      )}
+      {timerCreation && doc && (
+        <TimerCreation
+          project={doc}
+          edit={edit}
+          from={timerCreation}
+          close={() => setTimerCreation(null)}
+          created={(id) => openDefinition(id, timerCreation)}
+        />
       )}
       {showState && play && playProject && (
         <Modal title="World state" close={() => setShowState(false)} className="wide">
@@ -2905,6 +3041,7 @@ export default function App() {
               project={doc}
               edit={edit}
               reserved={config?.reserved ?? []}
+              onTimerCreated={(id) => openDefinition(id)}
               transact={(label, change) => {
                 const previous = creationTransaction.current;
                 const before = current.current.doc;
@@ -2947,9 +3084,11 @@ export default function App() {
                       (selected === target.id || flowOwner(doc, selected)?.id === target.id)
                     )
                       select(
-                        target.kind === 'procedure'
-                          ? gameDataPages.procedures
-                          : (flowOwner(doc, target.id)?.id ?? doc.game.id),
+                        target.kind === 'timer'
+                          ? gameDataPages.scheduled
+                          : target.kind === 'procedure'
+                            ? gameDataPages.procedures
+                            : (flowOwner(doc, target.id)?.id ?? doc.game.id),
                       );
                   }}
                 />

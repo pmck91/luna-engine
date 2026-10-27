@@ -1,4 +1,4 @@
-import { script } from './model';
+import { script, scripts } from './model';
 import { argumentLabel, referenceLabel } from './procedureModel';
 import { createContext } from 'react';
 import type {
@@ -17,7 +17,7 @@ import type {
   TraceStep,
   ValueTarget,
 } from './contracts';
-import { allEffects, flowOwner, flows } from './model';
+import { allEffects, flowOwner } from './model';
 import { playContentKey } from './playtest';
 import type { ReferenceSite } from './references';
 
@@ -206,7 +206,7 @@ export function changeTitle(p: Project, change: TraceChange) {
     case 'visits':
       return `${traceEntityName(p, id)} · visits`;
     case 'sequences':
-      return `${flows(p).find((f) => allEffects(f.effects).some(({ effect }) => effect.type === 'respond' && effect.id === id))?.name || 'Response sequence'} · position`;
+      return `${scripts(p).find((f) => allEffects(f.effects).some(({ effect }) => effect.type === 'respond' && effect.id === id))?.name || 'Response sequence'} · position`;
     case 'hints':
       return `${
         entities(p)

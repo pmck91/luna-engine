@@ -1,3 +1,4 @@
+import TurnSettings, { ActionTurnSettings } from './TurnSettings';
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
 import ContainerSettings, { ContainerUpgrade } from './ContainerSettings';
 import CommandAssistanceSettings from './CommandAssistanceSettings';
@@ -256,6 +257,7 @@ export default function Inspector({
           />
           <p className="muted">Shown when a player's command does not match an available action.</p>
           <CommandAssistanceSettings project={p} edit={edit} />
+          <TurnSettings project={p} edit={edit} select={select} />
           <Select
             label="Entity help"
             value={p.game.help_mode}
@@ -623,6 +625,13 @@ function FlowInspector({
             </button>
           </div>
         </>
+      )}
+      {('requirements' in f || 'destination' in f) && (
+        <ActionTurnSettings
+          project={p}
+          value={f.turn_cost}
+          change={(turn_cost) => update({ turn_cost })}
+        />
       )}
       {'priority' in f && (
         <Field label="Priority (higher wins)">

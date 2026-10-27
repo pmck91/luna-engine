@@ -29,6 +29,22 @@ function Summary({ project, state }: { project: Project; state: GameState }) {
       <p>
         <strong>{summary.location}</strong> · {summary.ending}
       </p>
+      {state.turns && (
+        <>
+          <p>
+            Turn {state.turns.turn} · {Object.keys(state.turns.pending).length}{' '}
+            {Object.keys(state.turns.pending).length === 1 ? 'timer' : 'timers'} pending
+          </p>
+          {Object.entries(state.turns.pending).map(
+            ([id, t]) =>
+              t && (
+                <p key={id}>
+                  {project.timers?.find((d) => d.id === id)?.name ?? id} · due at turn {t.deadline}
+                </p>
+              ),
+          )}
+        </>
+      )}
       <p>Player carrying: {summary.inventory.join(', ') || 'nothing'}</p>
       {summary.characters.map((c, i) => (
         <p key={i}>

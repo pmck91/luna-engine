@@ -8,7 +8,7 @@ export const assistanceDefaults = (): CommandAssistance => ({
   unavailable_reference_text: "I can't tell what “it” refers to here. Use its full name.",
 });
 
-const normalized = (text: string) =>
+export const normalizedCommand = (text: string) =>
   text
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
@@ -17,7 +17,7 @@ export function cancellationConflicts(project: Project) {
   const verbs = new Set(
     project.vocabulary
       .filter((verb) =>
-        [verb.canonical, ...verb.synonyms].some((phrase) => normalized(phrase) === 'cancel'),
+        [verb.canonical, ...verb.synonyms].some((phrase) => normalizedCommand(phrase) === 'cancel'),
       )
       .map((verb) => verb.id),
   );

@@ -17,6 +17,7 @@ import {
   templateReferences,
   templateBindingErrors,
   templateNarrativeReferences,
+  templateTimerReferences,
 } from './templates';
 
 type Edit = (change: (p: Project) => void) => void;
@@ -255,8 +256,12 @@ function TemplateUse({
   const references = templateReferences(template);
   const entities = templateEntities(p);
   const narratives = templateNarrativeReferences(template);
+  const timers = templateTimerReferences(template);
   const narrativeChoices = narrativeDefinitions(p).filter((d) => !construction(p, d.id));
   const complete =
+    timers.every(
+      (ref) => (p.timers ?? []).some((t) => t.id === mapping[ref.id]) && !!p.game.turns,
+    ) &&
     narratives.every((ref) =>
       narrativeChoices.some((d) => d.kind === ref.kind && d.id === mapping[ref.id]),
     ) &&
@@ -322,6 +327,21 @@ function TemplateUse({
     <fieldset className="template-bindings" disabled={busy}>
       <legend>Insert a copy</legend>
       {references.length > 0 && <p className="muted">Choose which entities this copy uses.</p>}
+      {timers.length > 0 && (
+        <p className="muted">
+          Each named timer has one countdown. Choose separate definitions for independent
+          countdowns.
+        </p>
+      )}
+      {timers.map((ref) => (
+        <Select
+          key={ref.id}
+          label={`timer · ${ref.name}`}
+          value={mapping[ref.id] ?? ''}
+          items={p.timers ?? []}
+          onChange={(id) => setMapping({ ...mapping, [ref.id]: id })}
+        />
+      ))}
       {narratives.map((ref) => (
         <Select
           key={ref.id}

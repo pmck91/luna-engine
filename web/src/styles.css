@@ -2550,6 +2550,44 @@ dialog.modal {
   max-width: 100%;
   white-space: normal;
 }
+.trigger-group-tabs {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-bottom: 1px solid #393f4e;
+}
+.turn-settings {
+  margin: 16px 0;
+  padding: 10px;
+  border: 1px solid #42485a;
+  border-radius: 6px;
+}
+.timer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.pending-timers {
+  flex: 0 0 auto;
+  margin: 6px 10px;
+  padding: 8px 10px;
+  border: 1px solid #42485a;
+  border-radius: 6px;
+}
+.pending-timers > summary {
+  cursor: pointer;
+}
+.pending-timer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.pending-timer strong,
+.pending-timer span {
+  overflow-wrap: anywhere;
+}
 .message-bindings {
   font-size: 12px;
 }

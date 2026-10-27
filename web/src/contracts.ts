@@ -153,6 +153,8 @@ export type NarrativeDraft = { "type": "conversation", conversation: Conversatio
 
 export type NarrativeReferenceKind = "conversation" | "dialogue" | "reply" | "quest" | "quest_stage";
 
+export type TemplateTimerReference = { id: string, name: string, };
+
 export type TemplateNarrativeReference = { id: string, name: string, kind: NarrativeReferenceKind, parent: string | null, };
 
 export type QuestStatus = "undiscovered" | "active" | "completed" | "failed";
@@ -347,9 +349,13 @@ export type TemplateEntity = { id: string, name: string, kind: TemplateEntityKin
 
 export type TemplateContent = { "type": "action", action: Action, } | { "type": "effects", effects: Array<Effect>, };
 
-export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, narratives?: Array<TemplateNarrativeReference>, content: TemplateContent, };
+export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, narratives?: Array<TemplateNarrativeReference>, timers?: Array<TemplateTimerReference>, content: TemplateContent, };
 
 export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>,
+/**
+ * Incomplete scheduled definitions stay outside executable timer content.
+ */
+timer_drafts?: Array<ScheduledTrigger>,
 /**
  * Unfinished narrative content is saved with the editor, never installed.
  */

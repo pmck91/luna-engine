@@ -1,3 +1,4 @@
+import { authoringTimers } from './turnModel';
 import { narrativeScripts } from './narrativeModel';
 import type {
   Action,
@@ -22,6 +23,7 @@ export const gameDataPages = {
   vocabulary: 'project:vocabulary',
   endings: 'project:endings',
   triggers: 'project:triggers',
+  scheduled: 'project:scheduled',
   procedures: 'project:procedures',
   conversations: 'project:conversations',
   quests: 'project:quests',
@@ -170,7 +172,7 @@ export function flows(p: Project): Array<Action | Trigger | Exit> {
   ]);
 }
 export function scripts(p: Project) {
-  return [...flows(p), ...(p.procedures ?? []), ...(p.timers ?? []), ...narrativeScripts(p)];
+  return [...flows(p), ...(p.procedures ?? []), ...authoringTimers(p), ...narrativeScripts(p)];
 }
 export function script(p: Project, key: string) {
   return scripts(p).find((item) => item.id === key);
@@ -185,16 +187,25 @@ export function sequenceChoices(p: Project, scope?: string) {
         ? [{ id: effect.id, name: `${definition.name} · sequence ${index + 1}` }]
         : [],
     );
-  return flows(p).flatMap((flow) => {
-    const owner = flowOwner(p, flow.id)!;
-    const ownerName = 'title' in owner ? owner.title : owner.name;
-    return allEffects(flow.effects)
-      .flatMap(({ effect }) => (effect.type === 'respond' ? [effect] : []))
-      .map((effect, index) => ({
-        id: effect.id,
-        name: `${ownerName} · ${'event' in flow ? triggerLabel(flow, p) : flow.name || 'Action'} · sequence ${index + 1}`,
-      }));
-  });
+  return [
+    ...authoringTimers(p).flatMap((timer) =>
+      allEffects(timer.effects).flatMap(({ effect }, i) =>
+        effect.type === 'respond'
+          ? [{ id: effect.id, name: `${timer.name} · sequence ${i + 1}` }]
+          : [],
+      ),
+    ),
+    ...flows(p).flatMap((flow) => {
+      const owner = flowOwner(p, flow.id)!;
+      const ownerName = 'title' in owner ? owner.title : owner.name;
+      return allEffects(flow.effects)
+        .flatMap(({ effect }) => (effect.type === 'respond' ? [effect] : []))
+        .map((effect, index) => ({
+          id: effect.id,
+          name: `${ownerName} · ${'event' in flow ? triggerLabel(flow, p) : flow.name || 'Action'} · sequence ${index + 1}`,
+        }));
+    }),
+  ];
 }
 export function flow(p: Project, key: string) {
   return flows(p).find((f) => f.id === key);

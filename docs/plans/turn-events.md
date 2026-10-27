@@ -1,6 +1,6 @@
 # Turns and scheduled events
 
-Status: **T0 accepted; T1 committed; T2 canonical implementation complete**, 27 October 2026. Branch `feature/turn-events` starts from merged `main` at `bfe2c42` (conversations/quests, PR #5). The owner accepted the T0 preview with “that works as expected,” then authorized committing and progressing. T0/T1 is committed as `b80861a`. The [T1 contract](../design/turn-events/shared-contract.md) takes precedence over earlier proposals below; the [T2 foundation review](../design/turn-events/foundation-review.md) records implementation and verification. T3 authoring and working-slice feedback are next.
+Status: **T0/T3 accepted; T1/T2 committed; T4 next**, 27 October 2026. Branch `feature/turn-events` starts from merged `main` at `bfe2c42` (conversations/quests, PR #5). The owner accepted the T0 preview with “that works as expected,” then authorized committing and progressing. T0/T1 is committed as `b80861a`. The [T1 contract](../design/turn-events/shared-contract.md) takes precedence over earlier proposals below; the [T2 foundation review](../design/turn-events/foundation-review.md) records implementation and verification. T2 is committed as `08dc93f`. The [T3 authoring review](../design/turn-events/authoring-review.md) records the accepted production UI. The owner noted acceptable complexity; T4 should provide a simple starting workshop before advanced scenarios.
 
 The [interactive preview and review guide](../design/turn-events/README.md) records the accepted interaction; the [T1 evidence](../design/turn-events/runtime-proof-review.md) distinguishes feasibility checks from production gates. Preserve the accepted block appearance and editor UX. This is F4 in the [gameplay roadmap](gameplay-feature-roadmap.md), ahead of character routines. Public guides remain in the later documentation milestone.
 
@@ -51,19 +51,19 @@ No change to block shapes, colours, inline content, connectors or flat terminal-
 
 Turns are opt-in for an explicitly upgraded game. Older games keep their command semantics. Enabling turns and upgrading from an older format must show reserved-command conflicts and be undoable; creating the first timer should lead through that review. The T1 contract prohibits disabling turns while definitions/references/overrides remain; authors must remove them through reviewed ordinary edits first. It never silently suspends a live queue.
 
-| Input | Proposed default | Author control |
-| --- | --- | --- |
-| Successful ordinary authored action, including an exit | Spend 1 | Game default; per-action success override |
-| Accepted current conversation reply | Spend 1 | Game default; per-reply override |
-| Failed action requirements | Free | Game default; separate per-action failure override |
-| Built-in look around | Free | Game default |
-| Hint request | Free | Game default |
-| WAIT | Spend 1 | Explicit control in a turn-enabled game |
-| Help, inventory and earned quest log | Free | Always free |
-| Clarification question, invalid/retried answer, unmatched input | Free | Always free |
-| Unavailable/stale conversation selection | Free | Always free |
-| Save/load, editor inspection and other host controls | Free | Always free |
-| Active-conversation pause/bye control | Free | Ordinary authored bye outside the encounter retains its action policy |
+| Input                                                           | Proposed default | Author control                                                        |
+| --------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------- |
+| Successful ordinary authored action, including an exit          | Spend 1          | Game default; per-action success override                             |
+| Accepted current conversation reply                             | Spend 1          | Game default; per-reply override                                      |
+| Failed action requirements                                      | Free             | Game default; separate per-action failure override                    |
+| Built-in look around                                            | Free             | Game default                                                          |
+| Hint request                                                    | Free             | Game default                                                          |
+| WAIT                                                            | Spend 1          | Explicit control in a turn-enabled game                               |
+| Help, inventory and earned quest log                            | Free             | Always free                                                           |
+| Clarification question, invalid/retried answer, unmatched input | Free             | Always free                                                           |
+| Unavailable/stale conversation selection                        | Free             | Always free                                                           |
+| Save/load, editor inspection and other host controls            | Free             | Always free                                                           |
+| Active-conversation pause/bye control                           | Free             | Ordinary authored bye outside the encounter retains its action policy |
 
 The owner accepted the preview with its one-turn reply default; the same UI keeps a game default and per-reply override. The preview can compare it with free replies. Per-action/per-reply choices read **Use game default**, **Spend 1 turn**, **Free**. Distinguish success and failed-requirement overrides; the T0 fixed example illustrates the latter through the game default only.
 
@@ -88,13 +88,13 @@ The T1 proof and shared contract freeze ordering with existing ending/quest/conv
 
 Let `T` be the committed turn before the input and `B = T + cost` its resulting boundary. A SCHEDULE after `N` turns has deadline `B + N`. During startup or a free input, `B = T`. A timer callback uses the boundary on which it fires. The initial clock is zero.
 
-| Input | Resulting turn | Remaining | Result |
-| --- | ---: | ---: | --- |
-| Open door; schedule after 3 | 1 | 3 | Scheduling command excluded |
-| LOOK / HELP with free defaults | 1 | 3 | No clock advance |
-| WAIT | 2 | 2 | First subsequent turn |
-| WAIT | 3 | 1 | Second subsequent turn |
-| WAIT | 4 | — | Closure fires before commit |
+| Input                          | Resulting turn | Remaining | Result                      |
+| ------------------------------ | -------------: | --------: | --------------------------- |
+| Open door; schedule after 3    |              1 |         3 | Scheduling command excluded |
+| LOOK / HELP with free defaults |              1 |         3 | No clock advance            |
+| WAIT                           |              2 |         2 | First subsequent turn       |
+| WAIT                           |              3 |         1 | Second subsequent turn      |
+| WAIT                           |              4 |         — | Closure fires before commit |
 
 Scheduling from a free opening action at turn 0 instead sets deadline 3. A startup timer after 1 fires at the first charged boundary. Defer schedule-origin calculation until the initiating cost is known; do not patch off-by-one behaviour independently in each host.
 
@@ -157,14 +157,14 @@ Named setups and replay checks should support a pending countdown, dialogue inte
 
 ### T3 — Production authoring and owner review
 
-- [ ] Add Scheduled triggers, typed SCHEDULE/CANCEL/PENDING blocks, full delay operands, synchronized inspector and turn settings/overrides, exact caller/definition return and Used by.
-- [ ] Extend search/insertion/templates/history/drafts/findings/reference safety and reviewed upgrade/collision flows. Implement native pending views, explanation links and setups with immutable-session source gating.
-- [ ] Add meaningful Chromium/Firefox pointer/no-drag workflows: create/edit/cancel, undo/redo, draft promotion, reopen/export, cost changes/replies, compact/collapsed panels and playtest restore.
-- [ ] Ask for feedback on the working slice; retain the accepted blocks and adjust UX before final acceptance.
+- [x] Add Scheduled triggers, typed SCHEDULE/CANCEL/PENDING blocks, full delay operands, synchronized inspector and turn settings/overrides, exact caller/definition return and Used by.
+- [x] Extend search/insertion/templates/history/drafts/findings/reference safety and reviewed upgrade/collision flows. Implement native pending views, explanation links and setups with immutable-session source gating.
+- [x] Add meaningful Chromium/Firefox pointer/no-drag workflows: create/edit/cancel, undo/redo, draft promotion, reopen/export, cost changes/replies, compact/collapsed panels and playtest restore. See the [working-slice review](../design/turn-events/authoring-review.md).
+- [x] Owner accepted the working slice with “looks good” on 27 October 2026, noting a little complexity as acceptable for the logic. Retain the accepted blocks and carry the clarity concern into T4’s progressive workshop.
 
 ### T4 — Complete acceptance and branch closeout
 
-- [ ] Create a separate permanent timer workshop project and checked export; do not overwrite Locked Study or Keeper. Include exact count, secure/cancel, replacement, simultaneous callbacks, nested schedule, conditional skip, conversation/quest interaction, ending and late failure.
+- [ ] Create a separate permanent timer workshop project and checked export; do not overwrite Locked Study or Keeper. Start with the shortest schedule-and-fire example, then progressively add exact count, secure/cancel, replacement, simultaneous callbacks, nested schedule, conditional skip, conversation/quest interaction, ending and late failure.
 - [ ] Verify editor/API/installed runner/process/save/setup parity, complete rollback, old-format vocabulary, strict corruption handling, source navigation and final full checks/package smoke.
 - [ ] Measure release workloads with many actions/definitions and pending timers; record setup/dispatch/tick/restore observations without hardware-dependent CI timing thresholds.
 - [ ] Update architecture/developer notes and final review evidence. Defer full user guides to the documentation site.
@@ -172,15 +172,15 @@ Named setups and replay checks should support a pending countdown, dialogue inte
 
 ## Acceptance matrix
 
-| Boundary | Required evidence |
-| --- | --- |
-| Count origin | Open at 0 costs 1; after 3 fires at 4; free open fires at 3; startup after 1 fires on first charged input |
-| Cost | Unchanged-state success; blocked action both policies; free state-changing hint; valid/invalid/stale reply; clarified action once; WAIT versus turn-verb |
-| Queue | Restart/keep/cancel/absent cancel; multiple deadlines/priorities/ties; earlier callback invalidates later ticket; self-schedule and nested CALL |
-| Transaction | Guard false consumed; late error restores input/clock/queue/output/narrative/cursors/ephemeral context; aggregate budget fails atomically |
-| Ending | Initial action, callback and hook end once; no later timer/effect; empty ended queue; restore no replay |
-| Persistence | Mid-count native save/process/setup restore; no catch-up; duplicate/missing/invalid IDs, deadline overflow and incompatible formats preserve bytes |
-| Authoring | Real block fields/inspector, independent caller bindings, draft create/bind Undo, exact return, safe refs/copy/templates/findings, reopen/export |
-| Parity and scale | Same committed turn/queue/output in both hosts, immutable-session source safety, measured large catalogue and final package acceptance |
+| Boundary         | Required evidence                                                                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Count origin     | Open at 0 costs 1; after 3 fires at 4; free open fires at 3; startup after 1 fires on first charged input                                                |
+| Cost             | Unchanged-state success; blocked action both policies; free state-changing hint; valid/invalid/stale reply; clarified action once; WAIT versus turn-verb |
+| Queue            | Restart/keep/cancel/absent cancel; multiple deadlines/priorities/ties; earlier callback invalidates later ticket; self-schedule and nested CALL          |
+| Transaction      | Guard false consumed; late error restores input/clock/queue/output/narrative/cursors/ephemeral context; aggregate budget fails atomically                |
+| Ending           | Initial action, callback and hook end once; no later timer/effect; empty ended queue; restore no replay                                                  |
+| Persistence      | Mid-count native save/process/setup restore; no catch-up; duplicate/missing/invalid IDs, deadline overflow and incompatible formats preserve bytes       |
+| Authoring        | Real block fields/inspector, independent caller bindings, draft create/bind Undo, exact return, safe refs/copy/templates/findings, reopen/export         |
+| Parity and scale | Same committed turn/queue/output in both hosts, immutable-session source safety, measured large catalogue and final package acceptance                   |
 
-Design references and preview limitations are recorded with the [review guide](../design/turn-events/README.md). T0 screenshots and scripted counters are interaction evidence only. The T2 foundation proves native/storage/host boundaries; production authoring and final complete acceptance remain T3/T4.
+Design references and preview limitations are recorded with the [review guide](../design/turn-events/README.md). T0 screenshots and scripted counters are interaction evidence only. The T2 foundation proves native/storage/host boundaries; T3 production authoring is owner accepted; final complete acceptance remains T4.

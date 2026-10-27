@@ -37,6 +37,7 @@ fn main() -> Result<()> {
         NarrativeHook,
         NarrativeDraft,
         NarrativeReferenceKind,
+        TemplateTimerReference,
         TemplateNarrativeReference,
         QuestStatus,
         NarrativeProgress,

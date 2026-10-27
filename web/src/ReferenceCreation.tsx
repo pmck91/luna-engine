@@ -1,3 +1,4 @@
+import { newTimer, appendTimer } from './turnModel';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Project, Value } from './contracts';
 import type { ProjectEdit } from './projectHistory';
@@ -5,7 +6,7 @@ import { entity, id, valueFrom } from './model';
 import { RichText } from './Forms';
 
 export type ReferenceSpec = {
-  kind: 'verb' | 'variable' | 'property' | 'ending';
+  kind: 'verb' | 'variable' | 'property' | 'ending' | 'timer';
   ownerId?: string;
   numberOnly?: boolean;
 };
@@ -39,12 +40,14 @@ export default function ReferenceCreation({
   transact,
   reserved,
   children,
+  onTimerCreated,
 }: {
   project: Project | null;
   edit: ProjectEdit;
   transact: (label: string, change: () => void) => void;
   reserved: string[];
   children: ReactNode;
+  onTimerCreated?: (id: string) => void;
 }) {
   const [request, setRequest] = useState<Request | null>(null);
   return (
@@ -71,12 +74,15 @@ export default function ReferenceCreation({
                   const owner = entity(next, request.ownerId!)!;
                   owner.state = { ...owner.state, [key]: initial };
                 }
+                if (request.kind === 'timer')
+                  appendTimer(next, { ...newTimer(next, name), id: key });
                 if (request.kind === 'ending')
                   next.game.endings.push({ id: key, name, text, outcome: null });
               });
               request.onCreated(key, initial);
             });
             setRequest(null);
+            if (request.kind === 'timer') onTimerCreated?.(key);
           }}
         />
       )}
