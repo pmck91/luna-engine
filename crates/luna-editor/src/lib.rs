@@ -111,6 +111,13 @@ pub struct CommandRequest {
     pub explain: bool,
 }
 #[derive(Deserialize, TS)]
+pub struct ReplyRequest {
+    pub offer_token: String,
+    pub reply_id: String,
+    #[serde(default)]
+    pub explain: bool,
+}
+#[derive(Deserialize, TS)]
 pub struct StateRequest {
     pub state: GameState,
 }
@@ -120,6 +127,8 @@ pub struct PlaytestView {
     pub result: CommandResult,
     pub state: GameState,
     pub source: PlaytestSource,
+    /// Only earned journal entries, prepared by the shared runtime.
+    pub quest_log: Vec<luna_core::QuestLogEntry>,
 }
 #[derive(Deserialize)]
 struct AssetQuery {
@@ -275,6 +284,7 @@ pub fn router(app: App) -> Router {
         .route("/playtests/checks", post(run_check))
         .route("/playtests/{id}/capture", post(capture_setup))
         .route("/playtests/{id}/commands", post(command))
+        .route("/playtests/{id}/replies", post(select_reply))
         .route("/playtests/{id}/state", put(set_state))
         .layer(DefaultBodyLimit::max(storage::MAX_FILE as usize))
         .layer(middleware::from_fn_with_state(app.clone(), authorize));
@@ -596,6 +606,7 @@ async fn command(
     }
     let view = PlaytestView {
         session: id.clone(),
+        quest_log: session.runtime.quest_log(),
         result,
         state: session.runtime.state().clone(),
         source: session.source.clone(),
@@ -618,9 +629,40 @@ async fn set_state(
     current.runtime.replace_state(request.state)?;
     Ok(Json(PlaytestView {
         session: id,
-        result: CommandResult::default(),
+        quest_log: current.runtime.quest_log(),
+        result: CommandResult {
+            conversation: current.runtime.conversation_view().cloned(),
+            ..Default::default()
+        },
         state: current.runtime.state().clone(),
         source: current.source.clone(),
+    }))
+}
+async fn select_reply(
+    State(app): State<App>,
+    Path(id): Path<String>,
+    Json(request): Json<ReplyRequest>,
+) -> Api<Json<PlaytestView>> {
+    let mut w = app.lock()?;
+    let session = w
+        .sessions
+        .get_mut(&id)
+        .context("Playtest expired; restart it")?;
+    let result = if request.explain {
+        session
+            .runtime
+            .select_reply_explained(&request.offer_token, &request.reply_id)
+    } else {
+        session
+            .runtime
+            .select_reply(&request.offer_token, &request.reply_id)?
+    };
+    Ok(Json(PlaytestView {
+        session: id,
+        quest_log: session.runtime.quest_log(),
+        result,
+        state: session.runtime.state().clone(),
+        source: session.source.clone(),
     }))
 }
 #[derive(rust_embed::RustEmbed)]

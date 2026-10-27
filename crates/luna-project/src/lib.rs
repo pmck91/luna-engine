@@ -127,19 +127,26 @@ fn load_unlocked(root: &Path) -> Result<Project> {
     );
     let game = serde_json::from_slice(&bytes).context("Invalid game.json")?;
     let layout = confined(root, "editor/map-layout.json")?;
-    Ok(Project {
+    let project = Project {
         game,
         vocabulary: json(&confined(root, "vocabulary.json")?)?,
         locations: entity_files(root, "locations")?,
         objects: entity_files(root, "objects")?,
         characters: entity_files(root, "characters")?,
         procedures: entity_files(root, "procedures")?,
+        conversations: entity_files(root, "conversations")?,
+        quests: entity_files(root, "quests")?,
         editor: if layout.exists() {
             json(&layout)?
         } else {
             EditorLayout::default()
         },
-    })
+    };
+    ensure!(
+        header.format_version >= 5 || project.minimum_format() < 5,
+        "Narrative content requires an explicit upgrade to content format 5"
+    );
+    Ok(project)
 }
 fn collect(root: &Path, relative: &str, out: &mut BTreeMap<String, Vec<u8>>) -> Result<()> {
     let path = confined(root, relative)?;
@@ -169,6 +176,8 @@ pub fn revision(root: &Path) -> Result<String> {
         "objects",
         "characters",
         "procedures",
+        "conversations",
+        "quests",
         "editor",
         "assets",
     ] {
@@ -237,6 +246,27 @@ pub fn project_files(p: &Project, editor: bool) -> Result<BTreeMap<String, Strin
             "Duplicate procedure ID"
         );
     }
+    for conversation in &p.conversations {
+        ensure!(safe_id(&conversation.id), "Unsafe conversation ID");
+        ensure!(
+            files
+                .insert(
+                    format!("conversations/{}.json", conversation.id),
+                    pretty(conversation)?
+                )
+                .is_none(),
+            "Duplicate conversation ID"
+        );
+    }
+    for quest in &p.quests {
+        ensure!(safe_id(&quest.id), "Unsafe quest ID");
+        ensure!(
+            files
+                .insert(format!("quests/{}.json", quest.id), pretty(quest)?)
+                .is_none(),
+            "Duplicate quest ID"
+        );
+    }
     if editor {
         files.insert("editor/map-layout.json".into(), pretty(&p.editor)?);
     }
@@ -269,11 +299,18 @@ fn managed(path: &str) -> bool {
     path == "game.json"
         || path == "vocabulary.json"
         || path == "editor/map-layout.json"
-        || ["locations/", "objects/", "characters/", "procedures/"]
-            .iter()
-            .any(|prefix| {
-                path.starts_with(prefix) && path.ends_with(".json") && path.split('/').count() == 2
-            })
+        || [
+            "locations/",
+            "objects/",
+            "characters/",
+            "procedures/",
+            "conversations/",
+            "quests/",
+        ]
+        .iter()
+        .any(|prefix| {
+            path.starts_with(prefix) && path.ends_with(".json") && path.split('/').count() == 2
+        })
 }
 fn recover(root: &Path) -> Result<()> {
     let journal = root.join(".luna-transaction.json");
@@ -328,6 +365,8 @@ pub fn save_project(root: &Path, p: &Project, expected: Option<&str>) -> Result<
         "objects",
         "characters",
         "procedures",
+        "conversations",
+        "quests",
     ] {
         collect(root, name, &mut old)?
     }
@@ -679,6 +718,7 @@ mod tests {
         let mut p = Project::blank("Template metadata");
         p.editor.templates = vec![
             BlockTemplate {
+                narratives: vec![],
                 id: "template-action".into(),
                 name: "Stored action".into(),
                 source_owner: Some("deleted-source".into()),
@@ -704,6 +744,7 @@ mod tests {
                 },
             },
             BlockTemplate {
+                narratives: vec![],
                 id: "template-effects".into(),
                 name: "Stored blocks".into(),
                 source_owner: None,

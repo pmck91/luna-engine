@@ -264,6 +264,12 @@ impl<'a> Check<'a> {
             let mut effects = vec![];
             walk_effects(&procedure.effects, &mut effects);
             effects
+        } else if let Some(root) = self.narrative_root {
+            let mut effects = vec![];
+            if let Some((_, body)) = self.p.narrative_roots().find(|(id, _)| *id == root) {
+                walk_effects(body, &mut effects);
+            }
+            effects
         } else {
             ordinary_effects(self.p)
         }

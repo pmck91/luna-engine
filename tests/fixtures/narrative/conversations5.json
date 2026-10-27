@@ -1,0 +1,939 @@
+{
+  "game": {
+    "id": "conversation-runtime",
+    "title": "Keeper conversation runtime",
+    "description": "",
+    "author": "",
+    "format_version": 5,
+    "content_version": "0.1.0",
+    "starting_location": "study",
+    "opening_text": "Welcome to your adventure.",
+    "help_text": "Type commands to interact with the world.",
+    "unknown_command_text": "I couldn't match that command. Try help, or use a visible object's name.",
+    "command_assistance": {
+      "clarification": true,
+      "recent_objects": true,
+      "clarification_text": "Which do you mean?",
+      "retry_text": "Please choose one of the listed items.",
+      "unavailable_reference_text": "I can't tell what “it” refers to here. Use its full name."
+    },
+    "help_mode": "basic",
+    "hints_enabled": true,
+    "ignored_words": ["a", "an", "the"],
+    "require_ending": false,
+    "variables": {
+      "acknowledgements": 0,
+      "coins": 0,
+      "commands": 0,
+      "divisor": 0,
+      "entries": 0,
+      "exhausted": 0,
+      "failures": 0,
+      "found": 0,
+      "returns": 0,
+      "rewards": 0,
+      "starts": 0,
+      "tail": 0,
+      "thanks": 0
+    },
+    "endings": [],
+    "actions": [
+      {
+        "id": "action-accept",
+        "name": "accept",
+        "verb": "use",
+        "pattern": [
+          {
+            "type": "literal",
+            "text": "accept"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "start_quest",
+            "quest": "missing"
+          }
+        ]
+      },
+      {
+        "id": "action-find",
+        "name": "find",
+        "verb": "use",
+        "pattern": [
+          {
+            "type": "literal",
+            "text": "find"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "give",
+            "object": "key"
+          },
+          {
+            "type": "if",
+            "condition": {
+              "type": "quest_status",
+              "quest": "missing",
+              "status": "active"
+            },
+            "then": [
+              {
+                "type": "complete_quest_stage",
+                "quest": "missing",
+                "stage": "found-stage"
+              }
+            ],
+            "otherwise": []
+          }
+        ]
+      },
+      {
+        "id": "action-return",
+        "name": "return",
+        "verb": "use",
+        "pattern": [
+          {
+            "type": "literal",
+            "text": "return"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "complete_quest_stage",
+            "quest": "missing",
+            "stage": "returned"
+          }
+        ]
+      },
+      {
+        "id": "action-complete",
+        "name": "complete",
+        "verb": "use",
+        "pattern": [
+          {
+            "type": "literal",
+            "text": "complete"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "complete_quest",
+            "quest": "missing"
+          }
+        ]
+      },
+      {
+        "id": "action-fail",
+        "name": "fail",
+        "verb": "use",
+        "pattern": [
+          {
+            "type": "literal",
+            "text": "fail"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "fail_quest",
+            "quest": "missing"
+          }
+        ]
+      },
+      {
+        "id": "take-key",
+        "name": "",
+        "verb": "take",
+        "pattern": [
+          {
+            "type": "entity",
+            "entity": "key"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "give",
+            "object": "key"
+          },
+          {
+            "type": "if",
+            "condition": {
+              "type": "quest_status",
+              "quest": "missing",
+              "status": "active"
+            },
+            "then": [
+              {
+                "type": "complete_quest_stage",
+                "quest": "missing",
+                "stage": "found-stage"
+              }
+            ],
+            "otherwise": []
+          }
+        ]
+      },
+      {
+        "id": "examine-key",
+        "name": "",
+        "verb": "examine",
+        "pattern": [
+          {
+            "type": "entity",
+            "entity": "key"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "say",
+            "text": "key"
+          }
+        ]
+      },
+      {
+        "id": "take-iron",
+        "name": "",
+        "verb": "take",
+        "pattern": [
+          {
+            "type": "entity",
+            "entity": "iron"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "give",
+            "object": "iron"
+          },
+          {
+            "type": "if",
+            "condition": {
+              "type": "quest_status",
+              "quest": "missing",
+              "status": "active"
+            },
+            "then": [],
+            "otherwise": []
+          }
+        ]
+      },
+      {
+        "id": "examine-iron",
+        "name": "",
+        "verb": "examine",
+        "pattern": [
+          {
+            "type": "entity",
+            "entity": "iron"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "say",
+            "text": "iron"
+          }
+        ]
+      },
+      {
+        "id": "action-garden",
+        "name": "garden",
+        "verb": "use",
+        "pattern": [
+          {
+            "type": "literal",
+            "text": "garden"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "move",
+            "location": "garden"
+          }
+        ]
+      },
+      {
+        "id": "action-study",
+        "name": "study",
+        "verb": "use",
+        "pattern": [
+          {
+            "type": "literal",
+            "text": "study"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "move",
+            "location": "study"
+          }
+        ]
+      },
+      {
+        "id": "action-risk",
+        "name": "risk",
+        "verb": "use",
+        "pattern": [
+          {
+            "type": "literal",
+            "text": "risk"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "true"
+        },
+        "failure_text": "",
+        "effects": [
+          {
+            "type": "update_variable",
+            "name": "coins",
+            "op": "divide",
+            "operand": {
+              "type": "variable",
+              "name": "divisor"
+            }
+          }
+        ]
+      },
+      {
+        "id": "action-blocked",
+        "name": "blocked",
+        "verb": "use",
+        "pattern": [
+          {
+            "type": "literal",
+            "text": "blocked"
+          }
+        ],
+        "priority": 0,
+        "requirements": {
+          "type": "false"
+        },
+        "failure_text": "",
+        "effects": []
+      }
+    ],
+    "triggers": [
+      {
+        "id": "count-commands",
+        "name": "Count commands",
+        "event": "command",
+        "watch": null,
+        "priority": 0,
+        "condition": {
+          "type": "true"
+        },
+        "effects": [
+          {
+            "type": "update_variable",
+            "name": "commands",
+            "op": "add",
+            "operand": {
+              "type": "literal",
+              "value": 1
+            }
+          }
+        ]
+      }
+    ],
+    "assets": []
+  },
+  "vocabulary": [
+    {
+      "id": "examine",
+      "canonical": "examine",
+      "synonyms": ["inspect", "look at"],
+      "event": "examine"
+    },
+    {
+      "id": "take",
+      "canonical": "take",
+      "synonyms": ["get", "pick up"],
+      "event": null
+    },
+    {
+      "id": "drop",
+      "canonical": "drop",
+      "synonyms": [],
+      "event": null
+    },
+    {
+      "id": "use",
+      "canonical": "use",
+      "synonyms": [],
+      "event": "use"
+    },
+    {
+      "id": "go",
+      "canonical": "go",
+      "synonyms": ["walk", "follow"],
+      "event": null
+    },
+    {
+      "id": "pull",
+      "canonical": "pull",
+      "synonyms": [],
+      "event": "pull"
+    },
+    {
+      "id": "push",
+      "canonical": "push",
+      "synonyms": [],
+      "event": "push"
+    },
+    {
+      "id": "turn",
+      "canonical": "turn",
+      "synonyms": [],
+      "event": "turn"
+    },
+    {
+      "id": "open",
+      "canonical": "open",
+      "synonyms": [],
+      "event": null
+    },
+    {
+      "id": "close",
+      "canonical": "close",
+      "synonyms": [],
+      "event": null
+    },
+    {
+      "id": "talk",
+      "canonical": "talk",
+      "synonyms": ["speak to"],
+      "event": "speak"
+    }
+  ],
+  "locations": [
+    {
+      "id": "study",
+      "name": "Study",
+      "aliases": [],
+      "description": "Your adventure begins here.",
+      "actions": [],
+      "triggers": [],
+      "exits": [],
+      "state": {},
+      "hints": []
+    },
+    {
+      "id": "garden",
+      "name": "Garden",
+      "aliases": [],
+      "description": "",
+      "actions": [],
+      "triggers": [],
+      "exits": [],
+      "state": {},
+      "hints": []
+    }
+  ],
+  "objects": [
+    {
+      "id": "key",
+      "name": "brass key",
+      "aliases": ["key"],
+      "description": "",
+      "placement": {
+        "type": "location",
+        "location": "study"
+      },
+      "portable": true,
+      "hidden": false,
+      "open": false,
+      "state": {},
+      "actions": [],
+      "triggers": [],
+      "hints": []
+    },
+    {
+      "id": "iron",
+      "name": "iron key",
+      "aliases": ["key"],
+      "description": "",
+      "placement": {
+        "type": "location",
+        "location": "study"
+      },
+      "portable": true,
+      "hidden": false,
+      "open": false,
+      "state": {},
+      "actions": [],
+      "triggers": [],
+      "hints": []
+    }
+  ],
+  "characters": [
+    {
+      "id": "keeper",
+      "name": "Keeper",
+      "name_colour": null,
+      "aliases": [],
+      "description": "",
+      "location": "study",
+      "hidden": false,
+      "state": {},
+      "actions": [
+        {
+          "id": "talk-keeper",
+          "name": "Talk Keeper",
+          "verb": "talk",
+          "pattern": [
+            {
+              "type": "entity",
+              "entity": "keeper"
+            }
+          ],
+          "priority": 0,
+          "requirements": {
+            "type": "true"
+          },
+          "failure_text": "",
+          "effects": [
+            {
+              "type": "start_conversation",
+              "conversation": "conversation"
+            }
+          ]
+        }
+      ],
+      "triggers": [],
+      "hints": []
+    }
+  ],
+  "procedures": [
+    {
+      "id": "reward",
+      "name": "Reward",
+      "description": "",
+      "inputs": [],
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "rewards",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "update_variable",
+          "name": "coins",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 10
+          }
+        },
+        {
+          "type": "respond",
+          "id": "reward-response",
+          "responses": ["Ten coins for your trouble.", "Another reward."],
+          "mode": "loop",
+          "fallback": "",
+          "exhaustion": "once",
+          "on_exhausted": []
+        }
+      ]
+    }
+  ],
+  "conversations": [
+    {
+      "id": "conversation",
+      "name": "The Keeper's key",
+      "character": "keeper",
+      "available": {
+        "type": "true"
+      },
+      "default_entry": "greeting",
+      "entries": [
+        {
+          "condition": {
+            "type": "quest_status",
+            "quest": "missing",
+            "status": "completed"
+          },
+          "node": "revisit"
+        },
+        {
+          "condition": {
+            "type": "quest_status",
+            "quest": "missing",
+            "status": "failed"
+          },
+          "node": "failed-node"
+        },
+        {
+          "condition": {
+            "type": "quest_status",
+            "quest": "missing",
+            "status": "active"
+          },
+          "node": "progress"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "greeting",
+          "name": "Greeting",
+          "text": "Will you find my key? You have %coins% coins.",
+          "terminal": false,
+          "effects": [
+            {
+              "type": "update_variable",
+              "name": "entries",
+              "op": "add",
+              "operand": {
+                "type": "literal",
+                "value": 1
+              }
+            },
+            {
+              "type": "respond",
+              "id": "greeting-response",
+              "responses": ["The Keeper looks worried.", "The Keeper waits."],
+              "mode": "fallback",
+              "fallback": "Still waiting.",
+              "exhaustion": "once",
+              "on_exhausted": [
+                {
+                  "type": "update_variable",
+                  "name": "exhausted",
+                  "op": "add",
+                  "operand": {
+                    "type": "literal",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "replies": [
+            {
+              "id": "accept",
+              "text": "Yes, I'll find it.",
+              "condition": {
+                "type": "quest_status",
+                "quest": "missing",
+                "status": "undiscovered"
+              },
+              "once": true,
+              "destination": "progress",
+              "effects": [
+                {
+                  "type": "start_quest",
+                  "quest": "missing"
+                }
+              ]
+            },
+            {
+              "id": "decline",
+              "text": "Not now.",
+              "condition": {
+                "type": "true"
+              },
+              "once": false,
+              "destination": null,
+              "effects": []
+            }
+          ]
+        },
+        {
+          "id": "progress",
+          "name": "Progress",
+          "text": "Any news?",
+          "terminal": false,
+          "effects": [],
+          "replies": [
+            {
+              "id": "later",
+              "text": "I'll keep looking.",
+              "condition": {
+                "type": "true"
+              },
+              "once": false,
+              "destination": null,
+              "effects": []
+            },
+            {
+              "id": "handover",
+              "text": "Here is your key.",
+              "condition": {
+                "type": "carrying",
+                "object": "key"
+              },
+              "once": true,
+              "destination": "thanks-node",
+              "effects": [
+                {
+                  "type": "complete_quest_stage",
+                  "quest": "missing",
+                  "stage": "returned"
+                },
+                {
+                  "type": "complete_quest",
+                  "quest": "missing"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "thanks-node",
+          "name": "Reward exchange",
+          "text": "My key! Thank you. Here are ten coins for your trouble.",
+          "terminal": false,
+          "effects": [
+            {
+              "type": "update_variable",
+              "name": "thanks",
+              "op": "add",
+              "operand": {
+                "type": "literal",
+                "value": 1
+              }
+            }
+          ],
+          "replies": [
+            {
+              "id": "farewell",
+              "text": "You're welcome.",
+              "condition": {
+                "type": "true"
+              },
+              "once": false,
+              "destination": null,
+              "effects": []
+            }
+          ]
+        },
+        {
+          "id": "revisit",
+          "name": "On return",
+          "text": "Thank you again for finding my key.",
+          "terminal": true,
+          "effects": [
+            {
+              "type": "update_variable",
+              "name": "acknowledgements",
+              "op": "add",
+              "operand": {
+                "type": "literal",
+                "value": 1
+              }
+            }
+          ],
+          "replies": []
+        },
+        {
+          "id": "failed-node",
+          "name": "On failure",
+          "text": "The key is lost.",
+          "terminal": true,
+          "effects": [],
+          "replies": []
+        }
+      ]
+    },
+    {
+      "id": "other-conversation",
+      "name": "Other encounter",
+      "character": "keeper",
+      "available": {
+        "type": "true"
+      },
+      "default_entry": "other-node",
+      "entries": [],
+      "nodes": [
+        {
+          "id": "other-node",
+          "name": "Other greeting",
+          "text": "Another conversation.",
+          "terminal": true,
+          "effects": [],
+          "replies": []
+        }
+      ]
+    }
+  ],
+  "quests": [
+    {
+      "id": "missing",
+      "title": "The Missing Key",
+      "aliases": ["key"],
+      "introduction": "Find the Keeper's key. Coins: %coins%.",
+      "completion": "Returned the key. Coins before reward: %coins%.",
+      "failure": "The key is lost.",
+      "stages": [
+        {
+          "id": "found-stage",
+          "name": "Find key",
+          "text": "Found the key.",
+          "prerequisites": [],
+          "condition": {
+            "type": "carrying",
+            "object": "key"
+          },
+          "required": true,
+          "effects": [
+            {
+              "type": "update_variable",
+              "name": "found",
+              "op": "add",
+              "operand": {
+                "type": "literal",
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "returned",
+          "name": "Return key",
+          "text": "Returned the key.",
+          "prerequisites": ["found-stage"],
+          "condition": {
+            "type": "carrying",
+            "object": "key"
+          },
+          "required": true,
+          "effects": [
+            {
+              "type": "update_variable",
+              "name": "returns",
+              "op": "add",
+              "operand": {
+                "type": "literal",
+                "value": 1
+              }
+            },
+            {
+              "type": "give_character",
+              "object": "key",
+              "character": "keeper"
+            }
+          ]
+        }
+      ],
+      "on_start": {
+        "id": "quest-start",
+        "effects": [
+          {
+            "type": "update_variable",
+            "name": "starts",
+            "op": "add",
+            "operand": {
+              "type": "literal",
+              "value": 1
+            }
+          },
+          {
+            "type": "if",
+            "condition": {
+              "type": "carrying",
+              "object": "key"
+            },
+            "then": [
+              {
+                "type": "complete_quest_stage",
+                "quest": "missing",
+                "stage": "found-stage"
+              }
+            ],
+            "otherwise": []
+          }
+        ]
+      },
+      "on_complete": {
+        "id": "quest-complete",
+        "effects": [
+          {
+            "type": "call",
+            "id": "quest-reward-call",
+            "procedure": "reward",
+            "arguments": {}
+          }
+        ]
+      },
+      "on_fail": {
+        "id": "quest-fail",
+        "effects": [
+          {
+            "type": "update_variable",
+            "name": "failures",
+            "op": "add",
+            "operand": {
+              "type": "literal",
+              "value": 1
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "editor": {
+    "positions": {},
+    "blocks": {},
+    "routes": {},
+    "templates": []
+  }
+}

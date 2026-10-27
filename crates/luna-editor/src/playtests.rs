@@ -47,6 +47,8 @@ pub struct CheckRun {
     pub steps: Vec<CheckStepResult>,
     pub state: GameState,
     pub passed: bool,
+    pub quest_log: Vec<luna_core::QuestLogEntry>,
+    pub conversation: Option<luna_core::ConversationView>,
 }
 
 pub(crate) fn source(project: &Project) -> Result<PlaytestSource> {
@@ -68,14 +70,7 @@ fn runtime_project(mut project: Project, help_mode: Option<HelpMode>) -> Project
     project
 }
 fn restore(project: Project, setup: &PlaytestSetup) -> Result<Session> {
-    anyhow::ensure!(
-        (1..=2).contains(&setup.version),
-        "Unsupported playtest setup version"
-    );
-    anyhow::ensure!(
-        setup.version >= 2 || setup.state.procedure_sequences.is_empty(),
-        "Procedure progress requires playtest setup version 2"
-    );
+    setup.validate_version()?;
     let state = &setup.state;
     let mut changes = vec![];
     for (kind, expected, captured) in [
@@ -159,10 +154,14 @@ pub(crate) async fn start_playtest(
             "Choose a setup or a starting location"
         );
         let runtime = restore(project, &setup)?;
-        let result = CommandResult {
+        let mut result = CommandResult {
             messages: runtime.description()?,
+            conversation: runtime.conversation_view().cloned(),
             ..Default::default()
         };
+        if let Some(offer) = runtime.conversation_view() {
+            result.messages.extend(offer.messages());
+        }
         (runtime, result)
     } else {
         Session::start(project, request.location.as_deref())?
@@ -170,6 +169,7 @@ pub(crate) async fn start_playtest(
     let id = new_id();
     let view = PlaytestView {
         session: id.clone(),
+        quest_log: runtime.quest_log(),
         result,
         state: runtime.state().clone(),
         source: source.clone(),
@@ -199,7 +199,9 @@ pub(crate) async fn capture_setup(
         .definition()
         .validate_state(current.runtime.state())?;
     Ok(Json(PlaytestSetup {
-        version: if current.runtime.project().game.format_version >= 4 {
+        version: if current.runtime.project().game.format_version >= 5 {
+            3
+        } else if current.runtime.project().game.format_version >= 4 {
             2
         } else {
             1
@@ -351,6 +353,8 @@ pub(crate) async fn run_check(
     }
     let id = new_id();
     let report = CheckRun {
+        quest_log: runtime.quest_log(),
+        conversation: runtime.conversation_view().cloned(),
         session: id.clone(),
         source: source.clone(),
         initial_state,

@@ -1,3 +1,4 @@
+import { authoringNarrative } from './narrativeAuthoring';
 import {
   entityKey,
   entityValue,
@@ -593,6 +594,10 @@ export function Values({
   );
 }
 const kinds: Array<Condition['type']> = [
+  'conversation_node_visited',
+  'conversation_reply_chosen',
+  'quest_status',
+  'quest_stage_completed',
   'true',
   'false',
   'all',
@@ -621,6 +626,22 @@ export function defaultCondition(type: Condition['type'], p: Project): Condition
   const entity = object || location;
   const name = Object.keys(p.game.variables)[0] ?? '';
   switch (type) {
+    case 'conversation_node_visited':
+      return {
+        type,
+        conversation: p.conversations?.[0]?.id ?? '',
+        node: p.conversations?.[0]?.nodes[0]?.id ?? '',
+      };
+    case 'conversation_reply_chosen':
+      return {
+        type,
+        conversation: p.conversations?.[0]?.id ?? '',
+        reply: p.conversations?.[0]?.nodes[0]?.replies[0]?.id ?? '',
+      };
+    case 'quest_status':
+      return { type, quest: p.quests?.[0]?.id ?? '', status: 'active' };
+    case 'quest_stage_completed':
+      return { type, quest: p.quests?.[0]?.id ?? '', stage: p.quests?.[0]?.stages[0]?.id ?? '' };
     case 'true':
     case 'false':
       return { type };
@@ -713,6 +734,13 @@ export function ConditionEditor({
         items={kinds
           .filter(
             (id) =>
+              (p.game.format_version >= 5 ||
+                ![
+                  'conversation_node_visited',
+                  'conversation_reply_chosen',
+                  'quest_status',
+                  'quest_stage_completed',
+                ].includes(id)) &&
               (id !== 'compare' || p.game.format_version >= 4) &&
               (p.game.format_version >= 2 ||
                 !['possesses', 'reachable', 'in_object', 'can_transfer'].includes(id)),
@@ -731,6 +759,88 @@ export function ConditionEditor({
           }))}
         onChange={(type) => onChange(defaultCondition(type as Condition['type'], p))}
       />
+      {'conversation' in c && (
+        <>
+          <Select
+            label="Conversation"
+            value={c.conversation}
+            items={authoringNarrative(p).conversations}
+            onChange={(conversation) => {
+              const nodes =
+                authoringNarrative(p).conversations.find((v) => v.id === conversation)?.nodes ?? [];
+              onChange(
+                c.type === 'conversation_node_visited'
+                  ? { ...c, conversation, node: nodes[0]?.id ?? '' }
+                  : { ...c, conversation, reply: nodes[0]?.replies[0]?.id ?? '' },
+              );
+            }}
+          />
+          {c.type === 'conversation_node_visited' ? (
+            <Select
+              label="Visited dialogue"
+              value={c.node}
+              items={
+                authoringNarrative(p).conversations.find((v) => v.id === c.conversation)?.nodes ??
+                []
+              }
+              onChange={(node) => patch({ node })}
+            />
+          ) : (
+            <Select
+              label="Chosen reply"
+              value={c.reply}
+              items={
+                authoringNarrative(p)
+                  .conversations.find((v) => v.id === c.conversation)
+                  ?.nodes.flatMap((n) =>
+                    n.replies.map((r) => ({ id: r.id, name: r.text || 'New reply' })),
+                  ) ?? []
+              }
+              onChange={(reply) => patch({ reply })}
+            />
+          )}
+        </>
+      )}
+      {'quest' in c && (
+        <>
+          <Select
+            label="Quest"
+            value={c.quest}
+            items={authoringNarrative(p).quests.map((q) => ({ id: q.id, name: q.title }))}
+            onChange={(quest) =>
+              onChange(
+                c.type === 'quest_stage_completed'
+                  ? {
+                      ...c,
+                      quest,
+                      stage:
+                        authoringNarrative(p).quests.find((q) => q.id === quest)?.stages[0]?.id ??
+                        '',
+                    }
+                  : { ...c, quest },
+              )
+            }
+          />
+          {c.type === 'quest_status' ? (
+            <Select
+              label="Quest status"
+              value={c.status}
+              items={['undiscovered', 'active', 'completed', 'failed'].map((id) => ({
+                id,
+                name: id,
+              }))}
+              onChange={(status) => patch({ status: status as typeof c.status })}
+            />
+          ) : (
+            <Select
+              label="Completed quest stage"
+              value={c.stage}
+              items={authoringNarrative(p).quests.find((q) => q.id === c.quest)?.stages ?? []}
+              onChange={(stage) => patch({ stage })}
+            />
+          )}
+        </>
+      )}
       {(c.type === 'all' || c.type === 'any') && (
         <>
           {c.conditions.map((child, i) => (

@@ -1,3 +1,4 @@
+import { narrativeScripts } from './narrativeModel';
 import type {
   Action,
   EntityRef,
@@ -22,6 +23,8 @@ export const gameDataPages = {
   endings: 'project:endings',
   triggers: 'project:triggers',
   procedures: 'project:procedures',
+  conversations: 'project:conversations',
+  quests: 'project:quests',
 } as const;
 export const yes: Condition = { type: 'true' };
 export const location = (name = 'New location'): Location => {
@@ -167,13 +170,15 @@ export function flows(p: Project): Array<Action | Trigger | Exit> {
   ]);
 }
 export function scripts(p: Project) {
-  return [...flows(p), ...(p.procedures ?? [])];
+  return [...flows(p), ...(p.procedures ?? []), ...narrativeScripts(p)];
 }
 export function script(p: Project, key: string) {
   return scripts(p).find((item) => item.id === key);
 }
 export function sequenceChoices(p: Project, scope?: string) {
-  const definition = (p.procedures ?? []).find((item) => item.id === scope);
+  const definition = [...(p.procedures ?? []), ...narrativeScripts(p)].find(
+    (item) => item.id === scope,
+  );
   if (definition)
     return allEffects(definition.effects).flatMap(({ effect }, index) =>
       effect.type === 'respond'
@@ -198,12 +203,13 @@ export type FlowConditions = Partial<
   Record<'requirements' | 'condition' | 'visible' | 'available', Condition>
 >;
 export function flowConditions(
-  f: Action | Trigger | Exit | import('./contracts').Procedure | undefined,
+  f: ({ id: string; effects: Effect[] } & FlowConditions) | undefined,
 ): FlowConditions {
   if (!f) return {};
   if ('requirements' in f) return { requirements: f.requirements };
   if ('condition' in f) return { condition: f.condition };
-  return 'visible' in f ? { visible: f.visible, available: f.available } : {};
+  if ('visible' in f) return { visible: f.visible, available: f.available };
+  return 'available' in f ? { available: f.available } : {};
 }
 export function allEffects(
   effects: Effect[],

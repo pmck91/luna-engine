@@ -9,6 +9,14 @@ use luna_model::{Event, normalize, reserved};
 
 impl<'a> Run<'a> {
     pub(crate) fn command(&mut self, input: &str) -> Result<()> {
+        if self.conversation_control(input)? {
+            return Ok(());
+        }
+        // Read-only quest controls own their prefix before F2 resolution. They
+        // preserve both an outstanding noun question and recent-object context.
+        if self.quest_control(input)? {
+            return Ok(());
+        }
         if let Some(settings) = self.p.game.command_assistance.as_ref()
             && (settings.clarification || settings.recent_objects)
         {

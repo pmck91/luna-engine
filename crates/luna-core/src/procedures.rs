@@ -36,6 +36,10 @@ impl ProcedureIndex {
                 index.add(&exit.id, &exit.effects);
             }
         }
+        for (id, body) in project.narrative_roots() {
+            index.roots.insert(id.into());
+            index.add(id, body);
+        }
         for procedure in &project.procedures {
             index.add(&procedure.id, &procedure.effects);
         }

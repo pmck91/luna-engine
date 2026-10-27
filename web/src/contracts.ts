@@ -15,6 +15,98 @@ export type ProcedureInput = { id: string, name: string, kind: InputKind, requir
 
 export type Procedure = { id: string, name: string, description: string, inputs: Array<ProcedureInput>, effects: Array<Effect>, };
 
+export type Conversation = { id: string, name: string, character: string, available: Condition, default_entry: string, entries: Array<ConversationEntry>, nodes: Array<ConversationNode>, };
+
+export type ConversationEntry = { condition: Condition, node: string, };
+
+export type ConversationNode = { id: string, name: string, text: string, terminal: boolean, effects: Array<Effect>, replies: Array<ConversationReply>, };
+
+export type ConversationReply = { id: string, text: string, condition: Condition, once: boolean,
+/**
+ * None ends the encounter; Some must belong to this conversation.
+ */
+destination: string | null, effects: Array<Effect>, };
+
+export type Quest = { id: string, title: string, aliases: Array<string>, introduction: string, completion: string, failure: string, stages: Array<QuestStage>, on_start: NarrativeHook, on_complete: NarrativeHook, on_fail: NarrativeHook, };
+
+export type QuestStage = { id: string, name: string, text: string, prerequisites: Array<string>, condition: Condition, required: boolean, effects: Array<Effect>, };
+
+export type NarrativeHook = { id: string, effects: Array<Effect>, };
+
+export type NarrativeDraft = { "type": "conversation", conversation: Conversation, } | { "type": "dialogue", conversation: string, node: ConversationNode, } | { "type": "reply", conversation: string, node: string, reply: ConversationReply, } | { "type": "quest", quest: Quest, } | { "type": "quest_stage", quest: string, stage: QuestStage, };
+
+export type NarrativeReferenceKind = "conversation" | "dialogue" | "reply" | "quest" | "quest_stage";
+
+export type TemplateNarrativeReference = { id: string, name: string, kind: NarrativeReferenceKind, parent: string | null, };
+
+export type QuestStatus = "undiscovered" | "active" | "completed" | "failed";
+
+export type NarrativeProgress = { active: string | null, conversations: { [key in string]?: ConversationProgress }, quests: { [key in string]?: QuestProgress }, sequences: { [key in string]?: number }, };
+
+export type ConversationProgress = { checkpoint: ConversationCheckpoint | null, visited: Array<string>, chosen: Array<string>, };
+
+export type ConversationCheckpoint = { "type": "pending", node: string, } | { "type": "entered", node: string, prompt: Array<Span>, };
+
+export type QuestProgress = { status: QuestStatus, stages: Array<string>, journal: Array<JournalEntry>, };
+
+export type JournalEntry = { kind: JournalKind, text: Array<Span>, };
+
+export type JournalKind = { "type": "started" } | { "type": "stage", stage: string, } | { "type": "completed" } | { "type": "failed" };
+
+export type QuestLogEntry = {
+/**
+ * Stable quest identity.
+ */
+quest: string,
+/**
+ * Player-facing authored title.
+ */
+title: string,
+/**
+ * Discovered status; this view never contains Undiscovered entries.
+ */
+status: QuestStatus,
+/**
+ * Only earned status and stage entries, preserving their semantic spans.
+ */
+journal: Array<JournalEntry>, };
+
+export type ConversationChoice = {
+/**
+ * Stable reply identity, scoped by its offer rather than its displayed text.
+ */
+id: string,
+/**
+ * Current formatted semantic response, with resolved values kept literal.
+ */
+text: Array<Span>, };
+
+export type ConversationView = {
+/**
+ * Opaque identity retained while the visible offer remains unchanged.
+ */
+offer_token: string,
+/**
+ * Active conversation identity.
+ */
+conversation: string,
+/**
+ * Entered dialogue identity within that conversation.
+ */
+node: string,
+/**
+ * Saved semantic prompt; reading it never replays entry effects.
+ */
+prompt: Array<Span>,
+/**
+ * Eligible replies only, preserving the author's order.
+ */
+replies: Array<ConversationChoice>,
+/**
+ * False while noun clarification owns input. The offer token stays stable.
+ */
+selection_enabled: boolean, };
+
 export type Argument = { "type": "literal", value: Value, } | { "type": "entity", kind: InputKind, id: string, } | { "type": "variable", name: string, } | { "type": "property", entity: EntityRef, name: string, } | { "type": "input", input: string, } | { "type": "command_item" };
 
 export type BoundArgument = { "type": "value", value: Value, } | { "type": "entity", kind: InputKind, id: string, };
@@ -49,7 +141,7 @@ export type InputTextReference = { "type": "item_name" } | { "type": "entity_nam
 
 export type Comparison = "eq" | "ne" | "gt" | "ge" | "lt" | "le";
 
-export type Condition = { "type": "true" } | { "type": "compare", left: Argument, op: Comparison, right: Argument, } | { "type": "false" } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: EntityRef, name: string, op: Comparison, value: Value, } | { "type": "carrying",
+export type Condition = { "type": "true" } | { "type": "compare", left: Argument, op: Comparison, right: Argument, } | { "type": "false" } | { "type": "conversation_node_visited", conversation: string, node: string, } | { "type": "conversation_reply_chosen", conversation: string, reply: string, } | { "type": "quest_status", quest: string, status: QuestStatus, } | { "type": "quest_stage_completed", quest: string, stage: string, } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: EntityRef, name: string, op: Comparison, value: Value, } | { "type": "carrying",
 /**
  * Direct player inventory only. Use Possesses for nested ownership.
  */
@@ -91,7 +183,7 @@ export type ArithmeticOperation = "add" | "subtract" | "multiply" | "divide";
 
 export type NumericOperand = { "type": "input", input: string, } | { "type": "literal", value: number, } | { "type": "variable", name: string, } | { "type": "property", entity: EntityRef, name: string, };
 
-export type Effect = { "type": "call", id: string, procedure: string, arguments: { [key in string]?: Argument }, } | { "type": "assign", target: ScopedValueTarget, value: Argument, } | { "type": "say", text: MessageText, } | { "type": "say_with_inputs", text: string, references: { [key in string]?: InputTextReference }, } | { "type": "transfer", object: ObjectTarget, placement: ScopedPlacement, } | { "type": "list_contents", object: EntityRef, relation: ContentRelation, } | { "type": "character_says", character: EntityRef, text: MessageText, } | { "type": "print_description", entity: EntityRef, } | { "type": "respond", id: string, responses: Array<MessageText>, mode: SequenceMode, fallback: MessageText, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: EntityRef, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: EntityRef, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: EntityRef, } | { "type": "give_character", object: EntityRef, character: EntityRef, } | { "type": "remove", object: EntityRef, } | { "type": "consume", object: EntityRef, } | { "type": "place", object: EntityRef, location: EntityRef, } | { "type": "reveal", entity: EntityRef, } | { "type": "hide", entity: EntityRef, } | { "type": "open", object: EntityRef, } | { "type": "close", object: EntityRef, } | { "type": "move", location: EntityRef, } | { "type": "move_character", character: EntityRef, location: EntityRef, } | { "type": "combine", first: EntityRef, second: EntityRef, consume_first: boolean, consume_second: boolean, result: EntityRef, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
+export type Effect = { "type": "start_conversation", conversation: string, } | { "type": "pause_conversation", conversation: string, } | { "type": "end_conversation", conversation: string, } | { "type": "start_quest", quest: string, } | { "type": "complete_quest_stage", quest: string, stage: string, } | { "type": "complete_quest", quest: string, } | { "type": "fail_quest", quest: string, } | { "type": "call", id: string, procedure: string, arguments: { [key in string]?: Argument }, } | { "type": "assign", target: ScopedValueTarget, value: Argument, } | { "type": "say", text: MessageText, } | { "type": "say_with_inputs", text: string, references: { [key in string]?: InputTextReference }, } | { "type": "transfer", object: ObjectTarget, placement: ScopedPlacement, } | { "type": "list_contents", object: EntityRef, relation: ContentRelation, } | { "type": "character_says", character: EntityRef, text: MessageText, } | { "type": "print_description", entity: EntityRef, } | { "type": "respond", id: string, responses: Array<MessageText>, mode: SequenceMode, fallback: MessageText, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: EntityRef, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: EntityRef, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: EntityRef, } | { "type": "give_character", object: EntityRef, character: EntityRef, } | { "type": "remove", object: EntityRef, } | { "type": "consume", object: EntityRef, } | { "type": "place", object: EntityRef, location: EntityRef, } | { "type": "reveal", entity: EntityRef, } | { "type": "hide", entity: EntityRef, } | { "type": "open", object: EntityRef, } | { "type": "close", object: EntityRef, } | { "type": "move", location: EntityRef, } | { "type": "move_character", character: EntityRef, location: EntityRef, } | { "type": "combine", first: EntityRef, second: EntityRef, consume_first: boolean, consume_second: boolean, result: EntityRef, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
 
 export type PatternPart = { "type": "literal", text: string, } | { "type": "entity", entity: string, } | { "type": "object_input" };
 
@@ -139,9 +231,13 @@ export type TemplateEntity = { id: string, name: string, kind: TemplateEntityKin
 
 export type TemplateContent = { "type": "action", action: Action, } | { "type": "effects", effects: Array<Effect>, };
 
-export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, content: TemplateContent, };
+export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, narratives?: Array<TemplateNarrativeReference>, content: TemplateContent, };
 
-export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>, warning_acknowledgements?: Array<WarningAcknowledgement>, playtest?: PlaytestLibrary, };
+export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>,
+/**
+ * Unfinished narrative content is saved with the editor, never installed.
+ */
+narrative_drafts?: Array<NarrativeDraft>, warning_acknowledgements?: Array<WarningAcknowledgement>, playtest?: PlaytestLibrary, };
 
 export type WarningAcknowledgement = { warning_key: string, subject: string, field: string, message: string, reason: string, };
 
@@ -159,7 +255,7 @@ export type PlaytestCheck = { id: string, name: string, start: CheckStart, help_
 
 export type PlaytestLibrary = { setups: Array<PlaytestSetup>, checks: Array<PlaytestCheck>, };
 
-export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, procedures?: Array<Procedure>, editor: EditorLayout, };
+export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, procedures?: Array<Procedure>, conversations?: Array<Conversation>, quests?: Array<Quest>, editor: EditorLayout, };
 
 export type Severity = "error" | "warning";
 
@@ -173,7 +269,7 @@ export type CharacterState = { location: string, hidden: boolean, };
 
 export type HintProgress = { clues_seen: number, solution_seen: boolean, };
 
-export type GameState = { game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, procedure_sequences?: Array<ProcedureCursor>, hints: { [key in string]?: HintProgress }, };
+export type GameState = { game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, procedure_sequences?: Array<ProcedureCursor>, narrative?: NarrativeProgress, hints: { [key in string]?: HintProgress }, };
 
 export type HostControl = { "type": "save",
 /**
@@ -209,7 +305,15 @@ before: JsonValue,
  */
 after: JsonValue, };
 
-export type TraceKind = { "type": "call",
+export type TraceKind = { "type": "narrative",
+/**
+ * Stable definition/node/reply/stage references.
+ */
+operation: NarrativeOperation,
+/**
+ * False for a guarded no-op; errors use the step's existing outcome.
+ */
+applied: boolean, } | { "type": "call",
 /**
  * Canonical occurrence identity at the caller source.
  */
@@ -346,6 +450,60 @@ eligible: boolean, } | { "type": "notice",
  * Human-readable information, separate from the player's transcript.
  */
 text: string, };
+
+export type NarrativeOperation = { "type": "start_conversation",
+/**
+ * Conversation identity.
+ */
+conversation: string, } | { "type": "pause_conversation",
+/**
+ * Conversation identity.
+ */
+conversation: string, } | { "type": "end_conversation",
+/**
+ * Conversation identity.
+ */
+conversation: string, } | { "type": "enter_dialogue",
+/**
+ * Conversation identity.
+ */
+conversation: string,
+/**
+ * Dialogue node identity.
+ */
+node: string, } | { "type": "select_reply",
+/**
+ * Conversation identity.
+ */
+conversation: string,
+/**
+ * Dialogue node identity.
+ */
+node: string,
+/**
+ * Offered reply identity.
+ */
+reply: string, } | { "type": "start_quest",
+/**
+ * Quest identity.
+ */
+quest: string, } | { "type": "complete_quest_stage",
+/**
+ * Quest identity.
+ */
+quest: string,
+/**
+ * Stage identity within that quest.
+ */
+stage: string, } | { "type": "complete_quest",
+/**
+ * Quest identity.
+ */
+quest: string, } | { "type": "fail_quest",
+/**
+ * Quest identity.
+ */
+quest: string, };
 
 export type ProcedureBinding = {
 /**
@@ -579,7 +737,11 @@ input_resolution?: InputResolution,
 /**
  * Current question after this attempt, preserved across read-only commands.
  */
-pending_clarification?: ClarificationQuestion, };
+pending_clarification?: ClarificationQuestion,
+/**
+ * Current prepared reply offer after this attempt, including on rollback.
+ */
+conversation?: ConversationView, };
 
 export type Draft = { revision: string, project: Project, };
 
@@ -615,9 +777,15 @@ export type StartPlaytest = { project: Project, location: string | null, help_mo
 
 export type CommandRequest = { command: string, explain: boolean, };
 
+export type ReplyRequest = { offer_token: string, reply_id: string, explain: boolean, };
+
 export type StateRequest = { state: GameState, };
 
-export type PlaytestView = { session: string, result: CommandResult, state: GameState, source: PlaytestSource, };
+export type PlaytestView = { session: string, result: CommandResult, state: GameState, source: PlaytestSource,
+/**
+ * Only earned journal entries, prepared by the shared runtime.
+ */
+quest_log: Array<QuestLogEntry>, };
 
 export type CaptureSetup = { name: string, };
 
@@ -629,5 +797,5 @@ export type RunCheck = { project: Project, check: PlaytestCheck, explain: boolea
 
 export type CheckStepResult = { index: number, command: string, result: CommandResult | null, failures: Array<string>, };
 
-export type CheckRun = { session: string, source: PlaytestSource, initial_state: GameState, initial_messages: Array<Array<Span>>, steps: Array<CheckStepResult>, state: GameState, passed: boolean, };
+export type CheckRun = { session: string, source: PlaytestSource, initial_state: GameState, initial_messages: Array<Array<Span>>, steps: Array<CheckStepResult>, state: GameState, passed: boolean, quest_log: Array<QuestLogEntry>, conversation: ConversationView | null, };
 

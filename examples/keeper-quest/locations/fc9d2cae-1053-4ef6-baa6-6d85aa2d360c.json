@@ -1,0 +1,34 @@
+{
+  "id": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c",
+  "name": "Study",
+  "aliases": [],
+  "description": "A quiet study. Two keys lie on a table beside the worried Keeper.",
+  "actions": [
+    {
+      "id": "9ff37c42-0791-4d0d-9136-f604ef6b5958",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "exits": [],
+  "state": {},
+  "hints": []
+}

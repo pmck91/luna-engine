@@ -4,6 +4,8 @@ mod command_words;
 pub use assistance::*;
 mod containers;
 pub use containers::*;
+mod narrative;
+pub use narrative::*;
 mod procedures;
 pub use procedures::*;
 mod state;
@@ -17,7 +19,7 @@ use ts_rs::TS;
 pub use validation::*;
 
 /// Latest writable content format; format 1 retains its legacy flat semantics.
-pub const FORMAT_VERSION: u32 = 4;
+pub const FORMAT_VERSION: u32 = 5;
 /// Whether a content header is understood, before parsing versioned variants.
 pub fn supported_format(version: u32) -> bool {
     (1..=FORMAT_VERSION).contains(&version)
@@ -114,6 +116,22 @@ pub enum Condition {
         right: Argument,
     },
     False,
+    ConversationNodeVisited {
+        conversation: String,
+        node: String,
+    },
+    ConversationReplyChosen {
+        conversation: String,
+        reply: String,
+    },
+    QuestStatus {
+        quest: String,
+        status: QuestStatus,
+    },
+    QuestStageCompleted {
+        quest: String,
+        stage: String,
+    },
     All {
         conditions: Vec<Condition>,
     },
@@ -219,6 +237,28 @@ pub enum NumericOperand {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Effect {
+    StartConversation {
+        conversation: String,
+    },
+    PauseConversation {
+        conversation: String,
+    },
+    EndConversation {
+        conversation: String,
+    },
+    StartQuest {
+        quest: String,
+    },
+    CompleteQuestStage {
+        quest: String,
+        stage: String,
+    },
+    CompleteQuest {
+        quest: String,
+    },
+    FailQuest {
+        quest: String,
+    },
     Call {
         id: String,
         procedure: String,
@@ -635,12 +675,40 @@ pub struct EditorLayout {
     pub blocks: BTreeMap<String, serde_json::Value>,
     pub routes: BTreeMap<String, RouteLayout>,
     pub templates: Vec<BlockTemplate>,
+    /// Unfinished narrative content is saved with the editor, never installed.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub narrative_drafts: Vec<NarrativeDraft>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub warning_acknowledgements: Option<Vec<WarningAcknowledgement>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub playtest: Option<PlaytestLibrary>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum NarrativeDraft {
+    Conversation {
+        conversation: Conversation,
+    },
+    Dialogue {
+        conversation: String,
+        node: ConversationNode,
+    },
+    Reply {
+        conversation: String,
+        node: String,
+        reply: ConversationReply,
+    },
+    Quest {
+        quest: Quest,
+    },
+    QuestStage {
+        quest: String,
+        stage: QuestStage,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -683,10 +751,29 @@ pub struct BlockTemplate {
     pub entities: Vec<TemplateEntity>,
     // Exact global names take precedence over entity-property placeholders.
     pub text_variables: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub narratives: Vec<TemplateNarrativeReference>,
     pub content: TemplateContent,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum NarrativeReferenceKind {
+    Conversation,
+    Dialogue,
+    Reply,
+    Quest,
+    QuestStage,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(deny_unknown_fields)]
+pub struct TemplateNarrativeReference {
+    pub id: String,
+    pub name: String,
+    pub kind: NarrativeReferenceKind,
+    pub parent: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, TS, PartialEq)]
 pub struct Project {
     pub game: Game,
     pub vocabulary: Vec<Verb>,
@@ -696,8 +783,65 @@ pub struct Project {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<_>", optional)]
     pub procedures: Vec<Procedure>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub conversations: Vec<Conversation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub quests: Vec<Quest>,
     #[serde(default)]
     pub editor: EditorLayout,
+}
+// Inspect the header before decoding versioned enum variants, including when a
+// whole project arrives through an editor request rather than canonical files.
+impl<'de> Deserialize<'de> for Project {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let raw = Box::<serde_json::value::RawValue>::deserialize(d)?;
+        #[derive(Deserialize)]
+        struct Header {
+            game: Version,
+        }
+        #[derive(Deserialize)]
+        struct Version {
+            format_version: u32,
+        }
+        let header: Header = serde_json::from_str(raw.get()).map_err(serde::de::Error::custom)?;
+        if !supported_format(header.game.format_version) {
+            return Err(serde::de::Error::custom(format!(
+                "Unsupported game format {}; supported: 1 through {FORMAT_VERSION}",
+                header.game.format_version
+            )));
+        }
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Wire {
+            game: Game,
+            vocabulary: Vec<Verb>,
+            locations: Vec<Location>,
+            objects: Vec<Object>,
+            characters: Vec<Character>,
+            #[serde(default)]
+            procedures: Vec<Procedure>,
+            #[serde(default)]
+            conversations: Vec<Conversation>,
+            #[serde(default)]
+            quests: Vec<Quest>,
+            #[serde(default)]
+            editor: EditorLayout,
+        }
+        let wire: Wire = serde_json::from_str(raw.get()).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            game: wire.game,
+            vocabulary: wire.vocabulary,
+            locations: wire.locations,
+            objects: wire.objects,
+            characters: wire.characters,
+            procedures: wire.procedures,
+            conversations: wire.conversations,
+            quests: wire.quests,
+            editor: wire.editor,
+        })
+    }
 }
 fn hints_enabled_default() -> bool {
     true
@@ -739,6 +883,8 @@ impl Project {
             objects: vec![],
             characters: vec![],
             procedures: vec![],
+            conversations: vec![],
+            quests: vec![],
             editor: EditorLayout::default(),
         }
     }

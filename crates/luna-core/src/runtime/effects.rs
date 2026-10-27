@@ -8,6 +8,11 @@ impl<'a> Run<'a> {
     // Every action/exit/event owns a lexical/progress root, independent of
     // optional recording. Active calls remain guarded across event dispatch.
     pub(super) fn flow_effects(&mut self, id: &str, effects: &[Effect]) -> Result<Flow> {
+        if self.story_index.interrupts(id)
+            && let Some(active) = self.state.narrative.active.clone()
+        {
+            self.pause_conversation(&active, false)?;
+        }
         let invocation = super::procedures::Invocation {
             root: id.into(),
             ..Default::default()
@@ -26,6 +31,9 @@ impl<'a> Run<'a> {
                 .copied()
                 .unwrap_or(0));
         }
+        if self.story_index.owns_sequence(&self.invocation.root, id) {
+            return Ok(self.state.narrative.sequences.get(id).copied().unwrap_or(0));
+        }
         self.state
             .sequences
             .get(id)
@@ -42,6 +50,17 @@ impl<'a> Run<'a> {
             );
             self.state.to_mut().procedure_sequences.insert(path, cursor);
         } else {
+            if self.story_index.owns_sequence(&self.invocation.root, id) {
+                if !self.state.narrative.sequences.contains_key(id) {
+                    self.reserve_story(1, 0)?;
+                }
+                self.state
+                    .to_mut()
+                    .narrative
+                    .sequences
+                    .insert(id.into(), cursor);
+                return Ok(());
+            }
             *self
                 .state
                 .to_mut()
@@ -95,6 +114,27 @@ impl<'a> Run<'a> {
 
     fn effect(&mut self, effect: &Effect) -> Result<Flow> {
         match effect {
+            Effect::StartConversation { conversation } => {
+                return self.start_conversation(conversation);
+            }
+            Effect::PauseConversation { conversation } => {
+                self.pause_conversation(conversation, false)?;
+            }
+            Effect::EndConversation { conversation } => {
+                self.pause_conversation(conversation, true)?;
+            }
+            Effect::StartQuest { quest } => {
+                return self.quest_transition(quest, luna_model::QuestStatus::Active, None);
+            }
+            Effect::CompleteQuestStage { quest, stage } => {
+                return self.quest_transition(quest, luna_model::QuestStatus::Active, Some(stage));
+            }
+            Effect::CompleteQuest { quest } => {
+                return self.quest_transition(quest, luna_model::QuestStatus::Completed, None);
+            }
+            Effect::FailQuest { quest } => {
+                return self.quest_transition(quest, luna_model::QuestStatus::Failed, None);
+            }
             Effect::Call {
                 id,
                 procedure,
@@ -383,6 +423,7 @@ impl<'a> Run<'a> {
                 }
                 let end = self.ending(ending).context("Unknown ending")?;
                 self.state.to_mut().ending = Some(ending.clone());
+                self.close_conversations();
                 self.finalizing = true;
                 self.fire(Event::Ending, &self.p.game.id)?;
                 self.finalizing = false;

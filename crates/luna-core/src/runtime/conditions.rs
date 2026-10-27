@@ -10,6 +10,46 @@ impl Run<'_> {
         Ok(match condition {
             Condition::True => true,
             Condition::False => false,
+            Condition::ConversationNodeVisited { conversation, node } => {
+                ensure!(
+                    self.story_index.has_node(conversation, node),
+                    "Unknown or foreign conversation node"
+                );
+                self.state
+                    .narrative
+                    .conversations
+                    .get(conversation)
+                    .is_some_and(|p| p.visited.contains(node))
+            }
+            Condition::ConversationReplyChosen {
+                conversation,
+                reply,
+            } => {
+                ensure!(
+                    self.story_index.has_reply(conversation, reply),
+                    "Unknown or foreign conversation reply"
+                );
+                self.state
+                    .narrative
+                    .conversations
+                    .get(conversation)
+                    .is_some_and(|p| p.chosen.contains(reply))
+            }
+            Condition::QuestStatus { quest, status } => {
+                ensure!(self.story_index.has_quest(quest), "Unknown quest");
+                self.state.narrative.status(quest) == *status
+            }
+            Condition::QuestStageCompleted { quest, stage } => {
+                ensure!(
+                    self.story_index.has_stage(quest, stage),
+                    "Unknown or foreign quest stage"
+                );
+                self.state
+                    .narrative
+                    .quests
+                    .get(quest)
+                    .is_some_and(|p| p.stages.contains(stage))
+            }
             Condition::Compare { left, op, right } => {
                 let left = self.scalar_argument(left)?;
                 let right = self.scalar_argument(right)?;

@@ -57,7 +57,7 @@ export default function Procedures({
     };
     edit(
       (p) => {
-        p.game.format_version = 4;
+        p.game.format_version = Math.max(4, p.game.format_version);
         (p.procedures ??= []).push(definition);
       },
       { label: 'Add procedure' },

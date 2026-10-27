@@ -1,0 +1,267 @@
+{
+  "id": "5a4e2a6a-51df-480b-a711-14246993df4a",
+  "name": "The Keeper's key",
+  "character": "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed",
+  "available": {
+    "type": "true"
+  },
+  "default_entry": "c18af61f-3313-45a3-9b4d-748909ae468d",
+  "entries": [
+    {
+      "condition": {
+        "type": "quest_status",
+        "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+        "status": "completed"
+      },
+      "node": "bb3bfc4b-5aa8-46f3-a7ae-0b8a625f9f9d"
+    },
+    {
+      "condition": {
+        "type": "quest_status",
+        "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+        "status": "failed"
+      },
+      "node": "51915fef-3689-45ff-bb2a-23c7271d1de7"
+    },
+    {
+      "condition": {
+        "type": "quest_status",
+        "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+        "status": "active"
+      },
+      "node": "a1c14423-4386-4a72-bf6d-74444ca4e4a4"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "c18af61f-3313-45a3-9b4d-748909ae468d",
+      "name": "Greeting",
+      "text": "I have lost my key. Will you help me find it? You have %coins% coins.",
+      "terminal": false,
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "greeting_entries",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "respond",
+          "id": "f617df1e-9206-4c57-9561-5febabdcc2dd",
+          "responses": [
+            "The Keeper looks worried.",
+            "The Keeper waits patiently."
+          ],
+          "mode": "fallback",
+          "fallback": "The Keeper is still waiting.",
+          "exhaustion": "once",
+          "on_exhausted": []
+        }
+      ],
+      "replies": [
+        {
+          "id": "71b3b4d3-ed33-42b0-9c94-66d559526940",
+          "text": "Yes, I'll find it.",
+          "condition": {
+            "type": "true"
+          },
+          "once": true,
+          "destination": "a1c14423-4386-4a72-bf6d-74444ca4e4a4",
+          "effects": [
+            {
+              "type": "start_quest",
+              "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468"
+            },
+            {
+              "type": "if",
+              "condition": {
+                "type": "carrying",
+                "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+              },
+              "then": [
+                {
+                  "type": "complete_quest_stage",
+                  "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+                  "stage": "1f29313b-4c99-46f6-b699-f9db3a02d4da"
+                }
+              ],
+              "otherwise": []
+            }
+          ]
+        },
+        {
+          "id": "b79141c5-3a09-407f-afd0-ef4407572a6a",
+          "text": "Not now.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": null,
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "a1c14423-4386-4a72-bf6d-74444ca4e4a4",
+      "name": "Progress",
+      "text": "Any news about my key?",
+      "terminal": false,
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "progress_entries",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ],
+      "replies": [
+        {
+          "id": "eedd4ada-c952-4e97-a69c-8af41915581b",
+          "text": "Where did you last see it?",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": "ef15a425-52e4-480a-8502-baed7b49104e",
+          "effects": []
+        },
+        {
+          "id": "a69647af-44b2-4b59-bedb-9b2aedee0a46",
+          "text": "I'll keep looking.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": null,
+          "effects": []
+        },
+        {
+          "id": "0ed1d088-9398-4b12-8c83-7cd6269ee1ef",
+          "text": "Here is your key.",
+          "condition": {
+            "type": "carrying",
+            "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+          },
+          "once": true,
+          "destination": "0a326f4d-1f4c-4ea6-ac6e-9ba1f322d7ad",
+          "effects": [
+            {
+              "type": "complete_quest_stage",
+              "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+              "stage": "2dffe50c-e7c7-4ff7-b645-8ddb7a023904"
+            },
+            {
+              "type": "complete_quest",
+              "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468"
+            }
+          ]
+        },
+        {
+          "id": "e3f70e10-712e-457f-ac01-fc71ffa3d216",
+          "text": "Try a risky handover (rollback test).",
+          "condition": {
+            "type": "carrying",
+            "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+          },
+          "once": true,
+          "destination": "0a326f4d-1f4c-4ea6-ac6e-9ba1f322d7ad",
+          "effects": [
+            {
+              "type": "complete_quest_stage",
+              "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+              "stage": "2dffe50c-e7c7-4ff7-b645-8ddb7a023904"
+            },
+            {
+              "type": "complete_quest",
+              "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468"
+            },
+            {
+              "type": "update_variable",
+              "name": "coins",
+              "op": "divide",
+              "operand": {
+                "type": "variable",
+                "name": "zero"
+              }
+            }
+          ]
+        },
+        {
+          "id": "76304c04-8cf3-441c-8c2e-c33d1b3457ce",
+          "text": "I am giving up.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": "51915fef-3689-45ff-bb2a-23c7271d1de7",
+          "effects": [
+            {
+              "type": "fail_quest",
+              "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ef15a425-52e4-480a-8502-baed7b49104e",
+      "name": "Advice",
+      "text": "Look on the table. My key is brass, not iron.",
+      "terminal": false,
+      "effects": [],
+      "replies": [
+        {
+          "id": "59202548-14a7-44de-97cd-f56fcf2904e1",
+          "text": "Back to the search.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": "a1c14423-4386-4a72-bf6d-74444ca4e4a4",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "0a326f4d-1f4c-4ea6-ac6e-9ba1f322d7ad",
+      "name": "Reward exchange",
+      "text": "My key! Thank you. Here are ten coins for your trouble.",
+      "terminal": false,
+      "effects": [],
+      "replies": [
+        {
+          "id": "bad638cd-8b05-476c-9a68-504ed3d7d0b4",
+          "text": "You're welcome.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": null,
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "bb3bfc4b-5aa8-46f3-a7ae-0b8a625f9f9d",
+      "name": "On return",
+      "text": "Thank you again for finding my key.",
+      "terminal": true,
+      "effects": [],
+      "replies": []
+    },
+    {
+      "id": "51915fef-3689-45ff-bb2a-23c7271d1de7",
+      "name": "On failure",
+      "text": "I will have to look for the key myself.",
+      "terminal": true,
+      "effects": [],
+      "replies": []
+    }
+  ]
+}

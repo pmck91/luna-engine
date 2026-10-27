@@ -1,6 +1,9 @@
+#[path = "narrative_validation.rs"]
+mod narrative_validation;
 #[path = "procedure_validation.rs"]
 mod procedure_validation;
 use crate::*;
+pub use narrative_validation::{narrative_command_conflicts, narrative_reserved};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -101,6 +104,7 @@ struct Check<'a> {
     ids: BTreeSet<String>,
     item_input: bool,
     procedure: Option<&'a Procedure>,
+    narrative_root: Option<&'a str>,
 }
 impl Check<'_> {
     fn report(
@@ -307,7 +311,23 @@ impl Check<'_> {
         }
     }
     fn condition(&mut self, s: &str, f: &str, c: &Condition) {
+        self.condition_at(s, f, c, 0);
+    }
+    fn condition_at(&mut self, s: &str, f: &str, c: &Condition, depth: usize) {
+        if depth >= 64 && self.p.game.format_version >= 5 {
+            self.error(s, f, "Condition nesting exceeds 64");
+            return;
+        }
         match c {
+            Condition::ConversationNodeVisited { conversation, node } => {
+                self.node_ref(s, f, conversation, node)
+            }
+            Condition::ConversationReplyChosen {
+                conversation,
+                reply,
+            } => self.reply_ref(s, f, conversation, reply),
+            Condition::QuestStatus { quest, .. } => self.quest_ref(s, f, quest),
+            Condition::QuestStageCompleted { quest, stage } => self.stage_ref(s, f, quest, stage),
             Condition::True | Condition::False => {}
             Condition::Compare { left, op, right } => self.comparison(s, f, left, *op, right),
             Condition::HintUsed { hint } => {
@@ -322,10 +342,12 @@ impl Check<'_> {
             }
             Condition::All { conditions } | Condition::Any { conditions } => {
                 for (index, c) in conditions.iter().enumerate() {
-                    self.condition(s, &format!("{f}.conditions.{index}"), c)
+                    self.condition_at(s, &format!("{f}.conditions.{index}"), c, depth + 1)
                 }
             }
-            Condition::Not { condition } => self.condition(s, &format!("{f}.condition"), condition),
+            Condition::Not { condition } => {
+                self.condition_at(s, &format!("{f}.condition"), condition, depth + 1)
+            }
             Condition::Variable { name, op, value } => self.value(
                 s,
                 f,
@@ -387,6 +409,15 @@ impl Check<'_> {
         for (i, e) in effects.iter().enumerate() {
             let f = format!("{f}.{i}");
             match e {
+                Effect::StartConversation { conversation }
+                | Effect::PauseConversation { conversation }
+                | Effect::EndConversation { conversation } => {
+                    self.conversation_ref(s, &f, conversation)
+                }
+                Effect::StartQuest { quest }
+                | Effect::CompleteQuest { quest }
+                | Effect::FailQuest { quest } => self.quest_ref(s, &f, quest),
+                Effect::CompleteQuestStage { quest, stage } => self.stage_ref(s, &f, quest, stage),
                 Effect::Call {
                     id,
                     procedure,
@@ -660,6 +691,9 @@ pub fn all_effects(p: &Project) -> Vec<&Effect> {
     for procedure in &p.procedures {
         walk_effects(&procedure.effects, &mut effects);
     }
+    for (_, body) in p.narrative_roots() {
+        walk_effects(body, &mut effects);
+    }
     effects
 }
 
@@ -724,6 +758,7 @@ pub fn validate_condition(p: &Project, condition: &Condition) -> Vec<Diagnostic>
         ids: BTreeSet::new(),
         item_input: false,
         procedure: None,
+        narrative_root: None,
     };
     check.condition(&p.game.id, "expectation", condition);
     check.diagnostics
@@ -735,6 +770,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         ids: BTreeSet::new(),
         item_input: false,
         procedure: None,
+        narrative_root: None,
     };
     let game = &p.game;
     for (owner, hints) in p.hint_owners() {
@@ -962,6 +998,12 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         c.location(&ch.id, "location", &ch.location)
     }
     c.procedures();
+    c.narratives();
+    if p.game.format_version >= 5 {
+        for id in narrative_command_conflicts(p) {
+            c.error(&id, "command", "This command conflicts with conversation/quest controls in content format 5. Repair the command before upgrading.");
+        }
+    }
     let mut patterns = BTreeMap::new();
     let mut overlaps = BTreeSet::new();
     let mut trigger_keys = BTreeMap::new();
@@ -1122,6 +1164,63 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                         .find(|definition| definition.id == *procedure)
                     {
                         possible_effects(&procedure.effects, &mut effects);
+                    }
+                }
+                Effect::StartConversation { conversation } if seen.insert(conversation) => {
+                    if let Some(c) = p.conversations.iter().find(|c| c.id == *conversation)
+                        && constant(&c.available) != Some(false)
+                    {
+                        let mut pending = vec![c.default_entry.as_str()];
+                        pending.extend(
+                            c.entries
+                                .iter()
+                                .filter(|e| constant(&e.condition) != Some(false))
+                                .map(|e| e.node.as_str()),
+                        );
+                        let nodes: BTreeMap<_, _> =
+                            c.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+                        let mut visited = BTreeSet::new();
+                        while let Some(id) = pending.pop() {
+                            if !visited.insert(id) {
+                                continue;
+                            }
+                            if let Some(n) = nodes.get(id) {
+                                possible_effects(&n.effects, &mut effects);
+                                for r in &n.replies {
+                                    if constant(&r.condition) != Some(false) {
+                                        possible_effects(&r.effects, &mut effects);
+                                        pending.extend(r.destination.as_deref());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Effect::StartQuest { quest }
+                | Effect::CompleteQuest { quest }
+                | Effect::FailQuest { quest } => {
+                    if let Some(q) = p.quests.iter().find(|q| q.id == *quest) {
+                        let hook = match effect {
+                            Effect::StartQuest { .. } => &q.on_start,
+                            Effect::CompleteQuest { .. } => &q.on_complete,
+                            _ => &q.on_fail,
+                        };
+                        if seen.insert(&hook.id) {
+                            possible_effects(&hook.effects, &mut effects);
+                        }
+                    }
+                }
+                Effect::CompleteQuestStage { quest, stage } => {
+                    if let Some(s) = p
+                        .quests
+                        .iter()
+                        .filter(|q| q.id == *quest)
+                        .flat_map(|q| &q.stages)
+                        .find(|s| s.id == *stage)
+                        && constant(&s.condition) != Some(false)
+                        && seen.insert(&s.id)
+                    {
+                        possible_effects(&s.effects, &mut effects);
                     }
                 }
                 Effect::Move { location } => {

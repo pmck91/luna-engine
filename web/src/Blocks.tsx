@@ -1,3 +1,4 @@
+import { authoringNarrative } from './narrativeAuthoring';
 import { projectProcedures } from './procedureBlocks';
 import {
   procedure,
@@ -111,6 +112,10 @@ const newBlocks = [
   'condition_can_transfer',
 ];
 export const blockAvailable = (p: Project, type: string) =>
+  (p.game.format_version >= 5 ||
+    !/^(luna_(start_conversation|pause_conversation|end_conversation|start_quest|complete_quest_stage|complete_quest|fail_quest)|condition_(conversation_node_visited|conversation_reply_chosen|quest_status|quest_stage_completed))$/.test(
+      type,
+    )) &&
   (p.game.format_version >= 2 || !newBlocks.includes(type)) &&
   (p.game.format_version >= 4 ||
     (!['luna_call', 'luna_assign', 'condition_compare', 'number_input'].includes(type) &&
@@ -126,7 +131,23 @@ Blockly.setLocale(
   ) as Record<string, string>,
 );
 let project: Project;
+const narrativeEffects = [
+  'start_conversation',
+  'pause_conversation',
+  'end_conversation',
+  'start_quest',
+  'complete_quest_stage',
+  'complete_quest',
+  'fail_quest',
+];
 export const effectFields: Record<string, string[]> = {
+  start_conversation: ['conversation'],
+  pause_conversation: ['conversation'],
+  end_conversation: ['conversation'],
+  start_quest: ['quest'],
+  complete_quest_stage: ['quest', 'stage'],
+  complete_quest: ['quest'],
+  fail_quest: ['quest'],
   say: ['text'],
   say_with_inputs: ['text'],
   transfer: ['object', 'placement'],
@@ -155,6 +176,10 @@ export const effectFields: Record<string, string[]> = {
   stop: [],
 };
 const conditionFields: Record<string, string[]> = {
+  conversation_node_visited: ['conversation', 'node'],
+  conversation_reply_chosen: ['conversation', 'reply'],
+  quest_status: ['quest', 'status'],
+  quest_stage_completed: ['quest', 'stage'],
   true: [],
   false: [],
   variable: ['name', 'op', 'value'],
@@ -180,6 +205,13 @@ const conditionNames: Record<string, string> = {
   can_transfer: 'CAN TRANSFER',
 };
 export const labels: Record<string, string> = {
+  start_conversation: 'START CONVERSATION',
+  pause_conversation: 'PAUSE CONVERSATION',
+  end_conversation: 'END CONVERSATION',
+  start_quest: 'START QUEST',
+  complete_quest_stage: 'COMPLETE QUEST STAGE',
+  complete_quest: 'COMPLETE QUEST',
+  fail_quest: 'FAIL QUEST',
   call: 'CALL PROCEDURE',
   assign: 'ASSIGN VALUE',
   say: 'SAY',
@@ -237,6 +269,42 @@ function localPlacementChoices(block: Blockly.Block | null) {
     },
   );
 }
+function initializeNarrativeChild(block: Blockly.Block, force = false) {
+  const parent = block.getField('quest')
+    ? 'quest'
+    : block.getField('conversation')
+      ? 'conversation'
+      : undefined;
+  if (!parent) return;
+  for (const name of ['stage', 'node', 'reply']) {
+    const child = block.getField(name);
+    if (!(child instanceof Blockly.FieldDropdown)) continue;
+    const options = child
+      .getOptions(false)
+      .filter(
+        (o): o is [string, string] =>
+          Array.isArray(o) &&
+          typeof o[1] === 'string' &&
+          !!o[1] &&
+          !String(o[0]).startsWith('Missing:'),
+      );
+    if ((force || !child.getValue()) && options.length) child.setValue(options[0][1]);
+  }
+}
+function narrativeParentChanges(block: Blockly.Block) {
+  initializeNarrativeChild(block);
+  if (!block.getField('quest') && !block.getField('conversation')) return;
+  block.setOnChange((event) => {
+    if (
+      event instanceof Blockly.Events.BlockChange &&
+      event.blockId === block.id &&
+      event.element === 'field' &&
+      ['quest', 'conversation'].includes(event.name ?? '')
+    ) {
+      initializeNarrativeChild(block, true);
+    }
+  });
+}
 function field(name: string, type: string): Blockly.Field {
   const dropdown = (items: (block: Blockly.Block | null) => Array<{ id: string; name: string }>) =>
     new LiveDropdown(function () {
@@ -270,6 +338,34 @@ function field(name: string, type: string): Blockly.Field {
           ]);
       return options;
     });
+  if (name === 'conversation') return dropdown(() => authoringNarrative(project).conversations);
+  if (name === 'quest')
+    return dropdown(() =>
+      authoringNarrative(project).quests.map((q) => ({ id: q.id, name: q.title })),
+    );
+  if (name === 'node' || name === 'reply')
+    return dropdown((block) => {
+      const nodes =
+        authoringNarrative(project).conversations.find(
+          (c) => c.id === block?.getFieldValue('conversation'),
+        )?.nodes ?? [];
+      return name === 'node'
+        ? nodes
+        : nodes.flatMap((n) => n.replies.map((r) => ({ id: r.id, name: r.text || 'New reply' })));
+    });
+  if (name === 'stage')
+    return dropdown(
+      (block) =>
+        authoringNarrative(project).quests.find((q) => q.id === block?.getFieldValue('quest'))
+          ?.stages ?? [],
+    );
+  if (name === 'status')
+    return new Blockly.FieldDropdown([
+      ['active', 'active'],
+      ['undiscovered', 'undiscovered'],
+      ['completed', 'completed'],
+      ['failed', 'failed'],
+    ]);
   if (name === 'procedure') return dropdown(() => project.procedures ?? []);
   if (name === 'input')
     return dropdown((block) =>
@@ -504,18 +600,20 @@ export const blockCatalogue: CatalogueBlock[] = [
     type: `luna_${type}`,
     name: labels[type],
     kind: 'effect',
-    category: [
-      'say',
-      'say_with_inputs',
-      'character_says',
-      'print_description',
-      'respond',
-      'reset_responses',
-    ].includes(type)
-      ? 'Responses'
-      : type === 'if'
-        ? 'Logic'
-        : 'World and state',
+    category: narrativeEffects.includes(type)
+      ? 'Conversations & quests'
+      : [
+            'say',
+            'say_with_inputs',
+            'character_says',
+            'print_description',
+            'respond',
+            'reset_responses',
+          ].includes(type)
+        ? 'Responses'
+        : type === 'if'
+          ? 'Logic'
+          : 'World and state',
     aliases:
       (
         {
@@ -781,6 +879,7 @@ function register() {
         const input = this.appendDummyInput().appendField(labels[type]);
         for (const key of fields)
           input.appendField(key.replaceAll('_', ' ')).appendField(field(key, type), key);
+        narrativeParentChanges(this);
         if (type === 'respond') {
           input.appendField('Edit replies in the inspector');
           this.appendStatementInput('ON_EXHAUSTED')
@@ -806,18 +905,20 @@ function register() {
         this.setPreviousStatement(true);
         this.setNextStatement(true);
         this.setColour(
-          [
-            'say',
-            'say_with_inputs',
-            'character_says',
-            'respond',
-            'print_description',
-            'reset_responses',
-          ].includes(type)
-            ? '#386b58'
-            : type === 'end'
-              ? '#9c4a63'
-              : '#555f7f',
+          narrativeEffects.includes(type)
+            ? '#7161c6'
+            : [
+                  'say',
+                  'say_with_inputs',
+                  'character_says',
+                  'respond',
+                  'print_description',
+                  'reset_responses',
+                ].includes(type)
+              ? '#386b58'
+              : type === 'end'
+                ? '#9c4a63'
+                : '#555f7f',
         );
       },
     };
@@ -859,6 +960,7 @@ function register() {
           conditionNames[type] ?? type.replaceAll('_', ' ').toUpperCase(),
         );
         for (const key of fields) input.appendField(key).appendField(field(key, type), key);
+        narrativeParentChanges(this);
         this.setOutput(true, 'Boolean');
         this.setColour('#916b31');
       },
@@ -1303,8 +1405,18 @@ export function readEffects(first: Blockly.Block | null, limit = Infinity): Effe
   }
   return effects;
 }
+const narrativeConditions = [
+  'conversation_node_visited',
+  'conversation_reply_chosen',
+  'quest_status',
+  'quest_stage_completed',
+];
+export const narrativeConditionToolbox = narrativeConditions.map((type) => ({
+  kind: 'block',
+  type: `condition_${type}`,
+}));
 export const conditionToolbox = [
-  ...Object.keys(conditionFields),
+  ...Object.keys(conditionFields).filter((type) => !narrativeConditions.includes(type)),
   'not',
   'all',
   'any',
@@ -1392,6 +1504,15 @@ const toolbox = {
   contents: [
     {
       kind: 'category',
+      name: 'Conversations & quests',
+      colour: '#7161c6',
+      contents: [
+        ...narrativeEffects.map((type) => ({ kind: 'block', type: `luna_${type}` })),
+        ...narrativeConditionToolbox,
+      ],
+    },
+    {
+      kind: 'category',
       name: 'Procedures',
       colour: '#7161c6',
       contents: [{ kind: 'block', type: 'luna_call' }],
@@ -1434,6 +1555,7 @@ const toolbox = {
       contents: Object.keys(effectFields)
         .filter(
           (t) =>
+            !narrativeEffects.includes(t) &&
             ![
               'say',
               'say_with_inputs',
@@ -1824,6 +1946,7 @@ export default function Blocks({
   const conditionVersion = JSON.stringify(conditions);
   const choiceVersion = JSON.stringify({
     format: p.game.format_version,
+    narrative: authoringNarrative(p),
     procedures: (p.procedures ?? []).map(({ id, name, inputs }) => ({ id, name, inputs })),
     input: hasCommandItem(p, flowId),
     storage: p.objects.map((o) => [o.id, o.storage, o.placement]),
@@ -2051,15 +2174,19 @@ export default function Blocks({
   useEffect(() => {
     const availableToolbox = {
       ...toolbox,
-      contents: toolbox.contents.map((category) => ({
-        ...category,
-        contents: category.contents.filter(
-          (block) =>
-            blockAvailable(p, block.type) &&
-            (block.type !== 'number_input' ||
-              !!procedure(p, flowId)?.inputs.some((input) => input.kind === 'integer')),
+      contents: toolbox.contents
+        .map((category) => ({
+          ...category,
+          contents: category.contents.filter(
+            (block) =>
+              blockAvailable(p, block.type) &&
+              (block.type !== 'number_input' ||
+                !!procedure(p, flowId)?.inputs.some((input) => input.kind === 'integer')),
+          ),
+        }))
+        .filter(
+          (category) => category.name !== 'Conversations & quests' || category.contents.length > 0,
         ),
-      })),
     };
     const ws = Blockly.inject(host.current!, blockWorkspaceOptions(availableToolbox));
     registerBlockScope(ws, flowId);
@@ -2154,15 +2281,20 @@ export default function Blocks({
       projectProcedures(ws, p.procedures ?? []);
       ws.updateToolbox({
         ...toolbox,
-        contents: toolbox.contents.map((category) => ({
-          ...category,
-          contents: category.contents.filter(
-            (block) =>
-              blockAvailable(p, block.type) &&
-              (block.type !== 'number_input' ||
-                !!procedure(p, flowId)?.inputs.some((input) => input.kind === 'integer')),
+        contents: toolbox.contents
+          .map((category) => ({
+            ...category,
+            contents: category.contents.filter(
+              (block) =>
+                blockAvailable(p, block.type) &&
+                (block.type !== 'number_input' ||
+                  !!procedure(p, flowId)?.inputs.some((input) => input.kind === 'integer')),
+            ),
+          }))
+          .filter(
+            (category) =>
+              category.name !== 'Conversations & quests' || category.contents.length > 0,
           ),
-        })),
       });
       refreshBlockFields(ws);
       updateOutline();

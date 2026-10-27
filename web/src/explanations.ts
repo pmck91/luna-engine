@@ -44,6 +44,19 @@ export function conditionTitle(p: Project, c: Condition): string {
       ? traceEntityName(p, target)
       : 'Command item';
   switch (c.type) {
+    case 'conversation_node_visited':
+      return `Dialogue visited · ${p.conversations?.find((v) => v.id === c.conversation)?.nodes.find((n) => n.id === c.node)?.name ?? c.node}`;
+    case 'conversation_reply_chosen':
+      return `Response chosen · ${
+        p.conversations
+          ?.find((v) => v.id === c.conversation)
+          ?.nodes.flatMap((n) => n.replies)
+          .find((r) => r.id === c.reply)?.text ?? c.reply
+      }`;
+    case 'quest_status':
+      return `${p.quests?.find((q) => q.id === c.quest)?.title ?? c.quest} · ${c.status}`;
+    case 'quest_stage_completed':
+      return `Stage completed · ${p.quests?.find((q) => q.id === c.quest)?.stages.find((s) => s.id === c.stage)?.name ?? c.stage}`;
     case 'compare':
       return `${argumentLabel(p, c.left)} ${opNames[c.op]} ${argumentLabel(p, c.right)}`;
     case 'true':
@@ -97,6 +110,8 @@ function targetTitle(p: Project, target: ValueTarget) {
 }
 export function traceTitle(p: Project, kind: TraceKind): string {
   switch (kind.type) {
+    case 'narrative':
+      return `${kind.operation.type.replaceAll('_', ' ')} · ${kind.applied ? 'Applied' : 'No change'}`;
     case 'call':
       return `CALL ${kind.name} · ${kind.returned === 'stopped' ? 'STOP returned' : kind.returned === 'ended' ? 'Game ended' : kind.returned === 'returned' ? 'Returned' : 'Failed'} · ${kind.arguments.map((binding) => `${binding.name}: ${binding.value.type === 'value' ? JSON.stringify(binding.value.value) : referenceLabel(p, binding.value.id)}`).join(', ')}`;
     case 'selected':

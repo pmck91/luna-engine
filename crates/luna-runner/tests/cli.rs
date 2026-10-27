@@ -87,7 +87,7 @@ fn parser_questions_and_references_work_in_terminal_and_clear_on_process_restore
     let completed = store
         .load_save(&record, &definition, Some("completed"))
         .unwrap();
-    assert_eq!(completed.save_format, 4);
+    assert_eq!(completed.save_format, luna_runner::SAVE_FORMAT);
     for id in ["brass", "silver"] {
         assert_eq!(completed.state.objects[id].placement, Placement::Inventory);
     }

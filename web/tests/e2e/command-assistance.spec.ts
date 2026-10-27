@@ -124,7 +124,7 @@ test('author parser messages, resolve questions and recent references, inspect e
   await (await download).saveAs(bundle);
   const root = join(process.env.LUNA_TEST_DIR!, 'projects', folder);
   const game = JSON.parse(readFileSync(join(root, 'game.json'), 'utf8'));
-  expect(game.format_version).toBe(4);
+  expect(game.format_version).toBe(5);
   const runner = (args: string[], input = '') =>
     execFileSync(
       resolve('../target/debug/luna'),

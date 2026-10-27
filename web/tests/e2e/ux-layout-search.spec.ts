@@ -108,14 +108,14 @@ test('keyboard splitters, preferences, and occurrence search preserve content an
   );
   await page.getByRole('button', { name: 'Start playtest', exact: true }).click();
   await left.focus();
-  await left.press('ArrowRight');
-  await expect(page.locator('.session-status')).toHaveText('● Running');
   const saved = page.waitForResponse(
     (response) =>
       response.url().endsWith('/preferences') &&
       response.request().method() === 'PUT' &&
       JSON.parse(response.request().postData()!).layout.hierarchy_width === 240,
   );
+  await left.press('ArrowRight');
+  await expect(page.locator('.session-status')).toHaveText('● Running');
   await saved;
   await page.screenshot({
     path: join(process.env.LUNA_TEST_DIR!, `ux-layout-${info.project.name}.png`),

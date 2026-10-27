@@ -1,0 +1,58 @@
+{
+  "id": "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed",
+  "name": "Keeper",
+  "name_colour": null,
+  "aliases": [],
+  "description": "The Keeper searches the table.",
+  "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c",
+  "hidden": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "62261ed0-b1bf-40bf-97f8-2149b8827b41",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed"
+        }
+      ]
+    },
+    {
+      "id": "8114e46d-809a-46df-b115-9bf688701c64",
+      "name": "talk Keeper",
+      "verb": "talk",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "start_conversation",
+          "conversation": "5a4e2a6a-51df-480b-a711-14246993df4a"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

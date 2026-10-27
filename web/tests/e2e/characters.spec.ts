@@ -205,8 +205,8 @@ test('character speech and movement author, reopen, export, and restore with the
   const autosave = JSON.parse(
     readFileSync(join(saves, game.id, game.content_version, 'autosave.json'), 'utf8'),
   );
-  expect(game.format_version).toBe(4);
-  expect(autosave.save_format).toBe(4);
+  expect(game.format_version).toBe(5);
+  expect(autosave.save_format).toBe(5);
   expect(autosave.state.characters[guide.id].location).toBe(talk.effects[1].location);
   expect(autosave.state.objects[key.id].placement).toEqual({
     type: 'character',

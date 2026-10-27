@@ -1,0 +1,116 @@
+{
+  "id": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd",
+  "name": "Brass key",
+  "aliases": [
+    "key"
+  ],
+  "description": "A small brass key.",
+  "placement": {
+    "type": "location",
+    "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "2346c9e8-f14d-4c00-acbe-25817ec10d9e",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+        }
+      ]
+    },
+    {
+      "id": "d583cca5-49e4-4915-be16-b53574efaa3a",
+      "name": "take Brass key",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+        }
+      },
+      "failure_text": "You already have that.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+        },
+        {
+          "type": "say",
+          "text": "Taken."
+        },
+        {
+          "type": "if",
+          "condition": {
+            "type": "quest_status",
+            "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+            "status": "active"
+          },
+          "then": [
+            {
+              "type": "complete_quest_stage",
+              "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+              "stage": "1f29313b-4c99-46f6-b699-f9db3a02d4da"
+            }
+          ],
+          "otherwise": []
+        }
+      ]
+    },
+    {
+      "id": "8200f0ff-c640-4a54-a66f-e2b5c3fd6571",
+      "name": "drop Brass key",
+      "verb": "drop",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "carrying",
+        "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+      },
+      "failure_text": "You are not carrying that.",
+      "effects": [
+        {
+          "type": "place",
+          "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd",
+          "location": "@current"
+        },
+        {
+          "type": "say",
+          "text": "Dropped."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

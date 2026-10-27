@@ -1,0 +1,100 @@
+{
+  "id": "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea",
+  "name": "Iron key",
+  "aliases": [
+    "key"
+  ],
+  "description": "A small iron key.",
+  "placement": {
+    "type": "location",
+    "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "679bc42b-2655-4e67-9762-1467b3639191",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You cannot do that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea"
+        }
+      ]
+    },
+    {
+      "id": "2c8f2de2-b2dc-4471-80f2-a9ff71c9e514",
+      "name": "take Iron key",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea"
+        }
+      },
+      "failure_text": "You already have that.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea"
+        },
+        {
+          "type": "say",
+          "text": "Taken."
+        }
+      ]
+    },
+    {
+      "id": "d62c1fb3-a76c-4227-98af-7ebd7cdee44f",
+      "name": "drop Iron key",
+      "verb": "drop",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "carrying",
+        "object": "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea"
+      },
+      "failure_text": "You are not carrying that.",
+      "effects": [
+        {
+          "type": "place",
+          "object": "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea",
+          "location": "@current"
+        },
+        {
+          "type": "say",
+          "text": "Dropped."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

@@ -50,6 +50,11 @@ export default function Inspector({
   const references = useReferenceActions();
   const selectedFlow = flow(p, selected);
   const selectedOwner = owner(p, selected);
+  const conversationShortcut = p.characters.some((c) => c.id === selected) ? (
+    <button onClick={() => select(`${gameDataPages.conversations}:${selected}`)}>
+      Conversations for this character
+    </button>
+  ) : null;
   const update = (changes: Record<string, unknown>) =>
     edit((next) => {
       const target = flow(next, selected) ?? owner(next, selected);
@@ -198,6 +203,7 @@ export default function Inspector({
           </button>
         )}
       </div>
+      {conversationShortcut}
       {isGame ? (
         <>
           <ContainerUpgrade project={p} edit={edit} />

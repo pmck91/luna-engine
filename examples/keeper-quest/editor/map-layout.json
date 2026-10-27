@@ -1,0 +1,1426 @@
+{
+  "positions": {},
+  "blocks": {
+    "0a326f4d-1f4c-4ea6-ac6e-9ba1f322d7ad": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": "gW~2v2;ewBHWHSmf|=lJ",
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "0ed1d088-9398-4b12-8c83-7cd6269ee1ef": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "K@W$^#`?u}+JoE8;dQS/",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"complete_quest_stage\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\",\"stage\":\"2dffe50c-e7c7-4ff7-b645-8ddb7a023904\"}",
+                  "fields": {
+                    "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+                    "stage": "2dffe50c-e7c7-4ff7-b645-8ddb7a023904"
+                  },
+                  "id": "aY[#aFSy0`Idu^w):Y}E",
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"complete_quest\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\"}",
+                      "fields": {
+                        "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468"
+                      },
+                      "id": "GIfh?-7R4T55)x[$|$f-",
+                      "type": "luna_complete_quest"
+                    }
+                  },
+                  "type": "luna_complete_quest_stage"
+                }
+              },
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"carrying\",\"object\":\"c041b6f2-e7d3-4c6d-9f64-6c87458170dd\"}",
+                  "fields": {
+                    "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+                  },
+                  "id": "aO*6nt:x/`E`K:QdVQ!8",
+                  "type": "condition_carrying"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          },
+          {
+            "data": "{\"type\":\"true\"}",
+            "id": "PBI}MjB0E0RXU[19M3-S",
+            "type": "condition_true",
+            "x": 448,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "1f29313b-4c99-46f6-b699-f9db3a02d4da": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "n=c05@T,-nqB@}4DQr=@",
+            "inputs": {
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "(KOXvyz,2|u`l%Y3!m[E",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "2346c9e8-f14d-4c00-acbe-25817ec10d9e": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "sR!/kH-~pF*C)C!^-oXZ",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"print_description\",\"entity\":\"c041b6f2-e7d3-4c6d-9f64-6c87458170dd\"}",
+                  "fields": {
+                    "entity": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+                  },
+                  "id": "|i?CS{T:[V#fJzNM[F;;",
+                  "type": "luna_print_description"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "qyXFSRaU(vLS%94nfy@[",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "2dffe50c-e7c7-4ff7-b645-8ddb7a023904": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "o+$bOh06[S,EoI-fnlpR",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"give_character\",\"object\":\"c041b6f2-e7d3-4c6d-9f64-6c87458170dd\",\"character\":\"d043460e-b02d-4f34-b6ae-2f2e22a7a9ed\"}",
+                  "fields": {
+                    "character": "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed",
+                    "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+                  },
+                  "id": "|L(:tz`|/dV7mqtG|!da",
+                  "type": "luna_give_character"
+                }
+              },
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "KTnUHC,2o~l~%$;%F=7N",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "51915fef-3689-45ff-bb2a-23c7271d1de7": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": "ceFq:vyL8FD9_%gdWqB4",
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "59202548-14a7-44de-97cd-f56fcf2904e1": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "Yt)Z1s6}1)~*1O7Q[}fG",
+            "inputs": {
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "!QWj=[=|/$(rRy/z!cvK",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "62261ed0-b1bf-40bf-97f8-2149b8827b41": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": ",=h~g|OKiq|2yL`Q#H-?",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"print_description\",\"entity\":\"d043460e-b02d-4f34-b6ae-2f2e22a7a9ed\"}",
+                  "fields": {
+                    "entity": "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed"
+                  },
+                  "id": "kO[n;Up]QR3iTRvWc$MZ",
+                  "type": "luna_print_description"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "or;(|.8#~#HDa$8)Ix]7",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "71b3b4d3-ed33-42b0-9c94-66d559526940": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "f6gc1b_CB`CFzO0iGugJ",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"start_quest\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\"}",
+                  "fields": {
+                    "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468"
+                  },
+                  "id": "f(IV]^M:+cuOL4%jF{.x",
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"if\",\"condition\":{\"type\":\"carrying\",\"object\":\"c041b6f2-e7d3-4c6d-9f64-6c87458170dd\"},\"then\":[],\"otherwise\":[]}",
+                      "id": "0)skyDU|!,v}I0]RRw.H",
+                      "inputs": {
+                        "TEST": {
+                          "block": {
+                            "data": "{\"type\":\"carrying\",\"object\":\"c041b6f2-e7d3-4c6d-9f64-6c87458170dd\"}",
+                            "fields": {
+                              "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+                            },
+                            "id": "eWsK*f!e4UYe9A9mU)+m",
+                            "type": "condition_carrying"
+                          }
+                        },
+                        "THEN": {
+                          "block": {
+                            "data": "{\"type\":\"complete_quest_stage\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\",\"stage\":\"1f29313b-4c99-46f6-b699-f9db3a02d4da\"}",
+                            "fields": {
+                              "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+                              "stage": "1f29313b-4c99-46f6-b699-f9db3a02d4da"
+                            },
+                            "id": "@ZCO$4wZ#TxK9*[UhYAe",
+                            "type": "luna_complete_quest_stage"
+                          }
+                        }
+                      },
+                      "type": "luna_if"
+                    }
+                  },
+                  "type": "luna_start_quest"
+                }
+              },
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "O~8qfBNbBxtJq;PO.SYi",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          },
+          {
+            "data": "{\"type\":\"true\"}",
+            "id": "VT%5_p7CL.Fa,HDe4$Fh",
+            "type": "condition_true",
+            "x": 448,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "76304c04-8cf3-441c-8c2e-c33d1b3457ce": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "|I5{zxjr]CZOI`,U{#q_",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"fail_quest\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\"}",
+                  "fields": {
+                    "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468"
+                  },
+                  "id": "+VuztWFfuSGh%V8jP:OJ",
+                  "type": "luna_fail_quest"
+                }
+              },
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "4G:=D:^i#G-k`hznIFmI",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "7caea0b0-bf58-49f6-b371-94da82cf16a6": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": "7;+WTcSY.}[.W/X5?~Pf",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"update_variable\",\"name\":\"coins\",\"op\":\"add\",\"operand\":{\"type\":\"literal\",\"value\":1}}",
+                  "fields": {
+                    "name": "coins",
+                    "op": "add"
+                  },
+                  "id": "dm=jD$1W1({q{y?kbPL[",
+                  "inputs": {
+                    "OPERAND": {
+                      "shadow": {
+                        "data": "{\"type\":\"literal\",\"value\":10}",
+                        "fields": {
+                          "value": 10
+                        },
+                        "id": "V$ZYz`-}iZ-W3K)5Q2%S",
+                        "type": "number_literal"
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"update_variable\",\"name\":\"rewards\",\"op\":\"add\",\"operand\":{\"type\":\"literal\",\"value\":1}}",
+                      "fields": {
+                        "name": "rewards",
+                        "op": "add"
+                      },
+                      "id": "ZgIoPQ24%!8Pc$Q/O+1m",
+                      "inputs": {
+                        "OPERAND": {
+                          "shadow": {
+                            "fields": {
+                              "value": 1
+                            },
+                            "id": "KHid9)vl^RI4w|(X/)?5",
+                            "type": "number_literal"
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "data": "{\"type\":\"say\",\"text\":\"<yellow>You receive ten coins.</yellow>\"}",
+                          "fields": {
+                            "text": "<yellow>You receive ten coins.</yellow>"
+                          },
+                          "id": "76,U,tVs0YQCxumAQY][",
+                          "type": "luna_say"
+                        }
+                      },
+                      "type": "luna_update_variable"
+                    }
+                  },
+                  "type": "luna_update_variable"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "8114e46d-809a-46df-b115-9bf688701c64": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "nRgYo`#arf99AsB+([#J",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"start_conversation\",\"conversation\":\"5a4e2a6a-51df-480b-a711-14246993df4a\"}",
+                  "fields": {
+                    "conversation": "5a4e2a6a-51df-480b-a711-14246993df4a"
+                  },
+                  "id": "n`bm)Fi=@u`ra@;)uBC`",
+                  "type": "luna_start_conversation"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "6u8w*LZ8z/s:FHK_jdOj",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "a1c14423-4386-4a72-bf6d-74444ca4e4a4": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": "-+.5_wJeo$$kIVT%Tn||",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"update_variable\",\"name\":\"progress_entries\",\"op\":\"add\",\"operand\":{\"type\":\"literal\",\"value\":1}}",
+                  "fields": {
+                    "name": "progress_entries",
+                    "op": "add"
+                  },
+                  "id": "_1$0@e0qBjTWO6yh6:$T",
+                  "inputs": {
+                    "OPERAND": {
+                      "shadow": {
+                        "fields": {
+                          "value": 1
+                        },
+                        "id": "vyhU]|K3E(N0.`|!;[}e",
+                        "type": "number_literal"
+                      }
+                    }
+                  },
+                  "type": "luna_update_variable"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "a69647af-44b2-4b59-bedb-9b2aedee0a46": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "K-4_C$O$#i%q*U4/U}@A",
+            "inputs": {
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "]mNZ6~v!p]x4g7UkK2#h",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "acc2b879-c7c3-4ce1-ae69-5659d9dd3c8b": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": "4S9R6Z@*XUKI-D@{VOih",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"update_variable\",\"name\":\"quest_starts\",\"op\":\"add\",\"operand\":{\"type\":\"literal\",\"value\":1}}",
+                  "fields": {
+                    "name": "quest_starts",
+                    "op": "add"
+                  },
+                  "id": "=@RSDm$TT5=uI`G%G%mV",
+                  "inputs": {
+                    "OPERAND": {
+                      "shadow": {
+                        "fields": {
+                          "value": 1
+                        },
+                        "id": "fN_[8ZQnavD0.18x3@8o",
+                        "type": "number_literal"
+                      }
+                    }
+                  },
+                  "type": "luna_update_variable"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "b79141c5-3a09-407f-afd0-ef4407572a6a": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "S-L@xkXz9RZw{m01|i~]",
+            "inputs": {
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "DQRQ}XJR,*JP6I*J(:(z",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "bad638cd-8b05-476c-9a68-504ed3d7d0b4": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "iyTUD^ul-*6ULEM=^S,(",
+            "inputs": {
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "k}FSBf{f6j+`UDB:z,Dz",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "bb3bfc4b-5aa8-46f3-a7ae-0b8a625f9f9d": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": "t[JO5W);tN!#%?OJi9%S",
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "c1037153-505b-4f27-8ebb-2a121be9ec89": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": "J=|7:=lGbB:E?7T9ID(2",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"call\",\"id\":\"a7298d34-8955-47fd-99a7-87748906f844\",\"procedure\":\"7caea0b0-bf58-49f6-b371-94da82cf16a6\",\"arguments\":{}}",
+                  "extraState": {
+                    "inputNames": {}
+                  },
+                  "fields": {
+                    "procedure": "7caea0b0-bf58-49f6-b371-94da82cf16a6"
+                  },
+                  "id": "BuK~H[UoV+_x9)62Q2rF",
+                  "type": "luna_call"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "c18af61f-3313-45a3-9b4d-748909ae468d": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": "}GgbCdK[d;F?.)h%SdI[",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"update_variable\",\"name\":\"greeting_entries\",\"op\":\"add\",\"operand\":{\"type\":\"literal\",\"value\":1}}",
+                  "fields": {
+                    "name": "greeting_entries",
+                    "op": "add"
+                  },
+                  "id": "R@K/?PfM43wC:?34sqyG",
+                  "inputs": {
+                    "OPERAND": {
+                      "shadow": {
+                        "fields": {
+                          "value": 1
+                        },
+                        "id": "X;vW}KAC9VKh]C(Cys|T",
+                        "type": "number_literal"
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"respond\",\"id\":\"f617df1e-9206-4c57-9561-5febabdcc2dd\",\"responses\":[\"The Keeper looks worried.\",\"The Keeper waits patiently.\"],\"mode\":\"fallback\",\"fallback\":\"The Keeper is still waiting.\",\"exhaustion\":\"once\",\"on_exhausted\":[]}",
+                      "fields": {
+                        "exhaustion": "once"
+                      },
+                      "id": ")2ZkXiy)Z=FRmXu#$@vA",
+                      "type": "luna_respond"
+                    }
+                  },
+                  "type": "luna_update_variable"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "d583cca5-49e4-4915-be16-b53574efaa3a": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "$o+cLhSRmJz?Q*Nw[Sx_",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"give\",\"object\":\"c041b6f2-e7d3-4c6d-9f64-6c87458170dd\"}",
+                  "fields": {
+                    "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+                  },
+                  "id": "+P$]7)1zN]EXk*-|nshM",
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"say\",\"text\":\"Taken.\"}",
+                      "fields": {
+                        "text": "Taken."
+                      },
+                      "id": "]DoXIJKZn+J-dq?t4xa4",
+                      "next": {
+                        "block": {
+                          "data": "{\"type\":\"if\",\"condition\":{\"type\":\"quest_status\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\",\"status\":\"active\"},\"then\":[],\"otherwise\":[]}",
+                          "id": ",82iqp8MqkC(Hrn]yJMU",
+                          "inputs": {
+                            "TEST": {
+                              "block": {
+                                "data": "{\"type\":\"quest_status\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\",\"status\":\"active\"}",
+                                "fields": {
+                                  "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+                                  "status": "active"
+                                },
+                                "id": "+8eYV(r-I768/:.z@Z(5",
+                                "type": "condition_quest_status"
+                              }
+                            },
+                            "THEN": {
+                              "block": {
+                                "data": "{\"type\":\"complete_quest_stage\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\",\"stage\":\"1f29313b-4c99-46f6-b699-f9db3a02d4da\"}",
+                                "fields": {
+                                  "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+                                  "stage": "1f29313b-4c99-46f6-b699-f9db3a02d4da"
+                                },
+                                "id": "i*]mZk!Nq+([@:o9qV@t",
+                                "type": "luna_complete_quest_stage"
+                              }
+                            }
+                          },
+                          "type": "luna_if"
+                        }
+                      },
+                      "type": "luna_say"
+                    }
+                  },
+                  "type": "luna_give"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"not\",\"condition\":{\"type\":\"carrying\",\"object\":\"c041b6f2-e7d3-4c6d-9f64-6c87458170dd\"}}",
+                  "id": "B8[j[Tqik4F~MsTbUpBn",
+                  "inputs": {
+                    "TEST": {
+                      "block": {
+                        "data": "{\"type\":\"carrying\",\"object\":\"c041b6f2-e7d3-4c6d-9f64-6c87458170dd\"}",
+                        "fields": {
+                          "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+                        },
+                        "id": "?pIhGR6O(4-{tSXhimUu",
+                        "type": "condition_carrying"
+                      }
+                    }
+                  },
+                  "type": "condition_not"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          },
+          {
+            "data": "{\"type\":\"true\"}",
+            "id": "*E0kF5r~_b4/IhU(nWwF",
+            "type": "condition_true",
+            "x": 546,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "e3f70e10-712e-457f-ac01-fc71ffa3d216": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "]bnKw[_3wm3i273N~]3m",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"complete_quest_stage\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\",\"stage\":\"2dffe50c-e7c7-4ff7-b645-8ddb7a023904\"}",
+                  "fields": {
+                    "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468",
+                    "stage": "2dffe50c-e7c7-4ff7-b645-8ddb7a023904"
+                  },
+                  "id": "]n{5.}6s%:e2,|;3seXK",
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"complete_quest\",\"quest\":\"80dfba0b-8113-4c75-a4cd-9a31c07ec468\"}",
+                      "fields": {
+                        "quest": "80dfba0b-8113-4c75-a4cd-9a31c07ec468"
+                      },
+                      "id": "t`/uFXL:n%JhS~ik?zo8",
+                      "next": {
+                        "block": {
+                          "data": "{\"type\":\"update_variable\",\"name\":\"coins\",\"op\":\"divide\",\"operand\":{\"type\":\"literal\",\"value\":1}}",
+                          "fields": {
+                            "name": "coins",
+                            "op": "divide"
+                          },
+                          "id": "vG9bG:1q,.(?V,j:l)(O",
+                          "inputs": {
+                            "OPERAND": {
+                              "block": {
+                                "data": "{\"type\":\"variable\",\"name\":\"zero\"}",
+                                "fields": {
+                                  "name": "zero"
+                                },
+                                "id": "{~)5Nw%SY(~B`da()5kW",
+                                "type": "number_variable"
+                              },
+                              "shadow": {
+                                "fields": {
+                                  "value": 1
+                                },
+                                "id": "yuB2VTwnbBo}$JWqpX;/",
+                                "type": "number_literal"
+                              }
+                            }
+                          },
+                          "type": "luna_update_variable"
+                        }
+                      },
+                      "type": "luna_complete_quest"
+                    }
+                  },
+                  "type": "luna_complete_quest_stage"
+                }
+              },
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"carrying\",\"object\":\"c041b6f2-e7d3-4c6d-9f64-6c87458170dd\"}",
+                  "fields": {
+                    "object": "c041b6f2-e7d3-4c6d-9f64-6c87458170dd"
+                  },
+                  "id": "-C|r/(=)5)9R99C=#a=x",
+                  "type": "condition_carrying"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          },
+          {
+            "data": "{\"type\":\"true\"}",
+            "id": "wN9{]ql)`OkyTu]X0fR3",
+            "type": "condition_true",
+            "x": 448,
+            "y": 24
+          },
+          {
+            "fields": {
+              "value": 1
+            },
+            "id": "yuB2VTwnbBo}$JWqpX;/",
+            "type": "number_literal",
+            "x": 816,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "eedd4ada-c952-4e97-a69c-8af41915581b": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "acBCEe}1A,n49+^}O416",
+            "inputs": {
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "mj{i[`ORB:`A$vc^[^P}",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "ef15a425-52e4-480a-8502-baed7b49104e": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": ")uXj.pt`;VdJLMwGj:Ov",
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    }
+  },
+  "routes": {},
+  "templates": [],
+  "playtest": {
+    "setups": [
+      {
+        "version": 3,
+        "id": "0024aef7-f838-4eae-8fdf-d4d9079ffd05",
+        "name": "First greeting",
+        "source": {
+          "revision": "ed3ce009a7aa75223fad0e41bfc9a2375a28760ac1862abce0a0d668c47b90f3",
+          "title": "The Keeper's Key",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "game_id": "53e7927f-363e-49e5-8fa7-aacf9bc2d9c1",
+          "content_version": "0.1.0",
+          "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c",
+          "ending": null,
+          "variables": {
+            "coins": 0,
+            "greeting_entries": 1,
+            "progress_entries": 0,
+            "quest_starts": 0,
+            "rewards": 0,
+            "zero": 0
+          },
+          "objects": {
+            "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea": {
+              "placement": {
+                "type": "location",
+                "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "c041b6f2-e7d3-4c6d-9f64-6c87458170dd": {
+              "placement": {
+                "type": "location",
+                "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed": {
+              "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea": {},
+            "c041b6f2-e7d3-4c6d-9f64-6c87458170dd": {},
+            "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed": {},
+            "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c": {}
+          },
+          "visits": {
+            "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c": 1
+          },
+          "sequences": {},
+          "narrative": {
+            "active": "5a4e2a6a-51df-480b-a711-14246993df4a",
+            "conversations": {
+              "5a4e2a6a-51df-480b-a711-14246993df4a": {
+                "checkpoint": {
+                  "type": "entered",
+                  "node": "c18af61f-3313-45a3-9b4d-748909ae468d",
+                  "prompt": [
+                    {
+                      "text": "Keeper",
+                      "colour": null
+                    },
+                    {
+                      "text": " says: ",
+                      "colour": null
+                    },
+                    {
+                      "text": "I have lost my key. Will you help me find it? You have 0 coins.",
+                      "colour": null
+                    }
+                  ]
+                },
+                "visited": [
+                  "c18af61f-3313-45a3-9b4d-748909ae468d"
+                ],
+                "chosen": []
+              }
+            },
+            "quests": {},
+            "sequences": {
+              "f617df1e-9206-4c57-9561-5febabdcc2dd": 1
+            }
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 3,
+        "id": "3ccd7755-4398-4512-ba9e-d036e8b45168",
+        "name": "Ready to return key",
+        "source": {
+          "revision": "ed3ce009a7aa75223fad0e41bfc9a2375a28760ac1862abce0a0d668c47b90f3",
+          "title": "The Keeper's Key",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "game_id": "53e7927f-363e-49e5-8fa7-aacf9bc2d9c1",
+          "content_version": "0.1.0",
+          "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c",
+          "ending": null,
+          "variables": {
+            "coins": 0,
+            "greeting_entries": 2,
+            "progress_entries": 2,
+            "quest_starts": 1,
+            "rewards": 0,
+            "zero": 0
+          },
+          "objects": {
+            "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea": {
+              "placement": {
+                "type": "location",
+                "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "c041b6f2-e7d3-4c6d-9f64-6c87458170dd": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed": {
+              "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea": {},
+            "c041b6f2-e7d3-4c6d-9f64-6c87458170dd": {},
+            "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed": {},
+            "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c": {}
+          },
+          "visits": {
+            "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c": 1
+          },
+          "sequences": {},
+          "narrative": {
+            "active": "5a4e2a6a-51df-480b-a711-14246993df4a",
+            "conversations": {
+              "5a4e2a6a-51df-480b-a711-14246993df4a": {
+                "checkpoint": {
+                  "type": "entered",
+                  "node": "a1c14423-4386-4a72-bf6d-74444ca4e4a4",
+                  "prompt": [
+                    {
+                      "text": "Keeper",
+                      "colour": null
+                    },
+                    {
+                      "text": " says: ",
+                      "colour": null
+                    },
+                    {
+                      "text": "Any news about my key?",
+                      "colour": null
+                    }
+                  ]
+                },
+                "visited": [
+                  "a1c14423-4386-4a72-bf6d-74444ca4e4a4",
+                  "c18af61f-3313-45a3-9b4d-748909ae468d",
+                  "ef15a425-52e4-480a-8502-baed7b49104e"
+                ],
+                "chosen": [
+                  "59202548-14a7-44de-97cd-f56fcf2904e1",
+                  "71b3b4d3-ed33-42b0-9c94-66d559526940",
+                  "b79141c5-3a09-407f-afd0-ef4407572a6a",
+                  "eedd4ada-c952-4e97-a69c-8af41915581b"
+                ]
+              }
+            },
+            "quests": {
+              "80dfba0b-8113-4c75-a4cd-9a31c07ec468": {
+                "status": "active",
+                "stages": [
+                  "1f29313b-4c99-46f6-b699-f9db3a02d4da"
+                ],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "The Keeper asked me to find a lost key.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "stage",
+                      "stage": "1f29313b-4c99-46f6-b699-f9db3a02d4da"
+                    },
+                    "text": [
+                      {
+                        "text": "I found the brass key.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {
+              "f617df1e-9206-4c57-9561-5febabdcc2dd": 2
+            }
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 3,
+        "id": "76ff6781-f761-425c-8d3c-0588fd09d91a",
+        "name": "Reward exchange",
+        "source": {
+          "revision": "ed3ce009a7aa75223fad0e41bfc9a2375a28760ac1862abce0a0d668c47b90f3",
+          "title": "The Keeper's Key",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "game_id": "53e7927f-363e-49e5-8fa7-aacf9bc2d9c1",
+          "content_version": "0.1.0",
+          "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c",
+          "ending": null,
+          "variables": {
+            "coins": 10,
+            "greeting_entries": 2,
+            "progress_entries": 2,
+            "quest_starts": 1,
+            "rewards": 1,
+            "zero": 0
+          },
+          "objects": {
+            "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea": {
+              "placement": {
+                "type": "location",
+                "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "c041b6f2-e7d3-4c6d-9f64-6c87458170dd": {
+              "placement": {
+                "type": "character",
+                "character": "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed": {
+              "location": "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "7a4cb0e6-446a-4a03-a9d8-edb49ebfedea": {},
+            "c041b6f2-e7d3-4c6d-9f64-6c87458170dd": {},
+            "d043460e-b02d-4f34-b6ae-2f2e22a7a9ed": {},
+            "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c": {}
+          },
+          "visits": {
+            "fc9d2cae-1053-4ef6-baa6-6d85aa2d360c": 1
+          },
+          "sequences": {},
+          "narrative": {
+            "active": "5a4e2a6a-51df-480b-a711-14246993df4a",
+            "conversations": {
+              "5a4e2a6a-51df-480b-a711-14246993df4a": {
+                "checkpoint": {
+                  "type": "entered",
+                  "node": "0a326f4d-1f4c-4ea6-ac6e-9ba1f322d7ad",
+                  "prompt": [
+                    {
+                      "text": "Keeper",
+                      "colour": null
+                    },
+                    {
+                      "text": " says: ",
+                      "colour": null
+                    },
+                    {
+                      "text": "My key! Thank you. Here are ten coins for your trouble.",
+                      "colour": null
+                    }
+                  ]
+                },
+                "visited": [
+                  "0a326f4d-1f4c-4ea6-ac6e-9ba1f322d7ad",
+                  "a1c14423-4386-4a72-bf6d-74444ca4e4a4",
+                  "c18af61f-3313-45a3-9b4d-748909ae468d",
+                  "ef15a425-52e4-480a-8502-baed7b49104e"
+                ],
+                "chosen": [
+                  "0ed1d088-9398-4b12-8c83-7cd6269ee1ef",
+                  "59202548-14a7-44de-97cd-f56fcf2904e1",
+                  "71b3b4d3-ed33-42b0-9c94-66d559526940",
+                  "b79141c5-3a09-407f-afd0-ef4407572a6a",
+                  "eedd4ada-c952-4e97-a69c-8af41915581b"
+                ]
+              }
+            },
+            "quests": {
+              "80dfba0b-8113-4c75-a4cd-9a31c07ec468": {
+                "status": "completed",
+                "stages": [
+                  "1f29313b-4c99-46f6-b699-f9db3a02d4da",
+                  "2dffe50c-e7c7-4ff7-b645-8ddb7a023904"
+                ],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "The Keeper asked me to find a lost key.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "stage",
+                      "stage": "1f29313b-4c99-46f6-b699-f9db3a02d4da"
+                    },
+                    "text": [
+                      {
+                        "text": "I found the brass key.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "stage",
+                      "stage": "2dffe50c-e7c7-4ff7-b645-8ddb7a023904"
+                    },
+                    "text": [
+                      {
+                        "text": "I returned the key to the Keeper.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "completed"
+                    },
+                    "text": [
+                      {
+                        "text": "The key is returned. I had 0 coins before the reward.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {
+              "f617df1e-9206-4c57-9561-5febabdcc2dd": 2
+            }
+          },
+          "hints": {}
+        }
+      }
+    ],
+    "checks": []
+  }
+}

@@ -1,9 +1,21 @@
+import { narrativeItem, construction } from './narrativeAuthoring';
 import type { Diagnostic, Project } from './contracts';
 import type { ReferenceSite } from './references';
 import { allEffects, entity, flowOwner, scripts, script } from './model';
 
 export type Finding = Diagnostic & ReferenceSite & { blockId?: string };
 export function findingSite(project: Project, diagnostic: Diagnostic): ReferenceSite {
+  const narrative = narrativeItem(project, diagnostic.subject);
+  if (narrative)
+    return {
+      subject: diagnostic.subject,
+      path: diagnostic.field,
+      scope: 'content',
+      flowId: 'effects' in narrative.value ? diagnostic.subject : undefined,
+      ...('conversation' in narrative
+        ? { conversationId: narrative.conversation.id }
+        : { questId: narrative.quest.id }),
+    };
   const selectedScript = script(project, diagnostic.subject);
   if (selectedScript)
     return {
@@ -55,5 +67,28 @@ export function findingSite(project: Project, diagnostic: Diagnostic): Reference
   };
 }
 export function connectedFindings(project: Project, diagnostics: Diagnostic[]): Finding[] {
-  return diagnostics.map((diagnostic) => ({ ...diagnostic, ...findingSite(project, diagnostic) }));
+  return diagnostics.map((diagnostic) => {
+    const draft = Object.values(project.editor.narrative_drafts ?? {})
+      .map((d) =>
+        d.type === 'conversation'
+          ? d.conversation.id
+          : d.type === 'quest'
+            ? d.quest.id
+            : d.type === 'dialogue'
+              ? d.node.id
+              : d.type === 'reply'
+                ? d.reply.id
+                : d.stage.id,
+      )
+      .find((id) => diagnostic.message.includes(id));
+    const item = draft ? narrativeItem(project, draft) : undefined;
+    return {
+      ...diagnostic,
+      ...findingSite(project, diagnostic),
+      message:
+        item && construction(project, item.value.id)
+          ? `${diagnostic.message}. Finish the construction draft “${'name' in item.value ? item.value.name : 'title' in item.value ? item.value.title : item.kind === 'reply' ? item.reply.text : 'Untitled'}” before using it.`
+          : diagnostic.message,
+    };
+  });
 }

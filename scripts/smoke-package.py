@@ -155,7 +155,7 @@ def main():
             # New-game defaults and the permanent parser fixture use the packaged
             # API/export, not a handwritten runner-only substitute.
             fresh = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser defaults"})
-            assert fresh["project"]["game"]["format_version"] == 4
+            assert fresh["project"]["game"]["format_version"] == 5
             assert fresh["project"]["game"]["command_assistance"]["clarification"]
             assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
             gallery = api("open", "POST", {"folder": "parser-gallery"})
@@ -242,6 +242,65 @@ def main():
             run(["run", workshop_game["id"], "--load", "completed"], "use bell\nquit\n", profile="workshop")
             assert workshop_state() == completed_workshop, "Completion restore replayed a hook"
 
+            # The complete N6 project is authored through forms and blocks in the
+            # browser suite, then retained alongside its actual editor export.
+            keeper = api("open", "POST", {"folder": "keeper-quest"})
+            keeper_project = keeper["project"]
+            keeper_game = keeper_project["game"]
+            keeper_bundle = work / "keeper-from-editor.luna"
+            keeper_bundle.write_bytes(api(f"projects/{keeper['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(keeper_bundle) as exported, zipfile.ZipFile(package / "examples/keeper-quest.luna") as checked:
+                assert json.loads(exported.read("manifest.json")) == json.loads(checked.read("manifest.json"))
+                assert not any(name.startswith("editor/") for name in exported.namelist())
+            for setup in keeper_project["editor"]["playtest"]["setups"]:
+                restored = api("playtests", "POST", {"project": keeper_project, "setup": setup})
+                assert setup["version"] == 3 and restored["state"] == setup["state"]
+                assert not restored["result"]["state_changed"], "Setup restore replayed narrative hooks"
+            run(["import", str(keeper_bundle)], profile="keeper")
+            keeper_saves = work / "keeper/saves" / keeper_game["id"] / keeper_game["content_version"]
+            key_id = next(o["id"] for o in keeper_project["objects"] if o["name"] == "Brass key")
+            speaker_id = keeper_project["characters"][0]["id"]
+            quest_id = keeper_project["quests"][0]["id"]
+
+            def keeper_state():
+                saved = json.loads((keeper_saves / "autosave.json").read_text())
+                assert saved["save_format"] == 5
+                return saved["state"]
+
+            run(["run", keeper_game["id"], "--new"],
+                "talk keeper\nsave greeting\nreply 2\ntalk keeper\nreply 1\nreply 1\nreply 1\n"
+                "take brass key\ntalk keeper\nsave handover\nquit\n", profile="keeper")
+            before_handover = keeper_state()
+            assert before_handover["variables"] == {
+                "coins": 0, "rewards": 0, "greeting_entries": 2,
+                "progress_entries": 2, "quest_starts": 1, "zero": 0,
+            }
+            assert before_handover["objects"][key_id]["placement"] == {"type": "inventory"}
+            rejected = run(["run", keeper_game["id"], "--load", "handover"],
+                           "reply 4\nsave failed\nquit\n", profile="keeper")
+            assert "You receive ten coins." not in rejected
+            assert keeper_state() == before_handover, "Failed reply leaked reward, journal or placement"
+            run(["run", keeper_game["id"], "--load", "failed"],
+                "reply 3\nsave rewarded\nquit\n", profile="keeper")
+            rewarded_keeper = keeper_state()
+            assert rewarded_keeper["variables"]["coins"] == 10 and rewarded_keeper["variables"]["rewards"] == 1
+            assert rewarded_keeper["objects"][key_id]["placement"] == {"type": "character", "character": speaker_id}
+            assert rewarded_keeper["narrative"]["quests"][quest_id]["status"] == "completed"
+            assert len(rewarded_keeper["narrative"]["quests"][quest_id]["journal"]) == 4
+            repeated = run(["run", keeper_game["id"], "--load", "rewarded"],
+                           "look\nquests\nquest key\nreply 1\ntalk keeper\ntalk keeper\nquit\n", profile="keeper")
+            assert repeated.count("Thank you again for finding my key.") == 2
+            assert "You receive ten coins." not in repeated
+            assert keeper_state()["variables"] == rewarded_keeper["variables"]
+            run(["run", keeper_game["id"], "--new"],
+                "take brass key\ntalk keeper\nreply 1\nquit\n", profile="keeper")
+            found_id = keeper_project["quests"][0]["stages"][0]["id"]
+            assert keeper_state()["narrative"]["quests"][quest_id]["stages"] == [found_id]
+            run(["run", keeper_game["id"], "--new"],
+                "talk keeper\nreply 1\nreply 3\ntalk keeper\nquit\n", profile="keeper")
+            assert keeper_state()["narrative"]["quests"][quest_id]["status"] == "failed"
+            assert keeper_state()["variables"]["coins"] == 0
+
             created_procedures = api("projects", "POST", {"folder": "smoke-procedures", "title": "Shared rewards"})
             procedure_project = created_procedures["project"]
             procedure_project["game"]["variables"] = {"rewards": 0}
@@ -282,10 +341,143 @@ def main():
             assert "Second reply" in resumed and "First reply" in resumed, resumed
             procedure_autosave = work / "procedures/saves" / procedure_game["id"] / procedure_game["content_version"] / "autosave.json"
             progress = json.loads(procedure_autosave.read_text())
-            assert progress["save_format"] == 4 and progress["state"]["variables"]["rewards"] == 3, progress
+            assert progress["save_format"] == 5 and progress["state"]["variables"]["rewards"] == 3, progress
             assert len(progress["state"]["procedure_sequences"]) == 2, progress
             run(["run", procedure_game["id"], "--load", "autosave"], "look\nquit\n", profile="procedures")
             assert json.loads(procedure_autosave.read_text())["state"] == progress["state"], "Restore replayed CALL effects"
+
+            # N2 checks persistence of an explicit synthetic checkpoint. This
+            # does not claim production conversation effects run yet.
+            narrative_project = json.loads((root / "tests/fixtures/narrative/content5.json").read_text())
+            narrative_state = json.loads((root / "tests/fixtures/narrative/state5.json").read_text())
+            created_narrative = api("projects", "POST", {"folder": "smoke-narrative", "title": "Narrative persistence"})
+            narrative_handle = created_narrative["handle"]
+            api(f"projects/{narrative_handle}", "PUT", {
+                "project": narrative_project, "revision": created_narrative["revision"],
+            })
+            playtest = api("playtests", "POST", {"project": narrative_project})
+            session = playtest["session"]
+            replaced = api(f"playtests/{session}/state", "PUT", {"state": narrative_state})
+            assert replaced["state"] == narrative_state
+            checkpoint = api(f"playtests/{session}/capture", "POST", {"name": "Narrative checkpoint"})
+            assert checkpoint["version"] == 3 and checkpoint["state"] == narrative_state
+            resumed = api("playtests", "POST", {"project": narrative_project, "setup": checkpoint})
+            assert resumed["state"] == narrative_state, "Setup restoration replayed narrative hooks"
+            narrative_bundle = work / "narrative-from-editor.luna"
+            narrative_bundle.write_bytes(api(f"projects/{narrative_handle}/export", "POST", raw=True))
+            with zipfile.ZipFile(narrative_bundle) as exported:
+                assert "conversations/unused-conversation.json" in exported.namelist()
+                assert "quests/missing.json" in exported.namelist()
+                assert not any(name.startswith("editor/") for name in exported.namelist())
+            run(["import", str(narrative_bundle)], profile="narrative")
+            narrative_game = narrative_project["game"]
+            run(["run", narrative_game["id"], "--new"], "look\nquit\n", profile="narrative")
+            narrative_saves = work / "narrative/saves" / narrative_game["id"] / narrative_game["content_version"]
+            narrative_autosave = narrative_saves / "autosave.json"
+            envelope = json.loads(narrative_autosave.read_text())
+            assert envelope["save_format"] == 5
+            envelope["state"] = narrative_state
+            narrative_autosave.write_text(json.dumps(envelope))
+            transcript = run(["run", narrative_game["id"], "--load", "autosave"],
+                             "use story\nsave continued\nquit\n", profile="narrative")
+            assert "The key was found." in transcript and "First" not in transcript, transcript
+            slots = [json.loads(path.read_text()) for path in narrative_saves.glob("*.json")]
+            continued = next(slot for slot in slots if slot.get("label") == "continued")
+            paused_narrative = {**narrative_state, "narrative": {**narrative_state["narrative"], "active": None}}
+            assert continued["save_format"] == 5 and continued["state"] == paused_narrative
+
+            # N3 earns canonical quest progress through native effects. Compare
+            # editor execution/captured setups with exported, separate CLI runs.
+            quest_project = json.loads((root / "tests/fixtures/narrative/quests5.json").read_text())
+            created_quest = api("projects", "POST", {"folder": "smoke-quests", "title": "Quest runtime"})
+            quest_handle = created_quest["handle"]
+            api(f"projects/{quest_handle}", "PUT", {
+                "project": quest_project, "revision": created_quest["revision"],
+            })
+            quest_playtest = api("playtests", "POST", {"project": quest_project})
+            quest_session = quest_playtest["session"]
+            for command in ["use accept", "use find"]:
+                api(f"playtests/{quest_session}/commands", "POST", {"command": command})
+            quest_setup = api(f"playtests/{quest_session}/capture", "POST", {"name": "Key found"})
+            quest_resumed = api("playtests", "POST", {"project": quest_project, "setup": quest_setup})
+            assert quest_resumed["state"] == quest_setup["state"]
+            for command in ["use return", "use complete", "use complete", "quest key"]:
+                quest_result = api(f"playtests/{quest_resumed['session']}/commands", "POST", {"command": command, "explain": True})
+            earned_quest = quest_result["state"]
+            assert not quest_result["result"]["state_changed"]
+            assert earned_quest["variables"]["rewards"] == 1
+            assert len(earned_quest["narrative"]["quests"]["missing"]["journal"]) == 4
+            quest_bundle = work / "quests-from-editor.luna"
+            quest_bundle.write_bytes(api(f"projects/{quest_handle}/export", "POST", raw=True))
+            run(["import", str(quest_bundle)], profile="quests")
+            quest_game = quest_project["game"]
+            run(["run", quest_game["id"], "--new"],
+                "use accept\nuse find\nsave progress\nquit\n", profile="quests")
+            quest_saves = work / "quests/saves" / quest_game["id"] / quest_game["content_version"]
+            assert json.loads((quest_saves / "autosave.json").read_text())["state"] == quest_setup["state"]
+            quest_transcript = run(["run", quest_game["id"], "--load", "progress"],
+                "use return\nuse complete\nquest key\nsave completed\nquit\n", profile="quests")
+            assert quest_transcript.count("Ten coins for your trouble.") == 1
+            assert "Coins before reward: 0." in quest_transcript
+            quest_auto = quest_saves / "autosave.json"
+            assert json.loads(quest_auto.read_text())["state"] == earned_quest
+            auto_bytes = quest_auto.read_bytes()
+            quest_transcript = run(["run", quest_game["id"], "--load", "autosave"],
+                "quests\nquest unknown\nquest key\nquit\n", profile="quests")
+            assert "Ten coins for your trouble." not in quest_transcript
+            assert quest_auto.read_bytes() == auto_bytes, "Quest queries rewrote autosave"
+
+            # N4 uses the same native conversation in HTTP reply controls and
+            # numbered terminal input, including entered checkpoints/revisits.
+            conversation_project = json.loads((root / "tests/fixtures/narrative/conversations5.json").read_text())
+            created_conversation = api("projects", "POST", {"folder": "smoke-conversations", "title": "Conversations"})
+            conversation_handle = created_conversation["handle"]
+            api(f"projects/{conversation_handle}", "PUT", {
+                "project": conversation_project, "revision": created_conversation["revision"],
+            })
+            conversation_play = api("playtests", "POST", {"project": conversation_project})
+            conversation_id = conversation_play["session"]
+            greeting = api(f"playtests/{conversation_id}/commands", "POST", {"command": "talk keeper"})
+            old_offer = greeting["result"]["conversation"]
+            conversation_setup = api(f"playtests/{conversation_id}/capture", "POST", {"name": "Keeper greeting"})
+            conversation_resumed = api("playtests", "POST", {"project": conversation_project, "setup": conversation_setup})
+            conversation_id = conversation_resumed["session"]
+            current_offer = conversation_resumed["result"]["conversation"]
+            assert current_offer["offer_token"] != old_offer["offer_token"]
+            assert conversation_resumed["state"] == greeting["state"]
+            rejected = api(f"playtests/{conversation_id}/replies", "POST", {
+                "offer_token": old_offer["offer_token"], "reply_id": "accept",
+            })
+            assert rejected["result"]["status"] == "unmatched" and rejected["state"] == greeting["state"]
+            api(f"playtests/{conversation_id}/replies", "POST", {
+                "offer_token": current_offer["offer_token"], "reply_id": "accept", "explain": True,
+            })
+            api(f"playtests/{conversation_id}/commands", "POST", {"command": "take brass key"})
+            current_offer = api(f"playtests/{conversation_id}/commands", "POST", {"command": "talk keeper"})["result"]["conversation"]
+            exchange = api(f"playtests/{conversation_id}/replies", "POST", {
+                "offer_token": current_offer["offer_token"], "reply_id": "handover", "explain": True,
+            })
+            assert exchange["state"]["variables"]["rewards"] == 1
+            for command in ["1", "talk keeper", "talk keeper"]:
+                conversation_final = api(f"playtests/{conversation_id}/commands", "POST", {"command": command})
+            assert "conversation" not in conversation_final["result"]
+            conversation_bundle = work / "conversations-from-editor.luna"
+            conversation_bundle.write_bytes(api(f"projects/{conversation_handle}/export", "POST", raw=True))
+            run(["import", str(conversation_bundle)], profile="conversations")
+            conversation_game = conversation_project["game"]
+            run(["run", conversation_game["id"], "--new"], "talk keeper\nsave greeting\nquit\n", profile="conversations")
+            conversation_saves = work / "conversations/saves" / conversation_game["id"] / conversation_game["content_version"]
+            conversation_auto = conversation_saves / "autosave.json"
+            assert json.loads(conversation_auto.read_text())["state"] == greeting["state"]
+            exchange_text = run(["run", conversation_game["id"], "--load", "greeting"],
+                "1\ntake brass key\ntalk keeper\nreply 2\nsave exchange\nquit\n", profile="conversations")
+            assert exchange_text.count("Ten coins for your trouble.") == 1
+            assert json.loads(conversation_auto.read_text())["state"] == exchange["state"]
+            revisit_text = run(["run", conversation_game["id"], "--load", "exchange"],
+                "1\ntalk keeper\ntalk keeper\nsave completed\nquit\n", profile="conversations")
+            assert "Ten coins for your trouble." not in revisit_text
+            assert revisit_text.count("Thank you again for finding my key.") == 2
+            assert json.loads(conversation_auto.read_text())["state"] == conversation_final["state"]
 
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
@@ -319,7 +511,7 @@ def main():
             assert "Outcome:" not in completed, completed
             autosave = work / "no-outcome/saves" / game["id"] / game["content_version"] / "autosave.json"
             state = json.loads(autosave.read_text())
-            assert state["save_format"] == (4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
+            assert state["save_format"] == (5 if game["format_version"] >= 5 else 4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
             assert state["state"]["ending"] == "finish", state
         finally:
             if editor is not None and editor.poll() is None:
@@ -331,7 +523,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

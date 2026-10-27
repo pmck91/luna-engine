@@ -1,0 +1,123 @@
+{
+  "version": 3,
+  "id": "narrative-checkpoint",
+  "name": "Narrative checkpoint",
+  "source": {
+    "revision": "fixture",
+    "title": "Narrative persistence",
+    "content_version": "0.1.0",
+    "help_mode": "basic"
+  },
+  "state": {
+    "characters": {
+      "keeper": {
+        "hidden": false,
+        "location": "study"
+      }
+    },
+    "content_version": "0.1.0",
+    "ending": null,
+    "game_id": "narrative-foundation",
+    "hints": {},
+    "location": "study",
+    "narrative": {
+      "active": "conversation",
+      "conversations": {
+        "conversation": {
+          "checkpoint": {
+            "node": "progress",
+            "prompt": [
+              {
+                "colour": null,
+                "text": "Keeper says: Any news?"
+              }
+            ],
+            "type": "entered"
+          },
+          "chosen": ["accept"],
+          "visited": ["greeting", "progress"]
+        }
+      },
+      "quests": {
+        "missing": {
+          "journal": [
+            {
+              "kind": {
+                "type": "started"
+              },
+              "text": [
+                {
+                  "colour": null,
+                  "text": "Find the Keeper's key."
+                }
+              ]
+            },
+            {
+              "kind": {
+                "stage": "found",
+                "type": "stage"
+              },
+              "text": [
+                {
+                  "colour": null,
+                  "text": "Found the key with "
+                },
+                {
+                  "colour": "cyan",
+                  "text": "0"
+                },
+                {
+                  "colour": null,
+                  "text": " coins."
+                }
+              ]
+            }
+          ],
+          "stages": ["found"],
+          "status": "active"
+        }
+      },
+      "sequences": {
+        "greeting-sequence": 3
+      }
+    },
+    "objects": {},
+    "procedure_sequences": [
+      {
+        "cursor": 1,
+        "path": {
+          "calls": ["greeting-call"],
+          "root": "greeting",
+          "sequence": "award-sequence"
+        }
+      },
+      {
+        "cursor": 1,
+        "path": {
+          "calls": ["quest-start-call"],
+          "root": "quest-start",
+          "sequence": "award-sequence"
+        }
+      },
+      {
+        "cursor": 1,
+        "path": {
+          "calls": ["stage-call"],
+          "root": "returned",
+          "sequence": "award-sequence"
+        }
+      }
+    ],
+    "properties": {
+      "keeper": {},
+      "study": {}
+    },
+    "sequences": {},
+    "variables": {
+      "coins": 0
+    },
+    "visits": {
+      "study": 1
+    }
+  }
+}

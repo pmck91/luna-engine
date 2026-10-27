@@ -217,7 +217,7 @@ test('review and repair signature drafts, preserve values through undo, and prot
   page.setDefaultTimeout(10000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  const folder = `procedure-repair-${info.project.name}`;
+  const folder = `procedure-repair-${info.project.name}-${info.repeatEachIndex}`;
   await seedProject(page, folder, (project) => {
     project.game.variables.score = 0;
     project.procedures = [
