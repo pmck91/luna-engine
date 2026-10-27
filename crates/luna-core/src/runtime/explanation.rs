@@ -471,6 +471,16 @@ impl Run<'_> {
             *fired = true;
         }
     }
+    pub(super) fn narrative_applied(&mut self) {
+        if let Some(step) = self
+            .recording
+            .as_mut()
+            .and_then(|r| self.trace_parent.and_then(|i| r.steps.get_mut(i)))
+            && let TraceKind::Narrative { applied, .. } = &mut step.kind
+        {
+            *applied = true;
+        }
+    }
     pub(super) fn arithmetic_result(&mut self, value: &Value) {
         if let Some(step) = self
             .recording

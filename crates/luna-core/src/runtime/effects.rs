@@ -33,6 +33,9 @@ impl<'a> Run<'a> {
         if let Some(cursor) = self.narrative_cursor(id)? {
             return Ok(cursor);
         }
+        if self.story_index.owns_sequence(&self.invocation.root, id) {
+            return Ok(self.state.narrative.sequences.get(id).copied().unwrap_or(0));
+        }
         self.state
             .sequences
             .get(id)
@@ -51,6 +54,17 @@ impl<'a> Run<'a> {
         } else {
             #[cfg(test)]
             if self.narrative_set_cursor(id, cursor)? {
+                return Ok(());
+            }
+            if self.story_index.owns_sequence(&self.invocation.root, id) {
+                if !self.state.narrative.sequences.contains_key(id) {
+                    self.reserve_story(1, 0)?;
+                }
+                self.state
+                    .to_mut()
+                    .narrative
+                    .sequences
+                    .insert(id.into(), cursor);
                 return Ok(());
             }
             *self
@@ -108,13 +122,21 @@ impl<'a> Run<'a> {
         match effect {
             Effect::StartConversation { .. }
             | Effect::PauseConversation { .. }
-            | Effect::EndConversation { .. }
-            | Effect::StartQuest { .. }
-            | Effect::CompleteQuestStage { .. }
-            | Effect::CompleteQuest { .. }
-            | Effect::FailQuest { .. } => anyhow::bail!(
-                "Narrative execution is not yet available on this feature branch (N3/N4)"
+            | Effect::EndConversation { .. } => anyhow::bail!(
+                "Conversation execution is not yet available on this feature branch (N4)"
             ),
+            Effect::StartQuest { quest } => {
+                return self.quest_transition(quest, luna_model::QuestStatus::Active, None);
+            }
+            Effect::CompleteQuestStage { quest, stage } => {
+                return self.quest_transition(quest, luna_model::QuestStatus::Active, Some(stage));
+            }
+            Effect::CompleteQuest { quest } => {
+                return self.quest_transition(quest, luna_model::QuestStatus::Completed, None);
+            }
+            Effect::FailQuest { quest } => {
+                return self.quest_transition(quest, luna_model::QuestStatus::Failed, None);
+            }
             Effect::Call {
                 id,
                 procedure,

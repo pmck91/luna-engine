@@ -1,5 +1,7 @@
 #[path = "../../../tests/support/narrative.rs"]
 mod fixture;
+#[path = "../../../tests/support/quests.rs"]
+mod quests;
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -240,4 +242,102 @@ async fn editor_save_reopen_keeps_setups_and_managed_definitions_while_export_ex
     assert_eq!(runtime.conversations, p.conversations);
     assert_eq!(runtime.quests, p.quests);
     assert!(runtime.editor.playtest.is_none());
+}
+
+#[tokio::test]
+async fn played_quest_api_matches_the_core_and_captured_setups_never_replay_hooks() {
+    let temp = tempfile::tempdir().unwrap();
+    let app = router(
+        App::new(
+            temp.path().join("config.json"),
+            Some(temp.path().join("projects")),
+            "narrative".into(),
+        )
+        .unwrap(),
+    );
+    let p = quests::project();
+    for explain in [false, true] {
+        let started = ok(&app, "POST", "/playtests", json!({"project":p})).await;
+        let id = started["session"].as_str().unwrap();
+        let (mut expected, _) = Session::start(p.clone(), None).unwrap();
+        for command in ["quests", "use accept", "use return", "use find"] {
+            let core = if explain {
+                expected.command_explained(command)
+            } else {
+                expected.command(command).unwrap()
+            };
+            let actual = ok(
+                &app,
+                "POST",
+                &format!("/playtests/{id}/commands"),
+                json!({"command":command,"explain":explain}),
+            )
+            .await;
+            assert_eq!(
+                actual["state"],
+                serde_json::to_value(expected.state()).unwrap()
+            );
+            assert_eq!(actual["result"], serde_json::to_value(core).unwrap());
+        }
+        let setup = ok(
+            &app,
+            "POST",
+            &format!("/playtests/{id}/capture"),
+            json!({"name":"Earned quest progress"}),
+        )
+        .await;
+        assert_eq!(setup["version"], 3);
+        let resumed = ok(
+            &app,
+            "POST",
+            "/playtests",
+            json!({"project":p,"setup":setup}),
+        )
+        .await;
+        assert_eq!(
+            resumed["state"],
+            serde_json::to_value(expected.state()).unwrap()
+        );
+        let resumed_id = resumed["session"].as_str().unwrap();
+        for command in [
+            "use accept",
+            "use return",
+            "use complete",
+            "use complete",
+            "quest key",
+        ] {
+            let core = expected.command_explained(command);
+            let actual = ok(
+                &app,
+                "POST",
+                &format!("/playtests/{resumed_id}/commands"),
+                json!({"command":command,"explain":true}),
+            )
+            .await;
+            assert_eq!(actual["result"], serde_json::to_value(core).unwrap());
+            assert_eq!(
+                actual["state"],
+                serde_json::to_value(expected.state()).unwrap()
+            );
+        }
+        assert_eq!(expected.state().variables["rewards"], Value::Integer(1));
+        let completed = ok(
+            &app,
+            "POST",
+            &format!("/playtests/{resumed_id}/capture"),
+            json!({"name":"Earned completion"}),
+        )
+        .await;
+        let resumed = ok(
+            &app,
+            "POST",
+            "/playtests",
+            json!({"project":p,"setup":completed}),
+        )
+        .await;
+        assert_eq!(
+            resumed["state"],
+            serde_json::to_value(expected.state()).unwrap()
+        );
+    }
 }

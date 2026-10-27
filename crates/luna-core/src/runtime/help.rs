@@ -170,6 +170,9 @@ impl<'a> Run<'a> {
         self.literal(
             "Controls: look, inventory, help [entity], hint [entity], save [name], load [name], saves, quit.",
         );
+        if self.p.game.format_version >= 5 {
+            self.literal("Quest log: quests, quest <title or alias>.");
+        }
         Ok(())
     }
 }

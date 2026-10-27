@@ -1,6 +1,6 @@
 # Conversations and quests — N2 model and persistence
 
-Status: **N2 implemented and technically verified; N3 next**, 27 October 2026, on `feature/conversations-and-quests`. N1 is committed as `ef05c93`; the owner accepted it and requested moving forward. The [frozen contract](interaction-contract.md) and [N1 evidence](runtime-proof-review.md) remain the target; the accepted [N0 preview](README.md) remains the authoring/player design. Quest execution, conversation selection and production authoring remain N3–N5 under the [implementation plan](../../plans/conversations-and-quests.md).
+Status: **N2 owner accepted and committed as `3ad459e`**, 27 October 2026, on `feature/conversations-and-quests`. N1 is committed as `ef05c93`; the owner accepted it and requested moving forward. The [frozen contract](interaction-contract.md) and [N1 evidence](runtime-proof-review.md) remain the target; the accepted [N0 preview](README.md) remains the authoring/player design. The [N3 review](quest-runtime-review.md) now covers canonical quest execution/logs; conversation selection and production authoring remain N4/N5 under the [implementation plan](../../plans/conversations-and-quests.md).
 
 ## Delivered foundation
 
@@ -46,7 +46,7 @@ The complete browser run exposed an existing focus race: a delayed playtest resp
 
 The frontend build retains its existing large-chunk advisory. Focused tests live in the model/core/project/editor/runner narrative suites and `web/src/narrativeModel.test.ts`; they use shared canonical fixtures rather than the N1 sidecar as persistence evidence.
 
-This milestone does not make the combined feature playable. Narrative effects currently return an explicit execution error on this branch instead of silently doing nothing; N3/N4 replace that guard with canonical execution. The numbered/token-bearing selection API, offer refresh, quest log, real transition traces, startup/all-owner execution and promotion of the N1 behavioural scenarios remain those milestones' work. The N2 process tests continue an explicitly constructed valid checkpoint using native commands; they do not claim an authored production conversation has run. Production block/graph authoring and final UI/runner parity remain N5/N6. Do not publish a new-format narrative game until those gates pass.
+This milestone does not make the combined feature playable. At N2 completion narrative effects returned an explicit execution error; N3 now replaces the quest guards with canonical execution, and conversation execution remains guarded until N4. The N3 record covers the quest log, native transition traces, startup/hooks and promotion of quest behaviours. The numbered/token-bearing conversation selection API, offer refresh and dialogue behavioural promotion remain N4 work. The N2 process tests continue an explicitly constructed valid checkpoint using native commands; they do not claim an authored production conversation has run. Production block/graph authoring and final UI/runner parity remain N5/N6. Do not publish a new-format narrative game until those gates pass.
 
 Reproduce the principal checks:
 

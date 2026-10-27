@@ -30,6 +30,7 @@ fn main() -> Result<()> {
         QuestProgress,
         JournalEntry,
         JournalKind,
+        QuestLogEntry,
         Argument,
         BoundArgument,
         ScopedPlacement,

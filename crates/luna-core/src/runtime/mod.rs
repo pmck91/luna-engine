@@ -26,6 +26,7 @@ mod matching;
 pub(crate) mod narrative_proof;
 mod presentation;
 mod procedures;
+mod quests;
 mod relations;
 pub(crate) mod resolution;
 mod values;
@@ -58,6 +59,7 @@ pub(crate) struct Run<'a> {
     item_input: Option<&'a str>,
     relations: RefCell<HashMap<usize, relations::Relation>>,
     mutation_events: Vec<(luna_model::Event, String)>,
+    story_usage: (usize, usize),
 }
 #[derive(PartialEq)]
 enum Flow {
@@ -75,6 +77,7 @@ impl<'a> Run<'a> {
     }
 
     fn with_state(definition: &'a GameDefinition, state: Cow<'a, GameState>) -> Self {
+        let story_usage = (state.narrative.entry_count(), state.narrative.text_bytes());
         Self {
             #[cfg(test)]
             narrative: None,
@@ -97,6 +100,7 @@ impl<'a> Run<'a> {
             item_input: None,
             relations: RefCell::new(HashMap::new()),
             mutation_events: vec![],
+            story_usage,
         }
     }
     fn world_mut(&mut self) -> &mut GameState {

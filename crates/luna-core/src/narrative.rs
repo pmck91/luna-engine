@@ -3,6 +3,53 @@ use anyhow::{Context, Result, ensure};
 use luna_model::*;
 use std::collections::{BTreeMap, BTreeSet};
 
+/// A discovered quest's player-safe log, in earned journal order.
+///
+/// Contains no future stages, conditions, hooks or rewards. Text is the saved
+/// semantic snapshot, never re-formatted against current world values.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+pub struct QuestLogEntry {
+    /// Stable quest identity.
+    pub quest: String,
+    /// Player-facing authored title.
+    pub title: String,
+    /// Discovered status; this view never contains Undiscovered entries.
+    pub status: QuestStatus,
+    /// Only earned status and stage entries, preserving their semantic spans.
+    pub journal: Vec<JournalEntry>,
+}
+
+pub(crate) fn quest_log(p: &Project, state: &GameState, query: Option<&str>) -> Vec<QuestLogEntry> {
+    let mut known: Vec<_> = p
+        .quests
+        .iter()
+        .filter_map(|q| {
+            let progress = state.narrative.quests.get(&q.id)?;
+            if query.is_some_and(|query| {
+                !std::iter::once(&q.title)
+                    .chain(&q.aliases)
+                    .any(|name| normalize(name) == query)
+            }) {
+                return None;
+            }
+            (progress.status != QuestStatus::Undiscovered).then(|| QuestLogEntry {
+                quest: q.id.clone(),
+                title: q.title.clone(),
+                status: progress.status,
+                journal: progress.journal.clone(),
+            })
+        })
+        .collect();
+    // Stable sorting keeps author order within a status, regardless of map IDs.
+    known.sort_by_key(|q| match q.status {
+        QuestStatus::Active => 0,
+        QuestStatus::Completed => 1,
+        QuestStatus::Failed => 2,
+        QuestStatus::Undiscovered => 3,
+    });
+    known
+}
+
 #[derive(Default)]
 pub(crate) struct NarrativeIndex {
     pub conversations: BTreeMap<String, usize>,
@@ -11,6 +58,7 @@ pub(crate) struct NarrativeIndex {
     replies: BTreeMap<String, (usize, usize)>,
     stages: BTreeMap<String, (usize, usize)>,
     sequences: BTreeMap<String, usize>,
+    sequence_roots: BTreeMap<String, String>,
 }
 impl NarrativeIndex {
     pub fn new(p: &Project) -> Self {
@@ -30,7 +78,7 @@ impl NarrativeIndex {
                 out.stages.insert(s.id.clone(), (qi, si));
             }
         }
-        for (_, body) in p.narrative_roots() {
+        for (root, body) in p.narrative_roots() {
             let mut effects = vec![];
             walk_effects(body, &mut effects);
             for effect in effects {
@@ -48,6 +96,7 @@ impl NarrativeIndex {
                         responses.len() - 1
                     };
                     out.sequences.insert(id.clone(), max);
+                    out.sequence_roots.insert(id.clone(), root.into());
                 }
             }
         }
@@ -55,6 +104,17 @@ impl NarrativeIndex {
     }
     pub fn has_quest(&self, id: &str) -> bool {
         self.quests.contains_key(id)
+    }
+    pub fn stage(&self, quest: usize, stage: &str) -> Option<usize> {
+        self.stages
+            .get(stage)
+            .filter(|(owner, _)| *owner == quest)
+            .map(|(_, si)| *si)
+    }
+    pub fn owns_sequence(&self, root: &str, sequence: &str) -> bool {
+        self.sequence_roots
+            .get(sequence)
+            .is_some_and(|owner| owner == root)
     }
     pub fn has_node(&self, conversation: &str, node: &str) -> bool {
         self.conversations

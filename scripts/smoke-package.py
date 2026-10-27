@@ -288,7 +288,7 @@ def main():
             assert json.loads(procedure_autosave.read_text())["state"] == progress["state"], "Restore replayed CALL effects"
 
             # N2 checks persistence of an explicit synthetic checkpoint. This
-            # does not claim production conversation/quest effects run yet.
+            # does not claim production conversation effects run yet.
             narrative_project = json.loads((root / "tests/fixtures/narrative/content5.json").read_text())
             narrative_state = json.loads((root / "tests/fixtures/narrative/state5.json").read_text())
             created_narrative = api("projects", "POST", {"folder": "smoke-narrative", "title": "Narrative persistence"})
@@ -325,6 +325,47 @@ def main():
             slots = [json.loads(path.read_text()) for path in narrative_saves.glob("*.json")]
             continued = next(slot for slot in slots if slot.get("label") == "continued")
             assert continued["save_format"] == 5 and continued["state"] == narrative_state
+
+            # N3 earns canonical quest progress through native effects. Compare
+            # editor execution/captured setups with exported, separate CLI runs.
+            quest_project = json.loads((root / "tests/fixtures/narrative/quests5.json").read_text())
+            created_quest = api("projects", "POST", {"folder": "smoke-quests", "title": "Quest runtime"})
+            quest_handle = created_quest["handle"]
+            api(f"projects/{quest_handle}", "PUT", {
+                "project": quest_project, "revision": created_quest["revision"],
+            })
+            quest_playtest = api("playtests", "POST", {"project": quest_project})
+            quest_session = quest_playtest["session"]
+            for command in ["use accept", "use find"]:
+                api(f"playtests/{quest_session}/commands", "POST", {"command": command})
+            quest_setup = api(f"playtests/{quest_session}/capture", "POST", {"name": "Key found"})
+            quest_resumed = api("playtests", "POST", {"project": quest_project, "setup": quest_setup})
+            assert quest_resumed["state"] == quest_setup["state"]
+            for command in ["use return", "use complete", "use complete", "quest key"]:
+                quest_result = api(f"playtests/{quest_resumed['session']}/commands", "POST", {"command": command, "explain": True})
+            earned_quest = quest_result["state"]
+            assert not quest_result["result"]["state_changed"]
+            assert earned_quest["variables"]["rewards"] == 1
+            assert len(earned_quest["narrative"]["quests"]["missing"]["journal"]) == 4
+            quest_bundle = work / "quests-from-editor.luna"
+            quest_bundle.write_bytes(api(f"projects/{quest_handle}/export", "POST", raw=True))
+            run(["import", str(quest_bundle)], profile="quests")
+            quest_game = quest_project["game"]
+            run(["run", quest_game["id"], "--new"],
+                "use accept\nuse find\nsave progress\nquit\n", profile="quests")
+            quest_saves = work / "quests/saves" / quest_game["id"] / quest_game["content_version"]
+            assert json.loads((quest_saves / "autosave.json").read_text())["state"] == quest_setup["state"]
+            quest_transcript = run(["run", quest_game["id"], "--load", "progress"],
+                "use return\nuse complete\nquest key\nsave completed\nquit\n", profile="quests")
+            assert quest_transcript.count("Ten coins for your trouble.") == 1
+            assert "Coins before reward: 0." in quest_transcript
+            quest_auto = quest_saves / "autosave.json"
+            assert json.loads(quest_auto.read_text())["state"] == earned_quest
+            auto_bytes = quest_auto.read_bytes()
+            quest_transcript = run(["run", quest_game["id"], "--load", "autosave"],
+                "quests\nquest unknown\nquest key\nquit\n", profile="quests")
+            assert "Ten coins for your trouble." not in quest_transcript
+            assert quest_auto.read_bytes() == auto_bytes, "Quest queries rewrote autosave"
 
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
@@ -370,7 +411,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, narrative persistence, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, narrative persistence/quest execution, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

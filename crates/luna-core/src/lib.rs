@@ -68,6 +68,7 @@ mod runtime;
 mod session;
 
 pub use definition::{GameDefinition, validate_state};
+pub use narrative::QuestLogEntry;
 pub use runtime::explanation::{
     CommandExplanation, NarrativeOperation, ProcedureBinding, ProcedureReturn, TraceChange,
     TraceKind, TraceOutcome, TraceSource, TraceStep,

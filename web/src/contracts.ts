@@ -47,6 +47,24 @@ export type JournalEntry = { kind: JournalKind, text: Array<Span>, };
 
 export type JournalKind = { "type": "started" } | { "type": "stage", stage: string, } | { "type": "completed" } | { "type": "failed" };
 
+export type QuestLogEntry = {
+/**
+ * Stable quest identity.
+ */
+quest: string,
+/**
+ * Player-facing authored title.
+ */
+title: string,
+/**
+ * Discovered status; this view never contains Undiscovered entries.
+ */
+status: QuestStatus,
+/**
+ * Only earned status and stage entries, preserving their semantic spans.
+ */
+journal: Array<JournalEntry>, };
+
 export type Argument = { "type": "literal", value: Value, } | { "type": "entity", kind: InputKind, id: string, } | { "type": "variable", name: string, } | { "type": "property", entity: EntityRef, name: string, } | { "type": "input", input: string, } | { "type": "command_item" };
 
 export type BoundArgument = { "type": "value", value: Value, } | { "type": "entity", kind: InputKind, id: string, };

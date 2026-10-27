@@ -67,6 +67,7 @@ impl Session {
             let id = run.state.location.clone();
             run.enter(&id)?;
         }
+        run.check_story_bounds()?;
         run.result.state_changed = true;
         let Run { state, result, .. } = run;
         session.state = state.into_owned();
@@ -131,6 +132,15 @@ impl Session {
     /// state replacement clears it; this view is never part of saved GameState.
     pub fn pending_clarification(&self) -> Option<crate::ClarificationQuestion> {
         self.context.question()
+    }
+
+    /// Return discovered quests, active first, then completed and failed.
+    ///
+    /// Retains author order within each status and only earned journal snapshots.
+    /// Reading the log runs no hooks, changes no input context, and works after
+    /// game completion. Undiscovered quests and future stages remain private.
+    pub fn quest_log(&self) -> Vec<crate::QuestLogEntry> {
+        crate::narrative::quest_log(self.project(), &self.state, None)
     }
 
     /// Consume this session and return its complete state for storage or transfer.
@@ -252,7 +262,9 @@ impl Session {
         if explain {
             run.recording = Some(explanation::Recorder::default());
         }
-        let error = command(&mut run).err();
+        let error = command(&mut run)
+            .and_then(|()| run.check_story_bounds())
+            .err();
         if let Some(recorder) = run.recording.take() {
             let discarded = if error.is_some() {
                 std::mem::take(&mut run.result.messages)

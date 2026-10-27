@@ -5,7 +5,51 @@ import type { Project } from '../../src/contracts';
 const content = JSON.parse(
   readFileSync(new URL('../../../tests/fixtures/narrative/content5.json', import.meta.url), 'utf8'),
 ) as Project;
+const questContent = JSON.parse(
+  readFileSync(new URL('../../../tests/fixtures/narrative/quests5.json', import.meta.url), 'utf8'),
+) as Project;
 import { seedProject } from '../editor';
+
+test('native quest progress and earned log run through the playtest transcript', async ({
+  page,
+}, info) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await seedProject(page, `quest-runtime-${info.project.name}-${info.repeatEachIndex}`, (project) =>
+    Object.assign(project, structuredClone(questContent)),
+  );
+  await page.getByRole('button', { name: 'Start playtest', exact: true }).click();
+  const input = page.getByLabel('Player command', { exact: true });
+  const transcript = page.getByRole('log', { name: 'Game transcript' });
+  async function send(command: string) {
+    await input.fill(command);
+    const response = page.waitForResponse(
+      (response) => response.url().endsWith('/commands') && response.request().method() === 'POST',
+    );
+    await input.press('Enter');
+    const result = await response;
+    expect(result.ok()).toBe(true);
+    await expect(input).toBeEnabled();
+    return (await result.json()).result;
+  }
+  await send('quest key');
+  await expect(transcript).toContainText('No known quest matches that name.');
+  await send('use accept');
+  await send('quests');
+  await expect(transcript).toContainText('The Missing Key — Active');
+  await expect(transcript).not.toContainText('Found the key.');
+  await send('use find');
+  await send('use return');
+  await send('use complete');
+  const view = await send('quest key');
+  expect(view.state_changed).toBe(false);
+  await expect(transcript).toContainText('The Missing Key — Completed');
+  await expect(transcript).toContainText('Coins before reward: 0.');
+  await send('use complete');
+  await send('use accept');
+  await expect(transcript.getByText('Ten coins for your trouble.', { exact: true })).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
 
 test('ordinary authoring preserves content five and unused canonical narrative collections', async ({
   page,

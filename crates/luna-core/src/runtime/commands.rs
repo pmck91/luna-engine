@@ -13,6 +13,11 @@ impl<'a> Run<'a> {
         if self.narrative.as_ref().is_some_and(|n| !n.dispatching) {
             return self.narrative_command(input);
         }
+        // Read-only quest controls own their prefix before F2 resolution. They
+        // preserve both an outstanding noun question and recent-object context.
+        if self.quest_control(input)? {
+            return Ok(());
+        }
         if let Some(settings) = self.p.game.command_assistance.as_ref()
             && (settings.clarification || settings.recent_objects)
         {

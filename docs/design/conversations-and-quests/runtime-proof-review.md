@@ -1,6 +1,6 @@
 # Conversations and quests — N1 runtime proof
 
-Status: **N1 proof complete; N2 foundation implemented**, 27 October 2026, on `feature/conversations-and-quests`. The owner accepted the revised [N0 design](README.md) with “perfect that looks much better”; it is committed as `4b613a9`. The [shared contract](interaction-contract.md) freezes the next implementation target. N1 is committed as `ef05c93`; the [N2 record](foundation-review.md) now covers canonical models/persistence. Production execution/authoring and final acceptance remain outstanding under [N3–N6](../../plans/conversations-and-quests.md#implementation-milestones-on-the-feature-branch).
+Status: **N1 proof complete; N2 foundation and N3 quests implemented**, 27 October 2026, on `feature/conversations-and-quests`. The owner accepted the revised [N0 design](README.md) with “perfect that looks much better”; it is committed as `4b613a9`. The [shared contract](interaction-contract.md) freezes the next implementation target. N1 is committed as `ef05c93`; the [N2 record](foundation-review.md) now covers canonical models/persistence. The [N3 review](quest-runtime-review.md) now covers canonical quest runtime/log regressions and played host persistence; the candidate quest checks remain historical proof alongside them. Conversation execution, production authoring and final acceptance remain outstanding under [N4–N6](../../plans/conversations-and-quests.md#implementation-milestones-on-the-feature-branch).
 
 ## What executes
 

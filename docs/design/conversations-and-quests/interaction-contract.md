@@ -1,6 +1,6 @@
 # Conversations and quests — N1 shared contract
 
-Status: **N1 proof complete; implementation contract frozen**, 27 October 2026. The owner accepted the revised [N0 design](README.md) with “perfect that looks much better,” retaining prewritten choices, clearer connections and separate terminal/revisit dialogue. N0 is committed as `4b613a9`. The [N1 evidence record](runtime-proof-review.md) records 47 shared-Rust candidate regressions and their limits. This froze the N2 implementation target. The [N2 foundation record](foundation-review.md) now covers implemented models/storage; production execution, authoring and final acceptance remain N3–N6 work.
+Status: **N1 proof complete; implementation contract frozen**, 27 October 2026. The owner accepted the revised [N0 design](README.md) with “perfect that looks much better,” retaining prewritten choices, clearer connections and separate terminal/revisit dialogue. N0 is committed as `4b613a9`. The [N1 evidence record](runtime-proof-review.md) records 47 shared-Rust candidate regressions and their limits. This froze the N2 implementation target. The [N2 foundation record](foundation-review.md) now covers implemented models/storage; the [N3 review](quest-runtime-review.md) covers canonical quest execution/logs. Conversation execution, production authoring and final acceptance remain N4–N6 work.
 
 ## Baseline and scope
 
