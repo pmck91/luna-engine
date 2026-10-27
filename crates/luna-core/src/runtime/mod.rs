@@ -40,6 +40,7 @@ pub(crate) struct Run<'a> {
     #[cfg(test)]
     pub(crate) narrative: Option<narrative_proof::Execution>,
     p: &'a Project,
+    story_index: &'a crate::narrative::NarrativeIndex,
     index: &'a RuntimeIndex,
     procedure_index: &'a crate::procedures::ProcedureIndex,
     invocation: procedures::Invocation,
@@ -78,6 +79,7 @@ impl<'a> Run<'a> {
             #[cfg(test)]
             narrative: None,
             p: definition.project(),
+            story_index: definition.narrative(),
             index: definition.runtime(),
             procedure_index: definition.procedures(),
             invocation: procedures::Invocation::default(),

@@ -61,6 +61,7 @@ use ts_rs::TS;
 
 mod definition;
 mod input;
+mod narrative;
 mod procedures;
 pub use input::*;
 mod runtime;
@@ -68,8 +69,8 @@ mod session;
 
 pub use definition::{GameDefinition, validate_state};
 pub use runtime::explanation::{
-    CommandExplanation, ProcedureBinding, ProcedureReturn, TraceChange, TraceKind, TraceOutcome,
-    TraceSource, TraceStep,
+    CommandExplanation, NarrativeOperation, ProcedureBinding, ProcedureReturn, TraceChange,
+    TraceKind, TraceOutcome, TraceSource, TraceStep,
 };
 pub use runtime::host_control;
 pub use session::Session;

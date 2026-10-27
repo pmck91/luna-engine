@@ -616,6 +616,7 @@ export default function App() {
   const send = async (submitted?: string) => {
     const command = (submitted ?? input).trim();
     if (!play || !command || busy) return;
+    const submittedFocus = document.activeElement;
     setInput('');
     const next = [...history, command];
     setHistory(next);
@@ -653,7 +654,13 @@ export default function App() {
       error(e);
     } finally {
       setBusy(false);
-      requestAnimationFrame(() => playerCommand.current?.focus());
+      requestAnimationFrame(() => {
+        // A command may finish after the author has moved to another control.
+        // Restore playtest focus only if that would not replace their new focus.
+        const active = document.activeElement;
+        if (!active || active === document.body || active === submittedFocus)
+          playerCommand.current?.focus();
+      });
     }
   };
   const create = async () => {

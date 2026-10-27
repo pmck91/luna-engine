@@ -116,6 +116,10 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
       case 'at':
       case 'visited':
         return { ...v, location: location(v.location) };
+      case 'conversation_node_visited':
+      case 'conversation_reply_chosen':
+      case 'quest_status':
+      case 'quest_stage_completed':
       case 'true':
       case 'false':
       case 'variable':
@@ -204,6 +208,13 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
         return { ...v, entity: reference(v.entity, ['object', 'character']) };
       case 'combine':
         return { ...v, first: object(v.first), second: object(v.second), result: object(v.result) };
+      case 'start_conversation':
+      case 'pause_conversation':
+      case 'end_conversation':
+      case 'start_quest':
+      case 'complete_quest_stage':
+      case 'complete_quest':
+      case 'fail_quest':
       case 'set_variable':
       case 'reset_responses':
       case 'end':

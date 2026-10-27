@@ -1,6 +1,6 @@
 # Conversations and quests — N1 shared contract
 
-Status: **N1 proof complete; implementation contract frozen**, 27 October 2026. The owner accepted the revised [N0 design](README.md) with “perfect that looks much better,” retaining prewritten choices, clearer connections and separate terminal/revisit dialogue. N0 is committed as `4b613a9`. The [N1 evidence record](runtime-proof-review.md) records 47 shared-Rust candidate regressions and their limits. This freezes the N2 implementation target; production storage/runtime and final owner acceptance remain N2–N6 work.
+Status: **N1 proof complete; implementation contract frozen**, 27 October 2026. The owner accepted the revised [N0 design](README.md) with “perfect that looks much better,” retaining prewritten choices, clearer connections and separate terminal/revisit dialogue. N0 is committed as `4b613a9`. The [N1 evidence record](runtime-proof-review.md) records 47 shared-Rust candidate regressions and their limits. This froze the N2 implementation target. The [N2 foundation record](foundation-review.md) now covers implemented models/storage; production execution, authoring and final acceptance remain N3–N6 work.
 
 ## Baseline and scope
 
@@ -143,6 +143,6 @@ Extend project loading, managed-file allowlists, exact canonical file sets, revi
 3. Conditional first/return entries, terminal dialogue/direct ending, repeated acknowledgement without repeating reward text/effects, dialogue loops, pending/entered checkpoints, speaker invalidation, STOP/END/PAUSE and nested callbacks, with counters proving once-only processing.
 4. Quest prerequisite rejection, parallel/optional milestones, terminal states, hooks that re-enter themselves and shared procedures, and historical journal snapshots.
 5. Late failure rolls back world values, output, reply history, journal, cursor paths and parser/encounter context. Existing budgets bound cycles.
-6. Candidate persistence/identity/schema validation, legacy/default/rejection decisions, managed files and generated contracts. Production storage/process/package acceptance is still N2–N6 work.
+6. Candidate persistence/identity/schema validation, legacy/default/rejection decisions, managed files and generated contracts. The N2 record covers canonical storage/process/package checks; full narrative execution/parity acceptance remains N3–N6 work.
 
 The [Rust evidence record](runtime-proof-review.md) covers these candidates, separately from the N0 browser review. Production host persistence, arbitrary nesting of new variants, startup/all-owner integration, typed narrative traces/diffs, performance and final authoring acceptance remain later gates. Material visible changes return for feedback; do not publish new-format games from this proof.

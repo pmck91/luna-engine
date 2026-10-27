@@ -155,7 +155,7 @@ def main():
             # New-game defaults and the permanent parser fixture use the packaged
             # API/export, not a handwritten runner-only substitute.
             fresh = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser defaults"})
-            assert fresh["project"]["game"]["format_version"] == 4
+            assert fresh["project"]["game"]["format_version"] == 5
             assert fresh["project"]["game"]["command_assistance"]["clarification"]
             assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
             gallery = api("open", "POST", {"folder": "parser-gallery"})
@@ -282,10 +282,49 @@ def main():
             assert "Second reply" in resumed and "First reply" in resumed, resumed
             procedure_autosave = work / "procedures/saves" / procedure_game["id"] / procedure_game["content_version"] / "autosave.json"
             progress = json.loads(procedure_autosave.read_text())
-            assert progress["save_format"] == 4 and progress["state"]["variables"]["rewards"] == 3, progress
+            assert progress["save_format"] == 5 and progress["state"]["variables"]["rewards"] == 3, progress
             assert len(progress["state"]["procedure_sequences"]) == 2, progress
             run(["run", procedure_game["id"], "--load", "autosave"], "look\nquit\n", profile="procedures")
             assert json.loads(procedure_autosave.read_text())["state"] == progress["state"], "Restore replayed CALL effects"
+
+            # N2 checks persistence of an explicit synthetic checkpoint. This
+            # does not claim production conversation/quest effects run yet.
+            narrative_project = json.loads((root / "tests/fixtures/narrative/content5.json").read_text())
+            narrative_state = json.loads((root / "tests/fixtures/narrative/state5.json").read_text())
+            created_narrative = api("projects", "POST", {"folder": "smoke-narrative", "title": "Narrative persistence"})
+            narrative_handle = created_narrative["handle"]
+            api(f"projects/{narrative_handle}", "PUT", {
+                "project": narrative_project, "revision": created_narrative["revision"],
+            })
+            playtest = api("playtests", "POST", {"project": narrative_project})
+            session = playtest["session"]
+            replaced = api(f"playtests/{session}/state", "PUT", {"state": narrative_state})
+            assert replaced["state"] == narrative_state
+            checkpoint = api(f"playtests/{session}/capture", "POST", {"name": "Narrative checkpoint"})
+            assert checkpoint["version"] == 3 and checkpoint["state"] == narrative_state
+            resumed = api("playtests", "POST", {"project": narrative_project, "setup": checkpoint})
+            assert resumed["state"] == narrative_state, "Setup restoration replayed narrative hooks"
+            narrative_bundle = work / "narrative-from-editor.luna"
+            narrative_bundle.write_bytes(api(f"projects/{narrative_handle}/export", "POST", raw=True))
+            with zipfile.ZipFile(narrative_bundle) as exported:
+                assert "conversations/unused-conversation.json" in exported.namelist()
+                assert "quests/missing.json" in exported.namelist()
+                assert not any(name.startswith("editor/") for name in exported.namelist())
+            run(["import", str(narrative_bundle)], profile="narrative")
+            narrative_game = narrative_project["game"]
+            run(["run", narrative_game["id"], "--new"], "look\nquit\n", profile="narrative")
+            narrative_saves = work / "narrative/saves" / narrative_game["id"] / narrative_game["content_version"]
+            narrative_autosave = narrative_saves / "autosave.json"
+            envelope = json.loads(narrative_autosave.read_text())
+            assert envelope["save_format"] == 5
+            envelope["state"] = narrative_state
+            narrative_autosave.write_text(json.dumps(envelope))
+            transcript = run(["run", narrative_game["id"], "--load", "autosave"],
+                             "use story\nsave continued\nquit\n", profile="narrative")
+            assert "The key was found." in transcript and "First" not in transcript, transcript
+            slots = [json.loads(path.read_text()) for path in narrative_saves.glob("*.json")]
+            continued = next(slot for slot in slots if slot.get("label") == "continued")
+            assert continued["save_format"] == 5 and continued["state"] == narrative_state
 
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
@@ -319,7 +358,7 @@ def main():
             assert "Outcome:" not in completed, completed
             autosave = work / "no-outcome/saves" / game["id"] / game["content_version"] / "autosave.json"
             state = json.loads(autosave.read_text())
-            assert state["save_format"] == (4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
+            assert state["save_format"] == (5 if game["format_version"] >= 5 else 4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
             assert state["state"]["ending"] == "finish", state
         finally:
             if editor is not None and editor.poll() is None:
@@ -331,7 +370,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, narrative persistence, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

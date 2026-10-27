@@ -1,6 +1,6 @@
 //! Immutable content validation, compiled indexes, and saved-state compatibility.
 //!
-//! The public definition owns content and both index sets behind one shared Arc.
+//! The public definition owns content and its compiled indexes behind one shared Arc.
 //! Runtime addresses stay valid because content cannot be mutated in place.
 //! Compatibility checks visit saved values without repeating authoring diagnostics
 //! or reachability, and accept sparse hint history while requiring complete entity,
@@ -27,6 +27,7 @@ struct Definition {
     schema: StateSchema,
     runtime: RuntimeIndex,
     procedures: crate::procedures::ProcedureIndex,
+    narrative: crate::narrative::NarrativeIndex,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -72,6 +73,9 @@ fn value_types(values: &BTreeMap<String, Value>) -> Values {
 }
 
 impl GameDefinition {
+    pub(crate) fn narrative(&self) -> &crate::narrative::NarrativeIndex {
+        &self.0.narrative
+    }
     /// Build initial values and cursors without firing gameplay events.
     pub(crate) fn initial_state(&self, location: Option<&str>) -> Result<GameState> {
         let project = self.project();
@@ -151,6 +155,7 @@ impl GameDefinition {
                 .collect(),
             hints: BTreeMap::new(),
             procedure_sequences: ProcedureProgress::default(),
+            narrative: NarrativeProgress::default(),
         })
     }
 
@@ -257,11 +262,13 @@ impl GameDefinition {
         };
         let runtime = RuntimeIndex::new(&project);
         let procedures = crate::procedures::ProcedureIndex::new(&project);
+        let narrative = crate::narrative::NarrativeIndex::new(&project);
         Ok(Self(Arc::new(Definition {
             project,
             schema,
             runtime,
             procedures,
+            narrative,
         })))
     }
 
@@ -452,6 +459,7 @@ impl GameDefinition {
         self.0
             .procedures
             .validate_progress(project, &state.procedure_sequences)?;
+        self.0.narrative.validate_progress(project, state)?;
         for (id, progress) in &state.hints {
             let hint = schema
                 .hints

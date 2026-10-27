@@ -26,7 +26,11 @@ async fn call(app: &axum::Router, method: &str, path: &str, body: Json) -> (Stat
         .unwrap();
     let status = response.status();
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
-    (status, serde_json::from_slice(&bytes).unwrap())
+    (
+        status,
+        serde_json::from_slice(&bytes)
+            .unwrap_or_else(|_| Json::String(String::from_utf8_lossy(&bytes).into_owned())),
+    )
 }
 async fn ok(app: &axum::Router, method: &str, path: &str, body: Json) -> Json {
     let (status, result) = call(app, method, path, body).await;
@@ -528,7 +532,7 @@ async fn setup_compatibility_is_explicit_and_metadata_survives_reopen_but_not_ex
         )
         .await
         .0,
-        StatusCode::BAD_REQUEST
+        StatusCode::UNPROCESSABLE_ENTITY
     );
     let mut invalid_expectation = step("look");
     invalid_expectation["condition"] =

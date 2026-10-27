@@ -462,7 +462,14 @@ impl Condition {
                         .reference()
                         .is_some_and(|reference| reference.input().is_some())
             }
-            Self::True | Self::False | Self::HintUsed { .. } | Self::Variable { .. } => false,
+            Self::ConversationNodeVisited { .. }
+            | Self::ConversationReplyChosen { .. }
+            | Self::QuestStatus { .. }
+            | Self::QuestStageCompleted { .. }
+            | Self::True
+            | Self::False
+            | Self::HintUsed { .. }
+            | Self::Variable { .. } => false,
         }
     }
 }
@@ -530,7 +537,14 @@ impl Effect {
                 then,
                 otherwise,
             } => condition.requires_v4() || then.iter().chain(otherwise).any(Self::requires_v4),
-            Self::ResetResponses { .. }
+            Self::StartConversation { .. }
+            | Self::PauseConversation { .. }
+            | Self::EndConversation { .. }
+            | Self::StartQuest { .. }
+            | Self::CompleteQuestStage { .. }
+            | Self::CompleteQuest { .. }
+            | Self::FailQuest { .. }
+            | Self::ResetResponses { .. }
             | Self::SetVariable { .. }
             | Self::End { .. }
             | Self::Stop => false,

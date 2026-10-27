@@ -1,5 +1,6 @@
 //! Shared Session regressions for the N1 candidate, promoted in N2–N4.
 use super::*;
+use super::{Conversation, Quest, QuestStatus};
 use crate::{CommandResult, Session};
 use luna_model::*;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -151,6 +152,7 @@ fn inc_native(name: &str) -> Effect {
 }
 fn scene() -> (Project, Program) {
     let mut p = Project::blank("Narrative proof");
+    p.game.format_version = 4; // N1 deliberately validates through legacy proxy roots.
     p.locations[0].id = "study".into();
     p.locations[0].name = "Study".into();
     p.locations[0].actions.clear();

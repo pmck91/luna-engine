@@ -621,6 +621,22 @@ export function defaultCondition(type: Condition['type'], p: Project): Condition
   const entity = object || location;
   const name = Object.keys(p.game.variables)[0] ?? '';
   switch (type) {
+    case 'conversation_node_visited':
+      return {
+        type,
+        conversation: p.conversations?.[0]?.id ?? '',
+        node: p.conversations?.[0]?.nodes[0]?.id ?? '',
+      };
+    case 'conversation_reply_chosen':
+      return {
+        type,
+        conversation: p.conversations?.[0]?.id ?? '',
+        reply: p.conversations?.[0]?.nodes[0]?.replies[0]?.id ?? '',
+      };
+    case 'quest_status':
+      return { type, quest: p.quests?.[0]?.id ?? '', status: 'active' };
+    case 'quest_stage_completed':
+      return { type, quest: p.quests?.[0]?.id ?? '', stage: p.quests?.[0]?.stages[0]?.id ?? '' };
     case 'true':
     case 'false':
       return { type };

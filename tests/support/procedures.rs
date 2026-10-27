@@ -2,6 +2,7 @@
 use luna_model::*;
 pub fn project() -> Project {
     let mut p = Project::blank("Procedure persistence");
+    p.game.format_version = 4; // Retain this feature's historical compatibility boundary.
     p.game.variables.insert("rewards".into(), Value::Integer(0));
     p.game
         .variables

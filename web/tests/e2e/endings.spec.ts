@@ -93,8 +93,8 @@ test('an ending without an outcome stays completed after reopen, export, and sav
   const autosave = JSON.parse(
     readFileSync(join(saves, saved.id, saved.content_version, 'autosave.json'), 'utf8'),
   );
-  expect(original.format_version).toBe(4);
-  expect(autosave.save_format).toBe(4);
+  expect(original.format_version).toBe(5);
+  expect(autosave.save_format).toBe(5);
   expect(autosave.state.ending).toBe(endingId);
   const restored = runner(['run', saved.id, '--load', 'completed'], 'examine rose\nquit\n');
   expect(restored).toContain('A story worth remembering.');

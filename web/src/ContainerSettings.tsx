@@ -40,7 +40,7 @@ export function ContainerUpgrade({ project, edit }: { project: Project; edit: Pr
               onClick={() => {
                 edit(
                   (p) => {
-                    p.game.format_version = 2;
+                    p.game.format_version = Math.max(2, p.game.format_version);
                   },
                   { label: 'Enable container features' },
                 );

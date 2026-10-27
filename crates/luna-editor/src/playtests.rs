@@ -68,14 +68,7 @@ fn runtime_project(mut project: Project, help_mode: Option<HelpMode>) -> Project
     project
 }
 fn restore(project: Project, setup: &PlaytestSetup) -> Result<Session> {
-    anyhow::ensure!(
-        (1..=2).contains(&setup.version),
-        "Unsupported playtest setup version"
-    );
-    anyhow::ensure!(
-        setup.version >= 2 || setup.state.procedure_sequences.is_empty(),
-        "Procedure progress requires playtest setup version 2"
-    );
+    setup.validate_version()?;
     let state = &setup.state;
     let mut changes = vec![];
     for (kind, expected, captured) in [
@@ -199,7 +192,9 @@ pub(crate) async fn capture_setup(
         .definition()
         .validate_state(current.runtime.state())?;
     Ok(Json(PlaytestSetup {
-        version: if current.runtime.project().game.format_version >= 4 {
+        version: if current.runtime.project().game.format_version >= 5 {
+            3
+        } else if current.runtime.project().game.format_version >= 4 {
             2
         } else {
             1

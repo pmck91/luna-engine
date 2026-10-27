@@ -70,6 +70,65 @@ pub enum ProcedureReturn {
     /// A game ending propagated through this invocation.
     Ended,
 }
+/// A narrative transition's typed identities, distinct from its displayed text.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum NarrativeOperation {
+    /// Start or resume an encounter.
+    StartConversation {
+        /// Conversation identity.
+        conversation: String,
+    },
+    /// Preserve an unfinished checkpoint.
+    PauseConversation {
+        /// Conversation identity.
+        conversation: String,
+    },
+    /// Close and clear a checkpoint.
+    EndConversation {
+        /// Conversation identity.
+        conversation: String,
+    },
+    /// Enter dialogue, including terminal dialogue.
+    EnterDialogue {
+        /// Conversation identity.
+        conversation: String,
+        /// Dialogue node identity.
+        node: String,
+    },
+    /// Consume a currently offered reply.
+    SelectReply {
+        /// Conversation identity.
+        conversation: String,
+        /// Dialogue node identity.
+        node: String,
+        /// Offered reply identity.
+        reply: String,
+    },
+    /// Discover a quest.
+    StartQuest {
+        /// Quest identity.
+        quest: String,
+    },
+    /// Record a prerequisite-checked milestone.
+    CompleteQuestStage {
+        /// Quest identity.
+        quest: String,
+        /// Stage identity within that quest.
+        stage: String,
+    },
+    /// Explicitly complete an active quest.
+    CompleteQuest {
+        /// Quest identity.
+        quest: String,
+    },
+    /// Fail an active quest.
+    FailQuest {
+        /// Quest identity.
+        quest: String,
+    },
+}
 /// The operation or observation represented by an explanation step.
 ///
 /// A completed condition can be false, and a completed trigger can be skipped.
@@ -77,6 +136,13 @@ pub enum ProcedureReturn {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TraceKind {
+    /// One narrative operation with canonical source and ordinary state diffs.
+    Narrative {
+        /// Stable definition/node/reply/stage references.
+        operation: NarrativeOperation,
+        /// False for a guarded no-op; errors use the step's existing outcome.
+        applied: bool,
+    },
     /// A shared definition invoked at one canonical CALL occurrence.
     Call {
         /// Canonical occurrence identity at the caller source.
@@ -524,6 +590,13 @@ impl Run<'_> {
 }
 pub(super) fn effect_name(effect: &Effect) -> &'static str {
     match effect {
+        Effect::StartConversation { .. } => "START CONVERSATION",
+        Effect::PauseConversation { .. } => "PAUSE CONVERSATION",
+        Effect::EndConversation { .. } => "END CONVERSATION",
+        Effect::StartQuest { .. } => "START QUEST",
+        Effect::CompleteQuestStage { .. } => "COMPLETE QUEST STAGE",
+        Effect::CompleteQuest { .. } => "COMPLETE QUEST",
+        Effect::FailQuest { .. } => "FAIL QUEST",
         Effect::Call { .. } => "CALL PROCEDURE",
         Effect::Assign { .. } => "ASSIGN VALUE",
         Effect::SayWithInputs { .. } => "SAY",

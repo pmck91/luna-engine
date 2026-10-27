@@ -106,6 +106,15 @@ impl<'a> Run<'a> {
 
     fn effect(&mut self, effect: &Effect) -> Result<Flow> {
         match effect {
+            Effect::StartConversation { .. }
+            | Effect::PauseConversation { .. }
+            | Effect::EndConversation { .. }
+            | Effect::StartQuest { .. }
+            | Effect::CompleteQuestStage { .. }
+            | Effect::CompleteQuest { .. }
+            | Effect::FailQuest { .. } => anyhow::bail!(
+                "Narrative execution is not yet available on this feature branch (N3/N4)"
+            ),
             Effect::Call {
                 id,
                 procedure,
