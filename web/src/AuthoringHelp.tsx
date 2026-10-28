@@ -24,6 +24,7 @@ export default function AuthoringHelp({
           ['blocks', 'Blocks and conditions'],
           ['containers', 'Containers and surfaces'],
           ['procedures', 'Procedures'],
+          ['routines', 'Character routines'],
           ['test', 'Testing and sharing'],
           ['keyboard', 'Keyboard shortcuts'],
         ].map(([id, name]) => (
@@ -54,6 +55,34 @@ export default function AuthoringHelp({
           <p>
             For a complete example, create another project and choose The Locked Study. Existing
             projects are never replaced by opening this guide.
+          </p>
+        </section>
+      ) : topic === 'routines' ? (
+        <section>
+          <h3>A character’s routine</h3>
+          <p>
+            Open Game data → Routines, or select a character and choose Character routines. Add a
+            named construction draft, then add Move, Wait, Say or Effects steps. Every STEP stays in
+            the same block group; select its header or any nested block to edit it. Drag steps or
+            use Move step up/down.
+          </p>
+          <p>
+            The ROUTINE header sets how it starts, what happens after the last step, and whether
+            conversation holds it. When/while/until use the same Boolean condition blocks as other
+            flows. A conditional start happens once per new game. Finish the draft before
+            playtesting.
+          </p>
+          <p>
+            One step is attempted per charged turn. Wait 2 counts its entry turn and the next
+            charged turn; the next step runs later. Free commands, manual pause and conversation
+            holds preserve the remainder. A failed requirement can retry, skip or pause. START
+            ROUTINE can keep or replace the character’s current run; RESUME preserves progress and
+            STOP discards it.
+          </p>
+          <p>
+            Playtest → Character routines shows native status, current step, blocked requirements
+            and remaining wait turns. Show routine step returns to the group. Captured setups
+            preserve progress without replaying completed steps.
           </p>
         </section>
       ) : topic === 'blocks' ? (

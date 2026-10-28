@@ -2,6 +2,8 @@
 mod narrative_validation;
 #[path = "procedure_validation.rs"]
 mod procedure_validation;
+#[path = "routine_validation.rs"]
+mod routine_validation;
 #[path = "turn_validation.rs"]
 mod turn_validation;
 use crate::*;
@@ -323,6 +325,7 @@ impl Check<'_> {
             return;
         }
         match c {
+            Condition::RoutineStatus { routine, .. } => self.routine_ref(s, f, routine),
             Condition::TimerPending { timer } => self.timer_ref(s, f, timer),
             Condition::ConversationNodeVisited { conversation, node } => {
                 self.node_ref(s, f, conversation, node)
@@ -414,6 +417,10 @@ impl Check<'_> {
         for (i, e) in effects.iter().enumerate() {
             let f = format!("{f}.{i}");
             match e {
+                Effect::StartRoutine { routine, .. }
+                | Effect::PauseRoutine { routine }
+                | Effect::ResumeRoutine { routine }
+                | Effect::StopRoutine { routine } => self.routine_ref(s, &f, routine),
                 Effect::ScheduleTimer { timer, after, .. } => {
                     self.timer_ref(s, &f, timer);
                     self.operand_at(s, &format!("{f}.after"), ArithmeticOperation::Add, after);
@@ -683,6 +690,9 @@ fn possible_effects<'a>(effects: &'a [Effect], out: &mut Vec<&'a Effect>) {
 }
 pub fn ordinary_effects(p: &Project) -> Vec<&Effect> {
     let mut out = vec![];
+    for step in p.routines.iter().flat_map(|r| &r.steps) {
+        walk_effects(&step.effects, &mut out);
+    }
     for timer in &p.timers {
         walk_effects(&timer.effects, &mut out);
     }
@@ -1016,6 +1026,7 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
     c.procedures();
     c.narratives();
     c.turns();
+    c.routines();
     if p.game.format_version >= 5 {
         for id in narrative_command_conflicts(p) {
             c.error(&id, "command", "This command conflicts with conversation/quest controls in content format 5. Repair the command before upgrading.");
@@ -1174,6 +1185,15 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         let mut seen = BTreeSet::new();
         while let Some(effect) = effects.pop() {
             match effect {
+                Effect::StartRoutine { routine, .. } if seen.insert(routine) => {
+                    if let Some(routine) = p.routines.iter().find(|r| r.id == *routine) {
+                        for step in &routine.steps {
+                            if constant(&step.condition) != Some(false) {
+                                possible_effects(&step.effects, &mut effects);
+                            }
+                        }
+                    }
+                }
                 Effect::ScheduleTimer { timer, .. } if seen.insert(timer) => {
                     if p.game.turns.is_some()
                         && let Some(timer) = p.timers.iter().find(|t| t.id == *timer)
@@ -1295,6 +1315,25 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
                 .values()
                 .map(BTreeSet::len)
                 .sum::<usize>();
+        let mut automatic = vec![];
+        for routine in p.routines.iter().filter(|r| match &r.start {
+            RoutineStart::Blocks => false,
+            RoutineStart::Initial => true,
+            RoutineStart::When { condition } => constant(condition) != Some(false),
+        }) {
+            for step in &routine.steps {
+                if constant(&step.condition) != Some(false) {
+                    possible_effects(&step.effects, &mut automatic);
+                }
+            }
+        }
+        follow_effects(
+            p,
+            automatic,
+            &mut reachable,
+            &mut reachable_endings,
+            &mut character_locations,
+        );
         for (owner, actions, triggers) in p.owners() {
             let active = owner == game.id
                 || reachable.contains(owner)

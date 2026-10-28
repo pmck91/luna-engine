@@ -1,0 +1,70 @@
+{
+  "id": "night-rest",
+  "name": "Rest in offstage storage",
+  "character": "keeper",
+  "order": 2,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "night-move",
+      "name": "Move offstage with the badge",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "keeper",
+          "location": "offstage"
+        }
+      ]
+    },
+    {
+      "id": "night-wait",
+      "name": "Capture the rest duration once",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": {
+        "type": "variable",
+        "name": "rest_delay"
+      },
+      "effects": []
+    },
+    {
+      "id": "night-say",
+      "name": "No offstage speech",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "if",
+          "condition": {
+            "type": "visible",
+            "entity": "keeper"
+          },
+          "then": [
+            {
+              "type": "character_says",
+              "character": "keeper",
+              "text": "You should only hear this if Keeper is visible."
+            }
+          ],
+          "otherwise": []
+        }
+      ]
+    }
+  ]
+}

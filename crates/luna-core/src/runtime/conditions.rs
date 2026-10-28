@@ -8,6 +8,9 @@ impl Run<'_> {
     }
     pub(super) fn evaluate_condition(&self, condition: &Condition) -> Result<bool> {
         Ok(match condition {
+            Condition::RoutineStatus { routine, status } => {
+                self.routine_status(routine)? == *status
+            }
             Condition::TimerPending { timer } => {
                 ensure!(
                     self.turn_index.definitions.contains_key(timer),

@@ -1,0 +1,484 @@
+{
+  "id": "lab",
+  "name": "Routine lab",
+  "aliases": [],
+  "description": "Optional experiments: USE PAUSE, USE RESUME, USE STOP, USE RESTART, USE GATE, USE ENDGATE, USE NIGHT, USE PAIR, USE READY, USE UNREADY, USE AWARD, USE FAILING, USE STEP, USE REPAIR, USE FINISH. OPEN GATE and CLOSE GATE are free. Each experiment starts fresh or from a captured setup.",
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-pause",
+      "name": "Pause Keeper's current patrol",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "pause"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "pause_routine",
+          "routine": "evening-patrol"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-resume",
+      "name": "Resume the same captured patrol",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "resume"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "resume_routine",
+          "routine": "evening-patrol"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-stop",
+      "name": "Stop the patrol and discard its cursor",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "stop"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "stop_routine",
+          "routine": "evening-patrol"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-restart",
+      "name": "Restart the introductory patrol",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "restart"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "start_routine",
+          "routine": "evening-patrol",
+          "busy": "replace"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-gate",
+      "name": "Try a guarded repeating patrol",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "gate"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "close",
+          "object": "gate"
+        },
+        {
+          "type": "set_variable",
+          "name": "gate_enabled",
+          "value": true
+        },
+        {
+          "type": "start_routine",
+          "routine": "gate-patrol",
+          "busy": "replace"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-endgate",
+      "name": "Finish after this gated cycle",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "endgate"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "set_variable",
+          "name": "gate_enabled",
+          "value": false
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-night",
+      "name": "Replace Keeper's patrol with offstage rest",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "night"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "start_routine",
+          "routine": "night-rest",
+          "busy": "replace"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-pair",
+      "name": "Start in reverse order; execute in author order",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "pair"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "start_routine",
+          "routine": "a-second",
+          "busy": "replace"
+        },
+        {
+          "type": "start_routine",
+          "routine": "z-first",
+          "busy": "replace"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-ready",
+      "name": "Make the once-only start condition true",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "ready"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "set_variable",
+          "name": "award_ready",
+          "value": true
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-unready",
+      "name": "Make the start condition false",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "unready"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "set_variable",
+          "name": "award_ready",
+          "value": false
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-award",
+      "name": "Explicitly restart without resetting reward history",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "award"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "start_routine",
+          "routine": "conditional-award",
+          "busy": "replace"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-failing",
+      "name": "Arm a timer and two routines for a failed transaction",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "failing"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "start_routine",
+          "routine": "z-first",
+          "busy": "replace"
+        },
+        {
+          "type": "start_routine",
+          "routine": "failing",
+          "busy": "replace"
+        },
+        {
+          "type": "schedule_timer",
+          "timer": "audit-bell",
+          "after": {
+            "type": "literal",
+            "value": 1
+          },
+          "pending": "restart"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-repair",
+      "name": "Repair without advancing the pending attempt",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "repair"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "set_variable",
+          "name": "divisor",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "control-finish",
+      "name": "End before pending timer and later routine work",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "finish"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "start_routine",
+          "routine": "after-ending",
+          "busy": "replace"
+        },
+        {
+          "type": "start_routine",
+          "routine": "ending",
+          "busy": "replace"
+        },
+        {
+          "type": "schedule_timer",
+          "timer": "audit-bell",
+          "after": {
+            "type": "literal",
+            "value": 2
+          },
+          "pending": "restart"
+        }
+      ]
+    },
+    {
+      "id": "control-step",
+      "name": "Attempt one charged input",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "step"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "attempts",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "exits": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "lab-study",
+      "name": "Visit study without advancing time",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "study"
+        }
+      ],
+      "destination": "study",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "You enter the study.",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

@@ -25,6 +25,146 @@ export type PendingTimer = { deadline: number, source: TimerSource, };
 
 export type TurnProgress = { turn: number, pending: { [key in string]?: PendingTimer }, };
 
+export type CharacterRoutine = { id: string, name: string, character: string,
+/**
+ * Independent of filename, UUID or vector loading order.
+ */
+order: number, start: RoutineStart, repeat: RoutineRepeat, hold_conversation: boolean, steps: Array<RoutineStep>, };
+
+export type RoutineStep = { id: string, name: string, condition: Condition, blocked: RoutineBlocked, wait: NumericOperand | null, effects: Array<Effect>, };
+
+export type RoutineStart = { "type": "blocks" } | { "type": "initial" } | { "type": "when", condition: Condition, };
+
+export type RoutineRepeat = { "type": "finish" } | { "type": "loop" } | { "type": "while", condition: Condition, } | { "type": "until", condition: Condition, };
+
+export type RoutineBlocked = "retry" | "skip" | "pause";
+
+export type RoutineBusyPolicy = "keep" | "replace";
+
+export type RoutineStatus = "not_started" | "running" | "paused" | "stopped" | "completed";
+
+export type RoutineRun = { "type": "running", cursor: RoutineCursor, } | { "type": "paused", cursor: RoutineCursor, } | { "type": "stopped" } | { "type": "completed" };
+
+export type RoutineCursor = { step: string,
+/**
+ * Only a strictly later charged boundary may attempt this cursor.
+ */
+after: number, wait: RoutineWait | null, };
+
+export type RoutineWait = { captured: number, remaining: number, };
+
+export type RoutineProgress = { runs: { [key in string]?: RoutineRun }, };
+
+export type RoutineView = {
+/**
+ * Stable definition identity.
+ */
+routine: string,
+/**
+ * Name from this immutable playthrough.
+ */
+name: string,
+/**
+ * Owning character.
+ */
+character: string,
+/**
+ * Persisted author order.
+ */
+order: number,
+/**
+ * Not started, running, manually paused, stopped or completed.
+ */
+status: RoutineStatus,
+/**
+ * Current step; after completion this is absent.
+ */
+step: string | null,
+/**
+ * Current step's authored name.
+ */
+step_name: string | null,
+/**
+ * Current readiness origin; eligible only at a later charged boundary.
+ */
+after: number | null,
+/**
+ * Captured entered wait; never recomputed from live values.
+ */
+wait: RoutineWait | null,
+/**
+ * Whether the current entry requirement is false; absent for entered waits.
+ */
+blocked: boolean | null,
+/**
+ * Whether the current active encounter holds this character.
+ */
+conversation_held: boolean, };
+
+export type RoutineOperation = { "type": "control",
+/**
+ * Named definition.
+ */
+routine: string,
+/**
+ * Requested operation.
+ */
+control: RoutineControl,
+/**
+ * Whether scheduling state changed.
+ */
+applied: boolean, } | { "type": "attempt",
+/**
+ * Named definition.
+ */
+routine: string,
+/**
+ * Stable pacing step.
+ */
+step: string, } | { "type": "wait",
+/**
+ * Named definition.
+ */
+routine: string,
+/**
+ * Stable wait step.
+ */
+step: string,
+/**
+ * Duration evaluated on entry.
+ */
+captured: number,
+/**
+ * Remainder after this boundary; zero completes the step.
+ */
+remaining: number, } | { "type": "advance",
+/**
+ * Named definition.
+ */
+routine: string,
+/**
+ * Next step, absent on completion.
+ */
+step: string | null,
+/**
+ * Resulting scheduling state.
+ */
+status: RoutineStatus, } | { "type": "hold",
+/**
+ * Protected definition.
+ */
+routine: string, } | { "type": "invalidated",
+/**
+ * Definition whose old ticket was invalidated.
+ */
+routine: string, };
+
+export type RoutineControl = { "type": "start",
+/**
+ * Keep an existing run, or explicitly replace/restart it.
+ */
+busy: RoutineBusyPolicy, } | { "type": "pause" } | { "type": "resume" } | { "type": "stop" };
+
 export type TurnInput = { "type": "free" } | { "type": "action",
 /**
  * Stable action/exit identity.
@@ -155,6 +295,8 @@ export type NarrativeReferenceKind = "conversation" | "dialogue" | "reply" | "qu
 
 export type TemplateTimerReference = { id: string, name: string, };
 
+export type TemplateRoutineReference = { id: string, name: string, };
+
 export type TemplateNarrativeReference = { id: string, name: string, kind: NarrativeReferenceKind, parent: string | null, };
 
 export type QuestStatus = "undiscovered" | "active" | "completed" | "failed";
@@ -259,7 +401,7 @@ export type InputTextReference = { "type": "item_name" } | { "type": "entity_nam
 
 export type Comparison = "eq" | "ne" | "gt" | "ge" | "lt" | "le";
 
-export type Condition = { "type": "timer_pending", timer: string, } | { "type": "true" } | { "type": "compare", left: Argument, op: Comparison, right: Argument, } | { "type": "false" } | { "type": "conversation_node_visited", conversation: string, node: string, } | { "type": "conversation_reply_chosen", conversation: string, reply: string, } | { "type": "quest_status", quest: string, status: QuestStatus, } | { "type": "quest_stage_completed", quest: string, stage: string, } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: EntityRef, name: string, op: Comparison, value: Value, } | { "type": "carrying",
+export type Condition = { "type": "routine_status", routine: string, status: RoutineStatus, } | { "type": "timer_pending", timer: string, } | { "type": "true" } | { "type": "compare", left: Argument, op: Comparison, right: Argument, } | { "type": "false" } | { "type": "conversation_node_visited", conversation: string, node: string, } | { "type": "conversation_reply_chosen", conversation: string, reply: string, } | { "type": "quest_status", quest: string, status: QuestStatus, } | { "type": "quest_stage_completed", quest: string, stage: string, } | { "type": "all", conditions: Array<Condition>, } | { "type": "any", conditions: Array<Condition>, } | { "type": "not", condition: Condition, } | { "type": "variable", name: string, op: Comparison, value: Value, } | { "type": "property", entity: EntityRef, name: string, op: Comparison, value: Value, } | { "type": "carrying",
 /**
  * Direct player inventory only. Use Possesses for nested ownership.
  */
@@ -301,7 +443,7 @@ export type ArithmeticOperation = "add" | "subtract" | "multiply" | "divide";
 
 export type NumericOperand = { "type": "input", input: string, } | { "type": "literal", value: number, } | { "type": "variable", name: string, } | { "type": "property", entity: EntityRef, name: string, };
 
-export type Effect = { "type": "schedule_timer", timer: string, after: NumericOperand, pending: TimerPendingPolicy, } | { "type": "cancel_timer", timer: string, } | { "type": "start_conversation", conversation: string, } | { "type": "pause_conversation", conversation: string, } | { "type": "end_conversation", conversation: string, } | { "type": "start_quest", quest: string, } | { "type": "complete_quest_stage", quest: string, stage: string, } | { "type": "complete_quest", quest: string, } | { "type": "fail_quest", quest: string, } | { "type": "call", id: string, procedure: string, arguments: { [key in string]?: Argument }, } | { "type": "assign", target: ScopedValueTarget, value: Argument, } | { "type": "say", text: MessageText, } | { "type": "say_with_inputs", text: string, references: { [key in string]?: InputTextReference }, } | { "type": "transfer", object: ObjectTarget, placement: ScopedPlacement, } | { "type": "list_contents", object: EntityRef, relation: ContentRelation, } | { "type": "character_says", character: EntityRef, text: MessageText, } | { "type": "print_description", entity: EntityRef, } | { "type": "respond", id: string, responses: Array<MessageText>, mode: SequenceMode, fallback: MessageText, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: EntityRef, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: EntityRef, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: EntityRef, } | { "type": "give_character", object: EntityRef, character: EntityRef, } | { "type": "remove", object: EntityRef, } | { "type": "consume", object: EntityRef, } | { "type": "place", object: EntityRef, location: EntityRef, } | { "type": "reveal", entity: EntityRef, } | { "type": "hide", entity: EntityRef, } | { "type": "open", object: EntityRef, } | { "type": "close", object: EntityRef, } | { "type": "move", location: EntityRef, } | { "type": "move_character", character: EntityRef, location: EntityRef, } | { "type": "combine", first: EntityRef, second: EntityRef, consume_first: boolean, consume_second: boolean, result: EntityRef, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
+export type Effect = { "type": "start_routine", routine: string, busy: RoutineBusyPolicy, } | { "type": "pause_routine", routine: string, } | { "type": "resume_routine", routine: string, } | { "type": "stop_routine", routine: string, } | { "type": "schedule_timer", timer: string, after: NumericOperand, pending: TimerPendingPolicy, } | { "type": "cancel_timer", timer: string, } | { "type": "start_conversation", conversation: string, } | { "type": "pause_conversation", conversation: string, } | { "type": "end_conversation", conversation: string, } | { "type": "start_quest", quest: string, } | { "type": "complete_quest_stage", quest: string, stage: string, } | { "type": "complete_quest", quest: string, } | { "type": "fail_quest", quest: string, } | { "type": "call", id: string, procedure: string, arguments: { [key in string]?: Argument }, } | { "type": "assign", target: ScopedValueTarget, value: Argument, } | { "type": "say", text: MessageText, } | { "type": "say_with_inputs", text: string, references: { [key in string]?: InputTextReference }, } | { "type": "transfer", object: ObjectTarget, placement: ScopedPlacement, } | { "type": "list_contents", object: EntityRef, relation: ContentRelation, } | { "type": "character_says", character: EntityRef, text: MessageText, } | { "type": "print_description", entity: EntityRef, } | { "type": "respond", id: string, responses: Array<MessageText>, mode: SequenceMode, fallback: MessageText, exhaustion: ExhaustionMode, on_exhausted: Array<Effect>, } | { "type": "reset_responses", sequence: string, } | { "type": "set_variable", name: string, value: Value, } | { "type": "set_property", entity: EntityRef, name: string, value: Value, } | { "type": "update_variable", name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "update_property", entity: EntityRef, name: string, op: ArithmeticOperation, operand: NumericOperand, } | { "type": "give", object: EntityRef, } | { "type": "give_character", object: EntityRef, character: EntityRef, } | { "type": "remove", object: EntityRef, } | { "type": "consume", object: EntityRef, } | { "type": "place", object: EntityRef, location: EntityRef, } | { "type": "reveal", entity: EntityRef, } | { "type": "hide", entity: EntityRef, } | { "type": "open", object: EntityRef, } | { "type": "close", object: EntityRef, } | { "type": "move", location: EntityRef, } | { "type": "move_character", character: EntityRef, location: EntityRef, } | { "type": "combine", first: EntityRef, second: EntityRef, consume_first: boolean, consume_second: boolean, result: EntityRef, } | { "type": "if", condition: Condition, then: Array<Effect>, otherwise: Array<Effect>, } | { "type": "end", ending: string, } | { "type": "stop" };
 
 export type PatternPart = { "type": "literal", text: string, } | { "type": "entity", entity: string, } | { "type": "object_input" };
 
@@ -349,9 +491,13 @@ export type TemplateEntity = { id: string, name: string, kind: TemplateEntityKin
 
 export type TemplateContent = { "type": "action", action: Action, } | { "type": "effects", effects: Array<Effect>, };
 
-export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, narratives?: Array<TemplateNarrativeReference>, timers?: Array<TemplateTimerReference>, content: TemplateContent, };
+export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, narratives?: Array<TemplateNarrativeReference>, timers?: Array<TemplateTimerReference>, routines?: Array<TemplateRoutineReference>, content: TemplateContent, };
 
 export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>,
+/**
+ * Unfinished routine groups stay outside executable content.
+ */
+routine_drafts?: Array<CharacterRoutine>,
 /**
  * Incomplete scheduled definitions stay outside executable timer content.
  */
@@ -377,7 +523,7 @@ export type PlaytestCheck = { id: string, name: string, start: CheckStart, help_
 
 export type PlaytestLibrary = { setups: Array<PlaytestSetup>, checks: Array<PlaytestCheck>, };
 
-export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, procedures?: Array<Procedure>, conversations?: Array<Conversation>, quests?: Array<Quest>, timers?: Array<ScheduledTrigger>, editor: EditorLayout, };
+export type Project = { game: Game, vocabulary: Array<Verb>, locations: Array<Location>, objects: Array<Object>, characters: Array<Character>, procedures?: Array<Procedure>, conversations?: Array<Conversation>, quests?: Array<Quest>, timers?: Array<ScheduledTrigger>, routines?: Array<CharacterRoutine>, editor: EditorLayout, };
 
 export type Severity = "error" | "warning";
 
@@ -391,7 +537,7 @@ export type CharacterState = { location: string, hidden: boolean, };
 
 export type HintProgress = { clues_seen: number, solution_seen: boolean, };
 
-export type GameState = { turns?: TurnProgress, game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, procedure_sequences?: Array<ProcedureCursor>, narrative?: NarrativeProgress, hints: { [key in string]?: HintProgress }, };
+export type GameState = { turns?: TurnProgress, routines?: RoutineProgress, game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, procedure_sequences?: Array<ProcedureCursor>, narrative?: NarrativeProgress, hints: { [key in string]?: HintProgress }, };
 
 export type HostControl = { "type": "save",
 /**
@@ -427,7 +573,11 @@ before: JsonValue,
  */
 after: JsonValue, };
 
-export type TraceKind = { "type": "turn",
+export type TraceKind = { "type": "routine",
+/**
+ * Control, attempt, hold, wait or cursor transition.
+ */
+operation: RoutineOperation, } | { "type": "turn",
 /**
  * Clock before this input.
  */
@@ -852,6 +1002,10 @@ export type CommandResult = {
  * Committed turn/queue view, present only for games using turns.
  */
 turns?: TurnView,
+/**
+ * Native routine progress in persisted author order.
+ */
+routines?: Array<RoutineView>,
 /**
  * Transcript lines, each represented as literal text with semantic colours.
  */

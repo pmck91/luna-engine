@@ -102,7 +102,11 @@ def main():
             script = re.search(r'<script[^>]+src="([^"]+)"', html)
             assert script, "Embedded UI has no entry script"
             with opener.open(urllib.parse.urljoin(base, script[1]), timeout=5) as response:
-                assert len(response.read()) > 100_000, "Embedded entry script is incomplete"
+                entry = response.read()
+                assert len(entry) > 100_000, "Embedded entry script is incomplete"
+            if moved:
+                assert html == (hidden / "index.html").read_text(), "Embedded UI is from an older build"
+                assert entry == (hidden / script[1].lstrip("/")).read_bytes(), "Embedded entry differs from the built UI"
             config_url = urllib.parse.urljoin(base, "api/v1/config")
             try:
                 opener.open(config_url, timeout=5)
@@ -155,7 +159,7 @@ def main():
             # New-game defaults and the permanent parser fixture use the packaged
             # API/export, not a handwritten runner-only substitute.
             fresh = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser defaults"})
-            assert fresh["project"]["game"]["format_version"] == 6
+            assert fresh["project"]["game"]["format_version"] == 7
             assert fresh["project"]["game"].get("turns") is None
             assert fresh["project"]["game"]["command_assistance"]["clarification"]
             assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
@@ -342,7 +346,7 @@ def main():
             assert "Second reply" in resumed and "First reply" in resumed, resumed
             procedure_autosave = work / "procedures/saves" / procedure_game["id"] / procedure_game["content_version"] / "autosave.json"
             progress = json.loads(procedure_autosave.read_text())
-            assert progress["save_format"] == 6 and progress["state"]["variables"]["rewards"] == 3, progress
+            assert progress["save_format"] == 7 and progress["state"]["variables"]["rewards"] == 3, progress
             assert len(progress["state"]["procedure_sequences"]) == 2, progress
             run(["run", procedure_game["id"], "--load", "autosave"], "look\nquit\n", profile="procedures")
             assert json.loads(procedure_autosave.read_text())["state"] == progress["state"], "Restore replayed CALL effects"
@@ -520,7 +524,7 @@ def main():
             assert pending["remaining"] == 2 and pending["deadline"] == 3, pending
             assert pending["source"] == {"root": "arm", "subject": "arm", "path": "effects.0"}
             timer_setup = api(f"playtests/{timer_test['session']}/capture", "POST", {"name": "Armed"})
-            assert timer_setup["version"] == 4 and timer_setup["state"] == armed["state"]
+            assert timer_setup["version"] == 5 and timer_setup["state"] == armed["state"]
             timer_restored = api("playtests", "POST", {"project": timer_project, "setup": timer_setup})
             assert timer_restored["state"] == armed["state"]
             timer_session = timer_restored["session"]
@@ -538,7 +542,7 @@ def main():
             timer_game = timer_project["game"]
             timer_auto = work / "timers/saves" / timer_game["id"] / timer_game["content_version"] / "autosave.json"
             run(["run", timer_game["id"], "--new"], "use arm\nlook\nsave armed\nquit\n", profile="timers")
-            assert json.loads(timer_auto.read_text())["save_format"] == 6
+            assert json.loads(timer_auto.read_text())["save_format"] == 7
             assert json.loads(timer_auto.read_text())["state"] == armed["state"]
             run(["run", timer_game["id"], "--load", "armed"], "look\nwait\nsave one more\nquit\n", profile="timers")
             assert json.loads(timer_auto.read_text())["state"] == one_more["state"]
@@ -614,6 +618,118 @@ def main():
             assert ending["state"]["variables"]["ending_hooks"] == 1
             assert workshop_run("look", "completed") == ending["state"]
 
+            # Routines use the separate progressive workshop and version-7 saves.
+            routine = api("open", "POST", {"folder": "routine-workshop"})
+            routine_project = routine["project"]
+            routine_game = routine_project["game"]
+            routine_bundle = work / "routines-from-editor.luna"
+            routine_bundle.write_bytes(api(f"projects/{routine['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(routine_bundle) as current, zipfile.ZipFile(package / "examples/routine-workshop.luna") as checked:
+                assert json.loads(current.read("manifest.json")) == json.loads(checked.read("manifest.json"))
+                assert len([name for name in current.namelist() if name.startswith("routines/")]) == 10
+                assert "routines/unused.json" in current.namelist()
+                assert not any(name.startswith("editor/") for name in current.namelist())
+            run(["import", str(routine_bundle)], profile="routines")
+            routine_saves = work / "routines/saves" / routine_game["id"] / routine_game["content_version"]
+
+            def routine_run(commands, slot=None):
+                transcript = run(["run", routine_game["id"], "--load", slot] if slot else
+                                 ["run", routine_game["id"], "--new"], commands + "\nquit\n", profile="routines")
+                envelope = json.loads((routine_saves / "autosave.json").read_text())
+                assert envelope["save_format"] == 7
+                return envelope["state"], transcript
+
+            def routine_start(name):
+                setup = next(s for s in routine_project["editor"]["playtest"]["setups"] if s["name"] == name)
+                assert setup["version"] == 5
+                restored = api("playtests", "POST", {"project": routine_project, "setup": setup})
+                assert restored["state"] == setup["state"] and not restored["result"]["state_changed"]
+                return restored
+
+            def routine_command(view, command):
+                return api(f"playtests/{view['session']}/commands", "POST", {"command": command, "explain": True})
+
+            assert len(routine_project["editor"]["playtest"]["setups"]) == 9
+            for setup in routine_project["editor"]["playtest"]["setups"]:
+                routine_start(setup["name"])
+            for check in routine_project["editor"]["playtest"]["checks"]:
+                assert api("playtests/checks", "POST", {"project": routine_project, "check": check})["passed"]
+
+            patrol = routine_start("Patrol mid-wait")
+            assert routine_run("wait\ngo garden\nwait\nsave armed")[0] == patrol["state"]
+            assert routine_run("look\nhelp\nsave inspected", "armed")[0] == patrol["state"]
+            assert patrol["result"]["routines"][0]["wait"] == {"captured": 2, "remaining": 1}
+            for _ in range(3):
+                patrol = routine_command(patrol, "wait")
+            completed, transcript = routine_run("wait\nwait\nwait", "armed")
+            assert completed == patrol["state"] and transcript.count("The garden is quiet.") == 1
+            held = routine_start("Conversation hold")
+            assert routine_run("talk keeper\nsave held", "armed")[0] == held["state"]
+            held = routine_command(held, "wait")
+            assert held["result"]["routines"][0]["conversation_held"]
+            assert routine_run("wait", "held")[0] == held["state"]
+            held = routine_command(held, "reply 3")
+            assert held["result"]["routines"][0]["wait"]["remaining"] == 1
+            assert routine_run("wait\nreply 3", "held")[0] == held["state"]
+            paused = routine_start("Manual pause during conversation")
+            assert routine_run("reply 2\nsave paused", "held")[0] == paused["state"]
+            for command in ["bye", "wait", "go study", "go lab", "use resume"]:
+                paused = routine_command(paused, command)
+            assert routine_run("bye\nwait\ngo study\ngo lab\nuse resume", "paused")[0] == paused["state"]
+            assert paused["result"]["routines"][0]["wait"]["remaining"] == 1
+
+            gate = routine_start("Gate blocked")
+            assert gate["result"]["routines"][1]["blocked"]
+            assert routine_run("go lab\nuse gate\nwait\nsave gated")[0] == gate["state"]
+            for command in ["open gate", "wait", "use endgate", "wait"]:
+                gate = routine_command(gate, command)
+            assert routine_run("open gate\nwait\nuse endgate\nwait", "gated")[0] == gate["state"]
+            night = routine_start("Night storage")
+            assert routine_run("go lab\nuse night\nwait\nwait\nsave night")[0] == night["state"]
+            assert night["state"]["objects"]["badge"]["placement"] == {"type": "character", "character": "keeper"}
+            for _ in range(3):
+                night = routine_command(night, "wait")
+            assert routine_run("wait\nwait\nwait", "night")[0] == night["state"]
+            ordered, transcript = routine_run("go lab\nuse pair\nwait")
+            assert ordered["variables"]["signals"] == 2
+            assert transcript.index("First signal.") < transcript.index("Second signal.")
+            award = routine_start("Conditional award armed")
+            assert routine_run("go lab\nuse ready\nwait\nsave award")[0] == award["state"]
+            for command in ["wait", "use award", "wait"]:
+                award = routine_command(award, command)
+            assert routine_run("wait\nuse award\nwait", "award")[0] == award["state"]
+            assert award["state"]["variables"]["rewards"] == 1
+
+            failure = routine_start("Before late failure")
+            assert routine_run("go lab\nuse failing\nsave dangerous")[0] == failure["state"]
+            failed = routine_command(failure, "use step")
+            assert failed["result"]["status"] == "error" and failed["result"]["messages"] == []
+            assert failed["state"] == failure["state"]
+            unchanged, discarded = routine_run("use step", "dangerous")
+            assert unchanged == failure["state"] and "Discard this routine output" not in discarded
+            repaired = routine_command(routine_command(failed, "use repair"), "wait")
+            assert routine_run("use repair\nwait", "dangerous")[0] == repaired["state"]
+            assert repaired["state"]["variables"]["rewards"] == 1
+            ending = routine_start("Before routine ending")
+            assert routine_run("go lab\nuse finish\nsave finishing")[0] == ending["state"]
+            ending = routine_command(ending, "wait")
+            finished, transcript = routine_run("wait\nsave completed", "finishing")
+            assert finished == ending["state"] and finished["variables"]["ending_hooks"] == 1
+            assert "Outcome:" not in transcript and "A later routine should not run." not in transcript
+            assert routine_run("look", "completed")[0] == ending["state"]
+
+            # Reject malformed stored cursors without rewriting the damaged bytes.
+            damaged_path = next(path for path in routine_saves.glob("*.json")
+                                if json.loads(path.read_text())["label"] == "armed")
+            damaged = json.loads(damaged_path.read_text())
+            damaged["state"]["routines"]["runs"]["evening-patrol"]["cursor"]["wait"]["remaining"] = 0
+            damaged_bytes = json.dumps(damaged).encode()
+            damaged_path.write_bytes(damaged_bytes)
+            rejected = subprocess.run([str(package / "luna"), "--games-dir", str(work / "routines/games"),
+                "--saves-dir", str(work / "routines/saves"), "run", routine_game["id"], "--load", "armed"],
+                input="quit\n", text=True, capture_output=True, env=env, cwd=work, timeout=15)
+            assert rejected.returncode != 0 and damaged_path.read_bytes() == damaged_bytes
+
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
             created = api("projects", "POST", {"folder": "smoke-outcome", "title": "No outcome"})
@@ -646,7 +762,7 @@ def main():
             assert "Outcome:" not in completed, completed
             autosave = work / "no-outcome/saves" / game["id"] / game["content_version"] / "autosave.json"
             state = json.loads(autosave.read_text())
-            assert state["save_format"] == (6 if game["format_version"] >= 6 else 5 if game["format_version"] >= 5 else 4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
+            assert state["save_format"] == (7 if game["format_version"] >= 7 else 6 if game["format_version"] >= 6 else 5 if game["format_version"] >= 5 else 4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
             assert state["state"]["ending"] == "finish", state
         finally:
             if editor is not None and editor.poll() is None:
@@ -658,7 +774,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, Timer Workshop callbacks/rollback/quests/endings, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, Timer Workshop callbacks/rollback/quests/endings, Routine Workshop holds/pauses/waits/order/offstage/rollback/corruption/endings, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

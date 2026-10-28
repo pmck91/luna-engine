@@ -222,6 +222,33 @@ it('keeps numeric shadow identity when changing a literal from a form', () => {
   expect(operand.getFieldValue('value')).toBe(7);
   ws.dispose();
 });
+it('reconciles nonliteral numeric operands without disposing authored shadows or leaking new placeholders', () => {
+  const { ws, root } = workspace([]);
+  const value: Effect = {
+    type: 'update_variable',
+    name: 'score',
+    op: 'divide',
+    operand: { type: 'variable', name: 'divisor' },
+  };
+  syncEffectWorkspace(root, [value], { requirements: { type: 'true' } });
+  expect(readEffects(root.getInputTargetBlock('DO'))).toEqual([value]);
+  expect(ws.getTopBlocks(false)).toEqual([root]);
+  const update = root.getInputTargetBlock('DO')!;
+  const operand = update.getInputTargetBlock('OPERAND')!;
+  syncEffectWorkspace(root, [{ ...value, operand: { type: 'literal', value: 2 } }], {
+    requirements: { type: 'true' },
+  });
+  expect(ws.getBlockById(operand.id)).toBe(operand);
+  expect(operand.getParent()).toBeNull();
+  const literal = update.getInputTargetBlock('OPERAND')!;
+  literal.setShadow(true);
+  syncEffectWorkspace(root, [value], { requirements: { type: 'true' } });
+  expect(ws.getBlockById(literal.id)).toBe(literal);
+  expect(literal.getParent()).toBeNull();
+  expect(literal.isShadow()).toBe(false);
+  expect(readEffects(root.getInputTargetBlock('DO'))).toEqual([value]);
+  ws.dispose();
+});
 it('inserts into branches and typed inputs, retaining replaced conditions and number shadows as drafts', () => {
   const { ws, root } = workspace([
     { type: 'say', text: 'First' },

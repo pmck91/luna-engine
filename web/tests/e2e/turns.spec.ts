@@ -137,7 +137,7 @@ test('author a scheduled event through real blocks, persist it, resume a pending
   await insert(page, 'CANCEL TIMER', /^THEN · IF/);
   await save(page);
   const game = JSON.parse(readFileSync(join(root, 'game.json'), 'utf8'));
-  expect(game.format_version).toBe(6);
+  expect(game.format_version).toBe(7);
   const timerId = readdirSync(join(root, 'timers'))[0].replace('.json', '');
   await page.reload();
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
@@ -173,7 +173,7 @@ test('author a scheduled event through real blocks, persist it, resume a pending
   expect(v.result.turns).toMatchObject({ turn: 2, pending: [] });
   await save(page);
   const layout = JSON.parse(readFileSync(join(root, 'editor/map-layout.json'), 'utf8'));
-  expect(layout.playtest.setups[0].version).toBe(4);
+  expect(layout.playtest.setups[0].version).toBe(5);
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export .luna', exact: true }).click();
   const bundle = join(process.env.LUNA_TEST_DIR!, `${folder}.luna`);
@@ -188,7 +188,7 @@ test('author a scheduled event through real blocks, persist it, resume a pending
   run(['run', p.game.id, '--new'], 'use arm\nsave armed\nquit\n');
   const auto = join(root, 'saves', p.game.id, p.game.content_version, 'autosave.json');
   let state = JSON.parse(readFileSync(auto, 'utf8'));
-  expect(state.save_format).toBe(6);
+  expect(state.save_format).toBe(7);
   expect(state.state.turns.pending[timerId].deadline).toBe(4);
   const transcript = run(['run', p.game.id, '--load', 'armed'], 'look\nwait\nwait\nwait\nquit\n');
   expect(transcript.match(/The door swings shut\./g)).toHaveLength(1);

@@ -155,7 +155,7 @@ pub fn wait_command_conflicts(p: &Project) -> Vec<String> {
 impl Condition {
     pub fn requires_turns(&self) -> bool {
         match self {
-            Self::TimerPending { .. } => true,
+            Self::TimerPending { .. } | Self::RoutineStatus { .. } => true,
             Self::All { conditions } | Self::Any { conditions } => {
                 conditions.iter().any(Self::requires_turns)
             }
@@ -167,7 +167,12 @@ impl Condition {
 impl Effect {
     pub fn requires_turns(&self) -> bool {
         match self {
-            Self::ScheduleTimer { .. } | Self::CancelTimer { .. } => true,
+            Self::ScheduleTimer { .. }
+            | Self::CancelTimer { .. }
+            | Self::StartRoutine { .. }
+            | Self::PauseRoutine { .. }
+            | Self::ResumeRoutine { .. }
+            | Self::StopRoutine { .. } => true,
             Self::If {
                 condition,
                 then,
@@ -205,6 +210,11 @@ impl Project {
                     .iter()
                     .map(|t| (t.id.as_str(), t.effects.as_slice())),
             )
+            .chain(self.routines.iter().flat_map(|r| {
+                r.steps
+                    .iter()
+                    .map(|s| (s.id.as_str(), s.effects.as_slice()))
+            }))
             .chain(self.narrative_roots())
             .collect()
     }

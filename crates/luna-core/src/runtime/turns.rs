@@ -111,7 +111,7 @@ pub(super) struct Timing {
     // Loaded instances need no durable ticket: every new attempt starts at zero.
     revisions: BTreeMap<String, u32>,
     generation: u32,
-    boundary: bool,
+    pub(super) boundary: bool,
 }
 impl Timing {
     pub(super) fn new(ended_before: bool) -> Self {

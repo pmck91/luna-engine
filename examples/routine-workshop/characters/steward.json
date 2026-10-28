@@ -1,0 +1,13 @@
+{
+  "id": "steward",
+  "name": "Steward",
+  "name_colour": null,
+  "aliases": [],
+  "description": "She helps demonstrate ordering, once-only rewards and transaction rollback.",
+  "location": "lab",
+  "hidden": false,
+  "state": {},
+  "actions": [],
+  "triggers": [],
+  "hints": []
+}

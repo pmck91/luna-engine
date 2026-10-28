@@ -2604,3 +2604,21 @@ dialog.modal {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
 }
+
+.routine-step-navigation,
+.routine-insert {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.routine-insert h3 {
+  flex-basis: 100%;
+  margin: 0;
+}
+.routine-workspace .procedure-library > .field {
+  margin: 10px 0;
+}
+.routine-progress .pending-timer small {
+  display: block;
+}

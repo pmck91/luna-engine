@@ -1,3 +1,4 @@
+import { routinePage } from './routineModel';
 import { narrativeItem } from './narrativeAuthoring';
 import { useEffect, useRef } from 'react';
 import type { EditorPreferences, PanelLayout, Project } from './contracts';
@@ -22,7 +23,8 @@ export type SavedNavigation = {
     | 'contents'
     | 'procedures'
     | 'conversations'
-    | 'quests';
+    | 'quests'
+    | 'routines';
   search: string;
   triggerFilter: string;
   flowSelections: Record<string, string>;
@@ -38,6 +40,8 @@ export function restoredNavigation(project: Project, raw: unknown): SavedNavigat
     !!narrativeItem(project, id) ||
     (id.startsWith(`${gameDataPages.conversations}:`) &&
       project.characters.some((c) => c.id === id.slice(gameDataPages.conversations.length + 1))) ||
+    (id.startsWith(`${routinePage}:`) &&
+      project.characters.some((c) => c.id === id.slice(routinePage.length + 1))) ||
     project.game.endings.some((e) => e.id === id) ||
     Object.values(gameDataPages).includes(id as any);
   const saved = (raw && typeof raw === 'object' ? raw : {}) as Partial<SavedNavigation>;
@@ -76,6 +80,7 @@ export function restoredNavigation(project: Project, raw: unknown): SavedNavigat
         'procedures',
         'conversations',
         'quests',
+        'routines',
       ].includes(saved.mode)
         ? saved.mode
         : 'map',

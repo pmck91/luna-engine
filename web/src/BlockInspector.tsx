@@ -1,3 +1,4 @@
+import { routineChoices, routine } from './routineModel';
 import { timerChoices, timer } from './turnModel';
 import { useContext } from 'react';
 import { ProcedureScope } from './ProcedureScope';
@@ -115,13 +116,48 @@ export default function BlockInspector({
             <button onClick={createDefinition}>Create timer…</button>
           </div>
         </>
+      ) : value.type === 'start_routine' ||
+        value.type === 'pause_routine' ||
+        value.type === 'resume_routine' ||
+        value.type === 'stop_routine' ? (
+        <>
+          <Select
+            label="Routine"
+            value={value.routine}
+            items={routineChoices(project)}
+            onChange={(routine) => update({ ...value, routine })}
+          />
+          {value.type === 'start_routine' && (
+            <Select
+              label="If character is busy"
+              value={value.busy}
+              items={[
+                { id: 'keep', name: 'Keep current routine' },
+                { id: 'replace', name: 'Replace current routine' },
+              ]}
+              onChange={(busy) => update({ ...value, busy: busy as 'keep' | 'replace' })}
+            />
+          )}
+          <p className="muted">
+            Start and resume arm a later charged turn. Pause preserves progress; stop discards it.
+          </p>
+          <div className="timer-actions">
+            <button
+              disabled={!routine(project, value.routine)}
+              onClick={() => openDefinition?.(value.routine)}
+            >
+              Open routine definition
+            </button>
+            <button onClick={createDefinition}>Create routine…</button>
+          </div>
+        </>
       ) : value.type === 'assign' ? (
         <AssignmentInspector project={project} value={value} onChange={update} />
       ) : selection.kind === 'condition' ? (
         <ConditionEditor
           project={project}
           value={value as Condition}
-          allowCreation={value.type !== 'timer_pending'}
+          allowCreation={!['timer_pending', 'routine_status'].includes(value.type)}
           allowCommandItem={hasCommandItem(project, selection.flowId)}
           onChange={update}
         />
@@ -260,6 +296,17 @@ export default function BlockInspector({
             </p>
           )}
         </>
+      )}
+      {value.type === 'routine_status' && (
+        <div className="timer-actions">
+          <button
+            disabled={!routine(project, value.routine)}
+            onClick={() => openDefinition?.(value.routine)}
+          >
+            Open routine definition
+          </button>
+          <button onClick={createDefinition}>Create routine…</button>
+        </div>
       )}
       {value.type === 'timer_pending' && (
         <>

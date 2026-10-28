@@ -1,3 +1,4 @@
+import { routine, routineDraft } from './routineModel';
 import { timer, timerDraft } from './turnModel';
 import { narrativeDefinitions } from './narrativeModel';
 import { construction } from './narrativeAuthoring';
@@ -30,6 +31,7 @@ export function templateEntities(p: Project): TemplateEntity[] {
 }
 type Visitor = {
   timer?: (id: string) => string;
+  routine?: (id: string) => string;
   entity: (id: string, allowed: TemplateEntityKind[]) => string;
   narrative?: (id: string, kind: NarrativeReferenceKind) => string;
   text: (text: string, localNames?: string[]) => string;
@@ -91,6 +93,8 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
     v.type === 'property' ? { ...v, entity: entity(v.entity) } : v;
   const condition = (v: Condition): Condition => {
     switch (v.type) {
+      case 'routine_status':
+        return { ...v, routine: visitor.routine?.(v.routine) ?? v.routine };
       case 'timer_pending':
         return { ...v, timer: visitor.timer?.(v.timer) ?? v.timer };
       case 'compare':
@@ -157,6 +161,11 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
   };
   const effect = (v: Effect): Effect => {
     switch (v.type) {
+      case 'start_routine':
+      case 'pause_routine':
+      case 'resume_routine':
+      case 'stop_routine':
+        return { ...v, routine: visitor.routine?.(v.routine) ?? v.routine };
       case 'schedule_timer':
         return { ...v, timer: visitor.timer?.(v.timer) ?? v.timer, after: operand(v.after) };
       case 'cancel_timer':
@@ -374,8 +383,13 @@ export function makeTemplate(
   const usedVariables = new Set<string>();
   const narratives = new Map<string, TemplateNarrativeReference>();
   const timers = new Map<string, { id: string; name: string }>();
+  const routines = new Map<string, { id: string; name: string }>();
   const definitions = narrativeDefinitions(p);
   visitContent(t.content, {
+    routine: (id) => {
+      routines.set(id, { id, name: routine(p, id)?.name ?? id });
+      return id;
+    },
     timer: (id) => {
       timers.set(id, { id, name: timer(p, id)?.name ?? id });
       return id;
@@ -407,6 +421,7 @@ export function makeTemplate(
   t.text_variables = [...usedVariables];
   t.narratives = [...narratives.values()];
   t.timers = [...timers.values()];
+  t.routines = [...routines.values()];
   return t;
 }
 export function defaultTemplateMapping(
@@ -423,6 +438,10 @@ export function defaultTemplateMapping(
       );
       return [ref.id, target && ref.allowed.includes(target.kind) ? target.id : ''];
     }),
+    ...templateRoutineReferences(t).map((ref) => [
+      ref.id,
+      routine(p, ref.id) && !routineDraft(p, ref.id) ? ref.id : '',
+    ]),
     ...templateTimerReferences(t).map((ref) => [
       ref.id,
       timer(p, ref.id) && !timerDraft(p, ref.id) ? ref.id : '',
@@ -443,6 +462,7 @@ export function instantiateTemplate(
 ): TemplateContent {
   const replacement = (id: string) => (Object.hasOwn(mapping, id) ? mapping[id] : id);
   const copied = visitContent(t.content, {
+    routine: replacement,
     timer: replacement,
     narrative: replacement,
     entity: replacement,
@@ -477,6 +497,14 @@ export function templateBindingErrors(
   const errors = new Set<string>();
   const definitions = narrativeDefinitions(p).filter((d) => !construction(p, d.id));
   visitContent(t.content, {
+    routine: (id) => {
+      const next = mapping[id] ?? id;
+      if (!p.game.turns || !routine(p, next) || routineDraft(p, next))
+        errors.add(
+          `Choose a finished routine for ${t.routines?.find((r) => r.id === id)?.name ?? id}.`,
+        );
+      return id;
+    },
     timer: (id) => {
       const next = mapping[id] ?? id;
       if (!p.game.turns || !timer(p, next) || timerDraft(p, next))
@@ -573,6 +601,19 @@ export function templateTimerReferences(t: BlockTemplate) {
     text: (text) => text,
     timer: (id) => {
       refs.set(id, t.timers?.find((t) => t.id === id) ?? { id, name: id });
+      return id;
+    },
+  });
+  return [...refs.values()];
+}
+
+export function templateRoutineReferences(t: BlockTemplate) {
+  const refs = new Map<string, { id: string; name: string }>();
+  visitContent(t.content, {
+    entity: (id) => id,
+    text: (text) => text,
+    routine: (id) => {
+      refs.set(id, t.routines?.find((r) => r.id === id) ?? { id, name: id });
       return id;
     },
   });

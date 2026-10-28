@@ -1,0 +1,18 @@
+{
+  "id": "late-work",
+  "name": "Do work before a deliberate late failure",
+  "description": "All effects roll back if the caller later fails.",
+  "inputs": [],
+  "effects": [
+    {
+      "type": "call",
+      "id": "late-record-call",
+      "procedure": "record-signal",
+      "arguments": {}
+    },
+    {
+      "type": "say",
+      "text": "Discard this routine output on failure."
+    }
+  ]
+}

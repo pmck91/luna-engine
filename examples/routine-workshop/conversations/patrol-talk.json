@@ -1,0 +1,64 @@
+{
+  "id": "patrol-talk",
+  "name": "A pause for conversation",
+  "character": "keeper",
+  "available": {
+    "type": "true"
+  },
+  "default_entry": "chat",
+  "entries": [],
+  "nodes": [
+    {
+      "id": "chat",
+      "name": "Keep talking",
+      "text": "I can hold my patrol while we talk.",
+      "terminal": false,
+      "effects": [],
+      "replies": [
+        {
+          "id": "continue-chat",
+          "text": "Tell me a little more.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": "chat",
+          "effects": []
+        },
+        {
+          "id": "pause-chat",
+          "text": "Pause your patrol, but keep talking.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": "chat",
+          "effects": [
+            {
+              "type": "pause_routine",
+              "routine": "evening-patrol"
+            }
+          ]
+        },
+        {
+          "id": "leave-chat",
+          "text": "I'll let you work.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": "goodbye",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "goodbye",
+      "name": "Return to work",
+      "text": "Thank you. I will continue on a later turn.",
+      "terminal": true,
+      "effects": [],
+      "replies": []
+    }
+  ]
+}

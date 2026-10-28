@@ -27,6 +27,7 @@ impl Run<'_> {
     }
 
     pub(crate) fn check_story_bounds(&self) -> Result<()> {
+        self.routine_index.validate_state(self.p, &self.state)?;
         ensure!(
             self.state.narrative.entry_count() <= NARRATIVE_PROGRESS_LIMIT
                 && self.state.narrative.text_bytes() <= NARRATIVE_TEXT_LIMIT,

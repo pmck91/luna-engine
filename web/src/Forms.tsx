@@ -1,3 +1,4 @@
+import { routineChoices } from './routineModel';
 import { authoringTimers, timerChoices } from './turnModel';
 import { authoringNarrative } from './narrativeAuthoring';
 import {
@@ -595,6 +596,7 @@ export function Values({
   );
 }
 const kinds: Array<Condition['type']> = [
+  'routine_status',
   'timer_pending',
   'conversation_node_visited',
   'conversation_reply_chosen',
@@ -628,6 +630,8 @@ export function defaultCondition(type: Condition['type'], p: Project): Condition
   const entity = object || location;
   const name = Object.keys(p.game.variables)[0] ?? '';
   switch (type) {
+    case 'routine_status':
+      return { type, routine: routineChoices(p)[0]?.id ?? '', status: 'running' };
     case 'timer_pending':
       return { type, timer: authoringTimers(p)[0]?.id ?? '' };
     case 'conversation_node_visited':
@@ -746,6 +750,7 @@ export function ConditionEditor({
                   'quest_stage_completed',
                 ].includes(id)) &&
               (id !== 'compare' || p.game.format_version >= 4) &&
+              (id !== 'routine_status' || (p.game.format_version >= 7 && !!p.game.turns)) &&
               (id !== 'timer_pending' || !!p.game.turns) &&
               (p.game.format_version >= 2 ||
                 !['possesses', 'reachable', 'in_object', 'can_transfer'].includes(id)),
@@ -764,6 +769,25 @@ export function ConditionEditor({
           }))}
         onChange={(type) => onChange(defaultCondition(type as Condition['type'], p))}
       />
+      {c.type === 'routine_status' && (
+        <>
+          <Select
+            label="Routine"
+            value={c.routine}
+            items={routineChoices(p)}
+            onChange={(routine) => patch({ routine })}
+          />
+          <Select
+            label="Routine status"
+            value={c.status}
+            items={['not_started', 'running', 'paused', 'stopped', 'completed'].map((id) => ({
+              id,
+              name: id.replaceAll('_', ' '),
+            }))}
+            onChange={(status) => onChange({ ...c, status: status as typeof c.status })}
+          />
+        </>
+      )}
       {c.type === 'timer_pending' && (
         <Select
           label="Timer"

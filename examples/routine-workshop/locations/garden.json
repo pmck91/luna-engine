@@ -1,0 +1,39 @@
+{
+  "id": "garden",
+  "name": "Garden",
+  "aliases": [],
+  "description": "A quiet place to watch Keeper wait and speak. GO STUDY returns without advancing time.",
+  "actions": [],
+  "triggers": [],
+  "exits": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "garden-study",
+      "name": "Visit study without advancing time",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "study"
+        }
+      ],
+      "destination": "study",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "You enter the study.",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

@@ -27,7 +27,7 @@ export function InlineFindings({
   const matches = findings.filter(
     (finding) =>
       (blockId && finding.blockId === blockId) ||
-      (finding.subject === subject &&
+      ((finding.subject === subject || finding.flowId === subject) &&
         (path === undefined ||
           path === '' ||
           finding.path === path ||

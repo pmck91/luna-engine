@@ -1,0 +1,36 @@
+{
+  "id": "keeper",
+  "name": "Keeper",
+  "name_colour": null,
+  "aliases": [],
+  "description": "He follows a short patrol, pauses to talk and carries his badge with him.",
+  "location": "study",
+  "hidden": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "talk-keeper",
+      "name": "Talk without advancing the speaker's routine",
+      "verb": "talk",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "keeper"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "start_conversation",
+          "conversation": "patrol-talk"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

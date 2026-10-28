@@ -153,6 +153,9 @@ impl Project {
     /// content and saved editor setups/templates. This does not upgrade content
     /// or perform semantic validation; saving unfinished authoring is supported.
     pub fn minimum_format(&self) -> u32 {
+        if self.requires_routine_format() {
+            return 7;
+        }
         if self.requires_turn_format() {
             return 6;
         }

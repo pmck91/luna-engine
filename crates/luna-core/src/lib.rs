@@ -63,6 +63,7 @@ mod definition;
 mod input;
 mod narrative;
 mod procedures;
+mod routines;
 mod turns;
 pub use input::*;
 mod runtime;
@@ -75,6 +76,7 @@ pub use runtime::explanation::{
     TraceKind, TraceOutcome, TraceSource, TraceStep,
 };
 pub use runtime::host_control;
+pub use runtime::routines::{RoutineControl, RoutineOperation, RoutineView};
 pub use runtime::turns::{PendingTimerView, TimerOperation, TurnInput, TurnView};
 pub use session::Session;
 
@@ -138,6 +140,10 @@ pub struct CommandResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub turns: Option<TurnView>,
+    /// Native routine progress in persisted author order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub routines: Vec<RoutineView>,
     /// Transcript lines, each represented as literal text with semantic colours.
     pub messages: Vec<Vec<text::Span>>,
     /// Human-readable candidate/handler notes, including an attempted failed run.
@@ -172,6 +178,7 @@ impl Default for CommandResult {
     fn default() -> Self {
         Self {
             turns: None,
+            routines: vec![],
             messages: vec![],
             trace: vec![],
             state_changed: false,

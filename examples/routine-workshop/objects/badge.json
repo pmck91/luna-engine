@@ -1,0 +1,17 @@
+{
+  "id": "badge",
+  "name": "Keeper's badge",
+  "aliases": [],
+  "description": "A carried item that follows Keeper, including into offstage storage.",
+  "placement": {
+    "type": "character",
+    "character": "keeper"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [],
+  "triggers": [],
+  "hints": []
+}

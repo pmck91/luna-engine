@@ -1,0 +1,49 @@
+{
+  "id": "workshop-task",
+  "title": "Record one signal",
+  "aliases": [
+    "signal"
+  ],
+  "introduction": "A signal was requested.",
+  "completion": "The signal was recorded; the reward is only earned once.",
+  "failure": "",
+  "stages": [
+    {
+      "id": "signal-heard",
+      "name": "Record the signal",
+      "text": "The routine recorded its signal.",
+      "prerequisites": [],
+      "condition": {
+        "type": "true"
+      },
+      "required": true,
+      "effects": []
+    }
+  ],
+  "on_start": {
+    "id": "signal-start",
+    "effects": []
+  },
+  "on_complete": {
+    "id": "signal-complete",
+    "effects": [
+      {
+        "type": "update_variable",
+        "name": "rewards",
+        "op": "add",
+        "operand": {
+          "type": "literal",
+          "value": 1
+        }
+      },
+      {
+        "type": "say",
+        "text": "One reward was earned."
+      }
+    ]
+  },
+  "on_fail": {
+    "id": "signal-fail",
+    "effects": []
+  }
+}

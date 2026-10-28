@@ -1,6 +1,6 @@
 # Turns and scheduled events — T4 final review
 
-Status: **T4 accepted; commit/push authorized; PR, CI and merge pending**, 28 October 2026, on `feature/turn-events`. T3 was accepted with “looks good,” acknowledging acceptable complexity, and committed as `bf22c72` before this work. The [accepted authoring record](authoring-review.md), [shared contract](shared-contract.md) and [T0–T4 plan](../../plans/turn-events.md) remain the design basis. The owner accepted the complete feature on 28 October 2026 with “looks good to me,” authorized commit/push and will prepare the PR. Remote CI and merge remain pending.
+Status: **T4 complete, accepted and merged as `1275cc5` (PR #6)**, 28 October 2026, on `feature/turn-events`. T3 was accepted with “looks good,” acknowledging acceptable complexity, and committed as `bf22c72` before this work. The [accepted authoring record](authoring-review.md), [shared contract](shared-contract.md) and [T0–T4 plan](../../plans/turn-events.md) remain the design basis. The owner accepted the complete feature on 28 October 2026 with “looks good to me.” T4 was committed as `e135642`, pushed and merged as `1275cc5` (PR #6), confirmed by the owner and local `main`.
 
 ## Permanent workshop and clarity feedback
 
@@ -62,8 +62,8 @@ The limits remain a u32 clock with checked deadlines, positive i32 evaluated del
 | Linux release package and isolated smoke                                | Passed with source UI hidden and development tools absent from PATH |
 | Documentation links, diff whitespace and earlier examples               | Passed                                                              |
 
-Local browser/package checks do not report remote GitHub CI. The existing Chromium-extension zoom case remains skipped only in Firefox; no new skip or retry is introduced.
+The owner confirmed the GitHub merge, and local `main` contains merge commit `1275cc5`. The local browser/package results above do not independently report remote CI logs. The existing Chromium-extension zoom case remains skipped only in Firefox; no new skip or retry is introduced.
 
 For owner review, open the workshop and follow the [introductory door journey](../../../examples/timer-workshop/ACCEPTANCE.md#start-with-one-countdown). Then restore **Nested chime**, **Before late failure**, **Signal requested** and **Before timer ending**, inspecting the sources and played results. The focus is whether the staged example makes the accepted workflow easier to understand. Full public guides remain part of the later documentation milestone.
 
-Final owner acceptance is recorded above. Commit/push are authorized; the owner will prepare the PR and merge the complete branch after CI. Character routines follow from the merged baseline on their own branch. This T4 record does not authorize changing the current UX or broadening scheduler scope.
+Final owner acceptance and merge are recorded above. Character routines follow from merged `main` at `1275cc5` on their own branch. This T4 record does not authorize changing the current UX or broadening scheduler scope.

@@ -12,6 +12,8 @@
 !/examples/parser-gallery.luna
 !/examples/procedure-workshop.luna
 !/examples/keeper-quest.luna
+!/examples/timer-workshop.luna
+!/examples/routine-workshop.luna
 /web/*.tsbuildinfo
 .luna-recovery/
 .luna-transaction.json

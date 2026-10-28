@@ -1,3 +1,12 @@
+import { routineChoices, authoringRoutines, routineKey } from './routineModel';
+import {
+  registerRoutineBlocks,
+  loadRoutineBlocks,
+  readRoutineBlocks,
+  syncRoutineBlocks,
+  routineWorkspaceIssues,
+  routineStepOf,
+} from './routineBlocks';
 import { copyOwnedContent } from './scriptCopy';
 import { authoringTimers, timerChoices } from './turnModel';
 import { authoringNarrative } from './narrativeAuthoring';
@@ -99,6 +108,8 @@ const newBlocks = [
   'condition_can_transfer',
 ];
 export const blockAvailable = (p: Project, type: string) =>
+  (!/^(luna_(start|pause|resume|stop)_routine|condition_routine_status)$/.test(type) ||
+    (p.game.format_version >= 7 && !!p.game.turns)) &&
   (!!p.game.turns ||
     !['luna_schedule_timer', 'luna_cancel_timer', 'condition_timer_pending'].includes(type)) &&
   (p.game.format_version >= 5 ||
@@ -130,6 +141,10 @@ const narrativeEffects = [
   'fail_quest',
 ];
 export const effectFields: Record<string, string[]> = {
+  start_routine: ['routine', 'busy'],
+  pause_routine: ['routine'],
+  resume_routine: ['routine'],
+  stop_routine: ['routine'],
   schedule_timer: ['timer', 'pending'],
   cancel_timer: ['timer'],
   start_conversation: ['conversation'],
@@ -167,6 +182,7 @@ export const effectFields: Record<string, string[]> = {
   stop: [],
 };
 const conditionFields: Record<string, string[]> = {
+  routine_status: ['routine', 'status'],
   timer_pending: ['timer'],
   conversation_node_visited: ['conversation', 'node'],
   conversation_reply_chosen: ['conversation', 'reply'],
@@ -190,6 +206,7 @@ const conditionFields: Record<string, string[]> = {
   can_transfer: ['object', 'placement'],
 };
 const conditionNames: Record<string, string> = {
+  routine_status: 'ROUTINE STATE',
   timer_pending: 'TIMER PENDING',
   compare: 'COMPARE VALUES',
   possesses: 'HAS ITEM',
@@ -198,6 +215,10 @@ const conditionNames: Record<string, string> = {
   can_transfer: 'CAN TRANSFER',
 };
 export const labels: Record<string, string> = {
+  start_routine: 'START ROUTINE',
+  pause_routine: 'PAUSE ROUTINE',
+  resume_routine: 'RESUME ROUTINE',
+  stop_routine: 'STOP ROUTINE',
   schedule_timer: 'SCHEDULE',
   cancel_timer: 'CANCEL TIMER',
   start_conversation: 'START CONVERSATION',
@@ -333,6 +354,20 @@ function field(name: string, type: string): Blockly.Field {
           ]);
       return options;
     });
+  if (name === 'routine') return dropdown(() => routineChoices(project));
+  if (name === 'busy')
+    return new Blockly.FieldDropdown([
+      ['Keep current routine', 'keep'],
+      ['Replace / restart current', 'replace'],
+    ]);
+  if (name === 'status' && type === 'routine_status')
+    return new Blockly.FieldDropdown([
+      ['Not started', 'not_started'],
+      ['Running', 'running'],
+      ['Manually paused', 'paused'],
+      ['Stopped', 'stopped'],
+      ['Completed', 'completed'],
+    ]);
   if (name === 'timer') return dropdown(() => timerChoices(project));
   if (name === 'pending')
     return new Blockly.FieldDropdown([
@@ -495,6 +530,7 @@ function field(name: string, type: string): Blockly.Field {
 export function registerBlocks(p: Project) {
   project = p;
   register();
+  registerRoutineBlocks();
 }
 const conditionLabels = {
   requirements: 'REQUIRES',
@@ -726,7 +762,9 @@ function socketConnection(workspace: Blockly.Workspace, socket: BlockSocket) {
     : block?.getInput(socket.input)?.connection;
 }
 export function insertionPoints(workspace: Blockly.Workspace): InsertionPoint[] {
-  const root = workspace.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+  const root = workspace
+    .getTopBlocks(false)
+    .find((block) => block.type === 'luna_flow' || block.type === 'luna_routine');
   const addresses = root ? blockAddresses(root) : new Map<string, string>();
   const points: InsertionPoint[] = [];
   for (const block of workspace.getAllBlocks(true)) {
@@ -735,6 +773,7 @@ export function insertionPoints(workspace: Blockly.Workspace): InsertionPoint[] 
     const location = blockLocation(addresses.get(block.id) ?? null);
     const add = (input: string, connection: Blockly.Connection, label: string) => {
       const check = connection.getCheck();
+      if (check?.includes('RoutineStep')) return;
       const kind =
         connection.type === Blockly.ConnectionType.NEXT_STATEMENT
           ? 'effect'
@@ -844,9 +883,19 @@ export function insertEffectBlocks(
     Blockly.Events.setGroup(previousGroup);
   }
 }
-export function appendEffectBlocks(workspace: Blockly.Workspace, effects: Effect[]) {
-  const root = workspace.getTopBlocks(false).find((block) => block.type === 'luna_flow');
-  if (!root) throw new Error('Select an action or trigger before inserting blocks.');
+export function appendEffectBlocks(
+  workspace: Blockly.Workspace,
+  effects: Effect[],
+  stepId?: string,
+) {
+  let root = workspace
+    .getTopBlocks(false)
+    .find((block) => block.type === 'luna_flow' || block.type === 'luna_routine');
+  if (root?.type === 'luna_routine')
+    root = workspace
+      .getAllBlocks(false)
+      .find((b) => b.type === 'luna_routine_step' && routineStepOf(b) === stepId);
+  if (!root) throw new Error('Select a step before inserting effect blocks.');
   let tail = root.getInputTargetBlock('DO');
   while (tail?.getNextBlock()) tail = tail.getNextBlock();
   return insertEffectBlocks(workspace, effects, {
@@ -862,7 +911,7 @@ function register() {
         new Blockly.FieldLabel('WHEN THIS ACTION RUNS'),
         'FLOW_TITLE',
       );
-      this.appendStatementInput('DO');
+      this.appendStatementInput('DO').setCheck('Effect');
       this.setColour('#7161c6');
       this.setDeletable(false);
       this.setMovable(false);
@@ -885,6 +934,7 @@ function register() {
         if (type === 'respond') {
           input.appendField('Edit replies in the inspector');
           this.appendStatementInput('ON_EXHAUSTED')
+            .setCheck('Effect')
             .appendField('AFTER LAST REPLY')
             .appendField(
               new Blockly.FieldDropdown([
@@ -912,8 +962,8 @@ function register() {
             .appendField('if already pending')
             .appendField(field('pending', type), 'pending');
         }
-        this.setPreviousStatement(true);
-        this.setNextStatement(true);
+        this.setPreviousStatement(true, 'Effect');
+        this.setNextStatement(true, 'Effect');
         this.setColour(
           narrativeEffects.includes(type)
             ? '#7161c6'
@@ -956,10 +1006,10 @@ function register() {
   Blockly.Blocks.luna_if = {
     init(this: Blockly.Block) {
       this.appendValueInput('TEST').setCheck('Boolean').appendField('IF');
-      this.appendStatementInput('THEN').appendField('THEN');
-      this.appendStatementInput('ELSE').appendField('ELSE');
-      this.setPreviousStatement(true);
-      this.setNextStatement(true);
+      this.appendStatementInput('THEN').setCheck('Effect').appendField('THEN');
+      this.appendStatementInput('ELSE').setCheck('Effect').appendField('ELSE');
+      this.setPreviousStatement(true, 'Effect');
+      this.setNextStatement(true, 'Effect');
       this.setColour('#916b31');
     },
   };
@@ -1019,8 +1069,8 @@ function register() {
         );
         if (output) this.setOutput(true, output);
         else {
-          this.setPreviousStatement(true);
-          this.setNextStatement(true);
+          this.setPreviousStatement(true, 'Effect');
+          this.setNextStatement(true, 'Effect');
         }
         this.setColour(
           output === 'Boolean' ? '#916b31' : output === 'Number' ? '#426e85' : '#7161c6',
@@ -1032,8 +1082,8 @@ function register() {
       this.appendDummyInput('CALL')
         .appendField('CALL')
         .appendField(field('procedure', 'call'), 'procedure');
-      this.setPreviousStatement(true);
-      this.setNextStatement(true);
+      this.setPreviousStatement(true, 'Effect');
+      this.setNextStatement(true, 'Effect');
       this.setColour('#7161c6');
       setFields(this, newCall(project.procedures?.[0]));
     },
@@ -1130,7 +1180,7 @@ function readCall(block: Blockly.Block): Extract<Effect, { type: 'call' }> {
   block.data = JSON.stringify(result);
   return result;
 }
-function setFields(block: Blockly.Block, data: Record<string, unknown>) {
+export function setFields(block: Blockly.Block, data: Record<string, unknown>) {
   block.data = JSON.stringify(data);
   if (block.type === 'luna_call')
     refreshCall(block, data as unknown as Extract<Effect, { type: 'call' }>);
@@ -1366,6 +1416,10 @@ export function readEffects(first: Blockly.Block | null, limit = Infinity): Effe
   const effects: Effect[] = [];
   let block = first;
   while (block && effects.length < limit) {
+    if (['luna_routine_wait', 'luna_routine_step', 'luna_routine'].includes(block.type)) {
+      block = block.getNextBlock();
+      continue;
+    }
     const type = block.type.replace('luna_', '') as Effect['type'];
     if (type === 'call') effects.push(readCall(block));
     else if (type === 'assign' && block.data) effects.push(JSON.parse(block.data) as Effect);
@@ -1533,6 +1587,18 @@ const toolbox = {
   contents: [
     {
       kind: 'category',
+      name: 'Routines',
+      colour: '#7161c6',
+      contents: [
+        'luna_start_routine',
+        'luna_pause_routine',
+        'luna_resume_routine',
+        'luna_stop_routine',
+        'condition_routine_status',
+      ].map((type) => ({ kind: 'block', type })),
+    },
+    {
+      kind: 'category',
       name: 'Timers',
       colour: '#555f7f',
       contents: ['luna_schedule_timer', 'luna_cancel_timer', 'condition_timer_pending'].map(
@@ -1593,7 +1659,14 @@ const toolbox = {
         .filter(
           (t) =>
             !narrativeEffects.includes(t) &&
-            !['schedule_timer', 'cancel_timer'].includes(t) &&
+            ![
+              'schedule_timer',
+              'cancel_timer',
+              'start_routine',
+              'pause_routine',
+              'resume_routine',
+              'stop_routine',
+            ].includes(t) &&
             ![
               'say',
               'say_with_inputs',
@@ -1638,7 +1711,7 @@ export function syncConditionBlock(block: Blockly.Block, value: Condition): Bloc
   }
   return block;
 }
-function syncConditionInput(parent: Blockly.Block, name: string, value: Condition) {
+export function syncConditionInput(parent: Blockly.Block, name: string, value: Condition) {
   const old = parent.getInputTargetBlock(name);
   const next = old ? syncConditionBlock(old, value) : makeCondition(parent.workspace, value);
   const connection = parent.getInput(name)!.connection!;
@@ -1649,6 +1722,10 @@ export type BlockValue = Effect | Condition | NumericOperand;
 export function blockLocation(address: string | null) {
   if (address === null) return 'Draft';
   const names: Record<string, string> = {
+    steps: 'Steps',
+    start: 'Start',
+    repeat: 'Repeat',
+    wait: 'Wait',
     effects: 'Effects',
     requirements: 'Requirements',
     condition: 'Condition',
@@ -1675,6 +1752,7 @@ export type BlockSelection = {
   address: string | null;
   value: BlockValue | null;
   argumentNames?: Record<string, string>;
+  routineStepId?: string;
   fields: Array<{
     name: string;
     label: string;
@@ -1721,7 +1799,26 @@ export function blockAddresses(root: Blockly.Block): Map<string, string> {
     }
   };
   for (const key of Object.keys(conditionLabels)) condition(root.getInputTargetBlock(key), key);
-  chain(root.getInputTargetBlock('DO'), 'effects');
+  if (root.type === 'luna_routine') {
+    condition(root.getInputTargetBlock('START_WHEN'), 'start.condition');
+    condition(root.getInputTargetBlock('REPEAT_WHEN'), 'repeat.condition');
+    let step = root.getInputTargetBlock('DO'),
+      i = 0;
+    while (step?.type === 'luna_routine_step') {
+      const at = `steps.${i++}`;
+      result.set(step.id, at);
+      condition(step.getInputTargetBlock('condition'), `${at}.condition`);
+      let body = step.getInputTargetBlock('DO');
+      if (body?.type === 'luna_routine_wait') {
+        result.set(body.id, `${at}.wait`);
+        const operand = body.getInputTargetBlock('TURNS');
+        if (operand) result.set(operand.id, `${at}.wait`);
+        body = body.getNextBlock();
+      }
+      chain(body, `${at}.effects`);
+      step = step.getNextBlock();
+    }
+  } else chain(root.getInputTargetBlock('DO'), 'effects');
   return result;
 }
 export function describeBlock(
@@ -1729,16 +1826,19 @@ export function describeBlock(
   flowId: string,
   addresses?: Map<string, string>,
 ): BlockSelection {
-  const root = block.workspace.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+  const root = block.workspace
+    .getTopBlocks(false)
+    .find((b) => b.type === 'luna_flow' || b.type === 'luna_routine');
   const address = (addresses ?? (root ? blockAddresses(root) : undefined))?.get(block.id);
-  const kind =
-    block.type === 'luna_flow'
-      ? 'root'
-      : block.type.startsWith('condition_')
-        ? 'condition'
-        : block.type.startsWith('number_')
-          ? 'operand'
-          : 'effect';
+  const kind = ['luna_flow', 'luna_routine', 'luna_routine_step', 'luna_routine_wait'].includes(
+    block.type,
+  )
+    ? 'root'
+    : block.type.startsWith('condition_')
+      ? 'condition'
+      : block.type.startsWith('number_')
+        ? 'operand'
+        : 'effect';
   const value =
     kind === 'root'
       ? null
@@ -1749,9 +1849,15 @@ export function describeBlock(
           : readEffects(block, 1)[0];
   return {
     flowId,
+    routineStepId: routineStepOf(block),
     blockId: block.id,
     kind,
     label:
+      (block.type === 'luna_routine_step'
+        ? `STEP ${block.getFieldValue('NAME')}`
+        : block.type === 'luna_routine_wait'
+          ? 'WAIT ROUTINE TURNS'
+          : undefined) ??
       labels[block.type.replace('luna_', '')] ??
       conditionNames[block.type.replace('condition_', '')] ??
       block.type
@@ -1904,10 +2010,15 @@ export function syncEffectWorkspace(
   // Disconnect changed connections before reconnecting, keeping unchanged shadows intact.
   for (const [connection, child] of desired)
     if (connection.targetBlock() !== child && connection.isConnected()) {
-      connection.setShadowState(null);
       const previousChild = connection.targetBlock()!;
+      const generatedShadow =
+        previousChild.isShadow() && !previous.some(({ block }) => block === previousChild);
       if (previousChild.isShadow()) previousChild.setShadow(false);
+      // Clearing a live shadow's state disposes it. Make it a real block first
+      // so authored operands survive as drafts; discard only new placeholders.
+      connection.setShadowState(null);
       connection.disconnect();
+      if (generatedShadow) previousChild.dispose(false);
     }
   const connect = (connection: Blockly.Connection | null, target: Node | null) => {
     if (!connection || !target || connection.targetBlock() === target.block) return;
@@ -1961,6 +2072,8 @@ export default function Blocks({
   saved,
   onChange,
   onError,
+  routine: routineValue,
+  onRoutineChange,
   title = 'WHEN THIS ACTION RUNS',
   onSelect,
   selectedId,
@@ -1980,6 +2093,13 @@ export default function Blocks({
     context?: EditContext,
   ) => void;
   onError: (e: string) => void;
+  routine?: import('./contracts').CharacterRoutine;
+  onRoutineChange?: (
+    routine: import('./contracts').CharacterRoutine,
+    workspace: object,
+    issues: string[],
+    context?: EditContext,
+  ) => boolean | void;
   title?: string;
   onSelect?: (selection: BlockSelection | null, activate?: boolean) => void;
   selectedId?: string | null;
@@ -1993,11 +2113,14 @@ export default function Blocks({
   const explanationFocus = useContext(ExplanationFocus);
   const findings = findingContext.findings.filter((finding) => finding.flowId === flowId);
   register();
-  const conditions = flowConditions(script(p, flowId));
+  registerRoutineBlocks();
+  const conditions = routineValue ? {} : flowConditions(script(p, flowId));
+  const routineVersion = JSON.stringify(routineValue);
   const conditionVersion = JSON.stringify(conditions);
   const choiceVersion = JSON.stringify({
     format: p.game.format_version,
     turns: !!p.game.turns,
+    routines: authoringRoutines(p).map((r) => [r.id, r.name, r.character]),
     timers: authoringTimers(p).map((t) => [
       t.id,
       t.name,
@@ -2046,7 +2169,9 @@ export default function Blocks({
   const updateOutline = () => {
     const ws = workspace.current;
     if (!ws) return;
-    const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+    const root = ws
+      .getTopBlocks(false)
+      .find((b) => b.type === 'luna_flow' || b.type === 'luna_routine');
     const addresses = root ? blockAddresses(root) : new Map<string, string>();
     setOutline(
       ws
@@ -2058,7 +2183,10 @@ export default function Blocks({
             return null;
           }
         })
-        .filter((block): block is BlockSelection => !!block && block.kind !== 'root'),
+        .filter(
+          (block): block is BlockSelection =>
+            !!block && (block.kind !== 'root' || !!block.routineStepId),
+        ),
     );
   };
   useImperativeHandle(
@@ -2066,8 +2194,11 @@ export default function Blocks({
     () => ({
       selectBlock: (id) => {
         selectedBlock.current = id;
-        if (id) (workspace.current?.getBlockById(id) as Blockly.BlockSvg | null)?.select();
-        else Blockly.common.getSelected()?.unselect();
+        const block = workspace.current?.getBlockById(id ?? '');
+        if (block) {
+          Blockly.common.setSelected(block);
+          workspace.current?.centerOnBlock(block.id);
+        } else Blockly.common.getSelected()?.unselect();
         notifySelection();
       },
       updateBlock: (selection, value, references) => {
@@ -2132,7 +2263,8 @@ export default function Blocks({
         return selected instanceof Blockly.Block &&
           selected.workspace === workspace.current &&
           selected.previousConnection &&
-          selected.type.startsWith('luna_')
+          selected.type.startsWith('luna_') &&
+          !['luna_routine_step', 'luna_routine_wait'].includes(selected.type)
           ? structuredClone(readEffects(selected))
           : null;
       },
@@ -2142,7 +2274,11 @@ export default function Blocks({
         const previousGroup = Blockly.Events.getGroup();
         Blockly.Events.setGroup(true);
         try {
-          appendEffectBlocks(ws, effects);
+          appendEffectBlocks(
+            ws,
+            effects,
+            routineStepOf(ws.getBlockById(selectedBlock.current ?? '')),
+          );
           for (const block of ws.getAllBlocks(false)) block.initSvg();
           ws.render();
           refreshChainEnds(ws);
@@ -2154,6 +2290,8 @@ export default function Blocks({
     [flowId],
   );
   const current = useRef({
+    routine: routineValue,
+    onRoutineChange,
     effects,
     conditions,
     saved,
@@ -2165,6 +2303,8 @@ export default function Blocks({
     history,
   });
   current.current = {
+    routine: routineValue,
+    onRoutineChange,
     effects,
     conditions,
     saved,
@@ -2179,7 +2319,9 @@ export default function Blocks({
     const block = workspace.current?.getBlockById(selectedBlock.current ?? '');
     const fallback =
       !block && selectedBlock.current
-        ? workspace.current?.getTopBlocks(false).find((b) => b.type === 'luna_flow')
+        ? workspace.current
+            ?.getTopBlocks(false)
+            .find((b) => b.type === 'luna_flow' || b.type === 'luna_routine')
         : null;
     current.current.onSelect?.(
       block ? describeBlock(block, flowId) : fallback ? describeBlock(fallback, flowId) : null,
@@ -2188,8 +2330,29 @@ export default function Blocks({
   };
   const commit = (context?: EditContext) => {
     const ws = workspace.current!;
-    const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+    const root = ws
+      .getTopBlocks(false)
+      .find((b) => b.type === 'luna_flow' || b.type === 'luna_routine');
     refreshChainEnds(ws);
+    if (root?.type === 'luna_routine') {
+      const definition = readRoutineBlocks(root);
+      last.current = routineKey(definition);
+      const saved = Blockly.serialization.workspaces.save(ws);
+      lastWorkspace.current = JSON.stringify(saved);
+      if (
+        current.current.onRoutineChange?.(
+          definition,
+          saved,
+          routineWorkspaceIssues(root),
+          context,
+        ) === false
+      ) {
+        load();
+        notifySelection();
+      }
+      updateOutline();
+      return;
+    }
     const effects = readEffects(root?.getInputTargetBlock('DO') ?? null);
     const conditions = readFlowConditions(root ?? null);
     last.current = JSON.stringify({ effects, conditions });
@@ -2212,31 +2375,41 @@ export default function Blocks({
           Blockly.serialization.workspaces.load(current.current.saved, ws);
           projectProcedures(ws, p.procedures ?? []);
           refreshBlockFields(ws);
-          const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+          const root = ws
+            .getTopBlocks(false)
+            .find((b) => b.type === 'luna_flow' || b.type === 'luna_routine');
           loaded =
-            !!root &&
-            JSON.stringify(readEffects(root.getInputTargetBlock('DO'))) ===
-              JSON.stringify(current.current.effects);
+            root?.type === 'luna_routine'
+              ? routineKey(readRoutineBlocks(root)) === routineKey(current.current.routine)
+              : !!root &&
+                JSON.stringify(readEffects(root.getInputTargetBlock('DO'))) ===
+                  JSON.stringify(current.current.effects);
         } catch {
           /* rebuild from canonical model */
         }
       }
       if (!loaded) {
         ws.clear();
-        const root = loadEffectBlocks(ws, current.current.effects, current.current.conditions);
+        const root = current.current.routine
+          ? loadRoutineBlocks(ws, current.current.routine)
+          : loadEffectBlocks(ws, current.current.effects, current.current.conditions);
         root.moveBy(24, 24);
       }
-      const root = ws.getTopBlocks(false).find((block) => block.type === 'luna_flow')!;
-      syncFlowConditions(root, current.current.conditions);
+      const root = ws
+        .getTopBlocks(false)
+        .find((block) => block.type === 'luna_flow' || block.type === 'luna_routine')!;
+      if (root.type !== 'luna_routine') syncFlowConditions(root, current.current.conditions);
       root.setFieldValue(current.current.title, 'FLOW_TITLE');
       ws.getAllBlocks(false).forEach((b) => {
         b.initSvg();
       });
       ws.render();
-      last.current = JSON.stringify({
-        effects: current.current.effects,
-        conditions: current.current.conditions,
-      });
+      last.current = current.current.routine
+        ? routineKey(current.current.routine)
+        : JSON.stringify({
+            effects: current.current.effects,
+            conditions: current.current.conditions,
+          });
       lastWorkspace.current = JSON.stringify(current.current.saved);
     } finally {
       Blockly.Events.enable();
@@ -2257,7 +2430,7 @@ export default function Blocks({
         }))
         .filter(
           (category) =>
-            !['Conversations & quests', 'Timers'].includes(category.name) ||
+            !['Conversations & quests', 'Timers', 'Routines'].includes(category.name) ||
             category.contents.length > 0,
         ),
     };
@@ -2275,8 +2448,8 @@ export default function Blocks({
     commit({ derived: true });
     Blockly.Events.disable();
     try {
-      if (selectedBlock.current)
-        (ws.getBlockById(selectedBlock.current) as Blockly.BlockSvg | null)?.select();
+      const initial = ws.getBlockById(selectedBlock.current ?? '');
+      if (initial) Blockly.common.setSelected(initial);
     } finally {
       Blockly.Events.enable();
     }
@@ -2331,11 +2504,18 @@ export default function Blocks({
       notifySelection();
       return;
     }
-    if (last.current === JSON.stringify({ effects, conditions })) return;
+    if (
+      last.current ===
+      (routineValue ? routineKey(routineValue) : JSON.stringify({ effects, conditions }))
+    )
+      return;
     Blockly.Events.disable();
     try {
-      const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow')!;
-      syncEffectWorkspace(root, effects, conditions);
+      const root = ws
+        .getTopBlocks(false)
+        .find((b) => b.type === 'luna_flow' || b.type === 'luna_routine')!;
+      if (routineValue) syncRoutineBlocks(root, routineValue);
+      else syncEffectWorkspace(root, effects, conditions);
       for (const block of ws.getAllBlocks(false)) block.initSvg();
       ws.render();
       commit({ derived: true });
@@ -2345,7 +2525,7 @@ export default function Blocks({
     } finally {
       Blockly.Events.enable();
     }
-  }, [effects, conditionVersion, saved]);
+  }, [effects, conditionVersion, routineVersion, saved]);
   useEffect(() => {
     const ws = workspace.current;
     if (!ws) return;
@@ -2366,7 +2546,7 @@ export default function Blocks({
           }))
           .filter(
             (category) =>
-              !['Conversations & quests', 'Timers'].includes(category.name) ||
+              !['Conversations & quests', 'Timers', 'Routines'].includes(category.name) ||
               category.contents.length > 0,
           ),
       });
@@ -2378,7 +2558,9 @@ export default function Blocks({
     }
   }, [choiceVersion]);
   useEffect(() => {
-    const root = workspace.current?.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+    const root = workspace.current
+      ?.getTopBlocks(false)
+      .find((block) => block.type === 'luna_flow' || block.type === 'luna_routine');
     if (!root) return;
     Blockly.Events.disable();
     try {
@@ -2393,7 +2575,7 @@ export default function Blocks({
     const block = selectedId ? workspace.current?.getBlockById(selectedId) : null;
     Blockly.Events.disable();
     try {
-      if (block) (block as Blockly.BlockSvg).select();
+      if (block) Blockly.common.setSelected(block as Blockly.BlockSvg);
     } finally {
       Blockly.Events.enable();
     }
@@ -2403,11 +2585,13 @@ export default function Blocks({
     const ws = workspace.current;
     const source = findingContext.reveal;
     if (!ws || source?.flowId !== flowId) return;
-    const root = ws.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+    const root = ws
+      .getTopBlocks(false)
+      .find((block) => block.type === 'luna_flow' || block.type === 'luna_routine');
     const blockId = source.blockId ?? (root && nearestBlock(blockAddresses(root), source.path));
     if (!blockId || !ws.getBlockById(blockId)) return;
     selectedBlock.current = blockId;
-    (ws.getBlockById(blockId) as Blockly.BlockSvg).select();
+    Blockly.common.setSelected(ws.getBlockById(blockId)!);
     ws.centerOnBlock(blockId);
     notifySelection(true);
   }, [flowId, findingContext.reveal]);
@@ -2423,7 +2607,9 @@ export default function Blocks({
       node.removeAttribute('data-explanation-source');
     }
     if (explanationFocus?.flowId === flowId) {
-      const root = ws.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+      const root = ws
+        .getTopBlocks(false)
+        .find((b) => b.type === 'luna_flow' || b.type === 'luna_routine');
       const id = root && (nearestBlock(blockAddresses(root), explanationFocus.path) ?? root.id);
       const svg = id && (ws.getBlockById(id) as Blockly.BlockSvg | null)?.getSvgRoot();
       if (svg) {
@@ -2440,7 +2626,9 @@ export default function Blocks({
   }, [flowId, explanationFocus, p]);
   useEffect(() => {
     const ws = workspace.current;
-    const root = ws?.getTopBlocks(false).find((block) => block.type === 'luna_flow');
+    const root = ws
+      ?.getTopBlocks(false)
+      .find((block) => block.type === 'luna_flow' || block.type === 'luna_routine');
     if (!ws || !root) return;
     const addresses = blockAddresses(root);
     Blockly.Events.disable();
@@ -2473,6 +2661,9 @@ export default function Blocks({
     <div className="flow-surface">
       <div className="insertion-toolbar">
         <button onClick={() => openPicker()}>Add block</button>
+        {routineValue && (
+          <button onClick={() => workspace.current?.zoomToFit()}>Fit routine</button>
+        )}
         <span>Search and insert at a chosen connection, or drag from the palette.</span>
         <span aria-live="polite" className="sr-only">
           {insertionNotice}
@@ -2492,9 +2683,11 @@ export default function Blocks({
                 aria-pressed={selectedBlock.current === block.blockId}
                 onClick={() => {
                   selectedBlock.current = block.blockId;
-                  (
-                    workspace.current?.getBlockById(block.blockId) as Blockly.BlockSvg | null
-                  )?.select();
+                  const selected = workspace.current?.getBlockById(block.blockId);
+                  if (selected) {
+                    Blockly.common.setSelected(selected);
+                    workspace.current?.centerOnBlock(selected.id);
+                  }
                   notifySelection(true);
                 }}
               >
@@ -2537,7 +2730,8 @@ export default function Blocks({
                     {direction < 0 ? '↑ Up' : '↓ Down'}
                   </button>
                 ))}
-              {block.kind !== 'root' && (
+              {(block.kind !== 'root' ||
+                (block.routineStepId && block.label.startsWith('STEP '))) && (
                 <button
                   aria-label={`${block.connected ? 'Disconnect' : 'Delete draft'} ${block.label} · ${blockLocation(block.address)}`}
                   onClick={() => {
@@ -2599,7 +2793,7 @@ export default function Blocks({
               for (const item of ws.getAllBlocks(false)) item.initSvg();
               ws.render();
               selectedBlock.current = block.id;
-              (block as Blockly.BlockSvg).select();
+              Blockly.common.setSelected(block as Blockly.BlockSvg);
               commit({
                 label: `Insert ${catalogue(p, flowId).find((entry) => entry.type === type)?.name ?? 'block'}`,
               });

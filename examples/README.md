@@ -13,3 +13,5 @@ The painting has two ordered replies, the brass key unlocks the garden door with
 [The Keeper's Key](keeper-quest/ACCEPTANCE.md) is the complete editor-authored conversation and quest example: prewritten replies, clue loops, terminal revisit dialogue, quest stages and a once-only shared reward, a deliberately failing handover, and three captured checkpoints. Its checked export is exercised across independent runner processes and packaged editor/runner builds.
 
 [The Timer Workshop](timer-workshop/ACCEPTANCE.md) starts with a three-turn door closer, then offers optional cancellation, ordering, guard, nested-call, conversation/quest, rollback and ending experiments. Its five captured setups and checked export cover native clock/queue restoration and independent runner processes.
+
+[The Routine Workshop](routine-workshop/ACCEPTANCE.md) begins with a four-step character patrol. Its optional lab covers blocked requirements, conversation holds, manual pause, offstage storage, author order, once-only rewards, rollback and ending. Nine native checkpoints, two saved checks and the checked export cover editor and independent runner restoration.

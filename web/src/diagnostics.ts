@@ -1,3 +1,4 @@
+import { routineWorkspaceIssues } from './routineBlocks';
 import * as Blockly from 'blockly/core';
 import type { Action, Diagnostic, Project } from './contracts';
 import {
@@ -19,7 +20,10 @@ import type { Finding } from './findingSites';
 /** Validate disconnected content through the same Rust validator, in an isolated copy. */
 export function prepareDraftValidation(project: Project) {
   const copy = structuredClone(project);
-  const sources = new Map<string, { site: ReferenceSite; addresses: Map<string, string> }>();
+  const sources = new Map<
+    string,
+    { site: ReferenceSite; addresses: Map<string, string>; prefix?: string }
+  >();
   const unreadable: Finding[] = [];
   for (const t of project.editor.timer_drafts ?? []) {
     (copy.timers ??= []).push(structuredClone(t));
@@ -27,6 +31,26 @@ export function prepareDraftValidation(project: Project) {
       site: { subject: t.id, flowId: t.id, path: '', scope: 'draft' },
       addresses: new Map(),
     });
+  }
+  for (const r of project.editor.routine_drafts ?? []) {
+    (copy.routines ??= []).push(structuredClone(r));
+    sources.set(r.id, {
+      site: { subject: r.id, flowId: r.id, routineId: r.id, path: '', scope: 'draft' },
+      addresses: new Map(),
+    });
+    r.steps.forEach((step, i) =>
+      sources.set(step.id, {
+        site: {
+          subject: step.id,
+          flowId: r.id,
+          routineId: r.id,
+          path: `steps.${i}`,
+          scope: 'draft',
+        },
+        prefix: `steps.${i}`,
+        addresses: new Map(),
+      }),
+    );
   }
   registerHintBlocks(project);
   try {
@@ -39,7 +63,26 @@ export function prepareDraftValidation(project: Project) {
           .flatMap((owner) => owner.hints.map((puzzle) => ({ owner: owner.id, puzzle: puzzle.id })))
           .find((hint) => key === `hints:${hint.puzzle}`);
         const timerDraft = sources.get(key);
-        const root = workspace.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+        const root = workspace
+          .getTopBlocks(false)
+          .find((b) => b.type === 'luna_flow' || b.type === 'luna_routine');
+        if (root?.type === 'luna_routine') {
+          const addresses = blockAddresses(root);
+          for (const source of sources.values())
+            if (source.site.flowId === key) source.addresses = addresses;
+          for (const message of routineWorkspaceIssues(root))
+            unreadable.push({
+              severity: 'error',
+              subject: key,
+              field: '',
+              path: '',
+              flowId: key,
+              routineId: key,
+              blockId: root.id,
+              scope: 'draft',
+              message,
+            });
+        }
         if (timerDraft && root) timerDraft.addresses = blockAddresses(root);
         const live = new Set(
           workspace
@@ -47,6 +90,8 @@ export function prepareDraftValidation(project: Project) {
             .filter(
               (block) =>
                 block.type === 'luna_flow' ||
+                block.type === 'luna_routine' ||
+                block.type === 'luna_routine_step' ||
                 (block.type === 'hint_puzzle' && block.id === hint?.puzzle),
             )
             .flatMap((block) => block.getDescendants(false).map((b) => b.id)),
@@ -163,8 +208,12 @@ export function prepareDraftValidation(project: Project) {
                 ...diagnostic,
                 ...source.site,
                 field: diagnostic.field,
-                path: diagnostic.field,
-                blockId: nearestBlock(source.addresses, diagnostic.field) ?? source.site.blockId,
+                path: [source.prefix, diagnostic.field].filter(Boolean).join('.'),
+                blockId:
+                  nearestBlock(
+                    source.addresses,
+                    [source.prefix, diagnostic.field].filter(Boolean).join('.'),
+                  ) ?? source.site.blockId,
               },
             ]
           : [];

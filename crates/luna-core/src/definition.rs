@@ -29,6 +29,7 @@ struct Definition {
     procedures: crate::procedures::ProcedureIndex,
     narrative: crate::narrative::NarrativeIndex,
     turns: crate::turns::TurnIndex,
+    routines: crate::routines::RoutineIndex,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -74,6 +75,9 @@ fn value_types(values: &BTreeMap<String, Value>) -> Values {
 }
 
 impl GameDefinition {
+    pub(crate) fn routines(&self) -> &crate::routines::RoutineIndex {
+        &self.0.routines
+    }
     pub(crate) fn turns(&self) -> &crate::turns::TurnIndex {
         &self.0.turns
     }
@@ -92,6 +96,7 @@ impl GameDefinition {
         );
         Ok(GameState {
             turns: project.game.turns.as_ref().map(|_| TurnProgress::default()),
+            routines: (!project.routines.is_empty()).then(RoutineProgress::default),
             game_id: project.game.id.clone(),
             content_version: project.game.content_version.clone(),
             location: starting.clone(),
@@ -269,6 +274,7 @@ impl GameDefinition {
         let procedures = crate::procedures::ProcedureIndex::new(&project);
         let narrative = crate::narrative::NarrativeIndex::new(&project);
         let turns = crate::turns::TurnIndex::new(&project);
+        let routines = crate::routines::RoutineIndex::new(&project);
         Ok(Self(Arc::new(Definition {
             project,
             schema,
@@ -276,6 +282,7 @@ impl GameDefinition {
             procedures,
             narrative,
             turns,
+            routines,
         })))
     }
 
@@ -327,6 +334,7 @@ impl GameDefinition {
         let project = self.project();
         let schema = &self.0.schema;
         self.0.turns.validate_state(project, state)?;
+        self.0.routines.validate_state(project, state)?;
         ensure!(
             state.game_id == project.game.id
                 && state.content_version == project.game.content_version,

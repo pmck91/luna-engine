@@ -1,0 +1,58 @@
+{
+  "id": "failing",
+  "name": "Rollback after earlier work",
+  "character": "steward",
+  "order": 20,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "failing-step",
+      "name": "Move, reward, respond, then divide",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "steward",
+          "location": "garden"
+        },
+        {
+          "type": "call",
+          "id": "failing-call",
+          "procedure": "late-work",
+          "arguments": {}
+        },
+        {
+          "type": "respond",
+          "id": "failed-response",
+          "responses": [
+            "First routine reply.",
+            "Later routine reply."
+          ],
+          "mode": "loop",
+          "fallback": "",
+          "exhaustion": "once",
+          "on_exhausted": []
+        },
+        {
+          "type": "update_variable",
+          "name": "attempts",
+          "op": "divide",
+          "operand": {
+            "type": "variable",
+            "name": "divisor"
+          }
+        }
+      ]
+    }
+  ]
+}

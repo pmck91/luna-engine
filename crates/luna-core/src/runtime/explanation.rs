@@ -136,6 +136,11 @@ pub enum NarrativeOperation {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TraceKind {
+    /// Native routine scheduling within this input transaction.
+    Routine {
+        /// Control, attempt, hold, wait or cursor transition.
+        operation: crate::RoutineOperation,
+    },
     /// Turn classification at the end of the initiating input.
     Turn {
         /// Clock before this input.
@@ -630,6 +635,10 @@ impl Run<'_> {
 }
 pub(super) fn effect_name(effect: &Effect) -> &'static str {
     match effect {
+        Effect::StartRoutine { .. } => "START ROUTINE",
+        Effect::PauseRoutine { .. } => "PAUSE ROUTINE",
+        Effect::ResumeRoutine { .. } => "RESUME ROUTINE",
+        Effect::StopRoutine { .. } => "STOP ROUTINE",
         Effect::ScheduleTimer { .. } => "SCHEDULE TIMER",
         Effect::CancelTimer { .. } => "CANCEL TIMER",
         Effect::StartConversation { .. } => "START CONVERSATION",

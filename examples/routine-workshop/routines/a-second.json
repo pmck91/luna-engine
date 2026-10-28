@@ -1,0 +1,39 @@
+{
+  "id": "a-second",
+  "name": "Second author-ordered signal",
+  "character": "steward",
+  "order": 11,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "second-signal",
+      "name": "Second character",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "signals",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "Second signal."
+        }
+      ]
+    }
+  ]
+}
