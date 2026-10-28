@@ -1,0 +1,32 @@
+{
+  "id": "chime",
+  "name": "Lab · Chime",
+  "order": 4,
+  "priority": 0,
+  "condition": {
+    "type": "true"
+  },
+  "effects": [
+    {
+      "type": "respond",
+      "id": "chime-response",
+      "responses": [
+        "First chime.",
+        "Later chime."
+      ],
+      "mode": "repeat_last",
+      "fallback": "",
+      "exhaustion": "once",
+      "on_exhausted": []
+    },
+    {
+      "type": "update_variable",
+      "name": "firings",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    }
+  ]
+}

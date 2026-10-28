@@ -1,0 +1,15 @@
+{
+  "id": "z-first",
+  "name": "Lab · First signal",
+  "order": 1,
+  "priority": 5,
+  "condition": {
+    "type": "true"
+  },
+  "effects": [
+    {
+      "type": "say",
+      "text": "First signal."
+    }
+  ]
+}

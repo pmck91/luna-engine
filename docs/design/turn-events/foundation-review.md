@@ -1,6 +1,6 @@
 # Turns and scheduled events — T2 foundation
 
-Status: **T2 committed as `08dc93f`; T3 accepted, T4 next**, 27 October 2026, on `feature/turn-events`. T0/T1 was committed as `b80861a` after owner acceptance. This milestone implements the [frozen contract](shared-contract.md); the [T3 working-slice review](authoring-review.md) records owner-accepted production authoring and clarity feedback for T4.
+Status: **T2 committed as `08dc93f`; T3 accepted; T4 technical review complete**, 27 October 2026, on `feature/turn-events`. T0/T1 was committed as `b80861a` after owner acceptance. This milestone implements the [frozen contract](shared-contract.md); the [T3 working-slice review](authoring-review.md) records owner-accepted production authoring and clarity feedback for T4.
 
 ## Shared execution
 
@@ -46,6 +46,6 @@ Compatibility assertions for newly created projects now expect format/save 6 wit
 
 ## Next gate
 
-The [T3 working slice](authoring-review.md) implements the accepted Scheduled-trigger library, full-operand SCHEDULE/CANCEL/PENDING blocks and inspector, settings/overrides, explicit upgrade review, safe references, draft/history/template/search integration, native pending panel and source navigation. It retains the current block appearance and is owner accepted. The owner noted acceptable complexity; the T4 workshop should start with a simple schedule-and-fire journey. T4 supplies a separate permanent workshop/export, release workload measurements and complete feature acceptance; public user guides stay deferred.
+The [T3 working slice](authoring-review.md) implements the accepted Scheduled-trigger library, full-operand SCHEDULE/CANCEL/PENDING blocks and inspector, settings/overrides, explicit upgrade review, safe references, draft/history/template/search integration, native pending panel and source navigation. It retains the current block appearance and is owner accepted. The owner noted acceptable complexity; the T4 workshop should start with a simple schedule-and-fire journey. The [T4 record](final-review.md) supplies the separate permanent workshop/export, release workload measurements and passing technical checks; final owner acceptance is recorded, PR/CI/merge remain pending and public user guides stay deferred.
 
 Reproduce the foundation checks with `cargo test --workspace --offline`, `cargo clippy --workspace --all-targets --offline -- -D warnings`, `RUSTDOCFLAGS='-D warnings' cargo doc -p luna-core --no-deps --offline`, `cargo run -p luna-editor --offline --example export_types -- --check`, and the frontend build/unit/browser scripts. Browser tests require a built editor/runner and installed Chromium/Firefox. Package smoke uses `./scripts/package.sh` followed by `python3 scripts/smoke-package.py` after browser checks finish.

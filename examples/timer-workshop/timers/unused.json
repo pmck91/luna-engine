@@ -1,0 +1,10 @@
+{
+  "id": "unused",
+  "name": "Lab · Unused definition retained",
+  "order": 9,
+  "priority": 0,
+  "condition": {
+    "type": "true"
+  },
+  "effects": []
+}

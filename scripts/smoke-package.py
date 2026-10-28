@@ -550,6 +550,70 @@ def main():
             assert json.loads(timer_auto.read_text())["state"]["turns"] == {"turn": 3, "pending": {}}
             assert json.loads(timer_auto.read_text())["state"]["variables"]["firings"] == 0
 
+            # The permanent workshop ships independently of the historical specimens.
+            workshop = api("open", "POST", {"folder": "timer-workshop"})
+            workshop_project = workshop["project"]
+            workshop_game = workshop_project["game"]
+            workshop_bundle = work / "workshop-from-editor.luna"
+            workshop_bundle.write_bytes(api(f"projects/{workshop['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(workshop_bundle) as current, zipfile.ZipFile(package / "examples/timer-workshop.luna") as checked:
+                assert json.loads(current.read("manifest.json")) == json.loads(checked.read("manifest.json"))
+                assert "timers/unused.json" in current.namelist()
+                assert not any(name.startswith("editor/") for name in current.namelist())
+            run(["import", str(workshop_bundle)], profile="timer-workshop")
+            workshop_save = work / "timer-workshop/saves" / workshop_game["id"] / workshop_game["content_version"] / "autosave.json"
+
+            def workshop_run(commands, slot=None):
+                run(["run", workshop_game["id"], "--load", slot] if slot else ["run", workshop_game["id"], "--new"], commands + "\nquit\n", profile="timer-workshop")
+                envelope = json.loads(workshop_save.read_text())
+                assert envelope["save_format"] == 6
+                return envelope["state"]
+
+            def workshop_start(name):
+                setup = next(s for s in workshop_project["editor"]["playtest"]["setups"] if s["name"] == name)
+                assert setup["version"] == 4
+                restored = api("playtests", "POST", {"project": workshop_project, "setup": setup})
+                assert restored["state"] == setup["state"]
+                assert not restored["result"]["state_changed"]
+                return restored
+
+            def workshop_command(view, command):
+                return api(f"playtests/{view['session']}/commands", "POST", {"command": command, "explain": True})
+
+            door = workshop_start("Door countdown")
+            assert workshop_run("open stone door\nlook\nsave armed") == door["state"]
+            for command in ["wait", "wait", "wait"]:
+                door = workshop_command(door, command)
+            assert workshop_run("wait\nwait\nwait", "armed") == door["state"]
+            assert door["state"]["turns"] == {"turn": 4, "pending": {}}
+            assert not door["state"]["objects"]["door"]["open"]
+
+            failure = workshop_start("Before late failure")
+            assert workshop_run("go lab\nuse failing\nsave dangerous") == failure["state"]
+            failed = workshop_command(failure, "use step")
+            assert failed["result"]["status"] == "error" and failed["result"]["messages"] == []
+            assert failed["state"] == failure["state"]
+            assert workshop_run("use step", "dangerous") == failure["state"]
+            repaired = workshop_command(workshop_command(failed, "use repair"), "wait")
+            assert workshop_run("use repair\nwait", "dangerous") == repaired["state"]
+            assert repaired["state"]["variables"]["rewards"] == 1
+            assert repaired["state"]["characters"]["keeper"]["location"] == "workshop"
+
+            workshop_signal = workshop_start("Signal requested")
+            assert workshop_run("go lab\ntalk keeper\nreply 1\nsave requested") == workshop_signal["state"]
+            workshop_signal = workshop_command(workshop_signal, "wait")
+            assert workshop_run("wait", "requested") == workshop_signal["state"]
+            assert workshop_signal["quest_log"][0]["status"] == "completed"
+            assert workshop_signal["state"]["variables"]["rewards"] == 1
+
+            ending = workshop_start("Before timer ending")
+            assert workshop_run("go lab\nuse finish\nsave finishing") == ending["state"]
+            ending = workshop_command(ending, "wait")
+            assert workshop_run("wait\nsave completed", "finishing") == ending["state"]
+            assert ending["state"]["turns"] == {"turn": 3, "pending": {}}
+            assert ending["state"]["variables"]["ending_hooks"] == 1
+            assert workshop_run("look", "completed") == ending["state"]
+
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
             created = api("projects", "POST", {"folder": "smoke-outcome", "title": "No outcome"})
@@ -594,7 +658,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, Timer Workshop callbacks/rollback/quests/endings, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

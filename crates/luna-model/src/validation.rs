@@ -1174,6 +1174,14 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         let mut seen = BTreeSet::new();
         while let Some(effect) = effects.pop() {
             match effect {
+                Effect::ScheduleTimer { timer, .. } if seen.insert(timer) => {
+                    if p.game.turns.is_some()
+                        && let Some(timer) = p.timers.iter().find(|t| t.id == *timer)
+                        && constant(&timer.condition) != Some(false)
+                    {
+                        possible_effects(&timer.effects, &mut effects);
+                    }
+                }
                 Effect::Call { procedure, .. } if seen.insert(procedure) => {
                     if let Some(procedure) = p
                         .procedures

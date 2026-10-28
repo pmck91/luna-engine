@@ -1,0 +1,24 @@
+{
+  "id": "quest-signal",
+  "name": "Lab · Quest signal",
+  "order": 6,
+  "priority": 0,
+  "condition": {
+    "type": "true"
+  },
+  "effects": [
+    {
+      "type": "say",
+      "text": "The quest signal sounds."
+    },
+    {
+      "type": "complete_quest_stage",
+      "quest": "signal-task",
+      "stage": "heard"
+    },
+    {
+      "type": "complete_quest",
+      "quest": "signal-task"
+    }
+  ]
+}

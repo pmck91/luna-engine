@@ -1,6 +1,6 @@
 # Turns and scheduled events — T3 authoring review
 
-Status: **T3 accepted; T4 tracked separately**, 27 October 2026, on `feature/turn-events`. T2 was committed as `08dc93f` before this work. The [accepted preview](README.md), [frozen shared contract](shared-contract.md) and [T0–T4 plan](../../plans/turn-events.md) remain the design target. The owner accepted the working slice with “looks good,” while noting that it is a little complicated but appropriate for the logic. This record covers T3; T4 final acceptance is separate.
+Status: **T3 accepted; T4 tracked separately**, 27 October 2026, on `feature/turn-events`. T2 was committed as `08dc93f` before this work. The accepted T3 slice is committed as `bf22c72`. The [accepted preview](README.md), [frozen shared contract](shared-contract.md) and [T0–T4 plan](../../plans/turn-events.md) remain the design target. The owner accepted the working slice with “looks good,” while noting that it is a little complicated but appropriate for the logic. This record covers T3; T4 final acceptance is separate.
 
 ## Delivered journey
 
@@ -70,6 +70,6 @@ Frontend unit tests additionally exercise real Blockly serialization/inspector s
 
 ## Remaining milestone
 
-T4 supplies a separate permanent timer workshop and checked export, final shared-host acceptance scenarios, release workload measurements and developer architecture notes. Public user guides remain deferred to the documentation site. Keep this feature on its branch until owner acceptance and final checks; do not overwrite Locked Study, Keeper, other examples or historical fixtures.
+The [T4 review](final-review.md) records the separate permanent timer workshop and checked export, final shared-host acceptance scenarios, release workload measurements and developer architecture notes. Public user guides remain deferred to the documentation site. Keep this feature on its branch until owner acceptance and final checks; do not overwrite Locked Study, Keeper, other examples or historical fixtures.
 
 Reproduce with workspace Rust tests, Clippy, generated-contract/format/rustdoc checks, frontend unit/build/format scripts, and both production Playwright projects. Run `./scripts/package.sh` and `python3 scripts/smoke-package.py` after browser checks finish because package smoke temporarily hides the source UI. See [T2 foundation verification](foundation-review.md) for the exact native commands and local Firefox fallback.

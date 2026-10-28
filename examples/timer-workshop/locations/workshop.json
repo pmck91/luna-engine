@@ -1,0 +1,30 @@
+{
+  "id": "workshop",
+  "name": "Workshop",
+  "aliases": [],
+  "description": "A stone door demonstrates one simple countdown. Try open stone door, then wait three times. Go lab leads to the optional advanced experiments.",
+  "actions": [],
+  "triggers": [],
+  "exits": [
+    {
+      "id": "to-lab",
+      "name": "lab",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "lab",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

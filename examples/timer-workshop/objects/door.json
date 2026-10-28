@@ -1,0 +1,124 @@
+{
+  "id": "door",
+  "name": "Stone door",
+  "aliases": [],
+  "description": "A door with an automatic three-turn closer. Open restarts its countdown; secure cancels it; keep preserves an existing countdown.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "open-door",
+      "name": "Open stone door",
+      "verb": "open",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "door"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "open",
+          "object": "door"
+        },
+        {
+          "type": "say",
+          "text": "The stone door opens."
+        },
+        {
+          "type": "schedule_timer",
+          "timer": "door-closes",
+          "after": {
+            "type": "literal",
+            "value": 3
+          },
+          "pending": "restart"
+        }
+      ]
+    },
+    {
+      "id": "secure-door",
+      "name": "Secure stone door",
+      "verb": "secure",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "door"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "open",
+          "object": "door"
+        },
+        {
+          "type": "if",
+          "condition": {
+            "type": "timer_pending",
+            "timer": "door-closes"
+          },
+          "then": [
+            {
+              "type": "cancel_timer",
+              "timer": "door-closes"
+            }
+          ],
+          "otherwise": []
+        },
+        {
+          "type": "say",
+          "text": "You prop the door open."
+        }
+      ]
+    },
+    {
+      "id": "keep-door",
+      "name": "Keep the existing countdown",
+      "verb": "keep",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "door"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "open",
+          "object": "door"
+        },
+        {
+          "type": "schedule_timer",
+          "timer": "door-closes",
+          "after": {
+            "type": "literal",
+            "value": 3
+          },
+          "pending": "keep"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

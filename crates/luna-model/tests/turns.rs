@@ -106,3 +106,47 @@ fn every_native_condition_and_effect_owner_validates_timer_refs_and_delay_addres
     assert_eq!(wait_command_conflicts(&hidden), ["old-wait"]);
     assert!(has_errors(&validate(&hidden)));
 }
+
+#[test]
+fn structural_reachability_follows_scheduled_callbacks_without_counting_unused_or_false_timers() {
+    let mut p = fixture::project();
+    p.game.require_ending = true;
+    p.game.actions.retain(|a| a.id == "open-door");
+    p.timers[0].effects = vec![Effect::ScheduleTimer {
+        timer: "finish-timer".into(),
+        after: NumericOperand::Literal { value: 1 },
+        pending: TimerPendingPolicy::Restart,
+    }];
+    p.timers.push(ScheduledTrigger {
+        id: "finish-timer".into(),
+        name: "Finish later".into(),
+        order: 4,
+        priority: 0,
+        condition: Condition::True,
+        effects: vec![
+            Effect::ScheduleTimer {
+                timer: "door-closes".into(),
+                after: NumericOperand::Literal { value: 1 },
+                pending: TimerPendingPolicy::Restart,
+            },
+            Effect::End {
+                ending: "finish".into(),
+            },
+        ],
+    });
+    assert!(!has_errors(&validate(&p)), "{:?}", validate(&p));
+    assert!(!validate(&p).iter().any(|d| d.subject == "finish"));
+    p.timers.last_mut().unwrap().condition = Condition::False;
+    assert!(
+        validate(&p)
+            .iter()
+            .any(|d| d.field == "endings" && d.severity == Severity::Error)
+    );
+    p.timers.last_mut().unwrap().condition = Condition::True;
+    p.timers[0].effects.clear();
+    assert!(
+        validate(&p)
+            .iter()
+            .any(|d| d.field == "endings" && d.severity == Severity::Error)
+    );
+}

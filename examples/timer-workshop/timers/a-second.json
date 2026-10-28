@@ -1,0 +1,15 @@
+{
+  "id": "a-second",
+  "name": "Lab · Second signal",
+  "order": 2,
+  "priority": 5,
+  "condition": {
+    "type": "true"
+  },
+  "effects": [
+    {
+      "type": "say",
+      "text": "Second signal."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Turns and scheduled events
 
-Status: **T0/T3 accepted; T1/T2 committed; T4 next**, 27 October 2026. Branch `feature/turn-events` starts from merged `main` at `bfe2c42` (conversations/quests, PR #5). The owner accepted the T0 preview with “that works as expected,” then authorized committing and progressing. T0/T1 is committed as `b80861a`. The [T1 contract](../design/turn-events/shared-contract.md) takes precedence over earlier proposals below; the [T2 foundation review](../design/turn-events/foundation-review.md) records implementation and verification. T2 is committed as `08dc93f`. The [T3 authoring review](../design/turn-events/authoring-review.md) records the accepted production UI. The owner noted acceptable complexity; T4 should provide a simple starting workshop before advanced scenarios.
+Status: **T0/T3 accepted; T1–T3 committed; T4 accepted; commit/push authorized; PR, CI and merge pending**, 28 October 2026. Branch `feature/turn-events` starts from merged `main` at `bfe2c42` (conversations/quests, PR #5). The owner accepted the T0 preview with “that works as expected,” then authorized committing and progressing. T0/T1 is committed as `b80861a`. The [T1 contract](../design/turn-events/shared-contract.md) takes precedence over earlier proposals below; the [T2 foundation review](../design/turn-events/foundation-review.md) records implementation and verification. T2 is committed as `08dc93f`. The [T3 authoring review](../design/turn-events/authoring-review.md) records the accepted production UI. T3 is committed as `bf22c72`. The owner noted acceptable complexity; the [T4 workshop and review](../design/turn-events/final-review.md) start with a simple door countdown before optional advanced scenarios. The owner accepted T4 on 28 October 2026 with “looks good to me,” authorized commit/push and will prepare the PR.
 
 The [interactive preview and review guide](../design/turn-events/README.md) records the accepted interaction; the [T1 evidence](../design/turn-events/runtime-proof-review.md) distinguishes feasibility checks from production gates. Preserve the accepted block appearance and editor UX. This is F4 in the [gameplay roadmap](gameplay-feature-roadmap.md), ahead of character routines. Public guides remain in the later documentation milestone.
 
@@ -164,11 +164,12 @@ Named setups and replay checks should support a pending countdown, dialogue inte
 
 ### T4 — Complete acceptance and branch closeout
 
-- [ ] Create a separate permanent timer workshop project and checked export; do not overwrite Locked Study or Keeper. Start with the shortest schedule-and-fire example, then progressively add exact count, secure/cancel, replacement, simultaneous callbacks, nested schedule, conditional skip, conversation/quest interaction, ending and late failure.
-- [ ] Verify editor/API/installed runner/process/save/setup parity, complete rollback, old-format vocabulary, strict corruption handling, source navigation and final full checks/package smoke.
-- [ ] Measure release workloads with many actions/definitions and pending timers; record setup/dispatch/tick/restore observations without hardware-dependent CI timing thresholds.
-- [ ] Update architecture/developer notes and final review evidence. Defer full user guides to the documentation site.
-- [ ] Obtain final owner acceptance, commit/push when requested, pass GitHub CI and merge the whole feature. Start F5 from the merged baseline.
+- [x] Create a separate permanent timer workshop project and checked export; do not overwrite Locked Study or Keeper. Start with the shortest schedule-and-fire example, then progressively add exact count, secure/cancel, replacement, simultaneous callbacks, nested schedule, conditional skip, conversation/quest interaction, ending and late failure.
+- [x] Verify editor/API/installed runner/process/save/setup parity, complete rollback, old-format vocabulary, strict corruption handling, source navigation and final full checks/package smoke.
+- [x] Measure release workloads with many actions/definitions and pending timers; record setup/dispatch/tick/restore observations without hardware-dependent CI timing thresholds.
+- [x] Update architecture/developer notes and final review evidence. Defer full user guides to the documentation site.
+- [x] Owner accepted the complete feature on 28 October 2026 with “looks good to me” and authorized commit/push. The owner will prepare the PR.
+- [ ] Pass GitHub CI and merge the whole feature. Start F5 from the merged baseline.
 
 ## Acceptance matrix
 
@@ -183,4 +184,4 @@ Named setups and replay checks should support a pending countdown, dialogue inte
 | Authoring        | Real block fields/inspector, independent caller bindings, draft create/bind Undo, exact return, safe refs/copy/templates/findings, reopen/export         |
 | Parity and scale | Same committed turn/queue/output in both hosts, immutable-session source safety, measured large catalogue and final package acceptance                   |
 
-Design references and preview limitations are recorded with the [review guide](../design/turn-events/README.md). T0 screenshots and scripted counters are interaction evidence only. The T2 foundation proves native/storage/host boundaries; T3 production authoring is owner accepted; final complete acceptance remains T4.
+Design references and preview limitations are recorded with the [review guide](../design/turn-events/README.md). T0 screenshots and scripted counters are interaction evidence only. The T2 foundation proves native/storage/host boundaries; T3 production authoring is owner accepted; T4 technical verification is complete, with final owner acceptance recorded; PR, CI and merge remain pending.

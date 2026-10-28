@@ -1,0 +1,45 @@
+{
+  "id": "signal-task",
+  "title": "Hear the signal",
+  "aliases": [
+    "signal"
+  ],
+  "introduction": "A signal has been requested.",
+  "completion": "The signal arrived.",
+  "failure": "",
+  "stages": [
+    {
+      "id": "heard",
+      "name": "Signal heard",
+      "text": "The delayed signal sounded.",
+      "prerequisites": [],
+      "condition": {
+        "type": "true"
+      },
+      "required": true,
+      "effects": []
+    }
+  ],
+  "on_start": {
+    "id": "signal-start",
+    "effects": []
+  },
+  "on_complete": {
+    "id": "signal-complete",
+    "effects": [
+      {
+        "type": "update_variable",
+        "name": "rewards",
+        "op": "add",
+        "operand": {
+          "type": "literal",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "on_fail": {
+    "id": "signal-fail",
+    "effects": []
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "id": "signal-talk",
+  "name": "Request a delayed signal",
+  "character": "keeper",
+  "available": {
+    "type": "true"
+  },
+  "default_entry": "request",
+  "entries": [
+    {
+      "condition": {
+        "type": "quest_status",
+        "quest": "signal-task",
+        "status": "completed"
+      },
+      "node": "thanks"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "request",
+      "name": "Request",
+      "text": "Shall I sound a signal after your next turn?",
+      "terminal": false,
+      "effects": [],
+      "replies": [
+        {
+          "id": "request-signal",
+          "text": "Yes, sound the signal.",
+          "condition": {
+            "type": "true"
+          },
+          "once": true,
+          "destination": "waiting",
+          "effects": [
+            {
+              "type": "start_quest",
+              "quest": "signal-task"
+            },
+            {
+              "type": "schedule_timer",
+              "timer": "quest-signal",
+              "after": {
+                "type": "literal",
+                "value": 1
+              },
+              "pending": "restart"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "waiting",
+      "name": "Waiting",
+      "text": "Listen for the next signal.",
+      "terminal": false,
+      "effects": [],
+      "replies": [
+        {
+          "turn_cost": "free",
+          "id": "pause-wait",
+          "text": "I will wait here.",
+          "condition": {
+            "type": "quest_status",
+            "quest": "signal-task",
+            "status": "active"
+          },
+          "once": false,
+          "destination": null,
+          "effects": []
+        },
+        {
+          "id": "acknowledge",
+          "text": "I heard it. Thank you.",
+          "condition": {
+            "type": "quest_status",
+            "quest": "signal-task",
+            "status": "completed"
+          },
+          "once": false,
+          "destination": "thanks",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "thanks",
+      "name": "Acknowledgement",
+      "text": "Thank you again for testing the signal.",
+      "terminal": true,
+      "effects": [],
+      "replies": []
+    }
+  ]
+}

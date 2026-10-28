@@ -1,0 +1,23 @@
+{
+  "id": "arm-chime",
+  "name": "Arm the lab chime",
+  "description": "Explicit integer delay, evaluated when called. The pending source links to this SCHEDULE.",
+  "inputs": [
+    {
+      "id": "delay",
+      "name": "Delay",
+      "kind": "integer"
+    }
+  ],
+  "effects": [
+    {
+      "type": "schedule_timer",
+      "timer": "chime",
+      "after": {
+        "type": "input",
+        "input": "delay"
+      },
+      "pending": "restart"
+    }
+  ]
+}

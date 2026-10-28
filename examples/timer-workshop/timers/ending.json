@@ -1,0 +1,19 @@
+{
+  "id": "ending",
+  "name": "Lab · End the workshop",
+  "order": 8,
+  "priority": 10,
+  "condition": {
+    "type": "true"
+  },
+  "effects": [
+    {
+      "type": "end",
+      "ending": "complete"
+    },
+    {
+      "type": "say",
+      "text": "Unreachable after ending."
+    }
+  ]
+}
