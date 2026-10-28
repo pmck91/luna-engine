@@ -1,7 +1,47 @@
 #[path = "../../../tests/support/routines.rs"]
 mod fixture;
+use luna_model::{
+    BlockTemplate, Effect, RoutineBusyPolicy, TemplateContent, TemplateRoutineReference,
+};
 use luna_project::*;
 use std::fs;
+
+#[test]
+fn routine_construction_and_template_bindings_are_editor_only_metadata() {
+    let root = tempfile::tempdir().unwrap();
+    let stage = tempfile::tempdir().unwrap();
+    let mut p = fixture::project();
+    let mut draft = p.routines[0].clone();
+    draft.id = "construction".into();
+    draft.steps.clear();
+    p.editor.routine_drafts.push(draft);
+    p.editor.templates.push(BlockTemplate {
+        id: "start-patrol".into(),
+        name: "Start patrol".into(),
+        source_owner: None,
+        entities: vec![],
+        text_variables: vec![],
+        narratives: vec![],
+        timers: vec![],
+        routines: vec![TemplateRoutineReference {
+            id: "patrol".into(),
+            name: "Patrol".into(),
+        }],
+        content: TemplateContent::Effects {
+            effects: vec![Effect::StartRoutine {
+                routine: "patrol".into(),
+                busy: RoutineBusyPolicy::Keep,
+            }],
+        },
+    });
+    save_project(root.path(), &p, None).unwrap();
+    assert_eq!(load_project(root.path()).unwrap(), p);
+    assert!(!root.path().join("routines/construction.json").exists());
+    let exported = extract_bundle(&export_bundle(root.path(), &p).unwrap(), stage.path()).unwrap();
+    assert_eq!(exported.routines, p.routines);
+    assert!(exported.editor.routine_drafts.is_empty());
+    assert!(exported.editor.templates.is_empty());
+}
 
 #[test]
 fn routine_files_reopen_export_and_save_as_without_losing_author_order_or_unused_definitions() {

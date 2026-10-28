@@ -28,6 +28,7 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
     /Variables$/,
     /Command vocabulary$/,
     /Triggers$/,
+    /Routines$/,
     /Procedures$/,
     /Conversations$/,
     /Quests$/,

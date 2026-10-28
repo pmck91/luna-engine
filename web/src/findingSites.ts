@@ -1,3 +1,4 @@
+import { routineDraft, routineFor } from './routineModel';
 import { narrativeItem, construction } from './narrativeAuthoring';
 import type { Diagnostic, Project } from './contracts';
 import type { ReferenceSite } from './references';
@@ -16,6 +17,17 @@ export function findingSite(project: Project, diagnostic: Diagnostic): Reference
         ? { conversationId: narrative.conversation.id }
         : { questId: narrative.quest.id }),
     };
+  const routine = routineFor(project, diagnostic.subject);
+  if (routine) {
+    const at = routine.steps.findIndex((s) => s.id === diagnostic.subject);
+    return {
+      subject: diagnostic.subject,
+      flowId: routine.id,
+      routineId: routine.id,
+      path: [at < 0 ? '' : `steps.${at}`, diagnostic.field].filter(Boolean).join('.'),
+      scope: routineDraft(project, routine.id) ? 'draft' : 'content',
+    };
+  }
   const selectedScript = script(project, diagnostic.subject);
   if (selectedScript)
     return {
@@ -48,6 +60,16 @@ export function findingSite(project: Project, diagnostic: Diagnostic): Reference
         (effect.type === 'respond' || effect.type === 'call') && effect.id === diagnostic.subject,
     ),
   );
+  if (containing && routineFor(project, containing.id)) {
+    const r = routineFor(project, containing.id)!;
+    return {
+      subject: diagnostic.subject,
+      flowId: r.id,
+      routineId: r.id,
+      path: `steps.${r.steps.findIndex((s) => s.id === containing.id)}.${diagnostic.field}`,
+      scope: routineDraft(project, r.id) ? 'draft' : 'content',
+    };
+  }
   if (containing)
     return {
       subject: diagnostic.subject,
@@ -100,6 +122,17 @@ export function connectedFindings(project: Project, diagnostics: Diagnostic[]): 
           : diagnostic.message,
     };
   });
+  for (const r of project.editor.routine_drafts ?? [])
+    results.push({
+      severity: 'error',
+      subject: r.id,
+      field: '',
+      path: '',
+      scope: 'draft',
+      flowId: r.id,
+      routineId: r.id,
+      message: `Finish the construction draft “${r.name || 'New routine'}” before running it. Drafts remain editor-only.`,
+    });
   for (const t of project.editor.timer_drafts ?? [])
     results.push({
       severity: 'error',

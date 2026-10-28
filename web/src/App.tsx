@@ -1,3 +1,6 @@
+import Routines, { RoutineCreation, RoutineInspector, routineBlockId } from './Routines';
+import RoutineProgress from './RoutineProgress';
+import { routine, routineFor, routinePage } from './routineModel';
 import ScheduledTimers, { TimerCreation, TimerInspector } from './ScheduledTimers';
 import PendingTimers from './PendingTimers';
 import { timer } from './turnModel';
@@ -116,6 +119,7 @@ export default function App() {
     | 'procedures'
     | 'conversations'
     | 'quests'
+    | 'routines'
   >('map');
   const [containerSetup, setContainerSetup] = useState<string | null>(null);
   const [procedureReturns, setProcedureReturns] = useState<
@@ -127,6 +131,7 @@ export default function App() {
       selection: BlockSelection;
     }>
   >([]);
+  const [routineCreation, setRoutineCreation] = useState<BlockSelection | null>(null);
   const [timerCreation, setTimerCreation] = useState<BlockSelection | null>(null);
   const [triggerFilter, setTriggerFilter] = useState('');
   const [flowSelections, setFlowSelections] = useState<Record<string, string>>({});
@@ -373,6 +378,8 @@ export default function App() {
       !flow(next, key) &&
       !procedure(next, key) &&
       !timer(next, key) &&
+      !routineFor(next, key) &&
+      !key.startsWith(`${routinePage}:`) &&
       !narrativeItem(next, key) &&
       !key.startsWith(`${gameDataPages.conversations}:`) &&
       !Object.values(gameDataPages).some((page) => page === key)
@@ -390,11 +397,13 @@ export default function App() {
             ? 'conversation' in narrativeItem(next, caller.scriptId)!
               ? 'conversations'
               : 'quests'
-            : procedure(next, caller.scriptId)
-              ? 'procedures'
-              : timer(next, caller.scriptId) || (target && 'event' in target)
-                ? 'triggers'
-                : 'actions',
+            : routineFor(next, caller.scriptId)
+              ? 'routines'
+              : procedure(next, caller.scriptId)
+                ? 'procedures'
+                : timer(next, caller.scriptId) || (target && 'event' in target)
+                  ? 'triggers'
+                  : 'actions',
         );
         if (target && 'event' in target) setTriggerFilter(flowOwner(next, target.id)?.id ?? '');
         setBlockSelections((old) => ({ ...old, [caller.scriptId]: caller.selection }));
@@ -409,6 +418,9 @@ export default function App() {
             : gameDataPages.quests;
         setSelected(destination);
         setMode('conversation' in item ? 'conversations' : 'quests');
+      } else if (previous && routineFor(previous, key)) {
+        setSelected(routinePage);
+        setMode('routines');
       } else if (previous && timer(previous, key)) {
         setSelected(gameDataPages.scheduled);
         setMode('triggers');
@@ -488,6 +500,19 @@ export default function App() {
       setInspectorCollapsed(false);
       return;
     }
+    if (
+      key === routinePage ||
+      key.startsWith(`${routinePage}:`) ||
+      (project && routineFor(project, key))
+    ) {
+      const r = project && routineFor(project, key);
+      setSelected(r?.id ?? key);
+      setMode('routines');
+      setConnecting(false);
+      setInspectorCollapsed(false);
+      setFlowBreadcrumb(r?.id ?? '');
+      return;
+    }
     if (key === gameDataPages.scheduled || (project && timer(project, key))) {
       setSelected(key);
       setMode('triggers');
@@ -542,6 +567,7 @@ export default function App() {
       mode === 'procedures' ||
       mode === 'conversations' ||
       mode === 'quests' ||
+      mode === 'routines' ||
       (mode === 'contents' &&
         !project?.objects.find((o) => o.id === key && (o.storage?.container || o.storage?.surface)))
     ) {
@@ -800,13 +826,15 @@ export default function App() {
     const narrative = narrativeItem(doc, key);
     const target: ReferenceTarget = narrative
       ? { kind: narrative.kind, id: key }
-      : timer(doc, key)
-        ? { kind: 'timer', id: key }
-        : procedure(doc, key)
-          ? { kind: 'procedure', id: key }
-          : flow(doc, key)
-            ? { kind: 'flow', id: key }
-            : { kind: 'entity', id: key };
+      : routine(doc, key)
+        ? { kind: 'routine', id: key }
+        : timer(doc, key)
+          ? { kind: 'timer', id: key }
+          : procedure(doc, key)
+            ? { kind: 'procedure', id: key }
+            : flow(doc, key)
+              ? { kind: 'flow', id: key }
+              : { kind: 'entity', id: key };
     if (usedBy(doc, target).length) {
       setReferenceRequest({ target, action: 'delete' });
       return;
@@ -828,12 +856,23 @@ export default function App() {
             ? gameDataPages.quests
             : narrative.quest.id,
       );
+    else if (target.kind === 'routine') select(routinePage);
     else if (target.kind === 'timer') select(gameDataPages.scheduled);
     else if (target.kind === 'procedure') select(gameDataPages.procedures);
     else setSelected(parent?.id ?? doc?.game.id ?? '');
   };
   const reveal = (site: ReferenceSite) => {
     if (!doc) return;
+    const r = routineFor(doc, site.flowId ?? site.subject);
+    if (r && site.flowId !== r.id) {
+      const at = r.steps.findIndex((s) => s.id === (site.flowId ?? site.subject));
+      site = {
+        ...site,
+        flowId: r.id,
+        routineId: r.id,
+        path: at < 0 ? site.path : `steps.${at}${site.path ? '.' + site.path : ''}`,
+      };
+    }
     if (site.procedureId) site = { ...site, flowId: site.procedureId };
     if (site.setupId || site.checkId) {
       setShowDiagnostics(false);
@@ -918,6 +957,11 @@ export default function App() {
   const activeNarrative = doc ? narrativeItem(doc, selected) : undefined;
   const activeNarrativeScript = doc && activeNarrative ? script(doc, selected) : undefined;
   const activeProcedure = doc ? procedure(doc, selected) : undefined;
+  const activeRoutine = doc ? routineFor(doc, selected) : undefined;
+  const activeRoutineScript = doc && activeRoutine ? script(doc, activeRoutine.id) : undefined;
+  const routineCharacter = selected.startsWith(`${routinePage}:`)
+    ? selected.slice(routinePage.length + 1)
+    : (activeRoutine?.character ?? '');
   const activeTimer = doc ? timer(doc, selected) : undefined;
   const scheduled = selected === gameDataPages.scheduled || !!activeTimer;
   const activeFlow = doc && flow(doc, selected);
@@ -953,18 +997,21 @@ export default function App() {
             ?.trigger
         : undefined;
   const inspectedFlow =
-    mode === 'conversations' || mode === 'quests'
-      ? activeNarrativeScript
-      : mode === 'procedures'
-        ? activeProcedure
-        : mode === 'triggers'
-          ? scheduled
-            ? activeTimer
-            : activeTrigger
-          : activeFlow;
+    mode === 'routines'
+      ? activeRoutineScript
+      : mode === 'conversations' || mode === 'quests'
+        ? activeNarrativeScript
+        : mode === 'procedures'
+          ? activeProcedure
+          : mode === 'triggers'
+            ? scheduled
+              ? activeTimer
+              : activeTrigger
+            : activeFlow;
   const inspectedOwner = doc && inspectedFlow ? flowOwner(doc, inspectedFlow.id) : actionOwner;
   const inspectedBlock =
-    (mode === 'actions' ||
+    (mode === 'routines' ||
+      mode === 'actions' ||
       mode === 'triggers' ||
       mode === 'procedures' ||
       mode === 'conversations' ||
@@ -1034,6 +1081,19 @@ export default function App() {
     }));
   };
   const createDefinition = () => {
+    if (
+      inspectedBlock?.value &&
+      [
+        'start_routine',
+        'pause_routine',
+        'resume_routine',
+        'stop_routine',
+        'routine_status',
+      ].includes(inspectedBlock.value.type)
+    ) {
+      setRoutineCreation(structuredClone(inspectedBlock));
+      return;
+    }
     if (
       inspectedBlock &&
       inspectedBlock.value &&
@@ -1643,6 +1703,7 @@ export default function App() {
                   { id: gameDataPages.variables, name: 'Variables', icon: '◈' },
                   { id: gameDataPages.vocabulary, name: 'Command vocabulary', icon: '⌘' },
                   { id: gameDataPages.triggers, name: 'Triggers', icon: '⚡' },
+                  { id: routinePage, name: 'Routines', icon: '↻' },
                   { id: gameDataPages.procedures, name: 'Procedures', icon: 'ƒ' },
                   { id: gameDataPages.conversations, name: 'Conversations', icon: '☏' },
                   { id: gameDataPages.quests, name: 'Quests', icon: '⚑' },
@@ -1650,10 +1711,11 @@ export default function App() {
                 ].map((item) => (
                   <button
                     key={item.id}
-                    className={`tree-item ${selected === item.id || (item.id === gameDataPages.triggers && mode === 'triggers') || (item.id === gameDataPages.procedures && mode === 'procedures') || (item.id === gameDataPages.conversations && mode === 'conversations') || (item.id === gameDataPages.quests && mode === 'quests') ? 'active' : ''}`}
+                    className={`tree-item ${selected === item.id || (item.id === gameDataPages.triggers && mode === 'triggers') || (item.id === routinePage && mode === 'routines') || (item.id === gameDataPages.procedures && mode === 'procedures') || (item.id === gameDataPages.conversations && mode === 'conversations') || (item.id === gameDataPages.quests && mode === 'quests') ? 'active' : ''}`}
                     aria-current={
                       selected === item.id ||
                       (item.id === gameDataPages.triggers && mode === 'triggers') ||
+                      (item.id === routinePage && mode === 'routines') ||
                       (item.id === gameDataPages.procedures && mode === 'procedures') ||
                       (item.id === gameDataPages.conversations && mode === 'conversations') ||
                       (item.id === gameDataPages.quests && mode === 'quests')
@@ -1841,21 +1903,23 @@ export default function App() {
                 )}
                 <span aria-hidden="true">›</span>
                 <span>
-                  {mode === 'conversations'
-                    ? 'Conversations'
-                    : mode === 'quests'
-                      ? 'Quests'
-                      : mode === 'map'
-                        ? 'World map'
-                        : mode === 'hints'
-                          ? 'Hints'
-                          : mode === 'contents'
-                            ? 'Contents'
-                            : mode === 'procedures'
-                              ? 'Procedures'
-                              : mode === 'triggers'
-                                ? 'Triggers'
-                                : 'Actions'}
+                  {mode === 'routines'
+                    ? 'Routines'
+                    : mode === 'conversations'
+                      ? 'Conversations'
+                      : mode === 'quests'
+                        ? 'Quests'
+                        : mode === 'map'
+                          ? 'World map'
+                          : mode === 'hints'
+                            ? 'Hints'
+                            : mode === 'contents'
+                              ? 'Contents'
+                              : mode === 'procedures'
+                                ? 'Procedures'
+                                : mode === 'triggers'
+                                  ? 'Triggers'
+                                  : 'Actions'}
                 </span>
                 {mode === 'triggers' && scheduled && (
                   <>
@@ -1939,6 +2003,7 @@ export default function App() {
                     onClick={() => {
                       if (
                         scheduled ||
+                        mode === 'routines' ||
                         mode === 'procedures' ||
                         mode === 'conversations' ||
                         mode === 'quests'
@@ -1996,20 +2061,32 @@ export default function App() {
                     Hints
                   </button>
                 </div>
+                {actionOwner && 'location' in actionOwner && (
+                  <button
+                    className={mode === 'routines' ? 'active' : ''}
+                    onClick={() => select(`${routinePage}:${actionOwner.id}`)}
+                  >
+                    Character routines
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     const source =
-                      mode === 'conversations' || mode === 'quests'
-                        ? activeNarrativeScript
-                        : mode === 'actions'
-                          ? actionFlow
-                          : mode === 'triggers'
-                            ? scheduled
-                              ? activeTimer
-                              : activeTrigger
-                            : mode === 'procedures'
-                              ? activeProcedure
-                              : undefined;
+                      mode === 'routines'
+                        ? activeRoutine?.steps.find(
+                            (step) => step.id === blockSelections[activeRoutine.id]?.routineStepId,
+                          )
+                        : mode === 'conversations' || mode === 'quests'
+                          ? activeNarrativeScript
+                          : mode === 'actions'
+                            ? actionFlow
+                            : mode === 'triggers'
+                              ? scheduled
+                                ? activeTimer
+                                : activeTrigger
+                              : mode === 'procedures'
+                                ? activeProcedure
+                                : undefined;
                     setTemplateContext({
                       ownerId:
                         (source && flowOwner(doc, source.id)?.id) ?? actionOwner?.id ?? doc.game.id,
@@ -2037,27 +2114,30 @@ export default function App() {
                     ? connecting
                       ? 'Click a source room, then a target room · Esc cancels'
                       : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
-                    : mode === 'conversations'
-                      ? 'Connect dialogue and authored replies, then build the selected logic'
-                      : mode === 'quests'
-                        ? 'Author stages, earned journal lines and status hooks'
-                        : mode === 'procedures'
-                          ? 'Shared definitions with typed local inputs'
-                          : mode === 'hints'
-                            ? 'Author progressive clues and optional solutions'
-                            : mode === 'triggers'
-                              ? scheduled
-                                ? 'Schedule events after player turns'
-                                : 'Command, state, and value triggers'
-                              : mode === 'contents'
-                                ? 'Arrange initial contents and set up interactions'
-                                : actionOwner
-                                  ? 'Choose an action or exit, then build its logic'
-                                  : 'Select an object, location, or character'}
+                    : mode === 'routines'
+                      ? 'Keep every step in one group · one step attempt per charged turn'
+                      : mode === 'conversations'
+                        ? 'Connect dialogue and authored replies, then build the selected logic'
+                        : mode === 'quests'
+                          ? 'Author stages, earned journal lines and status hooks'
+                          : mode === 'procedures'
+                            ? 'Shared definitions with typed local inputs'
+                            : mode === 'hints'
+                              ? 'Author progressive clues and optional solutions'
+                              : mode === 'triggers'
+                                ? scheduled
+                                  ? 'Schedule events after player turns'
+                                  : 'Command, state, and value triggers'
+                                : mode === 'contents'
+                                  ? 'Arrange initial contents and set up interactions'
+                                  : actionOwner
+                                    ? 'Choose an action or exit, then build its logic'
+                                    : 'Select an object, location, or character'}
                 </span>
               </div>
-              {(activeTimer || (mode === 'procedures' && activeProcedure)) &&
-                procedureReturns.at(-1)?.definition === (activeTimer ?? activeProcedure)?.id && (
+              {(activeRoutine || activeTimer || (mode === 'procedures' && activeProcedure)) &&
+                procedureReturns.at(-1)?.definition ===
+                  (activeRoutine ?? activeTimer ?? activeProcedure)?.id && (
                   <div className="procedure-return">
                     <button
                       disabled={!script(doc, procedureReturns.at(-1)!.scriptId)}
@@ -2102,6 +2182,20 @@ export default function App() {
                     onBlockSelect={selectBlock}
                     blockViews={blockViews}
                     history={historyControls}
+                    error={error}
+                  />
+                ) : mode === 'routines' ? (
+                  <Routines
+                    project={doc}
+                    active={activeRoutine}
+                    character={routineCharacter}
+                    edit={edit}
+                    select={select}
+                    history={historyControls}
+                    blocksRef={blocks}
+                    blockViews={blockViews}
+                    onBlockSelect={selectBlock}
+                    selectedBlock={activeRoutine && blockSelections[activeRoutine.id]?.blockId}
                     error={error}
                   />
                 ) : mode === 'procedures' ? (
@@ -2370,6 +2464,14 @@ export default function App() {
                     busy={busy || !!play.state.ending}
                   />
                 )}
+                {!!play?.result.routines?.length && (
+                  <RoutineProgress
+                    views={play.result.routines}
+                    project={playProject!}
+                    sourceCurrent={playSource === playVersion}
+                    reveal={reveal}
+                  />
+                )}
                 {play?.result.conversation && (
                   <NarrativePlayer
                     project={playProject!}
@@ -2501,6 +2603,10 @@ export default function App() {
                         : mode === 'conversations'
                           ? 'Conversations'
                           : 'Quests'}
+                  </button>
+                ) : mode === 'routines' ? (
+                  <button className="inspector-back" onClick={() => select(routinePage)}>
+                    ← Routines
                   </button>
                 ) : mode === 'triggers' && scheduled ? (
                   <button
@@ -2638,6 +2744,45 @@ export default function App() {
                     select={(selection) => setHintSelection(selection)}
                     edit={edit}
                   />
+                ) : mode === 'routines' ? (
+                  activeRoutine ? (
+                    <RoutineInspector
+                      key={activeRoutine.id}
+                      project={doc}
+                      definition={activeRoutine}
+                      selection={blockSelections[activeRoutine.id]}
+                      edit={edit}
+                      select={select}
+                      selectBlock={(id) => blocks.current?.selectBlock(id)}
+                      clear={() => {
+                        blocks.current?.selectBlock(routineBlockId(doc, activeRoutine.id) ?? null);
+                        setBlockSelections((old) => {
+                          const next = { ...old };
+                          delete next[activeRoutine.id];
+                          return next;
+                        });
+                      }}
+                      changeBlock={(selection, value) =>
+                        blocks.current?.updateBlock(
+                          selection,
+                          value,
+                          current.current.doc ?? undefined,
+                        )
+                      }
+                      openDefinition={openDefinition}
+                      createDefinition={createDefinition}
+                      remove={() => remove(activeRoutine.id)}
+                      error={error}
+                    />
+                  ) : (
+                    <>
+                      <h2>Routines</h2>
+                      <p>
+                        Select a routine or create one for a character. Its steps stay together in
+                        one Blockly group.
+                      </p>
+                    </>
+                  )
                 ) : mode === 'triggers' && scheduled && !inspectedBlock ? (
                   activeTimer ? (
                     <TimerInspector
@@ -2814,6 +2959,15 @@ export default function App() {
             <button className="primary">Create project</button>
           </form>
         </Modal>
+      )}
+      {routineCreation && doc && (
+        <RoutineCreation
+          project={doc}
+          edit={edit}
+          from={routineCreation}
+          close={() => setRoutineCreation(null)}
+          created={(id) => openDefinition(id, routineCreation)}
+        />
       )}
       {timerCreation && doc && (
         <TimerCreation
@@ -3084,11 +3238,13 @@ export default function App() {
                       (selected === target.id || flowOwner(doc, selected)?.id === target.id)
                     )
                       select(
-                        target.kind === 'timer'
-                          ? gameDataPages.scheduled
-                          : target.kind === 'procedure'
-                            ? gameDataPages.procedures
-                            : (flowOwner(doc, target.id)?.id ?? doc.game.id),
+                        target.kind === 'routine'
+                          ? routinePage
+                          : target.kind === 'timer'
+                            ? gameDataPages.scheduled
+                            : target.kind === 'procedure'
+                              ? gameDataPages.procedures
+                              : (flowOwner(doc, target.id)?.id ?? doc.game.id),
                       );
                   }}
                 />

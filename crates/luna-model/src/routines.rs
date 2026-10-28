@@ -8,6 +8,7 @@ pub const ROUTINE_STEP_LIMIT: usize = 256;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+#[ts(tag = "type", rename_all = "snake_case")]
 pub enum RoutineStart {
     Blocks,
     Initial,
@@ -15,6 +16,7 @@ pub enum RoutineStart {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+#[ts(tag = "type", rename_all = "snake_case")]
 pub enum RoutineRepeat {
     Finish,
     Loop,
@@ -84,6 +86,7 @@ pub struct RoutineCursor {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+#[ts(tag = "type", rename_all = "snake_case")]
 pub enum RoutineRun {
     Running { cursor: RoutineCursor },
     Paused { cursor: RoutineCursor },
@@ -252,6 +255,8 @@ impl Project {
             }
         }
         !self.routines.is_empty()
+            || !self.editor.routine_drafts.is_empty()
+            || self.editor.templates.iter().any(|t| !t.routines.is_empty())
             || effects.iter().any(|e| e.requires_routines())
             || self.conditions().iter().any(|c| c.requires_routines())
             || self.editor.playtest.as_ref().is_some_and(|l| {

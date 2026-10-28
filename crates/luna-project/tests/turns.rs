@@ -109,6 +109,7 @@ fn timer_construction_and_template_bindings_round_trip_only_as_editor_metadata()
         effects: vec![],
     });
     p.editor.templates.push(BlockTemplate {
+        routines: vec![],
         id: "timer-template".into(),
         name: "Countdown".into(),
         source_owner: None,

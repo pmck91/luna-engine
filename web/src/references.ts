@@ -1,3 +1,4 @@
+import { authoringRoutines, routine, routineDraft, routineFor } from './routineModel';
 import { authoringTimers, timer, timerDraft } from './turnModel';
 import { authoringNarrative, construction, draftId, narrativeItem } from './narrativeAuthoring';
 import type {
@@ -36,6 +37,7 @@ export type ReferenceTarget =
         | 'flow'
         | 'procedure'
         | 'timer'
+        | 'routine'
         | NarrativeKind;
       id: string;
     };
@@ -46,6 +48,7 @@ export type ReferenceSite = {
   ownerId?: string;
   flowId?: string;
   procedureId?: string;
+  routineId?: string;
   conversationId?: string;
   questId?: string;
   blockId?: string;
@@ -80,6 +83,7 @@ const child = (site: ReferenceSite, path: string): ReferenceSite => ({
   path: site.path ? `${site.path}.${path}` : path,
 });
 export function referenceName(p: Project, target: ReferenceTarget): string {
+  if (target.kind === 'routine') return routine(p, target.id)?.name ?? target.id;
   if (target.kind === 'timer') return timer(p, target.id)?.name ?? target.id;
   if (target.kind === 'variable') return `Variable · ${target.name}`;
   if (target.kind === 'property')
@@ -103,7 +107,7 @@ export function referenceName(p: Project, target: ReferenceTarget): string {
         .flatMap((owner) => owner.hints)
         .find((hint) => hint.id === target.id)?.name ?? target.id
     );
-  return flow(p, target.id)?.name || target.id;
+  return script(p, target.id)?.name || target.id;
 }
 export function referenceContext(p: Project, use: ReferenceSite): string {
   const owner = owners(p).find((o) => o.id === use.ownerId);
@@ -314,6 +318,16 @@ function scan(
   ) => {
     if (!v || typeof v !== 'object') return;
     const type = v.type as string;
+    if (
+      [
+        'start_routine',
+        'pause_routine',
+        'resume_routine',
+        'stop_routine',
+        'routine_status',
+      ].includes(type)
+    )
+      reference(v, 'routine', { kind: 'routine', id: v.routine }, site);
     if (['schedule_timer', 'cancel_timer', 'timer_pending'].includes(type))
       reference(v, 'timer', { kind: 'timer', id: v.timer }, site);
     if (type === 'schedule_timer') node(v.after, 'operand', child(site, 'after'), template);
@@ -539,6 +553,26 @@ function scan(
       path: '',
       scope: 'content',
     });
+  for (const r of authoringRoutines(p)) {
+    const site: ReferenceSite = {
+      subject: r.id,
+      flowId: r.id,
+      routineId: r.id,
+      path: '',
+      scope: routineDraft(p, r.id) ? 'draft' : 'content',
+    };
+    entityReference(r, 'character', site, { allowed: ['character'] });
+    if ('condition' in r.start)
+      node(r.start.condition, 'condition', child(site, 'start.condition'));
+    if ('condition' in r.repeat)
+      node(r.repeat.condition, 'condition', child(site, 'repeat.condition'));
+    r.steps.forEach((step, i) => {
+      const at = { ...child(site, `steps.${i}`), subject: step.id };
+      node(step.condition, 'condition', child(at, 'condition'));
+      if (step.wait) node(step.wait, 'operand', child(at, 'wait'));
+      step.effects.forEach((e, j) => node(e, 'effect', child(at, `effects.${j}`)));
+    });
+  }
   const drafts = p.editor.narrative_drafts ?? [];
   for (const c of [
     ...(p.conversations ?? []),
@@ -629,6 +663,13 @@ function scan(
   for (const ending of p.game.endings)
     message(ending, 'text', { subject: ending.id, path: '', scope: 'content' });
   for (const template of p.editor.templates) {
+    for (const dependency of template.routines ?? [])
+      reference(
+        dependency,
+        'id',
+        { kind: 'routine', id: dependency.id },
+        { subject: template.id, templateId: template.id, path: 'routines', scope: 'metadata' },
+      );
     for (const dependency of template.timers ?? [])
       reference(
         dependency,
@@ -679,6 +720,14 @@ function scan(
       scope: live ? 'metadata' : 'draft',
     };
     const type = block.type as string;
+    if (type === 'luna_routine' && block.extraState?.character)
+      reference(
+        block.extraState,
+        'character',
+        { kind: 'entity', id: block.extraState.character },
+        at,
+        { allowed: ['character'] },
+      );
     const kind = type.startsWith('condition_')
       ? 'condition'
       : type.startsWith('number_')
@@ -767,6 +816,8 @@ function scan(
     if (type === 'hint_clue' || type === 'hint_solution') message(block.fields ?? {}, 'text', at);
     for (const input of Object.values(block.inputs ?? {}) as RecordValue[])
       for (const value of [input.block, input.shadow]) if (value) savedBlock(value, site, live);
+    for (const cached of Object.values(block.extraState?.cached ?? {}) as RecordValue[])
+      savedBlock(cached, site, false);
     if (block.next?.block) savedBlock(block.next.block, site, live);
   };
   for (const [key, workspace] of Object.entries(p.editor.blocks)) {
@@ -776,6 +827,7 @@ function scan(
     const parent = flowOwner(p, key);
     const narrative = narrativeItem(p, key);
     const site: ReferenceSite = {
+      routineId: routineFor(p, key)?.id,
       ...(narrative && 'conversation' in narrative
         ? { conversationId: narrative.conversation.id }
         : narrative && 'quest' in narrative
@@ -793,7 +845,9 @@ function scan(
       savedBlock(
         block,
         site,
-        block.type === 'luna_flow' || (block.type === 'hint_puzzle' && block.id === hint?.hint),
+        block.type === 'luna_flow' ||
+          block.type === 'luna_routine' ||
+          (block.type === 'hint_puzzle' && block.id === hint?.hint),
       );
   }
   for (const setup of p.editor.playtest?.setups ?? []) {
@@ -841,6 +895,11 @@ function scan(
           child(site, `turns.pending.${id}.source.${key}`),
         );
       }
+    }
+    for (const [id, run] of Object.entries(state.routines?.runs ?? {}) as [string, RecordValue][]) {
+      emit({ kind: 'routine', id }, child(site, `routines.runs.${id}`));
+      if (run.cursor)
+        emit({ kind: 'flow', id: run.cursor.step }, child(site, `routines.runs.${id}.cursor.step`));
     }
     keys(state.variables, child(site, 'variables'), (name) => ({ kind: 'variable', name }));
     for (const [id, values] of Object.entries(state.properties) as [string, RecordValue][]) {
@@ -949,6 +1008,27 @@ function scan(
   }
   return uses;
 }
+export function reassignRoutineOwner(
+  p: Project,
+  key: string,
+  character: string,
+  retarget: boolean,
+) {
+  const r = routine(p, key);
+  if (!r) return;
+  const old = r.character;
+  if (retarget)
+    scan(p, p, (use) =>
+      use.routineId === key && use.target.kind === 'entity' && use.target.id === old
+        ? { kind: 'entity', id: character }
+        : use.routineId === key && use.target.kind === 'property' && use.target.entity === old
+          ? { ...use.target, entity: character }
+          : undefined,
+    );
+  r.character = character;
+  for (const root of (p.editor.blocks[key] as any)?.blocks?.blocks ?? [])
+    if (root.type === 'luna_routine') root.extraState.character = character;
+}
 /** Apply identity changes through the same typed walk as Used by/repair. */
 export function remapProjectReferences(p: Project, ids: ReadonlyMap<string, string>) {
   scan(p, p, (use) =>
@@ -974,6 +1054,19 @@ function matches(use: ReferenceUse, target: ReferenceTarget): boolean {
   );
 }
 function ownedTargets(p: Project, target: ReferenceTarget): ReferenceTarget[] {
+  if (target.kind === 'routine') {
+    const r = routine(p, target.id);
+    return r
+      ? [
+          ...r.steps.map((s) => ({ kind: 'flow' as const, id: s.id })),
+          ...r.steps.flatMap((s) =>
+            allEffects(s.effects).flatMap(({ effect }) =>
+              effect.type === 'respond' ? [{ kind: 'sequence' as const, id: effect.id }] : [],
+            ),
+          ),
+        ]
+      : [];
+  }
   if (target.kind === 'conversation' || target.kind === 'quest') {
     const owned = narrativeDefinitions(p).filter((d) =>
       target.kind === 'conversation'
@@ -1013,7 +1106,7 @@ function ownedTargets(p: Project, target: ReferenceTarget): ReferenceTarget[] {
   const scripts = owner
     ? [...owner.actions, ...owner.triggers, ...('exits' in owner ? owner.exits : [])]
     : target.kind === 'flow'
-      ? [flow(p, target.id)].filter((f) => !!f)
+      ? [script(p, target.id)].filter((f) => !!f)
       : target.kind === 'timer'
         ? [timer(p, target.id)].filter((item) => !!item)
         : target.kind === 'procedure'
@@ -1035,8 +1128,9 @@ export function usedBy(p: Project, target: ReferenceTarget): ReferenceUse[] {
   return projectReferences(p).filter(
     (use) =>
       (matches(use, target) || children.some((t) => matches(use, t))) &&
-      !(target.kind === 'entity' && use.ownerId === target.id) &&
+      !(target.kind === 'entity' && use.ownerId === target.id && !use.routineId) &&
       !(target.kind === 'flow' && use.flowId === target.id) &&
+      !(target.kind === 'routine' && use.routineId === target.id) &&
       !(target.kind === 'timer' && use.flowId === target.id) &&
       !(target.kind === 'procedure' && use.procedureId === target.id) &&
       !(
@@ -1061,6 +1155,7 @@ function schema(p: Project, target: ReferenceTarget): Value | undefined {
     : undefined;
 }
 function definitionExists(p: Project, t: ReferenceTarget): boolean {
+  if (t.kind === 'routine') return !!routine(p, t.id);
   if (t.kind === 'timer') return !!timer(p, t.id);
   if (t.kind === 'variable' || t.kind === 'property') return schema(p, t) !== undefined;
   if (t.kind === 'procedure')
@@ -1072,7 +1167,7 @@ function definitionExists(p: Project, t: ReferenceTarget): boolean {
   if (t.kind === 'template') return p.editor.templates.some((v) => v.id === t.id);
   if (t.kind === 'puzzle')
     return entities(p).some((owner) => owner.hints.some((hint) => hint.id === t.id));
-  return !!flow(p, t.id);
+  return !!script(p, t.id);
 }
 function entityKind(p: Project, id: string) {
   return p.locations.some((v) => v.id === id)
@@ -1086,38 +1181,40 @@ function entityKind(p: Project, id: string) {
 export function replacementTargets(p: Project, source: ReferenceTarget): ReferenceTarget[] {
   const narrative = narrativeItem(p, 'id' in source ? source.id : '');
   const choices: ReferenceTarget[] =
-    source.kind === 'timer'
-      ? (p.timers ?? []).map((t) => ({ kind: 'timer', id: t.id }))
-      : narrative
-        ? narrativeDefinitions(p)
-            .filter(
-              (d) =>
-                d.kind === source.kind &&
-                (!('conversation' in narrative) ||
-                  ('conversationId' in d && d.conversationId === narrative.conversation.id)) &&
-                (!('quest' in narrative) || ('questId' in d && d.questId === narrative.quest.id)),
-            )
-            .map((d) => ({ kind: d.kind, id: d.id }))
-        : source.kind === 'variable'
-          ? Object.keys(p.game.variables).map((name) => ({ kind: 'variable', name }))
-          : source.kind === 'property'
-            ? Object.keys(entity(p, source.entity)?.state ?? {}).map((name) => ({
-                ...source,
-                name,
-              }))
-            : source.kind === 'entity'
-              ? entities(p)
-                  .filter((v) => entityKind(p, v.id) === entityKind(p, source.id))
-                  .map((v) => ({ kind: 'entity', id: v.id }))
-              : source.kind === 'ending'
-                ? p.game.endings.map((v) => ({ kind: 'ending', id: v.id }))
-                : source.kind === 'verb'
-                  ? p.vocabulary.map((v) => ({ kind: 'verb', id: v.id }))
-                  : source.kind === 'puzzle'
-                    ? entities(p).flatMap((owner) =>
-                        owner.hints.map((hint) => ({ kind: 'puzzle' as const, id: hint.id })),
-                      )
-                    : [];
+    source.kind === 'routine'
+      ? (p.routines ?? []).map((r) => ({ kind: 'routine', id: r.id }))
+      : source.kind === 'timer'
+        ? (p.timers ?? []).map((t) => ({ kind: 'timer', id: t.id }))
+        : narrative
+          ? narrativeDefinitions(p)
+              .filter(
+                (d) =>
+                  d.kind === source.kind &&
+                  (!('conversation' in narrative) ||
+                    ('conversationId' in d && d.conversationId === narrative.conversation.id)) &&
+                  (!('quest' in narrative) || ('questId' in d && d.questId === narrative.quest.id)),
+              )
+              .map((d) => ({ kind: d.kind, id: d.id }))
+          : source.kind === 'variable'
+            ? Object.keys(p.game.variables).map((name) => ({ kind: 'variable', name }))
+            : source.kind === 'property'
+              ? Object.keys(entity(p, source.entity)?.state ?? {}).map((name) => ({
+                  ...source,
+                  name,
+                }))
+              : source.kind === 'entity'
+                ? entities(p)
+                    .filter((v) => entityKind(p, v.id) === entityKind(p, source.id))
+                    .map((v) => ({ kind: 'entity', id: v.id }))
+                : source.kind === 'ending'
+                  ? p.game.endings.map((v) => ({ kind: 'ending', id: v.id }))
+                  : source.kind === 'verb'
+                    ? p.vocabulary.map((v) => ({ kind: 'verb', id: v.id }))
+                    : source.kind === 'puzzle'
+                      ? entities(p).flatMap((owner) =>
+                          owner.hints.map((hint) => ({ kind: 'puzzle' as const, id: hint.id })),
+                        )
+                      : [];
   return choices.filter(
     (target) =>
       !same(target, source) &&
@@ -1126,6 +1223,14 @@ export function replacementTargets(p: Project, source: ReferenceTarget): Referen
   );
 }
 export function deleteDefinition(p: Project, target: ReferenceTarget) {
+  if (target.kind === 'routine') {
+    const r = routine(p, target.id);
+    for (const s of r?.steps ?? []) delete p.editor.blocks[s.id];
+    p.routines = p.routines?.filter((r) => r.id !== target.id);
+    p.editor.routine_drafts = p.editor.routine_drafts?.filter((r) => r.id !== target.id);
+    delete p.editor.blocks[target.id];
+    return;
+  }
   if (target.kind === 'timer') {
     p.timers = p.timers?.filter((t) => t.id !== target.id);
     p.editor.timer_drafts = p.editor.timer_drafts?.filter((t) => t.id !== target.id);
@@ -1379,6 +1484,8 @@ export function referencePlan(
     errors.push('Rename the property on its original entity.');
   if ((source.kind === 'conversation' || source.kind === 'quest') && destination)
     errors.push('Repair owned dialogue/stage references before replacing this definition.');
+  if (destination?.kind === 'routine' && routineDraft(p, destination.id))
+    errors.push('Choose a finished replacement routine.');
   if (destination?.kind === 'timer' && timerDraft(p, destination.id))
     errors.push('Choose a finished replacement timer.');
   if (source.kind === 'procedure' && destination)
@@ -1433,8 +1540,9 @@ export function referencePlan(
   if (errors.length) return { project: next, uses, errors };
   const removedSite = (use: ReferenceUse) =>
     !rename &&
-    ((source.kind === 'entity' && use.ownerId === source.id) ||
+    ((source.kind === 'entity' && use.ownerId === source.id && !use.routineId) ||
       (source.kind === 'flow' && use.flowId === source.id) ||
+      (source.kind === 'routine' && use.routineId === source.id) ||
       (source.kind === 'timer' && use.flowId === source.id) ||
       (source.kind === 'procedure' && use.procedureId === source.id) ||
       (source.kind === 'conversation' && use.conversationId === source.id) ||

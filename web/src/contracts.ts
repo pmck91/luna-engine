@@ -33,9 +33,9 @@ order: number, start: RoutineStart, repeat: RoutineRepeat, hold_conversation: bo
 
 export type RoutineStep = { id: string, name: string, condition: Condition, blocked: RoutineBlocked, wait: NumericOperand | null, effects: Array<Effect>, };
 
-export type RoutineStart = "Blocks" | "Initial" | { "When": { condition: Condition, } };
+export type RoutineStart = { "type": "blocks" } | { "type": "initial" } | { "type": "when", condition: Condition, };
 
-export type RoutineRepeat = "Finish" | "Loop" | { "While": { condition: Condition, } } | { "Until": { condition: Condition, } };
+export type RoutineRepeat = { "type": "finish" } | { "type": "loop" } | { "type": "while", condition: Condition, } | { "type": "until", condition: Condition, };
 
 export type RoutineBlocked = "retry" | "skip" | "pause";
 
@@ -43,7 +43,7 @@ export type RoutineBusyPolicy = "keep" | "replace";
 
 export type RoutineStatus = "not_started" | "running" | "paused" | "stopped" | "completed";
 
-export type RoutineRun = { "Running": { cursor: RoutineCursor, } } | { "Paused": { cursor: RoutineCursor, } } | "Stopped" | "Completed";
+export type RoutineRun = { "type": "running", cursor: RoutineCursor, } | { "type": "paused", cursor: RoutineCursor, } | { "type": "stopped" } | { "type": "completed" };
 
 export type RoutineCursor = { step: string,
 /**
@@ -295,6 +295,8 @@ export type NarrativeReferenceKind = "conversation" | "dialogue" | "reply" | "qu
 
 export type TemplateTimerReference = { id: string, name: string, };
 
+export type TemplateRoutineReference = { id: string, name: string, };
+
 export type TemplateNarrativeReference = { id: string, name: string, kind: NarrativeReferenceKind, parent: string | null, };
 
 export type QuestStatus = "undiscovered" | "active" | "completed" | "failed";
@@ -489,9 +491,13 @@ export type TemplateEntity = { id: string, name: string, kind: TemplateEntityKin
 
 export type TemplateContent = { "type": "action", action: Action, } | { "type": "effects", effects: Array<Effect>, };
 
-export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, narratives?: Array<TemplateNarrativeReference>, timers?: Array<TemplateTimerReference>, content: TemplateContent, };
+export type BlockTemplate = { id: string, name: string, source_owner: string | null, entities: Array<TemplateEntity>, text_variables: Array<string>, narratives?: Array<TemplateNarrativeReference>, timers?: Array<TemplateTimerReference>, routines?: Array<TemplateRoutineReference>, content: TemplateContent, };
 
 export type EditorLayout = { positions: { [key in string]?: Point }, blocks: { [key in string]?: JsonValue }, routes: { [key in string]?: RouteLayout }, templates: Array<BlockTemplate>,
+/**
+ * Unfinished routine groups stay outside executable content.
+ */
+routine_drafts?: Array<CharacterRoutine>,
 /**
  * Incomplete scheduled definitions stay outside executable timer content.
  */

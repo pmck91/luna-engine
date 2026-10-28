@@ -129,3 +129,16 @@ cargo bench -p luna-runner --offline --bench turns -- 100 1000 5000
 Run release measurements without concurrent browser/build workloads. The benchmark compares untimed, empty-queue, 64/1,024 future pending, and 64/256 due-callback cases, using the production definition/Session/Storage APIs. Definition construction, fresh startup, authored commands, WAIT, explained WAIT, unknown input, native views, state validation, restore, snapshot size and save overwrite are separate rows. Restoration is outside due-batch timing. Fixture generation is outside definition timing. CSV rows record actual definition and queue sizes; small catalogues are expanded to hold the selected pending set.
 
 The synthetic world has one room and two counters, so these measurements isolate catalogue/queue behavior. Large object/narrative state still adds full transaction-copy and diagnostic costs covered by the earlier benchmarks. Timings are local observations without CI thresholds; tmpfs save results exclude physical-disk latency. The [T4 evidence](design/turn-events/final-review.md) links raw results and practical bounds, including atomic rejection of a simultaneous batch that exceeds the shared budget. Package smoke also exercises the permanent workshop's export, setups, rollback, quest signal and ending across separate installed processes.
+
+## Character routine authoring review
+
+On `feature/character-routines`, CR2 is committed as `9b0b729`; the CR3 [working patrol review](design/character-routines/authoring-review.md) covers the production library, connected STEP blocks, root policies, controls, captured progress and installed-runner resume. The owner accepted CR3 on 28 October 2026; CR4 covers the progressive workshop and release measurements. Existing examples are unchanged.
+
+```sh
+cargo test -p luna-project --test routines
+npm --prefix web test -- src/routines.test.ts
+cd web
+npx --no-install playwright test tests/e2e/routines.spec.ts
+```
+
+Run browser acceptance after compilation finishes; concurrent Rust linking can exhaust local resources and cause unrelated browser/navigation setup timeouts. Production routine workspaces reuse the existing Blockly editor; the isolated `design/routines` proof is retained as earlier contract evidence. Metadata drafts and inactive predicates must remain editor-only, while all live views, saves and setups use native generated contracts.

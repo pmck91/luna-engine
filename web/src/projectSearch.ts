@@ -1,3 +1,4 @@
+import { authoringRoutines, routineDraft } from './routineModel';
 import { authoringTimers, timerDraft } from './turnModel';
 import { narrativeDefinitions } from './narrativeModel';
 import type { Project } from './contracts';
@@ -73,6 +74,29 @@ export function searchIndex(p: Project): SearchEntry[] {
       { subject: t.id, flowId: t.id, path: '', scope: timerDraft(p, t.id) ? 'draft' : 'content' },
       timerDraft(p, t.id) ? 'Construction draft' : 'Scheduled trigger',
     );
+  for (const r of authoringRoutines(p)) {
+    const site: ReferenceSite = {
+      subject: r.id,
+      flowId: r.id,
+      routineId: r.id,
+      path: '',
+      scope: routineDraft(p, r.id) ? 'draft' : 'content',
+    };
+    add(
+      'Character routines',
+      r.name,
+      site,
+      `${p.characters.find((c) => c.id === r.character)?.name ?? r.character} ${r.start.type} ${r.repeat.type}`,
+    );
+    r.steps.forEach((step, i) =>
+      add(
+        'Character routines',
+        step.name,
+        { ...site, subject: step.id, path: `steps.${i}` },
+        JSON.stringify(step),
+      ),
+    );
+  }
   for (const definition of p.procedures ?? [])
     add(
       'Procedures',

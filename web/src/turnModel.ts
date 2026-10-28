@@ -1,3 +1,4 @@
+import { authoringRoutines } from './routineModel';
 import { normalizedCommand as normalize } from './commandAssistance';
 import type { Project, ScheduledTrigger, TurnPolicy, TurnCost } from './contracts';
 
@@ -95,6 +96,7 @@ export function turnUpgradeConflicts(p: Project) {
 /** Reviewable disable blockers include executable content, construction and detached blocks. */
 export function turnUsages(p: Project): string[] {
   const uses = new Set<string>();
+  if (authoringRoutines(p).length) uses.add('Character routines and construction drafts');
   if (authoringTimers(p).length) uses.add('Scheduled definitions and construction drafts');
   const walk = (value: unknown) => {
     if (!value || typeof value !== 'object') return;
@@ -110,6 +112,12 @@ export function turnUsages(p: Project): string[] {
       ].includes(String(node.type))
     )
       uses.add('Timer blocks, references or templates');
+    if (
+      /^(luna_)?(start|pause|resume|stop)_routine$|^(condition_)?routine_status$/.test(
+        String(node.type),
+      )
+    )
+      uses.add('Routine blocks, references or templates');
     const cost = node.turn_cost;
     if (
       cost &&

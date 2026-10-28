@@ -755,6 +755,7 @@ mod tests {
         let mut p = Project::blank("Template metadata");
         p.editor.templates = vec![
             BlockTemplate {
+                routines: vec![],
                 timers: vec![],
                 narratives: vec![],
                 id: "template-action".into(),
@@ -782,6 +783,7 @@ mod tests {
                 },
             },
             BlockTemplate {
+                routines: vec![],
                 timers: vec![],
                 narratives: vec![],
                 id: "template-effects".into(),

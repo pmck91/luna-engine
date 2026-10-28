@@ -718,6 +718,10 @@ pub struct EditorLayout {
     pub blocks: BTreeMap<String, serde_json::Value>,
     pub routes: BTreeMap<String, RouteLayout>,
     pub templates: Vec<BlockTemplate>,
+    /// Unfinished routine groups stay outside executable content.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub routine_drafts: Vec<CharacterRoutine>,
     /// Incomplete scheduled definitions stay outside executable timer content.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<_>", optional)]
@@ -804,7 +808,16 @@ pub struct BlockTemplate {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<_>", optional)]
     pub timers: Vec<TemplateTimerReference>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub routines: Vec<TemplateRoutineReference>,
     pub content: TemplateContent,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TemplateRoutineReference {
+    pub id: String,
+    pub name: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(deny_unknown_fields)]

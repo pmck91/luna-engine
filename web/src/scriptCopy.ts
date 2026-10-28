@@ -7,10 +7,11 @@ export function copyOwnedContent<T>(
     inputs?: Map<string, string>;
     blockIds?: boolean;
     scope?: 'script' | 'clipboard';
+    identities?: ReadonlyMap<string, string>;
   } = {},
 ): T {
   const inputIds = options.inputs ?? new Map<string, string>();
-  const ids = new Map<string, string>();
+  const ids = new Map<string, string>(options.identities);
   const discover = (value: unknown) => {
     if (!value || typeof value !== 'object') return;
     const node = value as Record<string, unknown>;
@@ -20,6 +21,11 @@ export function copyOwnedContent<T>(
       !ids.has(node.id)
     )
       ids.set(node.id, crypto.randomUUID());
+    if (['luna_routine', 'luna_routine_step'].includes(String(node.type))) {
+      const extra = node.extraState as Record<string, string> | undefined;
+      const owned = node.type === 'luna_routine' ? extra?.id : extra?.step;
+      if (owned && !ids.has(owned)) ids.set(owned, crypto.randomUUID());
+    }
     if (typeof node.data === 'string') {
       try {
         const data = JSON.parse(node.data);
@@ -47,13 +53,32 @@ export function copyOwnedContent<T>(
     const replace = (key: string, mapping = ids) => {
       if (typeof node[key] === 'string') node[key] = mapping.get(node[key]) ?? node[key];
     };
+    if (['luna_routine', 'luna_routine_step'].includes(String(node.type))) {
+      const extra = node.extraState as Record<string, string> | undefined;
+      if (extra) {
+        const key = node.type === 'luna_routine' ? 'id' : 'step';
+        extra[key] = ids.get(extra[key]) ?? extra[key];
+      }
+    }
+    if (
+      [
+        'start_routine',
+        'pause_routine',
+        'resume_routine',
+        'stop_routine',
+        'routine_status',
+      ].includes(String(node.type))
+    )
+      replace('routine');
     if ('procedure_input' in node) replace('procedure_input', inputIds);
     if (['input', 'procedure_input', 'procedure_property'].includes(String(node.type)))
       replace('input', inputIds);
     if (node.type === 'call' || node.type === 'respond') replace('id');
     if (node.type === 'reset_responses') replace('sequence');
     if (typeof node.type === 'string' && /^(luna_|condition_|number_)/.test(node.type)) {
-      if (options.blockIds !== false && typeof node.id === 'string') node.id = crypto.randomUUID();
+      if (options.scope === 'clipboard') delete node.id;
+      else if (options.blockIds !== false && typeof node.id === 'string')
+        node.id = crypto.randomUUID();
       if (typeof node.data === 'string') {
         try {
           node.data = JSON.stringify(remap(JSON.parse(node.data)));
@@ -65,6 +90,8 @@ export function copyOwnedContent<T>(
         const fields = node.fields as Record<string, unknown>;
         if (node.type === 'number_input' && typeof fields.input === 'string')
           fields.input = inputIds.get(fields.input) ?? fields.input;
+        if (typeof fields.routine === 'string')
+          fields.routine = ids.get(fields.routine) ?? fields.routine;
         if (node.type === 'luna_reset_responses' && typeof fields.sequence === 'string')
           fields.sequence = ids.get(fields.sequence) ?? fields.sequence;
         for (const [key, field] of Object.entries(node.fields)) {

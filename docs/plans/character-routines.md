@@ -1,6 +1,6 @@
 # Character routines
 
-Status: **CR0 accepted; CR1 contract frozen; CR2 foundation complete**, 28 October 2026. Branch `feature/character-routines` starts from merged `main` at `1275cc5` (turns and scheduled events, PR #6). The owner requested this work with “lets get character routines done!” The [gameplay roadmap](gameplay-feature-roadmap.md#f5--character-routines) requires concrete design feedback before implementation. See the [interactive preview and review guide](../design/character-routines/README.md), [shared contract](../design/character-routines/shared-contract.md), [CR1 evidence](../design/character-routines/runtime-proof-review.md) and [CR2 foundation review](../design/character-routines/foundation-review.md).
+Status: **CR0 accepted; CR1 contract frozen; CR2 committed; CR3 authoring accepted**, 28 October 2026. Branch `feature/character-routines` starts from merged `main` at `1275cc5` (turns and scheduled events, PR #6). The owner requested this work with “lets get character routines done!” The [gameplay roadmap](gameplay-feature-roadmap.md#f5--character-routines) requires concrete design feedback before implementation. See the [interactive preview and review guide](../design/character-routines/README.md), [shared contract](../design/character-routines/shared-contract.md), [CR1 evidence](../design/character-routines/runtime-proof-review.md) and [CR2 foundation review](../design/character-routines/foundation-review.md).
 
 This plan covers the complete F5 delivery. The owner supported the behavior direction, then requested one Blockly group containing every step instead of individual step menus/workspaces. The owner also requested start and repeat/end conditions on the block itself. The owner accepted the complete revised preview with “perfect.” The preview and authoring design below incorporate both corrections. CR1 proved the shared runtime and canonical projection before shipping models or file formats change; its frozen contract resolves the implementation details below. Preserve the existing block appearance and keep the feature on its branch through final testing and owner acceptance. Public user guides remain part of the later documentation-site milestone.
 
@@ -176,7 +176,7 @@ Owner feedback on 28 October 2026: “yeah feels good,” with a request for the
 
 ### CR2 — Canonical foundation and host parity
 
-The owner reviewed CR1, authorized committing the design/proof work on 28 October 2026, and deferred continuing until the next session. CR2 now implements canonical models, native execution and storage. The [foundation review](../design/character-routines/foundation-review.md) records 51 native cases, nine project/API/runner cases, 471 workspace tests and 26 affected both-browser passes. Production authoring remains CR3; owner review of that working slice is still required.
+The owner reviewed CR1, authorized committing the design/proof work on 28 October 2026, and deferred continuing until the next session. CR2 implements canonical models, native execution and storage and was committed as `9b0b729` before CR3. The [foundation review](../design/character-routines/foundation-review.md) records 51 native cases, nine project/API/runner cases, 471 workspace tests and 26 affected both-browser passes. Production authoring remains CR3; owner review of that working slice is still required.
 
 - [x] Implement reviewed model/validation/indexes, native controls/conditions/step execution, typed views/observations and transactional state/source integration.
 - [x] Implement explicit versioned project/export/save/setup storage with generated contracts. Preserve legacy content/save/setup paths and existing fixtures.
@@ -184,10 +184,12 @@ The owner reviewed CR1, authorized committing the design/proof work on 28 Octobe
 
 ### CR3 — Production authoring and working review
 
-- [ ] Implement the accepted Routines library and character shortcut, single routine Blockly workspace with connected STEP containers, selected-step inspector and insertion/reordering, contextual create/bind, exact return, settings and turn upgrade.
-- [ ] Wire complete references, search/findings/drafts, templates, duplication and project history; persist selection/layout and restore safely across renamed/deleted content.
-- [ ] Consume native live progress/explanations and source navigation; add setup/check coverage and compact/keyboard workflows in Chromium and Firefox.
-- [ ] Request owner feedback on the working basic patrol before broadening examples; retain the accepted block appearance and address confusing pacing/controls.
+The [working authoring review](../design/character-routines/authoring-review.md) records the production journey, browser scenarios and patrol walkthrough. The owner accepted the working slice on 28 October 2026 with “Im happy, lets commit and begin.” CR4 examples and final feature acceptance remain separate.
+
+- [x] Implement the accepted Routines library and character shortcut, single routine Blockly workspace with connected STEP containers, selected-step inspector and insertion/reordering, contextual create/bind, exact return, settings and turn upgrade.
+- [x] Wire complete references, search/findings/drafts, templates, duplication and project history; persist selection/layout and restore safely across renamed/deleted content.
+- [x] Consume native live progress/explanations and source navigation; add setup/check coverage and compact/keyboard workflows in Chromium and Firefox.
+- [x] Owner reviewed and accepted the working basic patrol on 28 October 2026 with “Im happy, lets commit and begin.” No changes requested; retain the accepted block appearance through CR4.
 
 ### CR4 — Acceptance, example and merge
 

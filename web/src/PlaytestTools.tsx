@@ -45,6 +45,27 @@ function Summary({ project, state }: { project: Project; state: GameState }) {
           )}
         </>
       )}
+      {state.routines && (
+        <details>
+          <summary>Character routine progress</summary>
+          {Object.entries(state.routines.runs).map(([key, run]) => {
+            if (!run) return null;
+            const definition = project.routines?.find((r) => r.id === key);
+            const cursor = 'cursor' in run ? run.cursor : null;
+            return (
+              <p key={key}>
+                {definition?.name ?? key} · {run.type}
+                {cursor
+                  ? ` · ${definition?.steps.find((s) => s.id === cursor.step)?.name ?? cursor.step}`
+                  : ''}
+                {cursor?.wait
+                  ? ` · ${cursor.wait.remaining} of ${cursor.wait.captured} wait turns remaining`
+                  : ''}
+              </p>
+            );
+          })}
+        </details>
+      )}
       <p>Player carrying: {summary.inventory.join(', ') || 'nothing'}</p>
       {summary.characters.map((c, i) => (
         <p key={i}>

@@ -52,6 +52,7 @@ fn main() -> Result<()> {
         NarrativeDraft,
         NarrativeReferenceKind,
         TemplateTimerReference,
+        TemplateRoutineReference,
         TemplateNarrativeReference,
         QuestStatus,
         NarrativeProgress,

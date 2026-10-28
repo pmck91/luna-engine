@@ -194,6 +194,7 @@ fn narrative_construction_and_template_bindings_reopen_but_never_enter_bundles()
         },
     ];
     p.editor.templates.push(BlockTemplate {
+        routines: vec![],
         timers: vec![],
         id: new_id(),
         name: "Milestone".into(),

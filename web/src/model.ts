@@ -1,3 +1,4 @@
+import { routineScripts, routineFor } from './routineModel';
 import { authoringTimers } from './turnModel';
 import { narrativeScripts } from './narrativeModel';
 import type {
@@ -24,6 +25,7 @@ export const gameDataPages = {
   endings: 'project:endings',
   triggers: 'project:triggers',
   scheduled: 'project:scheduled',
+  routines: 'project:routines',
   procedures: 'project:procedures',
   conversations: 'project:conversations',
   quests: 'project:quests',
@@ -157,11 +159,15 @@ export function owner(p: Project, key: string) {
   return key === p.game.id ? p.game : entity(p, key);
 }
 export function flowOwner(p: Project, key: string) {
-  return [p.game, ...p.locations, ...p.objects, ...p.characters].find(
-    (entity) =>
-      entity.actions.some((action) => action.id === key) ||
-      entity.triggers.some((trigger) => trigger.id === key) ||
-      ('exits' in entity && entity.exits.some((exit) => exit.id === key)),
+  const r = routineFor(p, key);
+  return (
+    p.characters.find((c) => c.id === r?.character) ??
+    [p.game, ...p.locations, ...p.objects, ...p.characters].find(
+      (entity) =>
+        entity.actions.some((action) => action.id === key) ||
+        entity.triggers.some((trigger) => trigger.id === key) ||
+        ('exits' in entity && entity.exits.some((exit) => exit.id === key)),
+    )
   );
 }
 export function flows(p: Project): Array<Action | Trigger | Exit> {
@@ -172,7 +178,13 @@ export function flows(p: Project): Array<Action | Trigger | Exit> {
   ]);
 }
 export function scripts(p: Project) {
-  return [...flows(p), ...(p.procedures ?? []), ...authoringTimers(p), ...narrativeScripts(p)];
+  return [
+    ...flows(p),
+    ...(p.procedures ?? []),
+    ...authoringTimers(p),
+    ...routineScripts(p),
+    ...narrativeScripts(p),
+  ];
 }
 export function script(p: Project, key: string) {
   return scripts(p).find((item) => item.id === key);
@@ -188,7 +200,7 @@ export function sequenceChoices(p: Project, scope?: string) {
         : [],
     );
   return [
-    ...authoringTimers(p).flatMap((timer) =>
+    ...[...authoringTimers(p), ...routineScripts(p)].flatMap((timer) =>
       allEffects(timer.effects).flatMap(({ effect }, i) =>
         effect.type === 'respond'
           ? [{ id: effect.id, name: `${timer.name} · sequence ${i + 1}` }]
