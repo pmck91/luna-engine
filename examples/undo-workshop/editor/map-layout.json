@@ -1,0 +1,1329 @@
+{
+  "positions": {
+    "lab": {
+      "x": 420.0,
+      "y": 100.0
+    },
+    "workshop": {
+      "x": 80.0,
+      "y": 100.0
+    }
+  },
+  "blocks": {
+    "console-examine": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "=dwnRR7b[^o!d0%p0,c_",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"print_description\",\"entity\":\"console\"}",
+                  "fields": {
+                    "entity": "console"
+                  },
+                  "id": "b9;aVOT|dBT=m$9K1WO9",
+                  "type": "luna_print_description"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "dSitUJX;UZe4fe)(Qn4P",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "pull-console": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": "D5a_|7+u=!S.L.9ymBm1",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"call\",\"id\":\"console-change-call\",\"procedure\":\"lab-change\",\"arguments\":{}}",
+                  "extraState": {
+                    "inputNames": {}
+                  },
+                  "fields": {
+                    "procedure": "lab-change"
+                  },
+                  "id": "y;MBaoKQsG$qC^.v*NF?",
+                  "type": "luna_call"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"quest_status\",\"quest\":\"lab-quest\",\"status\":\"active\"}",
+                  "fields": {
+                    "quest": "lab-quest",
+                    "status": "active"
+                  },
+                  "id": "/b8K=PMP2U$5U7P}}]r#",
+                  "type": "condition_quest_status"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    }
+  },
+  "routes": {},
+  "templates": [],
+  "playtest": {
+    "setups": [
+      {
+        "version": 5,
+        "id": "f22b41fc-58e0-4fbd-8451-d5eff2cfe7b8",
+        "name": "Carrying key",
+        "source": {
+          "revision": "5835a40d257718de37bf4e13441f13dc4a764264342c1029ae5af422af7f0af0",
+          "title": "The Undo Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 0,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {}
+          },
+          "game_id": "undo-workshop",
+          "content_version": "0.1.0",
+          "location": "workshop",
+          "ending": null,
+          "variables": {
+            "bells": 0,
+            "coins": 0,
+            "dialogue_entries": 0,
+            "divisor": 1,
+            "ending_hooks": 0,
+            "lab_value": 0,
+            "lever_pulls": 0,
+            "reply_rewards": 0,
+            "routine_moves": 0,
+            "watches": 0
+          },
+          "objects": {
+            "brass-key": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "console": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "finish-button": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lever": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "brass-key": {},
+            "console": {},
+            "finish-button": {},
+            "keeper": {},
+            "lab": {},
+            "lever": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 0,
+            "workshop": 1
+          },
+          "sequences": {},
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "6f7ecffb-cee3-452b-b6fb-fad2798fb926",
+        "name": "Known lever clue",
+        "source": {
+          "revision": "5835a40d257718de37bf4e13441f13dc4a764264342c1029ae5af422af7f0af0",
+          "title": "The Undo Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 0,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {}
+          },
+          "game_id": "undo-workshop",
+          "content_version": "0.1.0",
+          "location": "workshop",
+          "ending": null,
+          "variables": {
+            "bells": 0,
+            "coins": 0,
+            "dialogue_entries": 0,
+            "divisor": 1,
+            "ending_hooks": 0,
+            "lab_value": 0,
+            "lever_pulls": 0,
+            "reply_rewards": 0,
+            "routine_moves": 0,
+            "watches": 0
+          },
+          "objects": {
+            "brass-key": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "console": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "finish-button": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lever": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "brass-key": {},
+            "console": {},
+            "finish-button": {},
+            "keeper": {},
+            "lab": {},
+            "lever": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 0,
+            "workshop": 1
+          },
+          "sequences": {},
+          "hints": {
+            "lever-clue": {
+              "clues_seen": 1,
+              "solution_seen": false
+            }
+          }
+        }
+      },
+      {
+        "version": 5,
+        "id": "cdf9fc36-b08b-42eb-91bf-cc089f18cc97",
+        "name": "Lab armed",
+        "source": {
+          "revision": "5835a40d257718de37bf4e13441f13dc4a764264342c1029ae5af422af7f0af0",
+          "title": "The Undo Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 0,
+            "pending": {
+              "lab-bell": {
+                "deadline": 1,
+                "source": {
+                  "root": "arm-lab",
+                  "subject": "prepare-lab",
+                  "path": "effects.3"
+                }
+              }
+            }
+          },
+          "routines": {
+            "runs": {
+              "lab-routine": {
+                "type": "running",
+                "cursor": {
+                  "step": "keeper-move",
+                  "after": 0,
+                  "wait": null
+                }
+              }
+            }
+          },
+          "game_id": "undo-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "bells": 0,
+            "coins": 0,
+            "dialogue_entries": 0,
+            "divisor": 1,
+            "ending_hooks": 0,
+            "lab_value": 0,
+            "lever_pulls": 0,
+            "reply_rewards": 0,
+            "routine_moves": 0,
+            "watches": 0
+          },
+          "objects": {
+            "brass-key": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "console": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "finish-button": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lever": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "brass-key": {},
+            "console": {},
+            "finish-button": {},
+            "keeper": {},
+            "lab": {},
+            "lever": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 1,
+            "workshop": 1
+          },
+          "sequences": {},
+          "narrative": {
+            "active": null,
+            "conversations": {},
+            "quests": {
+              "lab-quest": {
+                "status": "active",
+                "stages": [],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "Pull the armed console, inspect the consequences, then undo.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "00ed008d-eaa5-49f5-a2d8-fb62e019a5e8",
+        "name": "Before late failure",
+        "source": {
+          "revision": "5835a40d257718de37bf4e13441f13dc4a764264342c1029ae5af422af7f0af0",
+          "title": "The Undo Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 0,
+            "pending": {
+              "lab-bell": {
+                "deadline": 1,
+                "source": {
+                  "root": "arm-failure",
+                  "subject": "prepare-lab",
+                  "path": "effects.3"
+                }
+              }
+            }
+          },
+          "routines": {
+            "runs": {
+              "lab-routine": {
+                "type": "running",
+                "cursor": {
+                  "step": "keeper-move",
+                  "after": 0,
+                  "wait": null
+                }
+              }
+            }
+          },
+          "game_id": "undo-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "bells": 0,
+            "coins": 0,
+            "dialogue_entries": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "lab_value": 0,
+            "lever_pulls": 0,
+            "reply_rewards": 0,
+            "routine_moves": 0,
+            "watches": 0
+          },
+          "objects": {
+            "brass-key": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "console": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "finish-button": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lever": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "brass-key": {},
+            "console": {},
+            "finish-button": {},
+            "keeper": {},
+            "lab": {},
+            "lever": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 1,
+            "workshop": 1
+          },
+          "sequences": {},
+          "narrative": {
+            "active": null,
+            "conversations": {},
+            "quests": {
+              "lab-quest": {
+                "status": "active",
+                "stages": [],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "Pull the armed console, inspect the consequences, then undo.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "5fdc25a6-3d87-4bb6-82d3-beb6b36055c8",
+        "name": "Conversation offer",
+        "source": {
+          "revision": "5835a40d257718de37bf4e13441f13dc4a764264342c1029ae5af422af7f0af0",
+          "title": "The Undo Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 0,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {}
+          },
+          "game_id": "undo-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "bells": 0,
+            "coins": 0,
+            "dialogue_entries": 1,
+            "divisor": 1,
+            "ending_hooks": 0,
+            "lab_value": 0,
+            "lever_pulls": 0,
+            "reply_rewards": 0,
+            "routine_moves": 0,
+            "watches": 0
+          },
+          "objects": {
+            "brass-key": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "console": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "finish-button": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lever": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "brass-key": {},
+            "console": {},
+            "finish-button": {},
+            "keeper": {},
+            "lab": {},
+            "lever": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 1,
+            "workshop": 1
+          },
+          "sequences": {},
+          "narrative": {
+            "active": "keeper-chat",
+            "conversations": {
+              "keeper-chat": {
+                "checkpoint": {
+                  "type": "entered",
+                  "node": "keeper-greeting",
+                  "prompt": [
+                    {
+                      "text": "Keeper",
+                      "colour": null
+                    },
+                    {
+                      "text": " says: ",
+                      "colour": null
+                    },
+                    {
+                      "text": "Would you like to test a reply?",
+                      "colour": null
+                    }
+                  ]
+                },
+                "visited": [
+                  "keeper-greeting"
+                ],
+                "chosen": []
+              }
+            },
+            "quests": {},
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "9c0d1e0e-7dbd-4d67-8222-94bd4707b2b3",
+        "name": "After compound change",
+        "source": {
+          "revision": "5835a40d257718de37bf4e13441f13dc4a764264342c1029ae5af422af7f0af0",
+          "title": "The Undo Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 1,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "lab-routine": {
+                "type": "running",
+                "cursor": {
+                  "step": "keeper-wait",
+                  "after": 1,
+                  "wait": null
+                }
+              }
+            }
+          },
+          "game_id": "undo-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "bells": 1,
+            "coins": 10,
+            "dialogue_entries": 0,
+            "divisor": 1,
+            "ending_hooks": 0,
+            "lab_value": 1,
+            "lever_pulls": 0,
+            "reply_rewards": 0,
+            "routine_moves": 1,
+            "watches": 1
+          },
+          "objects": {
+            "brass-key": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "console": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "finish-button": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lever": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "workshop",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "brass-key": {},
+            "console": {},
+            "finish-button": {},
+            "keeper": {},
+            "lab": {},
+            "lever": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 1,
+            "workshop": 1
+          },
+          "sequences": {},
+          "procedure_sequences": [
+            {
+              "path": {
+                "root": "pull-console",
+                "calls": [
+                  "console-change-call"
+                ],
+                "sequence": "lab-response"
+              },
+              "cursor": 1
+            }
+          ],
+          "narrative": {
+            "active": null,
+            "conversations": {},
+            "quests": {
+              "lab-quest": {
+                "status": "completed",
+                "stages": [
+                  "lab-stage"
+                ],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "Pull the armed console, inspect the consequences, then undo.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "stage",
+                      "stage": "lab-stage"
+                    },
+                    "text": [
+                      {
+                        "text": "The console changed the world.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "completed"
+                    },
+                    "text": [
+                      {
+                        "text": "The lab change completed. Its reward belongs to this same action.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "d40b9802-b20e-4004-9eb0-1a30aca7a80f",
+        "name": "Lab mid-wait",
+        "source": {
+          "revision": "5835a40d257718de37bf4e13441f13dc4a764264342c1029ae5af422af7f0af0",
+          "title": "The Undo Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 2,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "lab-routine": {
+                "type": "running",
+                "cursor": {
+                  "step": "keeper-wait",
+                  "after": 1,
+                  "wait": {
+                    "captured": 2,
+                    "remaining": 1
+                  }
+                }
+              }
+            }
+          },
+          "game_id": "undo-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "bells": 1,
+            "coins": 10,
+            "dialogue_entries": 0,
+            "divisor": 1,
+            "ending_hooks": 0,
+            "lab_value": 1,
+            "lever_pulls": 0,
+            "reply_rewards": 0,
+            "routine_moves": 1,
+            "watches": 1
+          },
+          "objects": {
+            "brass-key": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "console": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "finish-button": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lever": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "workshop",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "brass-key": {},
+            "console": {},
+            "finish-button": {},
+            "keeper": {},
+            "lab": {},
+            "lever": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 1,
+            "workshop": 1
+          },
+          "sequences": {},
+          "procedure_sequences": [
+            {
+              "path": {
+                "root": "pull-console",
+                "calls": [
+                  "console-change-call"
+                ],
+                "sequence": "lab-response"
+              },
+              "cursor": 1
+            }
+          ],
+          "narrative": {
+            "active": null,
+            "conversations": {},
+            "quests": {
+              "lab-quest": {
+                "status": "completed",
+                "stages": [
+                  "lab-stage"
+                ],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "Pull the armed console, inspect the consequences, then undo.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "stage",
+                      "stage": "lab-stage"
+                    },
+                    "text": [
+                      {
+                        "text": "The console changed the world.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "completed"
+                    },
+                    "text": [
+                      {
+                        "text": "The lab change completed. Its reward belongs to this same action.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "323cf88e-c435-4466-ab79-4d4dac516354",
+        "name": "Completed game",
+        "source": {
+          "revision": "5835a40d257718de37bf4e13441f13dc4a764264342c1029ae5af422af7f0af0",
+          "title": "The Undo Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 2,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {}
+          },
+          "game_id": "undo-workshop",
+          "content_version": "0.1.0",
+          "location": "workshop",
+          "ending": "finished",
+          "variables": {
+            "bells": 0,
+            "coins": 0,
+            "dialogue_entries": 0,
+            "divisor": 1,
+            "ending_hooks": 1,
+            "lab_value": 0,
+            "lever_pulls": 1,
+            "reply_rewards": 0,
+            "routine_moves": 0,
+            "watches": 0
+          },
+          "objects": {
+            "brass-key": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "console": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "finish-button": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lever": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "brass-key": {},
+            "console": {},
+            "finish-button": {},
+            "keeper": {},
+            "lab": {},
+            "lever": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 0,
+            "workshop": 1
+          },
+          "sequences": {},
+          "hints": {}
+        }
+      }
+    ],
+    "checks": [
+      {
+        "id": "free-change-check",
+        "name": "Free take and undo",
+        "start": {
+          "type": "fresh",
+          "location": null
+        },
+        "help_mode": null,
+        "steps": [
+          {
+            "command": "take brass key",
+            "transcript": null,
+            "condition": {
+              "type": "carrying",
+              "object": "brass-key"
+            },
+            "completion": {
+              "type": "playing"
+            }
+          },
+          {
+            "command": "look",
+            "transcript": null,
+            "condition": null,
+            "completion": {
+              "type": "playing"
+            }
+          },
+          {
+            "command": "undo",
+            "transcript": null,
+            "condition": {
+              "type": "not",
+              "condition": {
+                "type": "carrying",
+                "object": "brass-key"
+              }
+            },
+            "completion": {
+              "type": "playing"
+            }
+          }
+        ]
+      },
+      {
+        "id": "whole-lab-check",
+        "name": "Whole lab change and undo",
+        "start": {
+          "type": "setup",
+          "setup": "cdf9fc36-b08b-42eb-91bf-cc089f18cc97"
+        },
+        "help_mode": null,
+        "steps": [
+          {
+            "command": "pull console",
+            "transcript": null,
+            "condition": {
+              "type": "variable",
+              "name": "coins",
+              "op": "eq",
+              "value": 10
+            },
+            "completion": {
+              "type": "playing"
+            }
+          },
+          {
+            "command": "undo",
+            "transcript": null,
+            "condition": {
+              "type": "all",
+              "conditions": [
+                {
+                  "type": "variable",
+                  "name": "coins",
+                  "op": "eq",
+                  "value": 0
+                },
+                {
+                  "type": "variable",
+                  "name": "bells",
+                  "op": "eq",
+                  "value": 0
+                },
+                {
+                  "type": "variable",
+                  "name": "watches",
+                  "op": "eq",
+                  "value": 0
+                },
+                {
+                  "type": "variable",
+                  "name": "routine_moves",
+                  "op": "eq",
+                  "value": 0
+                },
+                {
+                  "type": "timer_pending",
+                  "timer": "lab-bell"
+                }
+              ]
+            },
+            "completion": {
+              "type": "playing"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ending-undo-check",
+        "name": "Undo an ending",
+        "start": {
+          "type": "fresh",
+          "location": null
+        },
+        "help_mode": null,
+        "steps": [
+          {
+            "command": "pull lever",
+            "transcript": null,
+            "condition": {
+              "type": "variable",
+              "name": "lever_pulls",
+              "op": "eq",
+              "value": 1
+            },
+            "completion": {
+              "type": "playing"
+            }
+          },
+          {
+            "command": "push finish button",
+            "transcript": null,
+            "condition": {
+              "type": "variable",
+              "name": "ending_hooks",
+              "op": "eq",
+              "value": 1
+            },
+            "completion": {
+              "type": "ended",
+              "ending": "finished"
+            }
+          },
+          {
+            "command": "undo",
+            "transcript": null,
+            "condition": {
+              "type": "all",
+              "conditions": [
+                {
+                  "type": "variable",
+                  "name": "lever_pulls",
+                  "op": "eq",
+                  "value": 1
+                },
+                {
+                  "type": "variable",
+                  "name": "ending_hooks",
+                  "op": "eq",
+                  "value": 0
+                }
+              ]
+            },
+            "completion": {
+              "type": "playing"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

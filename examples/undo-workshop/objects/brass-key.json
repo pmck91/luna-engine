@@ -1,0 +1,107 @@
+{
+  "id": "brass-key",
+  "name": "brass key",
+  "aliases": [
+    "key"
+  ],
+  "description": "A simple brass key. Taking or dropping it costs no turn but still creates an undo point.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "brass-key-examine",
+      "name": "brass key examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "brass-key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "brass-key"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "take-key",
+      "name": "take key",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "brass-key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "give",
+          "object": "brass-key"
+        },
+        {
+          "type": "say",
+          "text": "You take the brass key."
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "drop-key",
+      "name": "drop key",
+      "verb": "drop",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "brass-key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "place",
+          "object": "brass-key",
+          "location": "workshop"
+        },
+        {
+          "type": "say",
+          "text": "You put the key back on its stand."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

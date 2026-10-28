@@ -1,0 +1,53 @@
+{
+  "id": "lab-routine",
+  "name": "Keeper lab demonstration",
+  "character": "keeper",
+  "order": 0,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "keeper-move",
+      "name": "Return to Workshop",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "keeper",
+          "location": "workshop"
+        },
+        {
+          "type": "update_variable",
+          "name": "routine_moves",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "keeper-wait",
+      "name": "Wait two turns",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": {
+        "type": "literal",
+        "value": 2
+      },
+      "effects": []
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "id": "keeper-chat",
+  "name": "A reversible reply",
+  "character": "keeper",
+  "available": {
+    "type": "true"
+  },
+  "default_entry": "keeper-greeting",
+  "entries": [
+    {
+      "condition": {
+        "type": "variable",
+        "name": "reply_rewards",
+        "op": "gt",
+        "value": 0
+      },
+      "node": "keeper-thanks"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "keeper-greeting",
+      "name": "Greeting",
+      "text": "Would you like to test a reply?",
+      "terminal": false,
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "dialogue_entries",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ],
+      "replies": [
+        {
+          "turn_cost": "free",
+          "id": "keeper-yes",
+          "text": "Yes, let's try it.",
+          "condition": {
+            "type": "true"
+          },
+          "once": true,
+          "destination": null,
+          "effects": [
+            {
+              "type": "update_variable",
+              "name": "reply_rewards",
+              "op": "add",
+              "operand": {
+                "type": "literal",
+                "value": 1
+              }
+            },
+            {
+              "type": "say",
+              "text": "The Keeper records your answer once."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "keeper-thanks",
+      "name": "Return greeting",
+      "text": "Thank you again for trying the reply.",
+      "terminal": true,
+      "effects": [],
+      "replies": []
+    }
+  ]
+}

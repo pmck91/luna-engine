@@ -1,0 +1,70 @@
+{
+  "id": "console",
+  "name": "console",
+  "aliases": [],
+  "description": "Lab value %lab_value%, watch %watches%, bells %bells%, routine moves %routine_moves%, coins %coins%. Use arm before pulling.",
+  "placement": {
+    "type": "location",
+    "location": "lab"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "console-examine",
+      "name": "console examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "console"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "console"
+        }
+      ]
+    },
+    {
+      "id": "pull-console",
+      "name": "pull console",
+      "verb": "pull",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "console"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "quest_status",
+        "quest": "lab-quest",
+        "status": "active"
+      },
+      "failure_text": "Use arm first, or restore the Lab armed setup.",
+      "effects": [
+        {
+          "type": "call",
+          "id": "console-change-call",
+          "procedure": "lab-change",
+          "arguments": {}
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

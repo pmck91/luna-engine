@@ -1,0 +1,68 @@
+{
+  "id": "finish-button",
+  "name": "finish button",
+  "aliases": [
+    "button"
+  ],
+  "description": "Ends the workshop. An available undo point can return you to play.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "finish-button-examine",
+      "name": "finish button examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "finish-button"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "finish-button"
+        }
+      ]
+    },
+    {
+      "id": "finish-workshop",
+      "name": "finish workshop",
+      "verb": "push",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "finish-button"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "end",
+          "ending": "finished"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

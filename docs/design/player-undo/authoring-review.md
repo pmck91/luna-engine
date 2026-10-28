@@ -1,6 +1,6 @@
 # U3 — player undo authoring and playtest review
 
-Status: **Production slice accepted by the owner**, 28 October 2026, on `feature/player-undo`. U2 is committed as `a2af3b2`. This slice implements the accepted [U0 experience](README.md) using the [native foundation](foundation-review.md) and [frozen contract](shared-contract.md). The separate workshop and final production measurements remain U4. Earlier examples and Blockly appearance are unchanged.
+Status: **Production slice accepted by the owner and committed as `46e8dda`**, 28 October 2026, on `feature/player-undo`. U2 is committed as `a2af3b2`. This slice implements the accepted [U0 experience](README.md) using the [native foundation](foundation-review.md) and [frozen contract](shared-contract.md). The subsequent [U4 review](final-review.md) records the separate workshop and final production measurements. Earlier examples and Blockly appearance are unchanged.
 
 ## Working slice
 
@@ -47,4 +47,4 @@ The ordinary workspace passes **529 Rust tests/doctests** and **132 frontend tes
 
 ## Remaining work
 
-U3 owner review is complete. U4 remains: a separate progressive Undo Workshop and checked export, fresh production release observations on populated worlds, package/compatibility closeout and final branch acceptance. Public guides remain in the documentation-site milestone. No merge/push is implied by this working-slice review.
+U3 owner review is complete. The subsequent [U4 review](final-review.md) records the separate progressive Undo Workshop and checked export, fresh production release observations and package/compatibility closeout. Final branch acceptance and delivery remain separate. Public guides remain in the documentation-site milestone. No merge/push is implied by this working-slice review.

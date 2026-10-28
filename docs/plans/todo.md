@@ -75,8 +75,11 @@ Follow the [gameplay feature roadmap](gameplay-feature-roadmap.md). Preserve the
 - [x] F6 / U1 contract freeze: Owner selected keep-known hints on 28 October 2026. New clues/solutions stay recorded, clear earlier history and create no point; the complete [technical contract](../design/player-undo/shared-contract.md) is frozen. Retain existing paid hint-listing pacing, distinguished from free inspection.
 - [x] F6 / U2 native foundation: Promote the off-by-default model, bounded Session history, typed status/restoration traces, command/reply dispatch and native HTTP/installed CLI paths. Verify explicit content-8 storage/export/recovery, unchanged save 7/setup 5, autosave/load/ending boundaries and all legacy commands. See the [foundation review](../design/player-undo/foundation-review.md).
 - [x] F6 / U3 implementation: Add Player assistance opt-in, native upgrade/collision review and project history, distinct playtest Undo/availability, retained transcript dividers, hint/ending guidance, source-free explanations and immutable-session/focus handling. The [working-slice review](../design/player-undo/authoring-review.md) records the walkthrough and verification.
-- [x] F6 / U3 owner review: Owner accepted the production slice and requested its commit.
-- [ ] F6 / U4: Add a separate Undo Workshop and checked export, fresh production measurements and final verification/feature acceptance, then push and merge after review. Public guides stay deferred.
+- [x] F6 / U3 owner review: Owner accepted the production slice; committed as `46e8dda`.
+- [x] F6 / U4 example and measurements: Add the separate [Undo Workshop](../../examples/undo-workshop/ACCEPTANCE.md), checked content-8 export, eight setup-5 checkpoints and three saved checks. Retain 132 fresh populated-world observations and disclose the existing detailed-explanation limit in the [U4 review](../design/player-undo/final-review.md).
+- [x] F6 / U4 verification: Complete workspace/frontend checks, both browsers, packaged release smoke and developer notes: 531 Rust tests/doctests, 132 frontend tests, 173 browser passes with one existing Firefox zoom skip, plus lint/fmt/contracts/build checks and packaged smoke. Public guides stay deferred.
+- [x] F6 / U4 final owner acceptance and delivery authorization: Owner accepted the completed feature and requested commit/push on 28 October 2026 with “great lets commit and push”.
+- [ ] F6 branch closeout: Review the complete `feature/player-undo` branch on GitHub and merge after PR review.
 - [ ] Agree which remaining gameplay candidates belong in v1 after the concrete UX reviews. Do not let the full roadmap or browser publishing become an implicit v1 gate.
 
 ## Documentation — v1

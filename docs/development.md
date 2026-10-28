@@ -173,6 +173,12 @@ cargo test -p luna-runner --test undo --jobs 2
 cargo bench -p luna-runner --bench undo --jobs 2
 ```
 
-The [U1 release CSV](design/player-undo/captures/measurements.csv) remains historical evidence from `eca623f`; U4 will retain fresh production measurements. Run measurement workloads without concurrent browsers/builds. Public guides and the permanent Undo Workshop remain later gates.
+The [U1 release CSV](design/player-undo/captures/measurements.csv) remains historical evidence from `eca623f`. The [U4 review](design/player-undo/final-review.md) records 132 fresh production observations, including off/on command/WAIT/inspection, retained payload, restore/save and explanation costs. Run measurement workloads without concurrent browsers/builds. Detailed routine explanations retain the existing full-world-diff scaling limit; large routine-heavy games can turn Record explanations off for ordinary iteration. The permanent [Undo Workshop](../examples/undo-workshop/ACCEPTANCE.md) has eight setup-5 checkpoints, three saved checks and a checked content-8 export; normal acceptance never rewrites it. Public guides remain deferred.
+
+```sh
+cargo test -p luna-editor --test undo_workshop --jobs 2
+cd web
+npx --no-install playwright test tests/e2e/undo-workshop.spec.ts
+```
 
 The authoring UI uses protected `POST /api/v1/player-undo-review` with the current Project. Its generated `PlayerUndoReview` returns canonical collision IDs and additional errors introduced by crossing older content boundaries. Pending/failed/stale reviews cannot apply an upgrade. `CheckRun.undo` supplies final native availability independently of the last step result, so opening a failed check continues with the correct history. Six `player-undo.spec.ts` browser journeys cover authoring, separate histories, endings, saved boundaries, clock/routine/timer panels, conversation/quest/hints, focus and native failure paths in both browsers.

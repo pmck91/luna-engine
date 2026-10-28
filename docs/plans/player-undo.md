@@ -1,6 +1,6 @@
 # Optional player undo
 
-Status: **U3 accepted; U4 closeout remains**, 28 October 2026. Work is isolated on `feature/player-undo`, created from merged `main d5b927c` (character routines, PR #7). This is F6 in the [gameplay roadmap](gameplay-feature-roadmap.md). The [interactive preview](../design/player-undo/README.md) illustrates the accepted experience. U0 is committed as `a1bda30` after lock fix `17f1a4d`; U1 as `eca623f`; U2 as `a2af3b2`. The [historical native proof](../design/player-undo/runtime-proof-review.md), [shared contract](../design/player-undo/shared-contract.md) and [foundation review](../design/player-undo/foundation-review.md) record proof, frozen policy and production promotion. The [U3 review](../design/player-undo/authoring-review.md) covers settings/player controls and the review walkthrough. The owner accepted U3 and requested its commit. U4 workshop/closeout remains.
+Status: **U4 complete and owner accepted; delivery authorized**, 28 October 2026. Work is isolated on `feature/player-undo`, created from merged `main d5b927c` (character routines, PR #7). This is F6 in the [gameplay roadmap](gameplay-feature-roadmap.md). The [interactive preview](../design/player-undo/README.md) illustrates the accepted experience. U0 is committed as `a1bda30` after lock fix `17f1a4d`; U1 as `eca623f`; U2 as `a2af3b2`; U3 as `46e8dda`. The [historical native proof](../design/player-undo/runtime-proof-review.md), [shared contract](../design/player-undo/shared-contract.md) and [foundation review](../design/player-undo/foundation-review.md) record proof, frozen policy and production promotion. The [U3 review](../design/player-undo/authoring-review.md) covers the accepted settings/player controls. The [U4 review](../design/player-undo/final-review.md) records the separate workshop, fresh production measurements and final verification; the owner accepted the completed feature and authorized commit/push with “great lets commit and push”. PR review and merge remain.
 
 The owner agreed to optional casual-play support, while noting that undo can reduce tension. Keep it **off by default**, opt-in per game and separate from editor project Undo/Redo. Preserve the accepted block appearance and [editor UX](../design/editor-ux/README.md). Public guides remain in the documentation-site milestone. Browser publishing remains after v1.
 
@@ -111,10 +111,11 @@ The [native evidence](../design/player-undo/runtime-proof-review.md) records 31 
 
 ### U4 — Acceptance and branch closeout
 
-- [ ] Add a separate progressive Undo Workshop and checked export, retaining earlier examples. Begin with take/drop or a lever; keep complex callback/quest/conversation/ending/budget cases optional.
-- [ ] Retain native/session/API/runner/process/save/corruption/compatibility and normal/explained parity. Measure off/on capture/tick/undo/restore/save costs and retained history bytes on realistic populated state; no hardware CI thresholds.
-- [ ] Complete workspace tests/doctests, lint/fmt/contracts, frontend checks, both browsers, package smoke and developer notes/links. Public user guides stay deferred.
-- [ ] Owner acceptance, commit/push when requested, then merge the whole feature after review. Do not merge a design preview as a completed gameplay feature.
+- [x] Add a separate progressive [Undo Workshop](../../examples/undo-workshop/ACCEPTANCE.md) and checked export, retaining earlier examples. Begin with take/drop and a lever, then optional lab cases. Retain eight native setup-5 checkpoints and three saved checks.
+- [x] Retain native/session/API/runner/process/save/corruption/compatibility and normal/explained parity. The [U4 review](../design/player-undo/final-review.md) records 132 fresh off/on command, WAIT, inspection, capture estimate, undo, restore, save and explanation observations, with retained history bytes on populated worlds and no hardware CI thresholds. Preserve the earlier U1 CSV as historical evidence and disclose the existing detailed-explanation scaling limit.
+- [x] Complete workspace tests/doctests, lint/fmt/contracts, frontend checks, both browsers, package smoke and developer notes/links: 531 Rust tests/doctests, 132 frontend tests and 173 browser passes with one existing Firefox zoom skip. Release package smoke passes with source UI hidden and development tools removed from PATH. Public user guides stay deferred.
+- [x] Owner accepted the completed feature and authorized commit/push on 28 October 2026 with “great lets commit and push”.
+- [ ] Merge the complete feature after PR review.
 
 ## Design references
 

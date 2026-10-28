@@ -1,0 +1,43 @@
+{
+  "id": "lab-quest",
+  "title": "Restore the whole change",
+  "aliases": [],
+  "introduction": "Pull the armed console, inspect the consequences, then undo.",
+  "completion": "The lab change completed. Its reward belongs to this same action.",
+  "failure": "",
+  "stages": [
+    {
+      "id": "lab-stage",
+      "name": "Test the console",
+      "text": "The console changed the world.",
+      "prerequisites": [],
+      "condition": {
+        "type": "true"
+      },
+      "required": true,
+      "effects": []
+    }
+  ],
+  "on_start": {
+    "id": "lab-quest-start",
+    "effects": []
+  },
+  "on_complete": {
+    "id": "lab-quest-reward",
+    "effects": [
+      {
+        "type": "update_variable",
+        "name": "coins",
+        "op": "add",
+        "operand": {
+          "type": "literal",
+          "value": 10
+        }
+      }
+    ]
+  },
+  "on_fail": {
+    "id": "lab-quest-fail",
+    "effects": []
+  }
+}

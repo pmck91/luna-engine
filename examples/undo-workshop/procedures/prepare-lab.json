@@ -1,0 +1,35 @@
+{
+  "id": "prepare-lab",
+  "name": "Arm the optional lab",
+  "description": "Prepare a quest, timer and character routine without spending a turn.",
+  "inputs": [],
+  "effects": [
+    {
+      "type": "set_variable",
+      "name": "divisor",
+      "value": 1
+    },
+    {
+      "type": "start_quest",
+      "quest": "lab-quest"
+    },
+    {
+      "type": "start_routine",
+      "routine": "lab-routine",
+      "busy": "replace"
+    },
+    {
+      "type": "schedule_timer",
+      "timer": "lab-bell",
+      "after": {
+        "type": "literal",
+        "value": 1
+      },
+      "pending": "restart"
+    },
+    {
+      "type": "say",
+      "text": "Lab armed. Pull console: one action will change the quest, reward, response, watch, timer and routine."
+    }
+  ]
+}
