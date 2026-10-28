@@ -39,6 +39,9 @@ pub struct ConversationNode {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(default, deny_unknown_fields)]
 pub struct ConversationReply {
+    #[serde(skip_serializing_if = "TurnCost::is_default")]
+    #[ts(as = "Option<_>", optional)]
+    pub turn_cost: TurnCost,
     pub id: String,
     pub text: String,
     pub condition: Condition,

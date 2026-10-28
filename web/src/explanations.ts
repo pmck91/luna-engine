@@ -1,4 +1,4 @@
-import { script } from './model';
+import { script, scripts } from './model';
 import { argumentLabel, referenceLabel } from './procedureModel';
 import { createContext } from 'react';
 import type {
@@ -17,7 +17,7 @@ import type {
   TraceStep,
   ValueTarget,
 } from './contracts';
-import { allEffects, flowOwner, flows } from './model';
+import { allEffects, flowOwner } from './model';
 import { playContentKey } from './playtest';
 import type { ReferenceSite } from './references';
 
@@ -44,6 +44,8 @@ export function conditionTitle(p: Project, c: Condition): string {
       ? traceEntityName(p, target)
       : 'Command item';
   switch (c.type) {
+    case 'timer_pending':
+      return 'Timer pending · ' + (p.timers?.find((t) => t.id === c.timer)?.name ?? c.timer);
     case 'conversation_node_visited':
       return `Dialogue visited · ${p.conversations?.find((v) => v.id === c.conversation)?.nodes.find((n) => n.id === c.node)?.name ?? c.node}`;
     case 'conversation_reply_chosen':
@@ -110,6 +112,25 @@ function targetTitle(p: Project, target: ValueTarget) {
 }
 export function traceTitle(p: Project, kind: TraceKind): string {
   switch (kind.type) {
+    case 'turn':
+      return `Turn ${kind.before} → ${kind.after} · ${kind.cost ? 'Spend 1 turn' : 'Free'} · ${kind.input.type}`;
+    case 'timer': {
+      const op = kind.operation;
+      const name = p.timers?.find((t) => t.id === op.timer)?.name ?? op.timer;
+      const detail =
+        op.type === 'schedule'
+          ? op.kept
+            ? ' · Keep existing countdown'
+            : op.deadline === null
+              ? ` · After ${op.after} subsequent turns`
+              : ` · Due at turn ${op.deadline}`
+          : op.type === 'deadline'
+            ? ` · Due at turn ${op.deadline}`
+            : op.type === 'fire'
+              ? ` · ${op.fired ? 'Run' : 'Guard false'}`
+              : '';
+      return `${op.type} timer · ${name}${detail}`;
+    }
     case 'narrative':
       return `${kind.operation.type.replaceAll('_', ' ')} · ${kind.applied ? 'Applied' : 'No change'}`;
     case 'call':
@@ -185,7 +206,7 @@ export function changeTitle(p: Project, change: TraceChange) {
     case 'visits':
       return `${traceEntityName(p, id)} · visits`;
     case 'sequences':
-      return `${flows(p).find((f) => allEffects(f.effects).some(({ effect }) => effect.type === 'respond' && effect.id === id))?.name || 'Response sequence'} · position`;
+      return `${scripts(p).find((f) => allEffects(f.effects).some(({ effect }) => effect.type === 'respond' && effect.id === id))?.name || 'Response sequence'} · position`;
     case 'hints':
       return `${
         entities(p)

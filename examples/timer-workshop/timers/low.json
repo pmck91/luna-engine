@@ -1,0 +1,15 @@
+{
+  "id": "low",
+  "name": "Lab · Low priority",
+  "order": 3,
+  "priority": -5,
+  "condition": {
+    "type": "true"
+  },
+  "effects": [
+    {
+      "type": "say",
+      "text": "Low-priority signal."
+    }
+  ]
+}

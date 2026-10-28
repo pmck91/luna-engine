@@ -455,6 +455,10 @@ impl<'a> Run<'a> {
             .reply(ci, ni, id)
             .context("Unknown offered reply")?;
         let reply = &c.nodes[ni].replies[ri];
+        if self.p.game.turns.is_some() {
+            self.timing.input = super::turns::TurnInput::Reply { reply: id.into() };
+            self.timing.override_cost = reply.turn_cost;
+        }
         self.traced(
             TraceKind::Narrative {
                 operation: NarrativeOperation::SelectReply {

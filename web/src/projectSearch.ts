@@ -1,3 +1,4 @@
+import { authoringTimers, timerDraft } from './turnModel';
 import { narrativeDefinitions } from './narrativeModel';
 import type { Project } from './contracts';
 import { gameDataPages } from './model';
@@ -65,6 +66,13 @@ export function searchIndex(p: Project): SearchEntry[] {
       scope: 'content',
       ...('conversationId' in d ? { conversationId: d.conversationId } : { questId: d.questId }),
     });
+  for (const t of authoringTimers(p))
+    add(
+      'Scheduled timers',
+      t.name,
+      { subject: t.id, flowId: t.id, path: '', scope: timerDraft(p, t.id) ? 'draft' : 'content' },
+      timerDraft(p, t.id) ? 'Construction draft' : 'Scheduled trigger',
+    );
   for (const definition of p.procedures ?? [])
     add(
       'Procedures',

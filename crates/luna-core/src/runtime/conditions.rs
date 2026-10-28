@@ -8,6 +8,16 @@ impl Run<'_> {
     }
     pub(super) fn evaluate_condition(&self, condition: &Condition) -> Result<bool> {
         Ok(match condition {
+            Condition::TimerPending { timer } => {
+                ensure!(
+                    self.turn_index.definitions.contains_key(timer),
+                    "Unknown timer"
+                );
+                self.state
+                    .turns
+                    .as_ref()
+                    .is_some_and(|clock| clock.pending.contains_key(timer))
+            }
             Condition::True => true,
             Condition::False => false,
             Condition::ConversationNodeVisited { conversation, node } => {

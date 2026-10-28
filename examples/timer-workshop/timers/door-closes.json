@@ -1,0 +1,20 @@
+{
+  "id": "door-closes",
+  "name": "Door closes",
+  "order": 0,
+  "priority": 0,
+  "condition": {
+    "type": "opened",
+    "object": "door"
+  },
+  "effects": [
+    {
+      "type": "close",
+      "object": "door"
+    },
+    {
+      "type": "say",
+      "text": "The door swings shut."
+    }
+  ]
+}

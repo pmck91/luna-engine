@@ -5,7 +5,7 @@ import { lockedStudy } from './example';
 import { inputLabel } from './procedureModel';
 import {
   blockAddresses,
-  remapPastedCalls,
+  remapPastedContent,
   canMoveEffect,
   moveEffectBlock,
   describeBlock,
@@ -375,10 +375,10 @@ it('remaps nested CALL identities on every paste without changing normal reload 
   const original = Blockly.serialization.blocks.save(root.getInputTargetBlock('DO')!)!;
   const target = new Blockly.Workspace();
   const first = readEffects(
-    Blockly.serialization.blocks.append(remapPastedCalls(original), target),
+    Blockly.serialization.blocks.append(remapPastedContent(original), target),
   );
   const second = readEffects(
-    Blockly.serialization.blocks.append(remapPastedCalls(original), target),
+    Blockly.serialization.blocks.append(remapPastedContent(original), target),
   );
   expect(first).not.toEqual(second);
   expect(first[0]).toMatchObject({ then: [{ type: 'call', procedure: 'award', arguments: {} }] });

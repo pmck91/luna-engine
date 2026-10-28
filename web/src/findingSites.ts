@@ -67,7 +67,16 @@ export function findingSite(project: Project, diagnostic: Diagnostic): Reference
   };
 }
 export function connectedFindings(project: Project, diagnostics: Diagnostic[]): Finding[] {
-  return diagnostics.map((diagnostic) => {
+  const results = diagnostics.map((diagnostic) => {
+    const pendingTimer = project.editor.timer_drafts?.find((t) =>
+      diagnostic.message.includes(t.id),
+    );
+    if (pendingTimer)
+      return {
+        ...diagnostic,
+        ...findingSite(project, diagnostic),
+        message: `${diagnostic.message}. Finish the construction draft “${pendingTimer.name}” before using it.`,
+      };
     const draft = Object.values(project.editor.narrative_drafts ?? {})
       .map((d) =>
         d.type === 'conversation'
@@ -91,4 +100,15 @@ export function connectedFindings(project: Project, diagnostics: Diagnostic[]): 
           : diagnostic.message,
     };
   });
+  for (const t of project.editor.timer_drafts ?? [])
+    results.push({
+      severity: 'error',
+      subject: t.id,
+      field: '',
+      path: '',
+      scope: 'draft',
+      flowId: t.id,
+      message: `Finish the construction draft “${t.name || 'New timer'}” before scheduling it. Drafts remain editor-only.`,
+    });
+  return results;
 }

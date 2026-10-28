@@ -155,6 +155,7 @@ pub(crate) async fn start_playtest(
         );
         let runtime = restore(project, &setup)?;
         let mut result = CommandResult {
+            turns: runtime.turn_view(),
             messages: runtime.description()?,
             conversation: runtime.conversation_view().cloned(),
             ..Default::default()
@@ -199,7 +200,9 @@ pub(crate) async fn capture_setup(
         .definition()
         .validate_state(current.runtime.state())?;
     Ok(Json(PlaytestSetup {
-        version: if current.runtime.project().game.format_version >= 5 {
+        version: if current.runtime.project().game.format_version >= 6 {
+            4
+        } else if current.runtime.project().game.format_version >= 5 {
             3
         } else if current.runtime.project().game.format_version >= 4 {
             2

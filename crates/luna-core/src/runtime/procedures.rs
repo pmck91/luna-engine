@@ -166,7 +166,10 @@ impl Run<'_> {
             path: "effects".into(),
         };
         let result = if self.recording.is_none() {
-            self.effects_at(&definition.effects, None)
+            self.effects_at(
+                &definition.effects,
+                self.source_for(&definition.id, "effects"),
+            )
         } else {
             self.traced(
                 TraceKind::Call {

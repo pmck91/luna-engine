@@ -36,3 +36,7 @@ tempfile.workspace = true
 [[bench]]
 name = "procedures"
 harness = false
+
+[[bench]]
+name = "turns"
+harness = false

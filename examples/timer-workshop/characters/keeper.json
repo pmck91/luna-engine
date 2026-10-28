@@ -1,0 +1,36 @@
+{
+  "id": "keeper",
+  "name": "Keeper",
+  "name_colour": null,
+  "aliases": [],
+  "description": "Keeper monitors the delayed signal in the timing lab.",
+  "location": "lab",
+  "hidden": false,
+  "state": {},
+  "actions": [
+    {
+      "id": "talk-keeper",
+      "name": "Talk about the signal",
+      "verb": "talk",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "keeper"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "start_conversation",
+          "conversation": "signal-talk"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

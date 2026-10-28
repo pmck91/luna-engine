@@ -2,6 +2,7 @@
 use luna_model::*;
 pub fn project() -> Project {
     let mut p = Project::blank("Narrative persistence");
+    p.game.format_version = 5;
     p.game.id = "narrative-foundation".into();
     p.locations[0].id = "study".into();
     p.locations[0].actions.clear();

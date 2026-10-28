@@ -127,7 +127,7 @@ fn load_unlocked(root: &Path) -> Result<Project> {
     );
     let game = serde_json::from_slice(&bytes).context("Invalid game.json")?;
     let layout = confined(root, "editor/map-layout.json")?;
-    let project = Project {
+    let mut project = Project {
         game,
         vocabulary: json(&confined(root, "vocabulary.json")?)?,
         locations: entity_files(root, "locations")?,
@@ -136,12 +136,18 @@ fn load_unlocked(root: &Path) -> Result<Project> {
         procedures: entity_files(root, "procedures")?,
         conversations: entity_files(root, "conversations")?,
         quests: entity_files(root, "quests")?,
+        timers: entity_files(root, "timers")?,
         editor: if layout.exists() {
             json(&layout)?
         } else {
             EditorLayout::default()
         },
     };
+    project.timers.sort_by_key(|timer| timer.order);
+    ensure!(
+        header.format_version >= 6 || project.minimum_format() < 6,
+        "Turns require an explicit upgrade to content format 6"
+    );
     ensure!(
         header.format_version >= 5 || project.minimum_format() < 5,
         "Narrative content requires an explicit upgrade to content format 5"
@@ -178,6 +184,7 @@ pub fn revision(root: &Path) -> Result<String> {
         "procedures",
         "conversations",
         "quests",
+        "timers",
         "editor",
         "assets",
     ] {
@@ -267,6 +274,15 @@ pub fn project_files(p: &Project, editor: bool) -> Result<BTreeMap<String, Strin
             "Duplicate quest ID"
         );
     }
+    for timer in &p.timers {
+        ensure!(safe_id(&timer.id), "Unsafe timer ID");
+        ensure!(
+            files
+                .insert(format!("timers/{}.json", timer.id), pretty(timer)?)
+                .is_none(),
+            "Duplicate timer ID"
+        );
+    }
     if editor {
         files.insert("editor/map-layout.json".into(), pretty(&p.editor)?);
     }
@@ -306,6 +322,7 @@ fn managed(path: &str) -> bool {
             "procedures/",
             "conversations/",
             "quests/",
+            "timers/",
         ]
         .iter()
         .any(|prefix| {
@@ -367,6 +384,7 @@ pub fn save_project(root: &Path, p: &Project, expected: Option<&str>) -> Result<
         "procedures",
         "conversations",
         "quests",
+        "timers",
     ] {
         collect(root, name, &mut old)?
     }
@@ -718,6 +736,7 @@ mod tests {
         let mut p = Project::blank("Template metadata");
         p.editor.templates = vec![
             BlockTemplate {
+                timers: vec![],
                 narratives: vec![],
                 id: "template-action".into(),
                 name: "Stored action".into(),
@@ -744,6 +763,7 @@ mod tests {
                 },
             },
             BlockTemplate {
+                timers: vec![],
                 narratives: vec![],
                 id: "template-effects".into(),
                 name: "Stored blocks".into(),

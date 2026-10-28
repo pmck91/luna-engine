@@ -1,0 +1,18 @@
+{
+  "id": "guarded",
+  "name": "Lab · Guarded signal",
+  "order": 5,
+  "priority": 0,
+  "condition": {
+    "type": "variable",
+    "name": "allow_guard",
+    "op": "eq",
+    "value": true
+  },
+  "effects": [
+    {
+      "type": "say",
+      "text": "The guarded signal fired."
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { authoringTimers, timerChoices } from './turnModel';
 import { authoringNarrative } from './narrativeAuthoring';
 import {
   entityKey,
@@ -594,6 +595,7 @@ export function Values({
   );
 }
 const kinds: Array<Condition['type']> = [
+  'timer_pending',
   'conversation_node_visited',
   'conversation_reply_chosen',
   'quest_status',
@@ -626,6 +628,8 @@ export function defaultCondition(type: Condition['type'], p: Project): Condition
   const entity = object || location;
   const name = Object.keys(p.game.variables)[0] ?? '';
   switch (type) {
+    case 'timer_pending':
+      return { type, timer: authoringTimers(p)[0]?.id ?? '' };
     case 'conversation_node_visited':
       return {
         type,
@@ -742,6 +746,7 @@ export function ConditionEditor({
                   'quest_stage_completed',
                 ].includes(id)) &&
               (id !== 'compare' || p.game.format_version >= 4) &&
+              (id !== 'timer_pending' || !!p.game.turns) &&
               (p.game.format_version >= 2 ||
                 !['possesses', 'reachable', 'in_object', 'can_transfer'].includes(id)),
           )
@@ -759,6 +764,15 @@ export function ConditionEditor({
           }))}
         onChange={(type) => onChange(defaultCondition(type as Condition['type'], p))}
       />
+      {c.type === 'timer_pending' && (
+        <Select
+          label="Timer"
+          create={allowCreation && p.game.turns ? { kind: 'timer' } : undefined}
+          value={c.timer}
+          items={timerChoices(p)}
+          onChange={(timer) => patch({ timer })}
+        />
+      )}
       {'conversation' in c && (
         <>
           <Select

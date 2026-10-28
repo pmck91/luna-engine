@@ -1,0 +1,289 @@
+{
+  "id": "lab",
+  "name": "Timing lab",
+  "aliases": [],
+  "description": "Optional experiments: use order, use guarded, use enable, use nested, use failing, use step, use repair, use finish. Talk keeper demonstrates a delayed quest signal.",
+  "actions": [
+    {
+      "id": "lab-order",
+      "name": "Compare simultaneous ordering",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "order"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "schedule_timer",
+          "timer": "low",
+          "after": {
+            "type": "literal",
+            "value": 1
+          },
+          "pending": "restart"
+        },
+        {
+          "type": "schedule_timer",
+          "timer": "a-second",
+          "after": {
+            "type": "literal",
+            "value": 1
+          },
+          "pending": "restart"
+        },
+        {
+          "type": "schedule_timer",
+          "timer": "z-first",
+          "after": {
+            "type": "literal",
+            "value": 1
+          },
+          "pending": "restart"
+        }
+      ]
+    },
+    {
+      "id": "lab-guarded",
+      "name": "Try a due-time guard",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "guarded"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "schedule_timer",
+          "timer": "guarded",
+          "after": {
+            "type": "literal",
+            "value": 1
+          },
+          "pending": "restart"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "lab-enable",
+      "name": "Allow the guarded signal",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "enable"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "set_variable",
+          "name": "allow_guard",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "lab-nested",
+      "name": "Schedule through a procedure",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "nested"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "nested-arm",
+          "procedure": "arm-chime",
+          "arguments": {
+            "delay": {
+              "type": "literal",
+              "value": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "lab-failing",
+      "name": "Arm the deliberate late failure",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "failing"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "schedule_timer",
+          "timer": "z-first",
+          "after": {
+            "type": "literal",
+            "value": 1
+          },
+          "pending": "restart"
+        },
+        {
+          "type": "schedule_timer",
+          "timer": "failing",
+          "after": {
+            "type": "literal",
+            "value": 1
+          },
+          "pending": "restart"
+        }
+      ]
+    },
+    {
+      "id": "lab-step",
+      "name": "Change state before callbacks",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "step"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "firings",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "Discard this input if a callback fails."
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "lab-repair",
+      "name": "Repair the live divisor",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "repair"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "set_variable",
+          "name": "divisor",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "lab-finish",
+      "name": "Schedule the ending before another callback",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "finish"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "schedule_timer",
+          "timer": "low",
+          "after": {
+            "type": "literal",
+            "value": 1
+          },
+          "pending": "restart"
+        },
+        {
+          "type": "schedule_timer",
+          "timer": "ending",
+          "after": {
+            "type": "literal",
+            "value": 1
+          },
+          "pending": "restart"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "exits": [
+    {
+      "id": "to-workshop",
+      "name": "workshop",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "workshop",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

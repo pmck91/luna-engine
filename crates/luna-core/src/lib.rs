@@ -63,6 +63,7 @@ mod definition;
 mod input;
 mod narrative;
 mod procedures;
+mod turns;
 pub use input::*;
 mod runtime;
 mod session;
@@ -74,6 +75,7 @@ pub use runtime::explanation::{
     TraceKind, TraceOutcome, TraceSource, TraceStep,
 };
 pub use runtime::host_control;
+pub use runtime::turns::{PendingTimerView, TimerOperation, TurnInput, TurnView};
 pub use session::Session;
 
 // Preserve the public core API and the exact shared serialized state contract.
@@ -132,6 +134,10 @@ pub enum CommandStatus {
 /// retain diagnostic metadata, with ordinary messages empty and state unchanged.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct CommandResult {
+    /// Committed turn/queue view, present only for games using turns.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub turns: Option<TurnView>,
     /// Transcript lines, each represented as literal text with semantic colours.
     pub messages: Vec<Vec<text::Span>>,
     /// Human-readable candidate/handler notes, including an attempted failed run.
@@ -165,6 +171,7 @@ pub struct CommandResult {
 impl Default for CommandResult {
     fn default() -> Self {
         Self {
+            turns: None,
             messages: vec![],
             trace: vec![],
             state_changed: false,

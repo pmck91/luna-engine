@@ -28,6 +28,7 @@ mod procedures;
 mod quests;
 mod relations;
 pub(crate) mod resolution;
+pub(crate) mod turns;
 mod values;
 
 pub use commands::host_control;
@@ -41,6 +42,8 @@ pub(crate) struct Run<'a> {
     story_index: &'a crate::narrative::NarrativeIndex,
     index: &'a RuntimeIndex,
     procedure_index: &'a crate::procedures::ProcedureIndex,
+    turn_index: &'a crate::turns::TurnIndex,
+    timing: turns::Timing,
     invocation: procedures::Invocation,
     active_procedures: Vec<usize>,
     entity_words: &'a EntityWords,
@@ -84,6 +87,8 @@ impl<'a> Run<'a> {
             story_index: definition.narrative(),
             index: definition.runtime(),
             procedure_index: definition.procedures(),
+            turn_index: definition.turns(),
+            timing: turns::Timing::new(state.ending.is_some()),
             invocation: procedures::Invocation::default(),
             active_procedures: vec![],
             entity_words: &definition.runtime().entity_words,

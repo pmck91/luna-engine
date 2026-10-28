@@ -1,0 +1,668 @@
+{
+  "positions": {
+    "lab": {
+      "x": 360.0,
+      "y": 0.0
+    },
+    "workshop": {
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  "blocks": {
+    "arm-chime": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": []
+            },
+            "id": "5@/JZ.^D}7,DVOl/7)xA",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"schedule_timer\",\"timer\":\"chime\",\"after\":{\"type\":\"input\",\"input\":\"delay\"},\"pending\":\"restart\"}",
+                  "fields": {
+                    "pending": "restart",
+                    "timer": "chime"
+                  },
+                  "id": "KU(v1?:ayr}w_In=]W~I",
+                  "inputs": {
+                    "OPERAND": {
+                      "block": {
+                        "data": "{\"type\":\"input\",\"input\":\"delay\"}",
+                        "fields": {
+                          "input": "delay"
+                        },
+                        "id": "ZFNqR8$^]c]a%KrejE),",
+                        "type": "number_input"
+                      },
+                      "shadow": {
+                        "fields": {
+                          "value": 1
+                        },
+                        "id": "AS|YKIWlR1gbz|5J@2_b",
+                        "type": "number_literal"
+                      }
+                    }
+                  },
+                  "type": "luna_schedule_timer"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "door-closes": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "]cZCeIlFb{N(A4iHZO:[",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"close\",\"object\":\"door\"}",
+                  "fields": {
+                    "object": "door"
+                  },
+                  "id": "SoVTlQIEFbC-::={QD{4",
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"say\",\"text\":\"The door swings shut.\"}",
+                      "fields": {
+                        "text": "The door swings shut."
+                      },
+                      "id": "wJHe1?Fk,S+w=qDI-m,|",
+                      "type": "luna_say"
+                    }
+                  },
+                  "type": "luna_close"
+                }
+              },
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"opened\",\"object\":\"door\"}",
+                  "fields": {
+                    "object": "door"
+                  },
+                  "id": "U$Q+^dCW8|qPiKpm4~4I",
+                  "type": "condition_opened"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "ending-hook": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "condition"
+              ]
+            },
+            "id": "|/A8Camp(6f4#Bk+f3S4",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"update_variable\",\"name\":\"ending_hooks\",\"op\":\"add\",\"operand\":{\"type\":\"literal\",\"value\":1}}",
+                  "fields": {
+                    "name": "ending_hooks",
+                    "op": "add"
+                  },
+                  "id": ".WS}_R2hs!S[xR-xn|Eh",
+                  "inputs": {
+                    "OPERAND": {
+                      "shadow": {
+                        "fields": {
+                          "value": 1
+                        },
+                        "id": "#_Rw(D3)|:L6*OYdt:Gu",
+                        "type": "number_literal"
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"say\",\"text\":\"The ending hook ran once.\"}",
+                      "fields": {
+                        "text": "The ending hook ran once."
+                      },
+                      "id": "b2XS|{E+W#)RzS$hp/oV",
+                      "type": "luna_say"
+                    }
+                  },
+                  "type": "luna_update_variable"
+                }
+              },
+              "condition": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "/)I!dTH+,,tzq^[sSH*W",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "open-door": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "conditions": [
+                "requirements"
+              ]
+            },
+            "id": ":;`V-e%Q^gW9B_zSuP0D",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "data": "{\"type\":\"open\",\"object\":\"door\"}",
+                  "fields": {
+                    "object": "door"
+                  },
+                  "id": "9}N5%d%L`lWMquc$07D#",
+                  "next": {
+                    "block": {
+                      "data": "{\"type\":\"say\",\"text\":\"The stone door opens.\"}",
+                      "fields": {
+                        "text": "The stone door opens."
+                      },
+                      "id": "*MT1_h;qH|0@$OKJEqcQ",
+                      "next": {
+                        "block": {
+                          "data": "{\"type\":\"schedule_timer\",\"timer\":\"door-closes\",\"after\":{\"type\":\"literal\",\"value\":3},\"pending\":\"restart\"}",
+                          "fields": {
+                            "pending": "restart",
+                            "timer": "door-closes"
+                          },
+                          "id": "?!k;.Q!+MK/[2{49H_4E",
+                          "inputs": {
+                            "OPERAND": {
+                              "shadow": {
+                                "fields": {
+                                  "value": 3
+                                },
+                                "id": "_2%z4bzA/96MdMqI=^]y",
+                                "type": "number_literal"
+                              }
+                            }
+                          },
+                          "type": "luna_schedule_timer"
+                        }
+                      },
+                      "type": "luna_say"
+                    }
+                  },
+                  "type": "luna_open"
+                }
+              },
+              "requirements": {
+                "block": {
+                  "data": "{\"type\":\"true\"}",
+                  "id": "9UiT+Am%NO,}#`a`Kxlf",
+                  "type": "condition_true"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_flow",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    }
+  },
+  "routes": {},
+  "templates": [],
+  "playtest": {
+    "setups": [
+      {
+        "version": 4,
+        "id": "f2515825-2f42-484a-aec4-bbc6aba25b92",
+        "name": "Door countdown",
+        "source": {
+          "revision": "67a8006081dce54493d10cecb44d2458b4534918f977a4f83e216f8a098bd368",
+          "title": "The Timer Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "full"
+        },
+        "state": {
+          "turns": {
+            "turn": 1,
+            "pending": {
+              "door-closes": {
+                "deadline": 4,
+                "source": {
+                  "root": "open-door",
+                  "subject": "open-door",
+                  "path": "effects.2"
+                }
+              }
+            }
+          },
+          "game_id": "d21a7192-bd52-441d-a735-eadcdab71d41",
+          "content_version": "0.1.0",
+          "location": "workshop",
+          "ending": null,
+          "variables": {
+            "allow_guard": false,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "firings": 0,
+            "rewards": 0
+          },
+          "objects": {
+            "door": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "door": {},
+            "keeper": {},
+            "lab": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 0,
+            "workshop": 1
+          },
+          "sequences": {
+            "chime-response": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 4,
+        "id": "2070cb82-bec8-43d5-b683-2a9a7b2ddba4",
+        "name": "Nested chime",
+        "source": {
+          "revision": "67a8006081dce54493d10cecb44d2458b4534918f977a4f83e216f8a098bd368",
+          "title": "The Timer Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "full"
+        },
+        "state": {
+          "turns": {
+            "turn": 2,
+            "pending": {
+              "chime": {
+                "deadline": 4,
+                "source": {
+                  "root": "lab-nested",
+                  "subject": "arm-chime",
+                  "path": "effects.0"
+                }
+              }
+            }
+          },
+          "game_id": "d21a7192-bd52-441d-a735-eadcdab71d41",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "allow_guard": false,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "firings": 0,
+            "rewards": 0
+          },
+          "objects": {
+            "door": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "door": {},
+            "keeper": {},
+            "lab": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 1,
+            "workshop": 1
+          },
+          "sequences": {
+            "chime-response": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 4,
+        "id": "3e8eb2ab-cbb9-46df-8519-a3e52a174f00",
+        "name": "Signal requested",
+        "source": {
+          "revision": "67a8006081dce54493d10cecb44d2458b4534918f977a4f83e216f8a098bd368",
+          "title": "The Timer Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "full"
+        },
+        "state": {
+          "turns": {
+            "turn": 3,
+            "pending": {
+              "quest-signal": {
+                "deadline": 4,
+                "source": {
+                  "root": "request-signal",
+                  "subject": "request-signal",
+                  "path": "effects.1"
+                }
+              }
+            }
+          },
+          "game_id": "d21a7192-bd52-441d-a735-eadcdab71d41",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "allow_guard": false,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "firings": 0,
+            "rewards": 0
+          },
+          "objects": {
+            "door": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "door": {},
+            "keeper": {},
+            "lab": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 1,
+            "workshop": 1
+          },
+          "sequences": {
+            "chime-response": 0
+          },
+          "narrative": {
+            "active": "signal-talk",
+            "conversations": {
+              "signal-talk": {
+                "checkpoint": {
+                  "type": "entered",
+                  "node": "waiting",
+                  "prompt": [
+                    {
+                      "text": "Keeper",
+                      "colour": null
+                    },
+                    {
+                      "text": " says: ",
+                      "colour": null
+                    },
+                    {
+                      "text": "Listen for the next signal.",
+                      "colour": null
+                    }
+                  ]
+                },
+                "visited": [
+                  "request",
+                  "waiting"
+                ],
+                "chosen": [
+                  "request-signal"
+                ]
+              }
+            },
+            "quests": {
+              "signal-task": {
+                "status": "active",
+                "stages": [],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "A signal has been requested.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 4,
+        "id": "8ec04e82-3bd9-45d5-94e3-285d240dbe4d",
+        "name": "Before late failure",
+        "source": {
+          "revision": "67a8006081dce54493d10cecb44d2458b4534918f977a4f83e216f8a098bd368",
+          "title": "The Timer Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "full"
+        },
+        "state": {
+          "turns": {
+            "turn": 2,
+            "pending": {
+              "failing": {
+                "deadline": 3,
+                "source": {
+                  "root": "lab-failing",
+                  "subject": "lab-failing",
+                  "path": "effects.1"
+                }
+              },
+              "z-first": {
+                "deadline": 3,
+                "source": {
+                  "root": "lab-failing",
+                  "subject": "lab-failing",
+                  "path": "effects.0"
+                }
+              }
+            }
+          },
+          "game_id": "d21a7192-bd52-441d-a735-eadcdab71d41",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "allow_guard": false,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "firings": 0,
+            "rewards": 0
+          },
+          "objects": {
+            "door": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "door": {},
+            "keeper": {},
+            "lab": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 1,
+            "workshop": 1
+          },
+          "sequences": {
+            "chime-response": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 4,
+        "id": "9fafcd9f-ed21-45a9-87c4-aecca1b0cc0a",
+        "name": "Before timer ending",
+        "source": {
+          "revision": "67a8006081dce54493d10cecb44d2458b4534918f977a4f83e216f8a098bd368",
+          "title": "The Timer Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "full"
+        },
+        "state": {
+          "turns": {
+            "turn": 2,
+            "pending": {
+              "ending": {
+                "deadline": 3,
+                "source": {
+                  "root": "lab-finish",
+                  "subject": "lab-finish",
+                  "path": "effects.1"
+                }
+              },
+              "low": {
+                "deadline": 3,
+                "source": {
+                  "root": "lab-finish",
+                  "subject": "lab-finish",
+                  "path": "effects.0"
+                }
+              }
+            }
+          },
+          "game_id": "d21a7192-bd52-441d-a735-eadcdab71d41",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "allow_guard": false,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "firings": 0,
+            "rewards": 0
+          },
+          "objects": {
+            "door": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "door": {},
+            "keeper": {},
+            "lab": {},
+            "workshop": {}
+          },
+          "visits": {
+            "lab": 1,
+            "workshop": 1
+          },
+          "sequences": {
+            "chime-response": 0
+          },
+          "hints": {}
+        }
+      }
+    ],
+    "checks": []
+  }
+}

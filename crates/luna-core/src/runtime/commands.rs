@@ -9,6 +9,17 @@ use luna_model::{Event, normalize, reserved};
 
 impl<'a> Run<'a> {
     pub(crate) fn command(&mut self, input: &str) -> Result<()> {
+        if self.p.game.turns.is_some() && normalize(input) == "wait" {
+            ensure!(input.len() <= 4096, "Command is too long");
+            if self.state.ending.is_some() {
+                self.result.status = CommandStatus::Ended;
+                self.literal("This playthrough has ended.");
+            } else {
+                self.timing.input = super::turns::TurnInput::Wait;
+                self.literal("You wait.");
+            }
+            return Ok(());
+        }
         if self.conversation_control(input)? {
             return Ok(());
         }
@@ -56,8 +67,13 @@ impl<'a> Run<'a> {
             return self.entity_hint(Some(query));
         }
         match normalized.as_str() {
-            "hint" => return self.entity_hint(None),
-            "look" => return self.look(),
+            "hint" => {
+                return self.entity_hint(None);
+            }
+            "look" => {
+                self.timing.input = super::turns::TurnInput::Look;
+                return self.look();
+            }
             "inventory" => {
                 self.inventory();
                 return Ok(());
@@ -95,6 +111,17 @@ impl<'a> Run<'a> {
     // Resolution selects once; this shared path retains ordinary requirement,
     // effect, event, exit, and explanation semantics for that selected handler.
     pub(super) fn dispatch(&mut self, best: Candidate<'a>, normalized: &str) -> Result<()> {
+        let cost = match best.handler {
+            Handler::Action(a) => a.turn_cost.as_ref(),
+            Handler::Exit(e) => e.turn_cost.as_ref(),
+        };
+        if self.p.game.turns.is_some() {
+            self.timing.input = super::turns::TurnInput::Action {
+                flow: best.id.into(),
+                failed: false,
+            };
+            self.timing.override_cost = cost.map(|c| c.success).unwrap_or_default();
+        }
         self.result.trace.push(format!(
             "Selected '{}' [{}] for normalized command '{normalized}'",
             best.name, best.id
@@ -126,6 +153,14 @@ impl<'a> Run<'a> {
                     "Action requirements",
                 )? {
                     self.result.status = CommandStatus::RequirementsFailed;
+                    if self.p.game.turns.is_some() {
+                        self.timing.input = super::turns::TurnInput::Action {
+                            flow: best.id.into(),
+                            failed: true,
+                        };
+                        self.timing.override_cost =
+                            cost.map(|c| c.failed_requirements).unwrap_or_default();
+                    }
                     self.say(if action.failure_text.is_empty() {
                         "You cannot do that yet."
                     } else {
@@ -164,6 +199,14 @@ impl<'a> Run<'a> {
                     "Exit availability",
                 )? {
                     self.result.status = CommandStatus::RequirementsFailed;
+                    if self.p.game.turns.is_some() {
+                        self.timing.input = super::turns::TurnInput::Action {
+                            flow: best.id.into(),
+                            failed: true,
+                        };
+                        self.timing.override_cost =
+                            cost.map(|c| c.failed_requirements).unwrap_or_default();
+                    }
                     self.say(if exit.blocked_text.is_empty() {
                         "That route is not available yet."
                     } else {

@@ -29,6 +29,7 @@ impl<'a> Run<'a> {
             self.literal("This playthrough has ended. No puzzle hints are available.");
             return Ok(());
         }
+        self.timing.input = super::turns::TurnInput::Hint;
         let Some(query) = query else {
             let mut names = self
                 .p

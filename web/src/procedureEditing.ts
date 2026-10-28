@@ -1,4 +1,5 @@
-import type { JsonValue, Procedure, ProcedureInput, Project } from './contracts';
+import { copyOwnedContent } from './scriptCopy';
+import type { Procedure, ProcedureInput, Project } from './contracts';
 import { allEffects, scripts } from './model';
 import {
   argumentKind,
@@ -98,87 +99,32 @@ export function setProcedureInputs(project: Project, id: string, inputs: Procedu
   if (definition) definition.inputs = structuredClone(inputs);
 }
 
-/** Duplication creates a complete independent definition, including saved drafts. */
+/** Copy owned response/CALL/block identities while retaining external references. */
+export function cloneScript(
+  project: Project,
+  original: { id: string; effects: Procedure['effects'] },
+  inputIds = new Map<string, string>(),
+) {
+  return copyOwnedContent(
+    { effects: original.effects, workspace: project.editor.blocks[original.id] },
+    { inputs: inputIds },
+  );
+}
 export function duplicateProcedure(project: Project, original: Procedure): Procedure {
-  const newId = crypto.randomUUID();
-  const ids = new Map<string, string>();
   const inputIds = new Map(original.inputs.map((input) => [input.id, crypto.randomUUID()]));
-  const discover = (value: unknown) => {
-    if (!value || typeof value !== 'object') return;
-    const node = value as Record<string, unknown>;
-    if (
-      (node.type === 'call' || node.type === 'respond') &&
-      typeof node.id === 'string' &&
-      !ids.has(node.id)
-    )
-      ids.set(node.id, crypto.randomUUID());
-    if (typeof node.data === 'string') {
-      try {
-        discover(JSON.parse(node.data));
-      } catch {
-        /* unrelated metadata */
-      }
-    }
-    Object.values(node).forEach(discover);
-  };
-  discover(original.effects);
-  discover(project.editor.blocks[original.id]);
-  const remap = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(remap);
-    if (!value || typeof value !== 'object') return value;
-    const node = Object.fromEntries(
-      Object.entries(value).map(([key, child]) => [key, remap(child)]),
-    ) as Record<string, unknown>;
-    const replace = (key: string, mapping = ids) => {
-      if (typeof node[key] === 'string') node[key] = mapping.get(node[key]) ?? node[key];
-    };
-    if ('procedure_input' in node) replace('procedure_input', inputIds);
-    if (['input', 'procedure_input', 'procedure_property'].includes(String(node.type)))
-      replace('input', inputIds);
-    if (node.type === 'call' || node.type === 'respond') replace('id');
-    if (node.type === 'reset_responses') replace('sequence');
-    if (typeof node.type === 'string' && /^(luna_|condition_|number_)/.test(node.type)) {
-      if (typeof node.id === 'string') node.id = crypto.randomUUID();
-      if (typeof node.data === 'string') {
-        try {
-          node.data = JSON.stringify(remap(JSON.parse(node.data)));
-        } catch {
-          /* unrelated metadata */
-        }
-      }
-      if (node.fields && typeof node.fields === 'object') {
-        const fields = node.fields as Record<string, unknown>;
-        if (node.type === 'number_input' && typeof fields.input === 'string')
-          fields.input = inputIds.get(fields.input) ?? fields.input;
-        if (node.type === 'luna_reset_responses' && typeof fields.sequence === 'string')
-          fields.sequence = ids.get(fields.sequence) ?? fields.sequence;
-        for (const [key, field] of Object.entries(node.fields)) {
-          if (
-            typeof field === 'string' &&
-            /^(?:(?:inside|on|character|location):)?@procedure:/.test(field)
-          )
-            (node.fields as Record<string, unknown>)[key] = field.replace(
-              /@procedure:(.*)$/,
-              (_, id: string) => `@procedure:${inputIds.get(id) ?? id}`,
-            );
-        }
-      }
-    }
-    return node;
-  };
+  const cloned = cloneScript(project, original, inputIds);
   const copy: Procedure = {
     ...structuredClone(original),
-    id: newId,
+    id: crypto.randomUUID(),
     name: `${original.name} copy`,
     inputs: original.inputs.map((input) => ({
       ...structuredClone(input),
       id: inputIds.get(input.id)!,
     })),
-    effects: remap(original.effects) as Procedure['effects'],
+    effects: cloned.effects,
   };
   (project.procedures ??= []).push(copy);
-  const workspace = project.editor.blocks[original.id];
-  if (workspace) project.editor.blocks[copy.id] = remap(workspace) as JsonValue;
+  if (cloned.workspace) project.editor.blocks[copy.id] = cloned.workspace;
   return copy;
 }
 
@@ -190,15 +136,7 @@ export function setCallDefinition(
   callId: string,
   target: string,
 ) {
-  const script =
-    (project.procedures ?? []).find((item) => item.id === scriptId) ??
-    [project.game, ...project.locations, ...project.objects, ...project.characters]
-      .flatMap((owner) => [
-        ...owner.actions,
-        ...owner.triggers,
-        ...('exits' in owner ? owner.exits : []),
-      ])
-      .find((item) => item.id === scriptId);
+  const script = scripts(project).find((item) => item.id === scriptId);
   const walk = (value: unknown) => {
     if (!value || typeof value !== 'object') return;
     const node = value as Record<string, unknown>;

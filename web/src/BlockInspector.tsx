@@ -1,3 +1,4 @@
+import { timerChoices, timer } from './turnModel';
 import { useContext } from 'react';
 import { ProcedureScope } from './ProcedureScope';
 import ProcedureCallInspector, { AssignmentInspector } from './ProcedureCallInspector';
@@ -73,12 +74,54 @@ export default function BlockInspector({
           openDefinition={openDefinition ?? (() => {})}
           createDefinition={createDefinition ?? (() => {})}
         />
+      ) : value.type === 'schedule_timer' || value.type === 'cancel_timer' ? (
+        <>
+          <Select
+            label="Timer"
+            value={value.timer}
+            items={timerChoices(project)}
+            onChange={(timer) => update({ ...value, timer })}
+          />
+          {value.type === 'schedule_timer' && (
+            <>
+              <h3>Delay</h3>
+              <OperandEditor
+                project={project}
+                value={value.after}
+                onChange={(after) => update({ ...value, after })}
+              />
+              <Select
+                label="If already pending"
+                value={value.pending ?? 'restart'}
+                items={[
+                  { id: 'restart', name: 'Restart countdown' },
+                  { id: 'keep', name: 'Keep existing countdown' },
+                ]}
+                onChange={(pending) => update({ ...value, pending: pending as 'restart' | 'keep' })}
+              />
+              <p className="muted">
+                A positive integer, evaluated once. Count subsequent charged inputs; the scheduling
+                input is excluded.
+              </p>
+            </>
+          )}
+          <div className="timer-actions">
+            <button
+              disabled={!timer(project, value.timer)}
+              onClick={() => openDefinition?.(value.timer)}
+            >
+              Open timer definition
+            </button>
+            <button onClick={createDefinition}>Create timer…</button>
+          </div>
+        </>
       ) : value.type === 'assign' ? (
         <AssignmentInspector project={project} value={value} onChange={update} />
       ) : selection.kind === 'condition' ? (
         <ConditionEditor
           project={project}
           value={value as Condition}
+          allowCreation={value.type !== 'timer_pending'}
           allowCommandItem={hasCommandItem(project, selection.flowId)}
           onChange={update}
         />
@@ -218,10 +261,23 @@ export default function BlockInspector({
           )}
         </>
       )}
+      {value.type === 'timer_pending' && (
+        <>
+          <div className="timer-actions">
+            <button
+              disabled={!timer(project, value.timer)}
+              onClick={() => openDefinition?.(value.timer)}
+            >
+              Open timer definition
+            </button>
+            <button onClick={createDefinition}>Create timer…</button>
+          </div>
+        </>
+      )}
     </>
   );
 }
-function OperandEditor({
+export function OperandEditor({
   project,
   value,
   onChange,

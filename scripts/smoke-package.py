@@ -155,7 +155,8 @@ def main():
             # New-game defaults and the permanent parser fixture use the packaged
             # API/export, not a handwritten runner-only substitute.
             fresh = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser defaults"})
-            assert fresh["project"]["game"]["format_version"] == 5
+            assert fresh["project"]["game"]["format_version"] == 6
+            assert fresh["project"]["game"].get("turns") is None
             assert fresh["project"]["game"]["command_assistance"]["clarification"]
             assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
             gallery = api("open", "POST", {"folder": "parser-gallery"})
@@ -341,7 +342,7 @@ def main():
             assert "Second reply" in resumed and "First reply" in resumed, resumed
             procedure_autosave = work / "procedures/saves" / procedure_game["id"] / procedure_game["content_version"] / "autosave.json"
             progress = json.loads(procedure_autosave.read_text())
-            assert progress["save_format"] == 5 and progress["state"]["variables"]["rewards"] == 3, progress
+            assert progress["save_format"] == 6 and progress["state"]["variables"]["rewards"] == 3, progress
             assert len(progress["state"]["procedure_sequences"]) == 2, progress
             run(["run", procedure_game["id"], "--load", "autosave"], "look\nquit\n", profile="procedures")
             assert json.loads(procedure_autosave.read_text())["state"] == progress["state"], "Restore replayed CALL effects"
@@ -479,6 +480,140 @@ def main():
             assert revisit_text.count("Thank you again for finding my key.") == 2
             assert json.loads(conversation_auto.read_text())["state"] == conversation_final["state"]
 
+            # Exercise canonical timers through the packaged editor, setup restore,
+            # exported runner and independent processes with no development tools.
+            created_timers = api("projects", "POST", {"folder": "smoke-timers", "title": "Timer boundary"})
+            timer_project = created_timers["project"]
+            timer_project["game"]["turns"] = {
+                "actions": True, "replies": True, "failed_requirements": False,
+                "look": False, "hints": False,
+            }
+            timer_project["game"]["variables"] = {"firings": 0}
+            timer_project["timers"] = [{
+                "id": "chime", "name": "Chime", "order": 0,
+                "effects": [
+                    {"type": "update_variable", "name": "firings", "op": "add",
+                     "operand": {"type": "literal", "value": 1}},
+                    {"type": "say", "text": "The chime sounds."},
+                ],
+            }, {"id": "unused-timer", "name": "Unused timer", "order": 1}]
+            timer_project["game"]["actions"] = [{
+                "id": "arm", "name": "Arm", "verb": "use",
+                "pattern": [{"type": "literal", "text": "arm"}],
+                "effects": [{"type": "schedule_timer", "timer": "chime",
+                             "after": {"type": "literal", "value": 2}}],
+            }, {
+                "id": "cancel", "name": "Cancel", "verb": "use",
+                "pattern": [{"type": "literal", "text": "cancel"}],
+                "effects": [{"type": "cancel_timer", "timer": "chime"}],
+            }]
+            timer_handle = created_timers["handle"]
+            api(f"projects/{timer_handle}", "PUT", {
+                "project": timer_project, "revision": created_timers["revision"],
+            })
+            timer_test = api("playtests", "POST", {"project": timer_project})
+            armed = api(f"playtests/{timer_test['session']}/commands", "POST", {
+                "command": "use arm", "explain": True,
+            })
+            assert armed["result"]["turns"]["turn"] == 1
+            pending = armed["result"]["turns"]["pending"][0]
+            assert pending["remaining"] == 2 and pending["deadline"] == 3, pending
+            assert pending["source"] == {"root": "arm", "subject": "arm", "path": "effects.0"}
+            timer_setup = api(f"playtests/{timer_test['session']}/capture", "POST", {"name": "Armed"})
+            assert timer_setup["version"] == 4 and timer_setup["state"] == armed["state"]
+            timer_restored = api("playtests", "POST", {"project": timer_project, "setup": timer_setup})
+            assert timer_restored["state"] == armed["state"]
+            timer_session = timer_restored["session"]
+            one_more = api(f"playtests/{timer_session}/commands", "POST", {"command": "wait"})
+            fired = api(f"playtests/{timer_session}/commands", "POST", {"command": "wait"})
+            assert fired["state"]["turns"] == {"turn": 3, "pending": {}}
+            assert fired["state"]["variables"]["firings"] == 1
+            timer_bundle = work / "timers-from-editor.luna"
+            timer_bundle.write_bytes(api(f"projects/{timer_handle}/export", "POST", raw=True))
+            with zipfile.ZipFile(timer_bundle) as exported:
+                assert "timers/chime.json" in exported.namelist()
+                assert "timers/unused-timer.json" in exported.namelist()
+                assert not any(name.startswith("editor/") for name in exported.namelist())
+            run(["import", str(timer_bundle)], profile="timers")
+            timer_game = timer_project["game"]
+            timer_auto = work / "timers/saves" / timer_game["id"] / timer_game["content_version"] / "autosave.json"
+            run(["run", timer_game["id"], "--new"], "use arm\nlook\nsave armed\nquit\n", profile="timers")
+            assert json.loads(timer_auto.read_text())["save_format"] == 6
+            assert json.loads(timer_auto.read_text())["state"] == armed["state"]
+            run(["run", timer_game["id"], "--load", "armed"], "look\nwait\nsave one more\nquit\n", profile="timers")
+            assert json.loads(timer_auto.read_text())["state"] == one_more["state"]
+            chime_text = run(["run", timer_game["id"], "--load", "one more"], "wait\nsave fired\nquit\n", profile="timers")
+            assert chime_text.count("The chime sounds.") == 1, chime_text
+            assert json.loads(timer_auto.read_text())["state"] == fired["state"]
+            canceled_text = run(["run", timer_game["id"], "--load", "armed"], "use cancel\nwait\nquit\n", profile="timers")
+            assert "The chime sounds." not in canceled_text
+            assert json.loads(timer_auto.read_text())["state"]["turns"] == {"turn": 3, "pending": {}}
+            assert json.loads(timer_auto.read_text())["state"]["variables"]["firings"] == 0
+
+            # The permanent workshop ships independently of the historical specimens.
+            workshop = api("open", "POST", {"folder": "timer-workshop"})
+            workshop_project = workshop["project"]
+            workshop_game = workshop_project["game"]
+            workshop_bundle = work / "workshop-from-editor.luna"
+            workshop_bundle.write_bytes(api(f"projects/{workshop['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(workshop_bundle) as current, zipfile.ZipFile(package / "examples/timer-workshop.luna") as checked:
+                assert json.loads(current.read("manifest.json")) == json.loads(checked.read("manifest.json"))
+                assert "timers/unused.json" in current.namelist()
+                assert not any(name.startswith("editor/") for name in current.namelist())
+            run(["import", str(workshop_bundle)], profile="timer-workshop")
+            workshop_save = work / "timer-workshop/saves" / workshop_game["id"] / workshop_game["content_version"] / "autosave.json"
+
+            def workshop_run(commands, slot=None):
+                run(["run", workshop_game["id"], "--load", slot] if slot else ["run", workshop_game["id"], "--new"], commands + "\nquit\n", profile="timer-workshop")
+                envelope = json.loads(workshop_save.read_text())
+                assert envelope["save_format"] == 6
+                return envelope["state"]
+
+            def workshop_start(name):
+                setup = next(s for s in workshop_project["editor"]["playtest"]["setups"] if s["name"] == name)
+                assert setup["version"] == 4
+                restored = api("playtests", "POST", {"project": workshop_project, "setup": setup})
+                assert restored["state"] == setup["state"]
+                assert not restored["result"]["state_changed"]
+                return restored
+
+            def workshop_command(view, command):
+                return api(f"playtests/{view['session']}/commands", "POST", {"command": command, "explain": True})
+
+            door = workshop_start("Door countdown")
+            assert workshop_run("open stone door\nlook\nsave armed") == door["state"]
+            for command in ["wait", "wait", "wait"]:
+                door = workshop_command(door, command)
+            assert workshop_run("wait\nwait\nwait", "armed") == door["state"]
+            assert door["state"]["turns"] == {"turn": 4, "pending": {}}
+            assert not door["state"]["objects"]["door"]["open"]
+
+            failure = workshop_start("Before late failure")
+            assert workshop_run("go lab\nuse failing\nsave dangerous") == failure["state"]
+            failed = workshop_command(failure, "use step")
+            assert failed["result"]["status"] == "error" and failed["result"]["messages"] == []
+            assert failed["state"] == failure["state"]
+            assert workshop_run("use step", "dangerous") == failure["state"]
+            repaired = workshop_command(workshop_command(failed, "use repair"), "wait")
+            assert workshop_run("use repair\nwait", "dangerous") == repaired["state"]
+            assert repaired["state"]["variables"]["rewards"] == 1
+            assert repaired["state"]["characters"]["keeper"]["location"] == "workshop"
+
+            workshop_signal = workshop_start("Signal requested")
+            assert workshop_run("go lab\ntalk keeper\nreply 1\nsave requested") == workshop_signal["state"]
+            workshop_signal = workshop_command(workshop_signal, "wait")
+            assert workshop_run("wait", "requested") == workshop_signal["state"]
+            assert workshop_signal["quest_log"][0]["status"] == "completed"
+            assert workshop_signal["state"]["variables"]["rewards"] == 1
+
+            ending = workshop_start("Before timer ending")
+            assert workshop_run("go lab\nuse finish\nsave finishing") == ending["state"]
+            ending = workshop_command(ending, "wait")
+            assert workshop_run("wait\nsave completed", "finishing") == ending["state"]
+            assert ending["state"]["turns"] == {"turn": 3, "pending": {}}
+            assert ending["state"]["variables"]["ending_hooks"] == 1
+            assert workshop_run("look", "completed") == ending["state"]
+
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
             created = api("projects", "POST", {"folder": "smoke-outcome", "title": "No outcome"})
@@ -511,7 +646,7 @@ def main():
             assert "Outcome:" not in completed, completed
             autosave = work / "no-outcome/saves" / game["id"] / game["content_version"] / "autosave.json"
             state = json.loads(autosave.read_text())
-            assert state["save_format"] == (5 if game["format_version"] >= 5 else 4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
+            assert state["save_format"] == (6 if game["format_version"] >= 6 else 5 if game["format_version"] >= 5 else 4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
             assert state["state"]["ending"] == "finish", state
         finally:
             if editor is not None and editor.poll() is None:
@@ -523,7 +658,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, Timer Workshop callbacks/rollback/quests/endings, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

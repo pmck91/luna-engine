@@ -40,6 +40,10 @@ impl ProcedureIndex {
             index.roots.insert(id.into());
             index.add(id, body);
         }
+        for timer in &project.timers {
+            index.roots.insert(timer.id.clone());
+            index.add(&timer.id, &timer.effects);
+        }
         for procedure in &project.procedures {
             index.add(&procedure.id, &procedure.effects);
         }

@@ -1,0 +1,47 @@
+{
+  "id": "late-effects",
+  "name": "Lab rollback effects",
+  "description": "Progress, quest and character changes must roll back if the later divide fails.",
+  "inputs": [],
+  "effects": [
+    {
+      "type": "respond",
+      "id": "lab-response",
+      "responses": [
+        "First callback.",
+        "Later callback."
+      ],
+      "mode": "repeat_last",
+      "fallback": "",
+      "exhaustion": "once",
+      "on_exhausted": []
+    },
+    {
+      "type": "update_variable",
+      "name": "firings",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    },
+    {
+      "type": "start_quest",
+      "quest": "signal-task"
+    },
+    {
+      "type": "complete_quest_stage",
+      "quest": "signal-task",
+      "stage": "heard"
+    },
+    {
+      "type": "complete_quest",
+      "quest": "signal-task"
+    },
+    {
+      "type": "move_character",
+      "character": "keeper",
+      "location": "workshop"
+    }
+  ]
+}

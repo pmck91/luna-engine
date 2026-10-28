@@ -136,6 +136,24 @@ pub enum NarrativeOperation {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TraceKind {
+    /// Turn classification at the end of the initiating input.
+    Turn {
+        /// Clock before this input.
+        before: u32,
+        /// Resulting boundary.
+        after: u32,
+        /// Zero or one charged turn.
+        cost: u32,
+        /// Core input classification.
+        input: crate::TurnInput,
+        /// Authored override, or inheritance from game policy.
+        override_cost: luna_model::TurnCost,
+    },
+    /// Named scheduling/cancellation/due execution.
+    Timer {
+        /// Typed operation and resulting timer state.
+        operation: crate::TimerOperation,
+    },
     /// One narrative operation with canonical source and ordinary state diffs.
     Narrative {
         /// Stable definition/node/reply/stage references.
@@ -410,7 +428,7 @@ fn state_changes(before: &GameState, after: &GameState) -> (Vec<TraceChange>, bo
 }
 impl Run<'_> {
     pub(super) fn source_for(&self, subject: &str, path: &str) -> Option<TraceSource> {
-        self.recording.as_ref().map(|_| TraceSource {
+        (self.recording.is_some() || self.p.game.turns.is_some()).then(|| TraceSource {
             subject: subject.into(),
             path: path.into(),
         })
@@ -467,6 +485,18 @@ impl Run<'_> {
             .as_mut()
             .and_then(|r| self.trace_parent.and_then(|i| r.steps.get_mut(i)))
             && let TraceKind::Trigger { fired, .. } = &mut step.kind
+        {
+            *fired = true;
+        }
+    }
+    pub(super) fn timer_fired(&mut self) {
+        if let Some(step) = self
+            .recording
+            .as_mut()
+            .and_then(|r| self.trace_parent.and_then(|i| r.steps.get_mut(i)))
+            && let TraceKind::Timer {
+                operation: crate::TimerOperation::Fire { fired, .. },
+            } = &mut step.kind
         {
             *fired = true;
         }
@@ -600,6 +630,8 @@ impl Run<'_> {
 }
 pub(super) fn effect_name(effect: &Effect) -> &'static str {
     match effect {
+        Effect::ScheduleTimer { .. } => "SCHEDULE TIMER",
+        Effect::CancelTimer { .. } => "CANCEL TIMER",
         Effect::StartConversation { .. } => "START CONVERSATION",
         Effect::PauseConversation { .. } => "PAUSE CONVERSATION",
         Effect::EndConversation { .. } => "END CONVERSATION",

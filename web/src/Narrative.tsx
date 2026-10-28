@@ -1,3 +1,5 @@
+import { turnCostChoices } from './turnModel';
+import type { TurnCost } from './contracts';
 import { playContentKey } from './playtest';
 import { useState, type Ref } from 'react';
 import type { Diagnostic, Project } from './contracts';
@@ -697,6 +699,14 @@ export function NarrativeInspector({
             project={project}
             onChange={(text) => change({ text })}
           />
+          {project.game.turns && (
+            <Select
+              label="Reply turn cost"
+              value={item.reply.turn_cost ?? 'default'}
+              items={turnCostChoices}
+              onChange={(turn_cost) => change({ turn_cost: turn_cost as TurnCost })}
+            />
+          )}
           <Check
             label="Once per playthrough"
             value={item.reply.once}

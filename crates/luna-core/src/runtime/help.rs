@@ -166,6 +166,9 @@ impl<'a> Run<'a> {
     }
 
     pub(super) fn general_help(&mut self) -> Result<()> {
+        if self.p.game.turns.is_some() {
+            self.literal("WAIT spends one turn. Reading help, inventory or the quest log is free.");
+        }
         self.say(&self.p.game.help_text)?;
         self.literal(
             "Controls: look, inventory, help [entity], hint [entity], save [name], load [name], saves, quit.",

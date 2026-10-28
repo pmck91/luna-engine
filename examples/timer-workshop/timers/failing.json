@@ -1,0 +1,30 @@
+{
+  "id": "failing",
+  "name": "Lab · Deliberately failing callback",
+  "order": 7,
+  "priority": -10,
+  "condition": {
+    "type": "true"
+  },
+  "effects": [
+    {
+      "type": "call",
+      "id": "late-call",
+      "procedure": "late-effects",
+      "arguments": {}
+    },
+    {
+      "type": "say",
+      "text": "Discard this callback output."
+    },
+    {
+      "type": "update_variable",
+      "name": "firings",
+      "op": "divide",
+      "operand": {
+        "type": "variable",
+        "name": "divisor"
+      }
+    }
+  ]
+}

@@ -631,6 +631,7 @@ async fn set_state(
         session: id,
         quest_log: current.runtime.quest_log(),
         result: CommandResult {
+            turns: current.runtime.turn_view(),
             conversation: current.runtime.conversation_view().cloned(),
             ..Default::default()
         },

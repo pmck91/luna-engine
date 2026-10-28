@@ -21,6 +21,13 @@ export function prepareDraftValidation(project: Project) {
   const copy = structuredClone(project);
   const sources = new Map<string, { site: ReferenceSite; addresses: Map<string, string> }>();
   const unreadable: Finding[] = [];
+  for (const t of project.editor.timer_drafts ?? []) {
+    (copy.timers ??= []).push(structuredClone(t));
+    sources.set(t.id, {
+      site: { subject: t.id, flowId: t.id, path: '', scope: 'draft' },
+      addresses: new Map(),
+    });
+  }
   registerHintBlocks(project);
   try {
     for (const [key, saved] of Object.entries(project.editor.blocks)) {
@@ -31,6 +38,9 @@ export function prepareDraftValidation(project: Project) {
         const hint = [...project.locations, ...project.objects, ...project.characters]
           .flatMap((owner) => owner.hints.map((puzzle) => ({ owner: owner.id, puzzle: puzzle.id })))
           .find((hint) => key === `hints:${hint.puzzle}`);
+        const timerDraft = sources.get(key);
+        const root = workspace.getTopBlocks(false).find((b) => b.type === 'luna_flow');
+        if (timerDraft && root) timerDraft.addresses = blockAddresses(root);
         const live = new Set(
           workspace
             .getTopBlocks(false)

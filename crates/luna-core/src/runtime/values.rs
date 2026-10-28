@@ -16,7 +16,7 @@ impl<'a> Run<'a> {
             .and_then(|properties| properties.get(name))
     }
 
-    fn numeric_operand(&self, operand: &NumericOperand) -> Result<i32> {
+    pub(super) fn numeric_operand(&self, operand: &NumericOperand) -> Result<i32> {
         let value = match operand {
             NumericOperand::Literal { value } => return Ok(*value),
             NumericOperand::Input { input } => Some(self.local(input)?.value()?),
