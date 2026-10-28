@@ -42,6 +42,101 @@ fn view(app: &App, id: &str) -> UndoView {
 }
 
 #[tokio::test]
+async fn undo_upgrade_review_uses_native_conflicts_and_reports_new_legacy_boundaries() {
+    let temp = tempfile::tempdir().unwrap();
+    let state = App::new(temp.path().join("config.json"), None, "undo-tests".into()).unwrap();
+    let app = router(state);
+    let mut p = Project::blank("Legacy review");
+    p.game.format_version = 1;
+    p.game.command_assistance = None;
+    p.vocabulary.push(Verb {
+        id: "rewind".into(),
+        canonical: "rewind".into(),
+        synonyms: vec!["UNDO!".into()],
+        ..Default::default()
+    });
+    p.vocabulary.push(Verb {
+        id: "topics".into(),
+        canonical: "reply".into(),
+        ..Default::default()
+    });
+    p.objects.push(Object {
+        id: "hidden".into(),
+        name: "Hidden".into(),
+        hidden: true,
+        actions: vec![Action {
+            id: "hidden-undo".into(),
+            verb: "rewind".into(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    });
+    let review = api(&app, "/player-undo-review", "POST", json!(p)).await;
+    assert_eq!(review["conflicts"], json!(["hidden-undo"]));
+    assert!(
+        review["upgrade_errors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["subject"] == "topics")
+    );
+    assert!(!p.game.allow_player_undo);
+    assert_eq!(p.game.format_version, 1);
+    p.game.format_version = 8;
+    p.objects[0].actions.clear();
+    let review = api(&app, "/player-undo-review", "POST", json!(p)).await;
+    assert_eq!(review["conflicts"], json!([]));
+    assert_eq!(review["upgrade_errors"], json!([]));
+}
+
+#[tokio::test]
+async fn checks_return_current_native_availability_including_empty_and_failed_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    let state = App::new(temp.path().join("config.json"), None, "undo-tests".into()).unwrap();
+    let app = router(state.clone());
+    let mut p = fixture::project();
+    p.game.format_version = 8;
+    p.game.allow_player_undo = true;
+    fixture::action(
+        &mut p,
+        "broken",
+        vec![Effect::UpdateVariable {
+            name: "coins".into(),
+            op: ArithmeticOperation::Divide,
+            operand: NumericOperand::Variable {
+                name: "divisor".into(),
+            },
+        }],
+    );
+    for commands in [
+        vec!["look"],
+        vec!["take brass key"],
+        vec!["take brass key", "undo"],
+        vec!["take brass key", "nonsense"],
+        vec!["take brass key", "use broken"],
+    ] {
+        let steps = commands
+            .iter()
+            .map(|command| json!({"command":command}))
+            .collect::<Vec<_>>();
+        let report = api(&app, "/playtests/checks", "POST", json!({"project":p,"check":{"id":"check","name":"Undo check","start":{"type":"fresh","location":null},"steps":steps}})).await;
+        let id = report["session"].as_str().unwrap();
+        assert_eq!(
+            report["undo"],
+            serde_json::to_value(view(&state, id)).unwrap()
+        );
+        assert_eq!(
+            report["undo"]["available"],
+            if commands.contains(&"take brass key") && !commands.contains(&"undo") {
+                1
+            } else {
+                0
+            }
+        );
+    }
+}
+
+#[tokio::test]
 async fn actual_http_commands_replies_and_debug_replacements_use_native_undo() {
     let temp = tempfile::tempdir().unwrap();
     let state = App::new(

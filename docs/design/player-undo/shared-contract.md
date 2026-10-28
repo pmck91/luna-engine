@@ -1,6 +1,6 @@
 # U1 — player undo contract
 
-Status: **U1 contract frozen; U2 native implementation verified**, 28 October 2026. The owner accepted [U0](README.md) and authorized progression, then selected keep-known hints, closing the final decision. This document retains the frozen technical target. The [historical proof](runtime-proof-review.md) records candidate execution at `eca623f`; the [foundation review](foundation-review.md) records promotion into ordinary builds, canonical content-8 opt-in, generated contracts and both native hosts. Production settings/player UX remains U3.
+Status: **U1 contract frozen; U2 native implementation verified**, 28 October 2026. The owner accepted [U0](README.md) and authorized progression, then selected keep-known hints, closing the final decision. This document retains the frozen technical target. The [historical proof](runtime-proof-review.md) records candidate execution at `eca623f`; the [foundation review](foundation-review.md) records promotion into ordinary builds, canonical content-8 opt-in, generated contracts and both native hosts. The subsequent [U3 working slice](authoring-review.md) implements the owner-accepted production settings/player UX. U4 and final feature acceptance remain.
 
 ## One native history
 

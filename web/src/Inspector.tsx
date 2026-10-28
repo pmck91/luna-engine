@@ -2,6 +2,7 @@ import TurnSettings, { ActionTurnSettings } from './TurnSettings';
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
 import ContainerSettings, { ContainerUpgrade } from './ContainerSettings';
 import CommandAssistanceSettings from './CommandAssistanceSettings';
+import PlayerUndoSettings from './PlayerUndoSettings';
 import { hasCommandItem, localMessage } from './containerModel';
 import { ObjectTargetSelect } from './Forms';
 import type { ProjectEdit } from './projectHistory';
@@ -258,24 +259,28 @@ export default function Inspector({
           <p className="muted">Shown when a player's command does not match an available action.</p>
           <CommandAssistanceSettings project={p} edit={edit} />
           <TurnSettings project={p} edit={edit} select={select} />
-          <Select
-            label="Entity help"
-            value={p.game.help_mode}
-            items={[
-              { id: 'off', name: 'Off · general help only' },
-              { id: 'basic', name: 'Basic · verbs and syntax' },
-              { id: 'full', name: 'Full · available command phrases' },
-            ]}
-            onChange={(help_mode) => update({ help_mode })}
-          />
-          <p className="muted">
-            Basic shows verbs without checking puzzle requirements or revealing other targets.
-          </p>
-          <Check
-            label="Enable puzzle hints"
-            value={p.game.hints_enabled}
-            onChange={(hints_enabled) => update({ hints_enabled })}
-          />
+          <section className="player-assistance-settings" aria-label="Player assistance">
+            <h3>Player assistance</h3>
+            <PlayerUndoSettings project={p} edit={edit} select={select} />
+            <Select
+              label="Entity help"
+              value={p.game.help_mode}
+              items={[
+                { id: 'off', name: 'Off · general help only' },
+                { id: 'basic', name: 'Basic · verbs and syntax' },
+                { id: 'full', name: 'Full · available command phrases' },
+              ]}
+              onChange={(help_mode) => update({ help_mode })}
+            />
+            <p className="muted">
+              Basic shows verbs without checking puzzle requirements or revealing other targets.
+            </p>
+            <Check
+              label="Enable puzzle hints"
+              value={p.game.hints_enabled}
+              onChange={(hints_enabled) => update({ hints_enabled })}
+            />
+          </section>
           <button onClick={() => select(gameDataPages.endings)}>
             Edit endings ({p.game.endings.length})
           </button>

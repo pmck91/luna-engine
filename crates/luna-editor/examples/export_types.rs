@@ -170,6 +170,7 @@ fn main() -> Result<()> {
         CommandRequest,
         ReplyRequest,
         UndoRequest,
+        PlayerUndoReview,
         StateRequest,
         PlaytestView,
         CaptureSetup,

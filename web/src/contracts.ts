@@ -1131,6 +1131,8 @@ export type ReplyRequest = { offer_token: string, reply_id: string, explain: boo
 
 export type UndoRequest = { explain: boolean, };
 
+export type PlayerUndoReview = { conflicts: Array<string>, upgrade_errors: Array<Diagnostic>, };
+
 export type StateRequest = { state: GameState, };
 
 export type PlaytestView = { session: string, result: CommandResult, state: GameState, source: PlaytestSource,
@@ -1149,5 +1151,5 @@ export type RunCheck = { project: Project, check: PlaytestCheck, explain: boolea
 
 export type CheckStepResult = { index: number, command: string, result: CommandResult | null, failures: Array<string>, };
 
-export type CheckRun = { session: string, source: PlaytestSource, initial_state: GameState, initial_messages: Array<Array<Span>>, steps: Array<CheckStepResult>, state: GameState, passed: boolean, quest_log: Array<QuestLogEntry>, conversation: ConversationView | null, };
+export type CheckRun = { undo?: UndoView, session: string, source: PlaytestSource, initial_state: GameState, initial_messages: Array<Array<Span>>, steps: Array<CheckStepResult>, state: GameState, passed: boolean, quest_log: Array<QuestLogEntry>, conversation: ConversationView | null, };
 

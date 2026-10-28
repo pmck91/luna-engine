@@ -1,5 +1,6 @@
 import Routines, { RoutineCreation, RoutineInspector, routineBlockId } from './Routines';
 import RoutineProgress from './RoutineProgress';
+import PlayerUndo from './PlayerUndo';
 import { routine, routineFor, routinePage } from './routineModel';
 import ScheduledTimers, { TimerCreation, TimerInspector } from './ScheduledTimers';
 import PendingTimers from './PendingTimers';
@@ -83,7 +84,14 @@ import ExitCreation from './ExitCreation';
 import Tutorial from './Tutorial';
 import AuthoringHelp from './AuthoringHelp';
 import PlaytestTools from './PlaytestTools';
-import { historyCanReplay, playContentKey, runLogs, stateKey, type PlaytestLog } from './playtest';
+import {
+  historyCanReplay,
+  playContentKey,
+  resultLogs,
+  runLogs,
+  stateKey,
+  type PlaytestLog,
+} from './playtest';
 import CommandExplanation from './CommandExplanation';
 import {
   ExplanationFocus,
@@ -718,7 +726,11 @@ export default function App() {
       setBusy(false);
     }
   };
-  const send = async (submitted?: string, reply?: { offer_token: string; reply_id: string }) => {
+  const send = async (
+    submitted?: string,
+    reply?: { offer_token: string; reply_id: string },
+    nativeUndo = false,
+  ) => {
     const command = (submitted ?? input).trim();
     if (!play || !command || busy) return;
     const submittedFocus = document.activeElement;
@@ -732,15 +744,16 @@ export default function App() {
     setExplanationFocus(null);
     try {
       const result = await request<PlaytestView>(
-        `/playtests/${play.session}/${reply ? 'replies' : 'commands'}`,
+        `/playtests/${play.session}/${nativeUndo ? 'undo' : reply ? 'replies' : 'commands'}`,
         'POST',
         {
-          ...(reply ?? { command }),
+          ...(nativeUndo ? {} : (reply ?? { command })),
           explain: recordExplanations,
         },
       );
+      if (current.current.view?.handle !== view?.handle) return;
       setPlay(result.result.control?.type === 'quit' ? null : result);
-      setLogs((old) => [...old, ...result.result.messages.map((spans) => ({ spans }))]);
+      setLogs((old) => [...old, ...resultLogs(result.result)]);
       if (result.result.explanation && playProject) {
         const explanation = result.result.explanation;
         setExplanationRecord({
@@ -2319,7 +2332,7 @@ export default function App() {
                 orientation="horizontal"
                 reverse
                 value={layout.playtest_height}
-                min={180}
+                min={play?.result.undo?.enabled ? 340 : 180}
                 max={640}
                 change={(playtest_height) =>
                   setLayout((layout) => ({ ...layout, playtest_height }))
@@ -2333,7 +2346,7 @@ export default function App() {
               />
             )}
             <section
-              className={`playtest ${playtestCollapsed ? 'is-collapsed' : ''} ${play?.result.conversation ? 'has-conversation' : ''}`}
+              className={`playtest ${playtestCollapsed ? 'is-collapsed' : ''} ${play?.result.conversation ? 'has-conversation' : ''} ${!playtestCollapsed && play?.result.undo?.enabled ? 'has-player-undo' : ''}`}
               aria-label="Playtest"
             >
               <div className="playtest-toolbar">
@@ -2404,6 +2417,15 @@ export default function App() {
                   <span aria-hidden="true">{playtestCollapsed ? '▴' : '▾'}</span>
                 </button>
               </div>
+              {!playtestCollapsed && (
+                <PlayerUndo
+                  view={play?.result.undo}
+                  busy={busy}
+                  ended={!!play?.state.ending}
+                  hints={!!playProject?.game.hints_enabled}
+                  undo={() => void send('undo', undefined, true)}
+                />
+              )}
               <div id="playtest-content" className="playtest-content" hidden={playtestCollapsed}>
                 {play && (
                   <div className="playtest-revision">
@@ -2441,7 +2463,7 @@ export default function App() {
                           &gt; {log.command}
                         </p>
                       ) : (
-                        <p key={i}>
+                        <p key={i} className={log.restoration ? 'restoration-line' : undefined}>
                           {log.spans?.map((s, j) => (
                             <span
                               key={j}
@@ -2557,7 +2579,7 @@ export default function App() {
                       </button>
                     ))}
                   </details>
-                  <button disabled={!play} onClick={() => setShowState(true)}>
+                  <button disabled={!play || busy} onClick={() => setShowState(true)}>
                     World state inspector
                   </button>
                 </div>
@@ -3066,6 +3088,7 @@ export default function App() {
                   selected_flow: null,
                 }),
                 conversation: run.conversation ?? undefined,
+                undo: run.undo,
               },
             });
             setPlayProject(snapshot);

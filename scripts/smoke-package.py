@@ -164,6 +164,9 @@ def main():
             assert not fresh["project"]["game"].get("allow_player_undo", False)
             assert fresh["project"]["game"]["command_assistance"]["clarification"]
             assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
+            assert api("player-undo-review", "POST", fresh["project"]) == {
+                "conflicts": [], "upgrade_errors": [],
+            }
 
             # U2 is ordinary release code: canonical opt-in, native HTTP undo,
             # setup-5 restore, exported/installed CLI and session-local history.
@@ -196,6 +199,12 @@ def main():
             reopened = api("playtests", "POST", {"project": undo_project, "setup": undo_setup})
             assert reopened["state"] == changed["state"]
             assert reopened["result"]["undo"]["available"] == 0
+            undo_check = api("playtests/checks", "POST", {"project": undo_project, "check": {
+                "id": "undo-check", "name": "Change and undo", "start": {"type": "fresh"},
+                "steps": [{"command": "use lever"}, {"command": "undo"}],
+            }})
+            assert undo_check["passed"] and undo_check["undo"]["available"] == 0
+            assert undo_check["state"] == undo_start["state"]
             undo_bundle = work / "undo-from-editor.luna"
             undo_bundle.write_bytes(api(f"projects/{fresh['handle']}/export", "POST", raw=True))
             with zipfile.ZipFile(undo_bundle) as exported:

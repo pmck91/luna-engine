@@ -2,6 +2,7 @@ import type {
   CheckRun,
   CheckStart,
   CheckStep,
+  CommandResult,
   GameState,
   HelpMode,
   PlaytestCheck,
@@ -10,7 +11,14 @@ import type {
   Span,
 } from './contracts';
 
-export type PlaytestLog = { command?: string; spans?: Span[] };
+export type PlaytestLog = { command?: string; spans?: Span[]; restoration?: boolean };
+// Native outcomes identify restoration dividers; authored text is never parsed.
+export function resultLogs(result: CommandResult): PlaytestLog[] {
+  return result.messages.map((spans, index) => ({
+    spans,
+    restoration: index === 0 && result.undo_result?.type === 'restored',
+  }));
+}
 // Map key order has no runtime meaning; array order still does.
 function stableKey(value: unknown) {
   return JSON.stringify(value, (_, child: unknown) =>
@@ -48,7 +56,7 @@ export function runLogs(run: CheckRun): PlaytestLog[] {
     ...run.initial_messages.map((spans) => ({ spans })),
     ...run.steps.flatMap((step) => [
       { command: step.command },
-      ...(step.result?.messages ?? []).map((spans) => ({ spans })),
+      ...(step.result ? resultLogs(step.result) : []),
       ...step.failures.map((text) => ({ spans: [{ text, colour: null }] })),
     ]),
   ];

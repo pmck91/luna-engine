@@ -1,6 +1,6 @@
 # Player undo — U0 design review
 
-Status: **U0 accepted; U2 native foundation implemented**, 28 October 2026. Work is on `feature/player-undo` from `main d5b927c` (merged routines, PR #7). The [U0–U4 implementation plan](../../plans/player-undo.md) defines behaviour and delivery gates. U0 is committed as `a1bda30`; U1 as `eca623f`. The [historical U1 evidence](runtime-proof-review.md), [shared contract](shared-contract.md) and [U2 foundation review](foundation-review.md) distinguish proof, production native behaviour and the remaining UX work. The owner selected keep-known hints on 28 October 2026; the preview illustrates that policy. Production settings/player controls and final acceptance remain U3–U4.
+Status: **U0 and U3 accepted; U4 closeout remains**, 28 October 2026. Work is on `feature/player-undo` from `main d5b927c` (merged routines, PR #7). The [U0–U4 implementation plan](../../plans/player-undo.md) defines behaviour and delivery gates. U0 is committed as `a1bda30`; U1 as `eca623f`. The [historical U1 evidence](runtime-proof-review.md), [shared contract](shared-contract.md) and [U2 foundation review](foundation-review.md) distinguish proof, production native behaviour and the remaining UX work. The owner selected keep-known hints on 28 October 2026; the preview illustrates that policy. U2 is committed as `a2af3b2`. The [U3 working-slice review](authoring-review.md) covers production settings/player controls and the native walkthrough. The owner accepted U3 and requested its commit. U4 closeout and final feature acceptance remain.
 
 ## Open the mockup
 
@@ -43,7 +43,7 @@ Open [the player-undo preview](http://127.0.0.1:5188/undo-design.html). It is in
 | Transcript | Keep text and append a visible restoration marker | U0 accepted |
 | Limits | Up to 20 points / 16 MiB encoded payload; no extra author knobs | U0 accepted; U1 measured |
 | Parser/offer context | Clear on successful undo; freshly prepare choices; preserve on failure | U0 accepted; U1 proved |
-| Compatibility | Explicit content-8 opt-in; unchanged save-7/setup-5 contracts | U1 frozen; U2 promotion required |
+| Compatibility | Explicit content-8 opt-in; unchanged save-7/setup-5 contracts | U2 implemented; U3 accepted |
 
 The owner accepted the basic journey and ending recovery. The owner also selected the keep-known hint policy, closing the final U1 decision. U0 acceptance does not imply native runtime or full feature acceptance.
 
@@ -60,7 +60,7 @@ Both Chromium and Firefox interaction walkthroughs pass, including modal cancell
 | [History bound](captures/history-limit.png) | Twenty available points after the oldest is evicted |
 | [Compact review](captures/compact.png) | Main controls and keyboard access at 1100×800 |
 
-The preview's count/scene/restoration interactions are scripted; it does not prove native budgets, rollback, authority, history bytes, saves/autosaves, compatibility, shared-core performance or host parity. Production schemas, constants, generated contracts, block definitions and existing examples are unchanged. Native tests/package verification are not claimed for this design-only slice; those remain explicit U1–U4 gates. Human screen-reader and new-author evaluation are not implied by browser checks.
+The preview's count/scene/restoration interactions are scripted; it does not prove native budgets, rollback, authority, history bytes, saves/autosaves, compatibility, shared-core performance or host parity. At U0 (`a1bda30`), production schemas, constants, generated contracts, block definitions and existing examples were unchanged. Native tests/package verification were not claimed for that design-only slice; the subsequent native/production reviews record those gates separately. Human screen-reader and new-author evaluation are not implied by browser checks.
 
 Reproduce with the preview server running:
 

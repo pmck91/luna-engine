@@ -1,6 +1,6 @@
 # Optional player undo
 
-Status: **U2 native foundation implemented; production UX next**, 28 October 2026. Work is isolated on `feature/player-undo`, created from merged `main d5b927c` (character routines, PR #7). This is F6 in the [gameplay roadmap](gameplay-feature-roadmap.md). The [interactive preview and review guide](../design/player-undo/README.md) illustrates the accepted experience. U0 is committed as `a1bda30` after lock fix `17f1a4d`; U1 is committed as `eca623f`. The [historical native proof](../design/player-undo/runtime-proof-review.md) and [shared contract](../design/player-undo/shared-contract.md) record U1 and the owner-selected keep-known hint policy. The owner authorized committing U1 and continuing to U2. The [foundation review](../design/player-undo/foundation-review.md) records the production promotion and verification. U3 settings/player controls and U4 workshop/acceptance remain.
+Status: **U3 accepted; U4 closeout remains**, 28 October 2026. Work is isolated on `feature/player-undo`, created from merged `main d5b927c` (character routines, PR #7). This is F6 in the [gameplay roadmap](gameplay-feature-roadmap.md). The [interactive preview](../design/player-undo/README.md) illustrates the accepted experience. U0 is committed as `a1bda30` after lock fix `17f1a4d`; U1 as `eca623f`; U2 as `a2af3b2`. The [historical native proof](../design/player-undo/runtime-proof-review.md), [shared contract](../design/player-undo/shared-contract.md) and [foundation review](../design/player-undo/foundation-review.md) record proof, frozen policy and production promotion. The [U3 review](../design/player-undo/authoring-review.md) covers settings/player controls and the review walkthrough. The owner accepted U3 and requested its commit. U4 workshop/closeout remains.
 
 The owner agreed to optional casual-play support, while noting that undo can reduce tension. Keep it **off by default**, opt-in per game and separate from editor project Undo/Redo. Preserve the accepted block appearance and [editor UX](../design/editor-ux/README.md). Public guides remain in the documentation-site milestone. Browser publishing remains after v1.
 
@@ -104,9 +104,10 @@ The [native evidence](../design/player-undo/runtime-proof-review.md) records 31 
 
 ### U3 — Production authoring/player UX
 
-- [ ] Add the accepted single opt-in setting, explicit upgrade/collision review, project history and help. Keep existing help/hint values and all blocks intact.
-- [ ] Add clearly separate playtest Undo availability/label/count, ended-game recovery and transcript restoration marker, keyboard/focus handling, old-session restart notice and safe source/explanation handling.
-- [ ] Complete browser authoring/reopen/export/playtest/runner parity, setup/check/debug/reset cases and disabled/legacy commands. Owner reviews the working slice before final acceptance.
+- [x] Add the accepted single opt-in setting, explicit upgrade/collision review, project history and help. Keep existing help/hint values and all blocks intact. Native review also catches new command restrictions when crossing pre-v5 content boundaries.
+- [x] Add clearly separate playtest Undo availability/label/count, ended-game recovery and transcript restoration marker, keyboard/focus handling, old-session restart notice and safe source/explanation handling. Keep the control outside scrolling content; enabled docked playtests have room for it, with compact/full playtest and collapse behaviour preserved.
+- [x] Complete browser authoring/reopen/export/playtest/runner parity, setup/check/debug/reset cases and disabled/legacy commands. The full suite passes 171 browser cases with one existing skip, including six new journeys in both browsers; the ordinary workspace passes 529 Rust tests/doctests.
+- [x] Owner accepted the U3 working slice and requested its commit with “great lets commit”. This accepts the production settings/player UX; U4 and final feature acceptance remain.
 
 ### U4 — Acceptance and branch closeout
 

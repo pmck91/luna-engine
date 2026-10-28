@@ -40,6 +40,9 @@ pub struct CheckStepResult {
 }
 #[derive(Serialize, TS)]
 pub struct CheckRun {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub undo: Option<luna_core::UndoView>,
     pub session: String,
     pub source: PlaytestSource,
     pub initial_state: GameState,
@@ -363,6 +366,10 @@ pub(crate) async fn run_check(
     }
     let id = new_id();
     let report = CheckRun {
+        undo: {
+            let view = runtime.undo_view();
+            view.enabled.then_some(view)
+        },
         quest_log: runtime.quest_log(),
         conversation: runtime.conversation_view().cloned(),
         session: id.clone(),

@@ -203,6 +203,15 @@ export default function AuthoringHelp({
             editor restores the authoring view.
           </p>
           <p>
+            Game settings → Player assistance → Allow player undo lets players take back recent game
+            changes, including endings. It starts off. Review the content upgrade and repair any
+            reserved undo commands, then restart the playtest. Undo last action restores one
+            complete change and appends a divider to the transcript; type undo in the runner. Saving
+            keeps history; loading, restarting or applying debug state clears it. New hints stay
+            known and clear earlier history. Project Undo edits the game separately; Ctrl/Cmd Z
+            keeps its text/project meaning.
+          </p>
+          <p>
             After fixing game errors in Validate, export a .luna file. In the terminal runner, use
             import to add the bundle and run to play it. Player saves and authoring preferences are
             separate.

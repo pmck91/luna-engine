@@ -2139,6 +2139,63 @@ dialog.modal {
   color: #c4c1ce;
   margin-bottom: 6px;
 }
+.player-undo {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.playtest.has-player-undo {
+  min-height: 340px;
+  height: min(max(var(--playtest-size, 240px), 340px), 65%);
+}
+.player-undo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.player-undo-next {
+  flex: 1;
+  min-width: 140px;
+  overflow-wrap: anywhere;
+}
+.player-undo-next strong,
+.player-undo-next span {
+  display: block;
+  font-size: 12px;
+}
+.player-undo-next span,
+.player-undo output {
+  color: var(--muted);
+  font-size: 11px;
+}
+.player-undo p {
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+.player-undo-ending {
+  color: #f1d39e;
+}
+.transcript .restoration-line {
+  border-block: 1px solid #6d5d9e;
+  padding: 10px 0;
+  margin-top: 16px;
+  color: #e5d8ff;
+  font-weight: 600;
+}
+.player-assistance-settings {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin: 16px 0;
+}
+.player-undo-settings {
+  margin-bottom: 16px;
+}
+.player-undo-settings p {
+  font-size: 12px;
+}
 .playtest-restart {
   display: flex;
   flex-wrap: wrap;

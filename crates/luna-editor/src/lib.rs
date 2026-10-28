@@ -125,6 +125,11 @@ pub struct UndoRequest {
     #[serde(default)]
     pub explain: bool,
 }
+#[derive(Serialize, TS)]
+pub struct PlayerUndoReview {
+    pub conflicts: Vec<String>,
+    pub upgrade_errors: Vec<Diagnostic>,
+}
 #[derive(Deserialize, TS)]
 pub struct StateRequest {
     pub state: GameState,
@@ -285,6 +290,7 @@ pub fn router(app: App) -> Router {
         .route("/projects/{handle}/export", post(export))
         .route("/projects/{handle}/assets", post(asset))
         .route("/validate", post(diagnostics))
+        .route("/player-undo-review", post(player_undo_review))
         .route("/templates/object-actions", post(object_actions))
         .route("/templates/container-actions", post(container_actions))
         .route("/playtests", post(start_playtest))
@@ -567,6 +573,34 @@ async fn asset(
 }
 async fn diagnostics(Json(p): Json<Project>) -> Json<Vec<Diagnostic>> {
     Json(validate(&p))
+}
+async fn player_undo_review(Json(mut p): Json<Project>) -> Json<PlayerUndoReview> {
+    let conflicts = player_undo_command_conflicts(&p);
+    let upgrade_errors = if p.game.format_version < 8 {
+        let before = validate(&p);
+        p.game.format_version = 8;
+        // Review other compatibility changes introduced by crossing older
+        // content boundaries separately from the exact undo collisions above.
+        p.game.allow_player_undo = false;
+        validate(&p)
+            .into_iter()
+            .filter(|d| {
+                d.severity == Severity::Error
+                    && !before.iter().any(|old| {
+                        old.severity == d.severity
+                            && old.subject == d.subject
+                            && old.field == d.field
+                            && old.message == d.message
+                    })
+            })
+            .collect()
+    } else {
+        vec![]
+    };
+    Json(PlayerUndoReview {
+        conflicts,
+        upgrade_errors,
+    })
 }
 async fn object_actions(Json(o): Json<Object>) -> Json<Vec<Action>> {
     Json(starter_actions(&o))

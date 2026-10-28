@@ -1,6 +1,6 @@
 # U2 — native player undo foundation
 
-Status: **Native foundation implemented**, 28 October 2026, on `feature/player-undo`. U1 is committed as `eca623f`; the owner authorized its commit and progression. This slice promotes the [frozen contract](shared-contract.md) into ordinary builds. The accepted [design preview](README.md) remains separate. Production settings/upgrade review and the playtest button are U3; the permanent workshop and final release measurements are U4.
+Status: **Native foundation committed as `a2af3b2`**, 28 October 2026, on `feature/player-undo`. U1 is committed as `eca623f`; the owner authorized its commit and progression. This slice promotes the [frozen contract](shared-contract.md) into ordinary builds. The accepted [design preview](README.md) remains separate. The subsequent [U3 review](authoring-review.md) covers settings and player controls; the permanent workshop and final release measurements remain U4.
 
 ## Native behaviour
 

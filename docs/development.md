@@ -156,7 +156,7 @@ Run alone and interpret timings as observations, with no CI thresholds. The [CR4
 
 ## Player undo foundation
 
-On `feature/player-undo`, U1 is committed as `eca623f`; the [U2 foundation review](design/player-undo/foundation-review.md) records its promotion into ordinary builds. There is no research feature to enable. The canonical `Game.allow_player_undo` Boolean defaults false and is omitted when false. Enabling it requires explicit content 8 and a collision-free `player_undo_command_conflicts` check. Existing authored bare `undo` commands retain their meaning when disabled. U3 will add the accepted setting/upgrade dialog and separate playtest control.
+On `feature/player-undo`, U1 is committed as `eca623f`; the [U2 foundation review](design/player-undo/foundation-review.md) records its promotion into ordinary builds. There is no research feature to enable. The canonical `Game.allow_player_undo` Boolean defaults false and is omitted when false. Enabling it requires explicit content 8 and a collision-free `player_undo_command_conflicts` check. Existing authored bare `undo` commands retain their meaning when disabled. The [U3 review](design/player-undo/authoring-review.md) covers the production Player assistance setting/upgrade dialog, separate playtest control and owner-review walkthrough.
 
 Session owns at most 20 complete compact snapshots and 16 MiB of retained payload. Native `undo_view()` and optional `CommandResult.undo` give authoritative count, latest literal label and reason. `undo()` or enabled text `undo` returns `undo_result`; explained restoration has one source-free typed observation and bounded world diffs. `POST /api/v1/playtests/{id}/undo` accepts `{ "explain": true }` or `{}` and returns the normal refreshed PlaytestView. Hosts never maintain another snapshot list.
 
@@ -174,3 +174,5 @@ cargo bench -p luna-runner --bench undo --jobs 2
 ```
 
 The [U1 release CSV](design/player-undo/captures/measurements.csv) remains historical evidence from `eca623f`; U4 will retain fresh production measurements. Run measurement workloads without concurrent browsers/builds. Public guides and the permanent Undo Workshop remain later gates.
+
+The authoring UI uses protected `POST /api/v1/player-undo-review` with the current Project. Its generated `PlayerUndoReview` returns canonical collision IDs and additional errors introduced by crossing older content boundaries. Pending/failed/stale reviews cannot apply an upgrade. `CheckRun.undo` supplies final native availability independently of the last step result, so opening a failed check continues with the correct history. Six `player-undo.spec.ts` browser journeys cover authoring, separate histories, endings, saved boundaries, clock/routine/timer panels, conversation/quest/hints, focus and native failure paths in both browsers.
