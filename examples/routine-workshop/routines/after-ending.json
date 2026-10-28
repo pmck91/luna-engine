@@ -1,0 +1,30 @@
+{
+  "id": "after-ending",
+  "name": "Suppressed after ending",
+  "character": "steward",
+  "order": 31,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "suppressed-step",
+      "name": "This must never fire during completion",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "say",
+          "text": "A later routine should not run."
+        }
+      ]
+    }
+  ]
+}

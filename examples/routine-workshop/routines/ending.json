@@ -1,0 +1,34 @@
+{
+  "id": "ending",
+  "name": "End before later routine work",
+  "character": "keeper",
+  "order": 30,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "ending-step",
+      "name": "Complete the workshop",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "end",
+          "ending": "complete"
+        },
+        {
+          "type": "say",
+          "text": "Unreachable after the ending."
+        }
+      ]
+    }
+  ]
+}

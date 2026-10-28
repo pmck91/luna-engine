@@ -184,7 +184,7 @@ The owner reviewed CR1, authorized committing the design/proof work on 28 Octobe
 
 ### CR3 — Production authoring and working review
 
-The [working authoring review](../design/character-routines/authoring-review.md) records the production journey, browser scenarios and patrol walkthrough. The owner accepted the working slice on 28 October 2026 with “Im happy, lets commit and begin.” CR4 examples and final feature acceptance remain separate.
+The [working authoring review](../design/character-routines/authoring-review.md) records the production journey, browser scenarios and patrol walkthrough. The owner accepted the working slice on 28 October 2026 with “Im happy, lets commit and begin.” CR3 was committed as `6ec3c6e` before CR4. Examples and final feature acceptance remain separate.
 
 - [x] Implement the accepted Routines library and character shortcut, single routine Blockly workspace with connected STEP containers, selected-step inspector and insertion/reordering, contextual create/bind, exact return, settings and turn upgrade.
 - [x] Wire complete references, search/findings/drafts, templates, duplication and project history; persist selection/layout and restore safely across renamed/deleted content.
@@ -193,10 +193,13 @@ The [working authoring review](../design/character-routines/authoring-review.md)
 
 ### CR4 — Acceptance, example and merge
 
-- [ ] Create a separate progressive Routine Workshop project/export with a simple patrol first, then a blocked gate, conversation hold, manual pause/replacement, offstage storage, saved wait, two-character ordering, once-only effects, late rollback and ending. Do not overwrite Locked Study, Keeper or Timer Workshop.
-- [ ] Measure release tick/restore/save/explanation workloads with many idle/active routines and due characters, plus realistic populated state. Retain shared budgets and report practical limits without hardware timing assertions.
-- [ ] Complete workspace tests/doctests, fmt, Clippy, generated-contract checks, frontend unit/build/format checks, both-browser authoring/parity checks, package smoke, developer notes and documentation links.
-- [ ] Record technical evidence and owner acceptance, then commit/push when requested and merge the complete branch after review. Public user guides remain deferred.
+The [CR4 review](../design/character-routines/final-review.md) records the separate [Routine Workshop](../../examples/routine-workshop/ACCEPTANCE.md), raw release measurements and verification. The owner authorized commit/push on 28 October 2026 with “ok push the changes.” Final PR review and merge remain open.
+
+- [x] Create a separate progressive Routine Workshop project/export with a simple patrol first, then a blocked gate, conversation hold, manual pause/replacement, offstage storage, saved wait, two-character ordering, once-only effects, late rollback and ending. Nine native setups, two saved checks and ten routine workspaces are retained. Locked Study, Keeper and Timer Workshop are unchanged.
+- [x] Measure release tick/restore/save/explanation workloads with many idle/active routines and due characters, plus realistic populated state. Retain shared budgets and report practical limits without hardware timing assertions. The review links 288 raw rows across 27 cases and records the large-batch explanation cost.
+- [x] Complete workspace tests/doctests, fmt, Clippy, generated-contract checks, frontend unit/build/format checks, both-browser authoring/parity checks, package smoke, developer notes and documentation links. All 476 Rust tests, 132 frontend tests, 11 retained proof tests and 159 browser checks pass; one existing Firefox zoom skip remains. Fix numeric-shadow reconciliation and the command-focus race exposed during acceptance.
+- [x] Record technical evidence and the owner's commit/push authorization on 28 October 2026. Public user guides remain deferred.
+- [ ] Complete final PR review and merge the complete branch after acceptance.
 
 ## References and design rationale
 

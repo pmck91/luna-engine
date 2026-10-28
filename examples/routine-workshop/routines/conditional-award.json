@@ -1,0 +1,49 @@
+{
+  "id": "conditional-award",
+  "name": "Once when the signal is ready",
+  "character": "steward",
+  "order": 3,
+  "start": {
+    "type": "when",
+    "condition": {
+      "type": "variable",
+      "name": "award_ready",
+      "op": "eq",
+      "value": true
+    }
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "award-step",
+      "name": "Record a quest reward once",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "respond",
+          "id": "award-response",
+          "responses": [
+            "First reward signal."
+          ],
+          "mode": "fallback",
+          "fallback": "The reward was already recorded.",
+          "exhaustion": "once",
+          "on_exhausted": []
+        },
+        {
+          "type": "call",
+          "id": "award-step-call",
+          "procedure": "record-signal",
+          "arguments": {}
+        }
+      ]
+    }
+  ]
+}

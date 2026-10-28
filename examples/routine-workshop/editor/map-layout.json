@@ -1,0 +1,2137 @@
+{
+  "positions": {
+    "garden": {
+      "x": 330.0,
+      "y": 0.0
+    },
+    "lab": {
+      "x": 0.0,
+      "y": 250.0
+    },
+    "offstage": {
+      "x": 650.0,
+      "y": 250.0
+    },
+    "study": {
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  "blocks": {
+    "a-second": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "steward",
+              "id": "a-second",
+              "order": 11,
+              "repeat": "finish",
+              "start": "blocks"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "Second author-ordered signal",
+              "REPEAT": "finish",
+              "START": "blocks"
+            },
+            "id": ".Aok._u^df5ue~erTi3t",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "second-signal"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "Second character"
+                  },
+                  "id": "^j9A^y**GOU/OCKr{n6B",
+                  "inputs": {
+                    "DO": {
+                      "block": {
+                        "data": "{\"type\":\"update_variable\",\"name\":\"signals\",\"op\":\"add\",\"operand\":{\"type\":\"literal\",\"value\":1}}",
+                        "fields": {
+                          "name": "signals",
+                          "op": "add"
+                        },
+                        "id": "1Ob46~9%!Tom])~E~cvv",
+                        "inputs": {
+                          "OPERAND": {
+                            "block": {
+                              "data": "{\"type\":\"literal\",\"value\":1}",
+                              "fields": {
+                                "value": 1
+                              },
+                              "id": "z#wm1+I$CDF#g65b:tF1",
+                              "type": "number_literal"
+                            }
+                          }
+                        },
+                        "next": {
+                          "block": {
+                            "data": "{\"type\":\"say\",\"text\":\"Second signal.\"}",
+                            "fields": {
+                              "text": "Second signal."
+                            },
+                            "id": "r,hD1*3IBbtbuK`@j,6c",
+                            "type": "luna_say"
+                          }
+                        },
+                        "type": "luna_update_variable"
+                      }
+                    },
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"true\"}",
+                        "id": "PLXlER7X7-y(9^/5#lJX",
+                        "type": "condition_true"
+                      }
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "after-ending": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "steward",
+              "id": "after-ending",
+              "order": 31,
+              "repeat": "finish",
+              "start": "blocks"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "Suppressed after ending",
+              "REPEAT": "finish",
+              "START": "blocks"
+            },
+            "id": "/S{;fY*k2.)mh|LZ2vyI",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "suppressed-step"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "This must never fire during completion"
+                  },
+                  "id": "BOs{2`cKHUCgqXqo=N-z",
+                  "inputs": {
+                    "DO": {
+                      "block": {
+                        "data": "{\"type\":\"say\",\"text\":\"A later routine should not run.\"}",
+                        "fields": {
+                          "text": "A later routine should not run."
+                        },
+                        "id": "g5BK`vg3pQzYqKZXozhK",
+                        "type": "luna_say"
+                      }
+                    },
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"true\"}",
+                        "id": "~Fj1CS#%9e0GAXK@yXw{",
+                        "type": "condition_true"
+                      }
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "conditional-award": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "steward",
+              "id": "conditional-award",
+              "order": 3,
+              "repeat": "finish",
+              "start": "when"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "Once when the signal is ready",
+              "REPEAT": "finish",
+              "START": "when"
+            },
+            "id": "I$bO4~=[MJL0Gj~_!*B2",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "award-step"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "Record a quest reward once"
+                  },
+                  "id": "uXWzL4`#$t~x0WLhO[3*",
+                  "inputs": {
+                    "DO": {
+                      "block": {
+                        "data": "{\"type\":\"respond\",\"id\":\"award-response\",\"responses\":[\"First reward signal.\"],\"mode\":\"fallback\",\"fallback\":\"The reward was already recorded.\",\"exhaustion\":\"once\",\"on_exhausted\":[]}",
+                        "fields": {
+                          "exhaustion": "once"
+                        },
+                        "id": "u%nac|lOsIj*)rJI+jO)",
+                        "next": {
+                          "block": {
+                            "data": "{\"type\":\"call\",\"id\":\"award-step-call\",\"procedure\":\"record-signal\",\"arguments\":{}}",
+                            "extraState": {
+                              "inputNames": {}
+                            },
+                            "fields": {
+                              "procedure": "record-signal"
+                            },
+                            "id": "49{WP)7Jj^b8=,rKGw(!",
+                            "type": "luna_call"
+                          }
+                        },
+                        "type": "luna_respond"
+                      }
+                    },
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"true\"}",
+                        "id": "Qk:GP07`OJi#x[o`Pnxm",
+                        "type": "condition_true"
+                      }
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              },
+              "START_WHEN": {
+                "block": {
+                  "data": "{\"type\":\"variable\",\"name\":\"award_ready\",\"op\":\"eq\",\"value\":true}",
+                  "fields": {
+                    "name": "award_ready",
+                    "op": "eq",
+                    "value": "true"
+                  },
+                  "id": "BpX`53rpTA1dv-pRv2;0",
+                  "type": "condition_variable"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "ending": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "keeper",
+              "id": "ending",
+              "order": 30,
+              "repeat": "finish",
+              "start": "blocks"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "End before later routine work",
+              "REPEAT": "finish",
+              "START": "blocks"
+            },
+            "id": "~W-cgGbiNj)*pMHG$pY-",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "ending-step"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "Complete the workshop"
+                  },
+                  "id": "bpo3a8c8NJ5NvDhn=].,",
+                  "inputs": {
+                    "DO": {
+                      "block": {
+                        "data": "{\"type\":\"end\",\"ending\":\"complete\"}",
+                        "fields": {
+                          "ending": "complete"
+                        },
+                        "id": "wvsZ0:PyZrd4S`C}F?8j",
+                        "next": {
+                          "block": {
+                            "data": "{\"type\":\"say\",\"text\":\"Unreachable after the ending.\"}",
+                            "fields": {
+                              "text": "Unreachable after the ending."
+                            },
+                            "id": "f9/u6$}tF;6#iTw%%E-{",
+                            "type": "luna_say"
+                          }
+                        },
+                        "type": "luna_end"
+                      }
+                    },
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"true\"}",
+                        "id": "/-V%Wu*ai3oMc2MO.fr=",
+                        "type": "condition_true"
+                      }
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "evening-patrol": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "keeper",
+              "id": "evening-patrol",
+              "order": 0,
+              "repeat": "finish",
+              "start": "initial"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "Evening patrol",
+              "REPEAT": "finish",
+              "START": "initial"
+            },
+            "id": "3q]2!cZwaEyA}dF[)|`p",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "patrol-garden"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "Move to Garden"
+                  },
+                  "id": "vHfWc~%kJqWSls,$1R0i",
+                  "inputs": {
+                    "DO": {
+                      "block": {
+                        "data": "{\"type\":\"move_character\",\"character\":\"keeper\",\"location\":\"garden\"}",
+                        "fields": {
+                          "character": "keeper",
+                          "location": "garden"
+                        },
+                        "id": ":!OgbYt}5n}b^nCG(-?L",
+                        "type": "luna_move_character"
+                      }
+                    },
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"true\"}",
+                        "id": "rK|Ilo|WUS#^zcQUF(O`",
+                        "type": "condition_true"
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "extraState": {
+                        "step": "patrol-wait"
+                      },
+                      "fields": {
+                        "BLOCKED": "retry",
+                        "NAME": "Wait two turns"
+                      },
+                      "id": "BNW`*(CzUP7fAzPI!QOf",
+                      "inputs": {
+                        "DO": {
+                          "block": {
+                            "id": "WvT!{v8N#Pm(6oFuX{=l",
+                            "inputs": {
+                              "TURNS": {
+                                "block": {
+                                  "data": "{\"type\":\"literal\",\"value\":2}",
+                                  "fields": {
+                                    "value": 2
+                                  },
+                                  "id": ";4:.#jzg34OM0}ZZ{M@l",
+                                  "type": "number_literal"
+                                }
+                              }
+                            },
+                            "type": "luna_routine_wait"
+                          }
+                        },
+                        "condition": {
+                          "block": {
+                            "data": "{\"type\":\"true\"}",
+                            "id": "aedIlODx):MJZGUPKkZV",
+                            "type": "condition_true"
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "extraState": {
+                            "step": "patrol-say"
+                          },
+                          "fields": {
+                            "BLOCKED": "retry",
+                            "NAME": "Speak if visible"
+                          },
+                          "id": "QsC}_$?tsy~|FQ?{Xv}3",
+                          "inputs": {
+                            "DO": {
+                              "block": {
+                                "data": "{\"type\":\"if\",\"condition\":{\"type\":\"visible\",\"entity\":\"keeper\"},\"then\":[{\"type\":\"character_says\",\"character\":\"keeper\",\"text\":\"The garden is quiet.\"}],\"otherwise\":[]}",
+                                "id": "]37omXg,CP,A%p.SE!wl",
+                                "inputs": {
+                                  "TEST": {
+                                    "block": {
+                                      "data": "{\"type\":\"visible\",\"entity\":\"keeper\"}",
+                                      "fields": {
+                                        "entity": "keeper"
+                                      },
+                                      "id": "B^!*w2B_wl08Z*}D#Td+",
+                                      "type": "condition_visible"
+                                    }
+                                  },
+                                  "THEN": {
+                                    "block": {
+                                      "data": "{\"type\":\"character_says\",\"character\":\"keeper\",\"text\":\"The garden is quiet.\"}",
+                                      "fields": {
+                                        "character": "keeper",
+                                        "text": "The garden is quiet."
+                                      },
+                                      "id": "5P]6J{|wHQJ[?r4twnWB",
+                                      "type": "luna_character_says"
+                                    }
+                                  }
+                                },
+                                "type": "luna_if"
+                              }
+                            },
+                            "condition": {
+                              "block": {
+                                "data": "{\"type\":\"true\"}",
+                                "id": "?B:gWoXNqnCgiBG9x+Ns",
+                                "type": "condition_true"
+                              }
+                            }
+                          },
+                          "next": {
+                            "block": {
+                              "extraState": {
+                                "step": "patrol-study"
+                              },
+                              "fields": {
+                                "BLOCKED": "retry",
+                                "NAME": "Return to Study"
+                              },
+                              "id": ";$*W*Fek|1}=R@Ve)QMl",
+                              "inputs": {
+                                "DO": {
+                                  "block": {
+                                    "data": "{\"type\":\"move_character\",\"character\":\"keeper\",\"location\":\"study\"}",
+                                    "fields": {
+                                      "character": "keeper",
+                                      "location": "study"
+                                    },
+                                    "id": "3CwF:3/P4#hKus({bXrV",
+                                    "type": "luna_move_character"
+                                  }
+                                },
+                                "condition": {
+                                  "block": {
+                                    "data": "{\"type\":\"true\"}",
+                                    "id": "K4+]C@n`RODIgBo;_u^q",
+                                    "type": "condition_true"
+                                  }
+                                }
+                              },
+                              "type": "luna_routine_step"
+                            }
+                          },
+                          "type": "luna_routine_step"
+                        }
+                      },
+                      "type": "luna_routine_step"
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "failing": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "steward",
+              "id": "failing",
+              "order": 20,
+              "repeat": "finish",
+              "start": "blocks"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "Rollback after earlier work",
+              "REPEAT": "finish",
+              "START": "blocks"
+            },
+            "id": "@Ie`gMtE$r0Dd**qobS`",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "failing-step"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "Move, reward, respond, then divide"
+                  },
+                  "id": "KF|_OYeC%NQ0^9BW51Et",
+                  "inputs": {
+                    "DO": {
+                      "block": {
+                        "data": "{\"type\":\"move_character\",\"character\":\"steward\",\"location\":\"garden\"}",
+                        "fields": {
+                          "character": "steward",
+                          "location": "garden"
+                        },
+                        "id": "yK)6su(KCQuS{DcZgeLk",
+                        "next": {
+                          "block": {
+                            "data": "{\"type\":\"call\",\"id\":\"failing-call\",\"procedure\":\"late-work\",\"arguments\":{}}",
+                            "extraState": {
+                              "inputNames": {}
+                            },
+                            "fields": {
+                              "procedure": "late-work"
+                            },
+                            "id": "O`my8)wNYi=bT]u*I(gE",
+                            "next": {
+                              "block": {
+                                "data": "{\"type\":\"respond\",\"id\":\"failed-response\",\"responses\":[\"First routine reply.\",\"Later routine reply.\"],\"mode\":\"loop\",\"fallback\":\"\",\"exhaustion\":\"once\",\"on_exhausted\":[]}",
+                                "fields": {
+                                  "exhaustion": "once"
+                                },
+                                "id": "HBtWZQDTS4Ki--g|5*w:",
+                                "next": {
+                                  "block": {
+                                    "data": "{\"type\":\"update_variable\",\"name\":\"attempts\",\"op\":\"divide\",\"operand\":{\"type\":\"variable\",\"name\":\"divisor\"}}",
+                                    "fields": {
+                                      "name": "attempts",
+                                      "op": "divide"
+                                    },
+                                    "id": "XE#E7p*v;|39m`g-%Nff",
+                                    "inputs": {
+                                      "OPERAND": {
+                                        "block": {
+                                          "data": "{\"type\":\"variable\",\"name\":\"divisor\"}",
+                                          "fields": {
+                                            "name": "divisor"
+                                          },
+                                          "id": "=Tp[=Fq]--x;,kDEtNv@",
+                                          "type": "number_variable"
+                                        }
+                                      }
+                                    },
+                                    "type": "luna_update_variable"
+                                  }
+                                },
+                                "type": "luna_respond"
+                              }
+                            },
+                            "type": "luna_call"
+                          }
+                        },
+                        "type": "luna_move_character"
+                      }
+                    },
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"true\"}",
+                        "id": "G}(e8J3,66XC/`MTbBei",
+                        "type": "condition_true"
+                      }
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "gate-patrol": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "keeper",
+              "id": "gate-patrol",
+              "order": 1,
+              "repeat": "while",
+              "start": "blocks"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "Patrol through the open gate",
+              "REPEAT": "while",
+              "START": "blocks"
+            },
+            "id": "K:r8],{G2[=.*=.7JJ]H",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "gate-garden"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "Retry until the gate opens"
+                  },
+                  "id": "uhVs/S76bg?I)~1W(DdD",
+                  "inputs": {
+                    "DO": {
+                      "block": {
+                        "data": "{\"type\":\"move_character\",\"character\":\"keeper\",\"location\":\"garden\"}",
+                        "fields": {
+                          "character": "keeper",
+                          "location": "garden"
+                        },
+                        "id": "RtzSZOa~I|B^34iQw]UO",
+                        "type": "luna_move_character"
+                      }
+                    },
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"opened\",\"object\":\"gate\"}",
+                        "fields": {
+                          "object": "gate"
+                        },
+                        "id": "UQBa8]l4aFXH)JJ0@`Mu",
+                        "type": "condition_opened"
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "extraState": {
+                        "step": "gate-return"
+                      },
+                      "fields": {
+                        "BLOCKED": "retry",
+                        "NAME": "Return and check whether to repeat"
+                      },
+                      "id": "E]p]?vzjCLK-#vCej?ES",
+                      "inputs": {
+                        "DO": {
+                          "block": {
+                            "data": "{\"type\":\"move_character\",\"character\":\"keeper\",\"location\":\"study\"}",
+                            "fields": {
+                              "character": "keeper",
+                              "location": "study"
+                            },
+                            "id": "#6ISDTZYHJX|O#c-,,JZ",
+                            "type": "luna_move_character"
+                          }
+                        },
+                        "condition": {
+                          "block": {
+                            "data": "{\"type\":\"true\"}",
+                            "id": "ZzcFO[g};QD*QSc47@F{",
+                            "type": "condition_true"
+                          }
+                        }
+                      },
+                      "type": "luna_routine_step"
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              },
+              "REPEAT_WHEN": {
+                "block": {
+                  "data": "{\"type\":\"variable\",\"name\":\"gate_enabled\",\"op\":\"eq\",\"value\":true}",
+                  "fields": {
+                    "name": "gate_enabled",
+                    "op": "eq",
+                    "value": "true"
+                  },
+                  "id": "SnMZ_(/wD8PDmBN6oejB",
+                  "type": "condition_variable"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "night-rest": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "keeper",
+              "id": "night-rest",
+              "order": 2,
+              "repeat": "finish",
+              "start": "blocks"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "Rest in offstage storage",
+              "REPEAT": "finish",
+              "START": "blocks"
+            },
+            "id": "ZIFux/q@fx#iz,7nthm.",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "night-move"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "Move offstage with the badge"
+                  },
+                  "id": "a4#l5^]NT3)5}`Ddks2F",
+                  "inputs": {
+                    "DO": {
+                      "block": {
+                        "data": "{\"type\":\"move_character\",\"character\":\"keeper\",\"location\":\"offstage\"}",
+                        "fields": {
+                          "character": "keeper",
+                          "location": "offstage"
+                        },
+                        "id": "K?5r/%um3{IMHqb4nWKj",
+                        "type": "luna_move_character"
+                      }
+                    },
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"true\"}",
+                        "id": "G{1Ag2-B1?y,!B+L,dXZ",
+                        "type": "condition_true"
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "extraState": {
+                        "step": "night-wait"
+                      },
+                      "fields": {
+                        "BLOCKED": "retry",
+                        "NAME": "Capture the rest duration once"
+                      },
+                      "id": "ORPL$XM,b|%]1J^Y%Q6S",
+                      "inputs": {
+                        "DO": {
+                          "block": {
+                            "id": "sfB|HLVt!7v#aCDZN8^~",
+                            "inputs": {
+                              "TURNS": {
+                                "block": {
+                                  "data": "{\"type\":\"variable\",\"name\":\"rest_delay\"}",
+                                  "fields": {
+                                    "name": "rest_delay"
+                                  },
+                                  "id": "X9Gw/AutGNL%]6!xVP+1",
+                                  "type": "number_variable"
+                                }
+                              }
+                            },
+                            "type": "luna_routine_wait"
+                          }
+                        },
+                        "condition": {
+                          "block": {
+                            "data": "{\"type\":\"true\"}",
+                            "id": "x8[?+^0-0I1V?v}+V1lZ",
+                            "type": "condition_true"
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "extraState": {
+                            "step": "night-say"
+                          },
+                          "fields": {
+                            "BLOCKED": "retry",
+                            "NAME": "No offstage speech"
+                          },
+                          "id": "HAq,(?!Nv/[}[+QS1P%(",
+                          "inputs": {
+                            "DO": {
+                              "block": {
+                                "data": "{\"type\":\"if\",\"condition\":{\"type\":\"visible\",\"entity\":\"keeper\"},\"then\":[{\"type\":\"character_says\",\"character\":\"keeper\",\"text\":\"You should only hear this if Keeper is visible.\"}],\"otherwise\":[]}",
+                                "id": "WwDe;$_H@/oTA)3CB?Vz",
+                                "inputs": {
+                                  "TEST": {
+                                    "block": {
+                                      "data": "{\"type\":\"visible\",\"entity\":\"keeper\"}",
+                                      "fields": {
+                                        "entity": "keeper"
+                                      },
+                                      "id": "-APZ3-mFR:!dKVlX98Mw",
+                                      "type": "condition_visible"
+                                    }
+                                  },
+                                  "THEN": {
+                                    "block": {
+                                      "data": "{\"type\":\"character_says\",\"character\":\"keeper\",\"text\":\"You should only hear this if Keeper is visible.\"}",
+                                      "fields": {
+                                        "character": "keeper",
+                                        "text": "You should only hear this if Keeper is visible."
+                                      },
+                                      "id": "6hK:v91n5t8%o[F|gQs=",
+                                      "type": "luna_character_says"
+                                    }
+                                  }
+                                },
+                                "type": "luna_if"
+                              }
+                            },
+                            "condition": {
+                              "block": {
+                                "data": "{\"type\":\"true\"}",
+                                "id": "Pf*C-/lv~a4F9!xCbM1u",
+                                "type": "condition_true"
+                              }
+                            }
+                          },
+                          "type": "luna_routine_step"
+                        }
+                      },
+                      "type": "luna_routine_step"
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "unused": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "steward",
+              "id": "unused",
+              "order": 40,
+              "repeat": "finish",
+              "start": "blocks"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "An unused routine is still exported",
+              "REPEAT": "finish",
+              "START": "blocks"
+            },
+            "id": "a_i?SHYX|K.UG$/N2MV[",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "unused-step"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "Reserved for later authoring"
+                  },
+                  "id": "o}T{r@(RaXc;Q`jaE/sn",
+                  "inputs": {
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"true\"}",
+                        "id": "_mS8$}Q?G$L{Gvm~/E})",
+                        "type": "condition_true"
+                      }
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    },
+    "z-first": {
+      "blocks": {
+        "blocks": [
+          {
+            "deletable": false,
+            "extraState": {
+              "cached": {},
+              "character": "keeper",
+              "id": "z-first",
+              "order": 10,
+              "repeat": "finish",
+              "start": "blocks"
+            },
+            "fields": {
+              "CONVERSATION": "hold",
+              "FLOW_TITLE": "First author-ordered signal",
+              "REPEAT": "finish",
+              "START": "blocks"
+            },
+            "id": "T0R8zR`quT/!QN!E$)Wg",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "extraState": {
+                    "step": "first-signal"
+                  },
+                  "fields": {
+                    "BLOCKED": "retry",
+                    "NAME": "First character"
+                  },
+                  "id": "e~-A6cB8o)OABU=hsomX",
+                  "inputs": {
+                    "DO": {
+                      "block": {
+                        "data": "{\"type\":\"move_character\",\"character\":\"keeper\",\"location\":\"lab\"}",
+                        "fields": {
+                          "character": "keeper",
+                          "location": "lab"
+                        },
+                        "id": "V?)8V|oP;KjQhxdq*KM#",
+                        "next": {
+                          "block": {
+                            "data": "{\"type\":\"update_variable\",\"name\":\"signals\",\"op\":\"add\",\"operand\":{\"type\":\"literal\",\"value\":1}}",
+                            "fields": {
+                              "name": "signals",
+                              "op": "add"
+                            },
+                            "id": "%/Zo#:4q20R-SOh:3_Jk",
+                            "inputs": {
+                              "OPERAND": {
+                                "block": {
+                                  "data": "{\"type\":\"literal\",\"value\":1}",
+                                  "fields": {
+                                    "value": 1
+                                  },
+                                  "id": "@PNq:Yhb(..736H/X))W",
+                                  "type": "number_literal"
+                                }
+                              }
+                            },
+                            "next": {
+                              "block": {
+                                "data": "{\"type\":\"say\",\"text\":\"First signal.\"}",
+                                "fields": {
+                                  "text": "First signal."
+                                },
+                                "id": "xgyMmN^^by{EA-~ewrvJ",
+                                "type": "luna_say"
+                              }
+                            },
+                            "type": "luna_update_variable"
+                          }
+                        },
+                        "type": "luna_move_character"
+                      }
+                    },
+                    "condition": {
+                      "block": {
+                        "data": "{\"type\":\"true\"}",
+                        "id": "1gD,ZvkL!pz0KeShcKWg",
+                        "type": "condition_true"
+                      }
+                    }
+                  },
+                  "type": "luna_routine_step"
+                }
+              }
+            },
+            "movable": false,
+            "type": "luna_routine",
+            "x": 24,
+            "y": 24
+          }
+        ],
+        "languageVersion": 0
+      }
+    }
+  },
+  "routes": {},
+  "templates": [],
+  "warning_acknowledgements": [
+    {
+      "warning_key": "aa3808afe8f6957ac635d0e13e40083900be983d59056c7d5eef57ca90c3e57c",
+      "subject": "lab-study",
+      "field": "pattern",
+      "message": "Exit command 'go study' overlaps with garden-study; inspect scope and priority",
+      "reason": "The same return command is scoped to mutually exclusive rooms; only the current room exit is eligible."
+    },
+    {
+      "warning_key": "4eccfe86a1765a98f8e20b652768d95ab5cf591d03fc36a04f66be32bf9ca97f",
+      "subject": "offstage",
+      "field": "exits",
+      "message": "Location is structurally unreachable from the start",
+      "reason": "Intentionally disconnected storage for characters and their carried objects; the player does not enter."
+    }
+  ],
+  "playtest": {
+    "setups": [
+      {
+        "version": 5,
+        "id": "d9b49644-488a-448f-9391-5f04bf1b27e5",
+        "name": "Patrol mid-wait",
+        "source": {
+          "revision": "86a4314f1ac3da0c2d9434565dd4c0dd9709ec0d4de5d217e15b0232e1aeceea",
+          "title": "The Routine Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 2,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "evening-patrol": {
+                "type": "running",
+                "cursor": {
+                  "step": "patrol-wait",
+                  "after": 1,
+                  "wait": {
+                    "captured": 2,
+                    "remaining": 1
+                  }
+                }
+              }
+            }
+          },
+          "game_id": "routine-workshop",
+          "content_version": "0.1.0",
+          "location": "garden",
+          "ending": null,
+          "variables": {
+            "attempts": 0,
+            "award_ready": false,
+            "bells": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "gate_enabled": true,
+            "rest_delay": 3,
+            "rewards": 0,
+            "signals": 0
+          },
+          "objects": {
+            "badge": {
+              "placement": {
+                "type": "character",
+                "character": "keeper"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "gate": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "garden",
+              "hidden": false
+            },
+            "steward": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "badge": {},
+            "garden": {},
+            "gate": {},
+            "keeper": {},
+            "lab": {},
+            "offstage": {},
+            "steward": {},
+            "study": {}
+          },
+          "visits": {
+            "garden": 1,
+            "lab": 0,
+            "offstage": 0,
+            "study": 1
+          },
+          "sequences": {
+            "award-response": 0,
+            "failed-response": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "3a86ee7a-02ae-44aa-a407-30f09c575f0c",
+        "name": "Conversation hold",
+        "source": {
+          "revision": "86a4314f1ac3da0c2d9434565dd4c0dd9709ec0d4de5d217e15b0232e1aeceea",
+          "title": "The Routine Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 3,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "evening-patrol": {
+                "type": "running",
+                "cursor": {
+                  "step": "patrol-wait",
+                  "after": 1,
+                  "wait": {
+                    "captured": 2,
+                    "remaining": 1
+                  }
+                }
+              }
+            }
+          },
+          "game_id": "routine-workshop",
+          "content_version": "0.1.0",
+          "location": "garden",
+          "ending": null,
+          "variables": {
+            "attempts": 0,
+            "award_ready": false,
+            "bells": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "gate_enabled": true,
+            "rest_delay": 3,
+            "rewards": 0,
+            "signals": 0
+          },
+          "objects": {
+            "badge": {
+              "placement": {
+                "type": "character",
+                "character": "keeper"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "gate": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "garden",
+              "hidden": false
+            },
+            "steward": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "badge": {},
+            "garden": {},
+            "gate": {},
+            "keeper": {},
+            "lab": {},
+            "offstage": {},
+            "steward": {},
+            "study": {}
+          },
+          "visits": {
+            "garden": 1,
+            "lab": 0,
+            "offstage": 0,
+            "study": 1
+          },
+          "sequences": {
+            "award-response": 0,
+            "failed-response": 0
+          },
+          "narrative": {
+            "active": "patrol-talk",
+            "conversations": {
+              "patrol-talk": {
+                "checkpoint": {
+                  "type": "entered",
+                  "node": "chat",
+                  "prompt": [
+                    {
+                      "text": "Keeper",
+                      "colour": null
+                    },
+                    {
+                      "text": " says: ",
+                      "colour": null
+                    },
+                    {
+                      "text": "I can hold my patrol while we talk.",
+                      "colour": null
+                    }
+                  ]
+                },
+                "visited": [
+                  "chat"
+                ],
+                "chosen": []
+              }
+            },
+            "quests": {},
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "b0a04ef4-341c-4482-a18f-f2f5f70c1c1b",
+        "name": "Manual pause during conversation",
+        "source": {
+          "revision": "86a4314f1ac3da0c2d9434565dd4c0dd9709ec0d4de5d217e15b0232e1aeceea",
+          "title": "The Routine Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 4,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "evening-patrol": {
+                "type": "paused",
+                "cursor": {
+                  "step": "patrol-wait",
+                  "after": 1,
+                  "wait": {
+                    "captured": 2,
+                    "remaining": 1
+                  }
+                }
+              }
+            }
+          },
+          "game_id": "routine-workshop",
+          "content_version": "0.1.0",
+          "location": "garden",
+          "ending": null,
+          "variables": {
+            "attempts": 0,
+            "award_ready": false,
+            "bells": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "gate_enabled": true,
+            "rest_delay": 3,
+            "rewards": 0,
+            "signals": 0
+          },
+          "objects": {
+            "badge": {
+              "placement": {
+                "type": "character",
+                "character": "keeper"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "gate": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "garden",
+              "hidden": false
+            },
+            "steward": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "badge": {},
+            "garden": {},
+            "gate": {},
+            "keeper": {},
+            "lab": {},
+            "offstage": {},
+            "steward": {},
+            "study": {}
+          },
+          "visits": {
+            "garden": 1,
+            "lab": 0,
+            "offstage": 0,
+            "study": 1
+          },
+          "sequences": {
+            "award-response": 0,
+            "failed-response": 0
+          },
+          "narrative": {
+            "active": "patrol-talk",
+            "conversations": {
+              "patrol-talk": {
+                "checkpoint": {
+                  "type": "entered",
+                  "node": "chat",
+                  "prompt": [
+                    {
+                      "text": "Keeper",
+                      "colour": null
+                    },
+                    {
+                      "text": " says: ",
+                      "colour": null
+                    },
+                    {
+                      "text": "I can hold my patrol while we talk.",
+                      "colour": null
+                    }
+                  ]
+                },
+                "visited": [
+                  "chat"
+                ],
+                "chosen": [
+                  "pause-chat"
+                ]
+              }
+            },
+            "quests": {},
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "712070d3-3597-4002-b08d-f26a015166af",
+        "name": "Gate blocked",
+        "source": {
+          "revision": "86a4314f1ac3da0c2d9434565dd4c0dd9709ec0d4de5d217e15b0232e1aeceea",
+          "title": "The Routine Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 1,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "evening-patrol": {
+                "type": "stopped"
+              },
+              "gate-patrol": {
+                "type": "running",
+                "cursor": {
+                  "step": "gate-garden",
+                  "after": 0,
+                  "wait": null
+                }
+              }
+            }
+          },
+          "game_id": "routine-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "attempts": 0,
+            "award_ready": false,
+            "bells": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "gate_enabled": true,
+            "rest_delay": 3,
+            "rewards": 0,
+            "signals": 0
+          },
+          "objects": {
+            "badge": {
+              "placement": {
+                "type": "character",
+                "character": "keeper"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "gate": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "study",
+              "hidden": false
+            },
+            "steward": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "badge": {},
+            "garden": {},
+            "gate": {},
+            "keeper": {},
+            "lab": {},
+            "offstage": {},
+            "steward": {},
+            "study": {}
+          },
+          "visits": {
+            "garden": 0,
+            "lab": 1,
+            "offstage": 0,
+            "study": 1
+          },
+          "sequences": {
+            "award-response": 0,
+            "failed-response": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "0b8cd081-f876-4b7f-ab55-41f3a360a056",
+        "name": "Night storage",
+        "source": {
+          "revision": "86a4314f1ac3da0c2d9434565dd4c0dd9709ec0d4de5d217e15b0232e1aeceea",
+          "title": "The Routine Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 2,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "evening-patrol": {
+                "type": "stopped"
+              },
+              "night-rest": {
+                "type": "running",
+                "cursor": {
+                  "step": "night-wait",
+                  "after": 1,
+                  "wait": {
+                    "captured": 3,
+                    "remaining": 2
+                  }
+                }
+              }
+            }
+          },
+          "game_id": "routine-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "attempts": 0,
+            "award_ready": false,
+            "bells": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "gate_enabled": true,
+            "rest_delay": 3,
+            "rewards": 0,
+            "signals": 0
+          },
+          "objects": {
+            "badge": {
+              "placement": {
+                "type": "character",
+                "character": "keeper"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "gate": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "offstage",
+              "hidden": false
+            },
+            "steward": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "badge": {},
+            "garden": {},
+            "gate": {},
+            "keeper": {},
+            "lab": {},
+            "offstage": {},
+            "steward": {},
+            "study": {}
+          },
+          "visits": {
+            "garden": 0,
+            "lab": 1,
+            "offstage": 0,
+            "study": 1
+          },
+          "sequences": {
+            "award-response": 0,
+            "failed-response": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "92786886-0ba7-4a8d-a37a-c6336f3e790e",
+        "name": "Conditional award armed",
+        "source": {
+          "revision": "86a4314f1ac3da0c2d9434565dd4c0dd9709ec0d4de5d217e15b0232e1aeceea",
+          "title": "The Routine Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 1,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "conditional-award": {
+                "type": "running",
+                "cursor": {
+                  "step": "award-step",
+                  "after": 1,
+                  "wait": null
+                }
+              },
+              "evening-patrol": {
+                "type": "running",
+                "cursor": {
+                  "step": "patrol-wait",
+                  "after": 1,
+                  "wait": null
+                }
+              }
+            }
+          },
+          "game_id": "routine-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "attempts": 0,
+            "award_ready": true,
+            "bells": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "gate_enabled": true,
+            "rest_delay": 3,
+            "rewards": 0,
+            "signals": 0
+          },
+          "objects": {
+            "badge": {
+              "placement": {
+                "type": "character",
+                "character": "keeper"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "gate": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "garden",
+              "hidden": false
+            },
+            "steward": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "badge": {},
+            "garden": {},
+            "gate": {},
+            "keeper": {},
+            "lab": {},
+            "offstage": {},
+            "steward": {},
+            "study": {}
+          },
+          "visits": {
+            "garden": 0,
+            "lab": 1,
+            "offstage": 0,
+            "study": 1
+          },
+          "sequences": {
+            "award-response": 0,
+            "failed-response": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "20332aa0-30fb-4a0f-9f3e-1241a59a5bf0",
+        "name": "Before late failure",
+        "source": {
+          "revision": "86a4314f1ac3da0c2d9434565dd4c0dd9709ec0d4de5d217e15b0232e1aeceea",
+          "title": "The Routine Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 0,
+            "pending": {
+              "audit-bell": {
+                "deadline": 1,
+                "source": {
+                  "root": "control-failing",
+                  "subject": "control-failing",
+                  "path": "effects.2"
+                }
+              }
+            }
+          },
+          "routines": {
+            "runs": {
+              "evening-patrol": {
+                "type": "stopped"
+              },
+              "failing": {
+                "type": "running",
+                "cursor": {
+                  "step": "failing-step",
+                  "after": 0,
+                  "wait": null
+                }
+              },
+              "z-first": {
+                "type": "running",
+                "cursor": {
+                  "step": "first-signal",
+                  "after": 0,
+                  "wait": null
+                }
+              }
+            }
+          },
+          "game_id": "routine-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "attempts": 0,
+            "award_ready": false,
+            "bells": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "gate_enabled": true,
+            "rest_delay": 3,
+            "rewards": 0,
+            "signals": 0
+          },
+          "objects": {
+            "badge": {
+              "placement": {
+                "type": "character",
+                "character": "keeper"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "gate": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "study",
+              "hidden": false
+            },
+            "steward": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "badge": {},
+            "garden": {},
+            "gate": {},
+            "keeper": {},
+            "lab": {},
+            "offstage": {},
+            "steward": {},
+            "study": {}
+          },
+          "visits": {
+            "garden": 0,
+            "lab": 1,
+            "offstage": 0,
+            "study": 1
+          },
+          "sequences": {
+            "award-response": 0,
+            "failed-response": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "0bb27be9-1c63-4b90-b44c-67697709b1d7",
+        "name": "Before routine ending",
+        "source": {
+          "revision": "86a4314f1ac3da0c2d9434565dd4c0dd9709ec0d4de5d217e15b0232e1aeceea",
+          "title": "The Routine Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 0,
+            "pending": {
+              "audit-bell": {
+                "deadline": 2,
+                "source": {
+                  "root": "control-finish",
+                  "subject": "control-finish",
+                  "path": "effects.2"
+                }
+              }
+            }
+          },
+          "routines": {
+            "runs": {
+              "after-ending": {
+                "type": "running",
+                "cursor": {
+                  "step": "suppressed-step",
+                  "after": 0,
+                  "wait": null
+                }
+              },
+              "ending": {
+                "type": "running",
+                "cursor": {
+                  "step": "ending-step",
+                  "after": 0,
+                  "wait": null
+                }
+              },
+              "evening-patrol": {
+                "type": "stopped"
+              }
+            }
+          },
+          "game_id": "routine-workshop",
+          "content_version": "0.1.0",
+          "location": "lab",
+          "ending": null,
+          "variables": {
+            "attempts": 0,
+            "award_ready": false,
+            "bells": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "gate_enabled": true,
+            "rest_delay": 3,
+            "rewards": 0,
+            "signals": 0
+          },
+          "objects": {
+            "badge": {
+              "placement": {
+                "type": "character",
+                "character": "keeper"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "gate": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "study",
+              "hidden": false
+            },
+            "steward": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "badge": {},
+            "garden": {},
+            "gate": {},
+            "keeper": {},
+            "lab": {},
+            "offstage": {},
+            "steward": {},
+            "study": {}
+          },
+          "visits": {
+            "garden": 0,
+            "lab": 1,
+            "offstage": 0,
+            "study": 1
+          },
+          "sequences": {
+            "award-response": 0,
+            "failed-response": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "51b38123-1bbd-4932-b342-e83a094c03d3",
+        "name": "Patrol complete",
+        "source": {
+          "revision": "86a4314f1ac3da0c2d9434565dd4c0dd9709ec0d4de5d217e15b0232e1aeceea",
+          "title": "The Routine Workshop",
+          "content_version": "0.1.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 5,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "evening-patrol": {
+                "type": "completed"
+              }
+            }
+          },
+          "game_id": "routine-workshop",
+          "content_version": "0.1.0",
+          "location": "study",
+          "ending": null,
+          "variables": {
+            "attempts": 0,
+            "award_ready": false,
+            "bells": 0,
+            "divisor": 0,
+            "ending_hooks": 0,
+            "gate_enabled": true,
+            "rest_delay": 3,
+            "rewards": 0,
+            "signals": 0
+          },
+          "objects": {
+            "badge": {
+              "placement": {
+                "type": "character",
+                "character": "keeper"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "gate": {
+              "placement": {
+                "type": "location",
+                "location": "lab"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            }
+          },
+          "characters": {
+            "keeper": {
+              "location": "study",
+              "hidden": false
+            },
+            "steward": {
+              "location": "lab",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "badge": {},
+            "garden": {},
+            "gate": {},
+            "keeper": {},
+            "lab": {},
+            "offstage": {},
+            "steward": {},
+            "study": {}
+          },
+          "visits": {
+            "garden": 0,
+            "lab": 0,
+            "offstage": 0,
+            "study": 1
+          },
+          "sequences": {
+            "award-response": 0,
+            "failed-response": 0
+          },
+          "hints": {}
+        }
+      }
+    ],
+    "checks": [
+      {
+        "id": "patrol-resume-check",
+        "name": "Resume a captured patrol without replay",
+        "start": {
+          "type": "setup",
+          "setup": "d9b49644-488a-448f-9391-5f04bf1b27e5"
+        },
+        "help_mode": null,
+        "steps": [
+          {
+            "command": "look",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "wait",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "wait",
+            "transcript": "The garden is quiet.",
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "wait",
+            "transcript": null,
+            "condition": {
+              "type": "routine_status",
+              "routine": "evening-patrol",
+              "status": "completed"
+            },
+            "completion": {
+              "type": "playing"
+            }
+          }
+        ]
+      },
+      {
+        "id": "routine-ending-check",
+        "name": "Ending clears pending work before its hook",
+        "start": {
+          "type": "setup",
+          "setup": "0bb27be9-1c63-4b90-b44c-67697709b1d7"
+        },
+        "help_mode": null,
+        "steps": [
+          {
+            "command": "wait",
+            "transcript": "The routine workshop is complete.",
+            "condition": {
+              "type": "variable",
+              "name": "ending_hooks",
+              "op": "eq",
+              "value": 1
+            },
+            "completion": {
+              "type": "ended",
+              "ending": "complete"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "id": "gate-patrol",
+  "name": "Patrol through the open gate",
+  "character": "keeper",
+  "order": 1,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "while",
+    "condition": {
+      "type": "variable",
+      "name": "gate_enabled",
+      "op": "eq",
+      "value": true
+    }
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "gate-garden",
+      "name": "Retry until the gate opens",
+      "condition": {
+        "type": "opened",
+        "object": "gate"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "keeper",
+          "location": "garden"
+        }
+      ]
+    },
+    {
+      "id": "gate-return",
+      "name": "Return and check whether to repeat",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "keeper",
+          "location": "study"
+        }
+      ]
+    }
+  ]
+}

@@ -192,6 +192,8 @@ export default function App() {
   const [showJournal, setShowJournal] = useState(false);
   const [showState, setShowState] = useState(false);
   const [busy, setBusy] = useState(false);
+  const commandFocus = useRef<{ submitted: Element | null; session: string } | null>(null);
+  const [commandCompletion, setCommandCompletion] = useState(0);
   const [history, setHistory] = useState<string[]>([]);
   const [historyAt, setHistoryAt] = useState(0);
   const [playSource, setPlaySource] = useState('');
@@ -204,6 +206,16 @@ export default function App() {
   const [, refreshHistory] = useState(0);
   const fieldSession = useRef(0);
   const creationTransaction = useRef<{ group: string; label: string } | null>(null);
+  useEffect(() => {
+    if (busy || !commandFocus.current) return;
+    const { submitted, session } = commandFocus.current;
+    commandFocus.current = null;
+    if (play?.session !== session) return;
+    // Run after React has enabled the input. An animation frame can precede
+    // that commit, and focusing a disabled input then has no effect in Firefox.
+    const active = document.activeElement;
+    if (!active || active === document.body || active === submitted) playerCommand.current?.focus();
+  }, [busy, commandCompletion, play?.session]);
   useEffect(() => {
     const nextSession = () => {
       fieldSession.current++;
@@ -750,14 +762,9 @@ export default function App() {
     } catch (e) {
       error(e);
     } finally {
+      commandFocus.current = { submitted: submittedFocus, session: play.session };
+      setCommandCompletion((n) => n + 1);
       setBusy(false);
-      requestAnimationFrame(() => {
-        // A command may finish after the author has moved to another control.
-        // Restore playtest focus only if that would not replace their new focus.
-        const active = document.activeElement;
-        if (!active || active === document.body || active === submittedFocus)
-          playerCommand.current?.focus();
-      });
     }
   };
   const create = async () => {

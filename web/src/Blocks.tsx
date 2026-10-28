@@ -2010,10 +2010,15 @@ export function syncEffectWorkspace(
   // Disconnect changed connections before reconnecting, keeping unchanged shadows intact.
   for (const [connection, child] of desired)
     if (connection.targetBlock() !== child && connection.isConnected()) {
-      connection.setShadowState(null);
       const previousChild = connection.targetBlock()!;
+      const generatedShadow =
+        previousChild.isShadow() && !previous.some(({ block }) => block === previousChild);
       if (previousChild.isShadow()) previousChild.setShadow(false);
+      // Clearing a live shadow's state disposes it. Make it a real block first
+      // so authored operands survive as drafts; discard only new placeholders.
+      connection.setShadowState(null);
       connection.disconnect();
+      if (generatedShadow) previousChild.dispose(false);
     }
   const connect = (connection: Blockly.Connection | null, target: Node | null) => {
     if (!connection || !target || connection.targetBlock() === target.block) return;

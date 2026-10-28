@@ -1,0 +1,44 @@
+{
+  "id": "z-first",
+  "name": "First author-ordered signal",
+  "character": "keeper",
+  "order": 10,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "first-signal",
+      "name": "First character",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "keeper",
+          "location": "lab"
+        },
+        {
+          "type": "update_variable",
+          "name": "signals",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "First signal."
+        }
+      ]
+    }
+  ]
+}

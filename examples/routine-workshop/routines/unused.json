@@ -1,0 +1,25 @@
+{
+  "id": "unused",
+  "name": "An unused routine is still exported",
+  "character": "steward",
+  "order": 40,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "unused-step",
+      "name": "Reserved for later authoring",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": []
+    }
+  ]
+}

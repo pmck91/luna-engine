@@ -115,20 +115,33 @@ test('a pending playtest command does not steal focus from authoring controls', 
   });
   const input = page.getByLabel('Player command', { exact: true });
   await expect(input).toBeEnabled();
-  await input.fill('use story');
+  // A held response must restore ordinary command focus after re-enabling it.
+  await input.fill('look');
   await input.press('Enter');
   await expect
     .poll(() =>
       page.evaluate(() => (window as typeof window & { heldCommands: number }).heldCommands),
     )
     .toBe(1);
+  await page.evaluate(() =>
+    (window as typeof window & { releaseCommand: () => void }).releaseCommand(),
+  );
+  await expect(input).toBeEnabled();
+  await expect(input).toBeFocused();
+  await input.fill('use story');
+  await input.press('Enter');
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as typeof window & { heldCommands: number }).heldCommands),
+    )
+    .toBe(2);
   const definition = page.getByRole('button', { name: /^Award .*Used by/ });
   await definition.focus();
   await page.evaluate(() =>
     (window as typeof window & { releaseCommand: () => void }).releaseCommand(),
   );
   await expect(input).toBeEnabled();
-  // Flush focus restoration scheduled with the response's animation frame.
+  // Let pending rendering settle before checking the author's retained focus.
   await page.evaluate(
     () =>
       new Promise<void>((resolve) =>

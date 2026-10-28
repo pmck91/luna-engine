@@ -1,0 +1,66 @@
+{
+  "id": "study",
+  "name": "Study",
+  "aliases": [],
+  "description": "Keeper begins here. Follow his short patrol with WAIT and GO GARDEN. GO LAB opens the optional experiments.",
+  "actions": [],
+  "triggers": [],
+  "exits": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "study-garden",
+      "name": "Visit garden without advancing time",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "garden"
+        }
+      ],
+      "destination": "garden",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "You enter the garden.",
+      "effects": []
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "study-lab",
+      "name": "Visit lab without advancing time",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "lab"
+        }
+      ],
+      "destination": "lab",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "You enter the lab.",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

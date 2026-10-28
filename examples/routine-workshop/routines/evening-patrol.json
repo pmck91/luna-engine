@@ -1,0 +1,86 @@
+{
+  "id": "evening-patrol",
+  "name": "Evening patrol",
+  "character": "keeper",
+  "order": 0,
+  "start": {
+    "type": "initial"
+  },
+  "repeat": {
+    "type": "finish"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "patrol-garden",
+      "name": "Move to Garden",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "keeper",
+          "location": "garden"
+        }
+      ]
+    },
+    {
+      "id": "patrol-wait",
+      "name": "Wait two turns",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": {
+        "type": "literal",
+        "value": 2
+      },
+      "effects": []
+    },
+    {
+      "id": "patrol-say",
+      "name": "Speak if visible",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "if",
+          "condition": {
+            "type": "visible",
+            "entity": "keeper"
+          },
+          "then": [
+            {
+              "type": "character_says",
+              "character": "keeper",
+              "text": "The garden is quiet."
+            }
+          ],
+          "otherwise": []
+        }
+      ]
+    },
+    {
+      "id": "patrol-study",
+      "name": "Return to Study",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "keeper",
+          "location": "study"
+        }
+      ]
+    }
+  ]
+}

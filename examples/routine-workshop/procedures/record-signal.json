@@ -1,0 +1,21 @@
+{
+  "id": "record-signal",
+  "name": "Record the signal",
+  "description": "The quest completion hook awards once, even if this procedure is called again.",
+  "inputs": [],
+  "effects": [
+    {
+      "type": "start_quest",
+      "quest": "workshop-task"
+    },
+    {
+      "type": "complete_quest_stage",
+      "quest": "workshop-task",
+      "stage": "signal-heard"
+    },
+    {
+      "type": "complete_quest",
+      "quest": "workshop-task"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "audit-bell",
+  "name": "Timer before routine work",
+  "order": 0,
+  "priority": 0,
+  "condition": {
+    "type": "true"
+  },
+  "effects": [
+    {
+      "type": "update_variable",
+      "name": "bells",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    },
+    {
+      "type": "say",
+      "text": "A timer sounded before the routines."
+    }
+  ]
+}

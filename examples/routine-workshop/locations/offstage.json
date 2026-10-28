@@ -1,0 +1,11 @@
+{
+  "id": "offstage",
+  "name": "Offstage storage",
+  "aliases": [],
+  "description": "An intentionally disconnected place to store Keeper and his badge. Only direct character movement uses this room.",
+  "actions": [],
+  "triggers": [],
+  "exits": [],
+  "state": {},
+  "hints": []
+}

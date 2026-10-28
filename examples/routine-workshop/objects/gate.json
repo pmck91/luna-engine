@@ -1,0 +1,80 @@
+{
+  "id": "gate",
+  "name": "Patrol gate",
+  "aliases": [
+    "gate"
+  ],
+  "description": "The optional gated routine requires this to be open. The demonstration gate does not restrict the player's exits.",
+  "placement": {
+    "type": "location",
+    "location": "lab"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": true,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "open-gate",
+      "name": "Allow Keeper's gated step",
+      "verb": "open",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "gate"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "open",
+          "object": "gate"
+        },
+        {
+          "type": "say",
+          "text": "The patrol gate is open."
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "close-gate",
+      "name": "Block Keeper's gated step",
+      "verb": "close",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "gate"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "close",
+          "object": "gate"
+        },
+        {
+          "type": "say",
+          "text": "The patrol gate is closed."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

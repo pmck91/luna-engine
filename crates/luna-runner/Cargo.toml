@@ -40,3 +40,7 @@ harness = false
 [[bench]]
 name = "turns"
 harness = false
+
+[[bench]]
+name = "routines"
+harness = false
