@@ -962,7 +962,6 @@ dependencies = [
  "chrono",
  "clap",
  "directories",
- "fs2",
  "luna-core",
  "luna-model",
  "luna-project",

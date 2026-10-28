@@ -456,6 +456,16 @@ impl<'a> Run<'a> {
             .reply(ci, ni, id)
             .context("Unknown offered reply")?;
         let reply = &c.nodes[ni].replies[ri];
+        if self.p.game.allow_player_undo {
+            self.undo_input = crate::session::undo::Initiator::Reply(
+                offer
+                    .replies
+                    .iter()
+                    .find(|r| r.id == id)
+                    .map(|r| luna_model::text::plain(&r.text))
+                    .expect("offered reply"),
+            );
+        }
         if self.p.game.turns.is_some() {
             self.timing.input = super::turns::TurnInput::Reply { reply: id.into() };
             self.timing.override_cost = reply.turn_cost;
@@ -555,6 +565,9 @@ impl<'a> Run<'a> {
         {
             ensure!(input.len() <= 4096, "Command is too long");
             self.pause_conversation(&id, false)?;
+            if self.p.game.allow_player_undo {
+                self.undo_input = crate::session::undo::Initiator::Pause;
+            }
             return Ok(true);
         }
         Ok(false)

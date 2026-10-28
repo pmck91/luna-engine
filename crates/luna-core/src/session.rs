@@ -6,6 +6,9 @@ use crate::{
 use anyhow::Result;
 use luna_model::{Condition, Event, GameState, Project, text};
 
+#[path = "undo/mod.rs"]
+pub(crate) mod undo;
+
 /// A playthrough with immutable authored content and validated mutable state.
 ///
 /// Commands commit their state and messages together. Hosts can borrow a state
@@ -25,6 +28,7 @@ pub struct Session {
     state: GameState,
     context: InteractionContext,
     offer: Option<crate::ConversationView>,
+    undo_history: Option<undo::History>,
 }
 impl Session {
     /// Validate authored content and start a fresh playthrough.
@@ -55,11 +59,17 @@ impl Session {
         location: Option<&str>,
     ) -> Result<(Self, CommandResult)> {
         let state = definition.initial_state(location)?;
+        let undo_history = definition
+            .project()
+            .game
+            .allow_player_undo
+            .then(undo::History::new);
         let mut session = Self {
             definition,
             state,
             context: InteractionContext::default(),
             offer: None,
+            undo_history,
         };
         let mut run = Run::new(&session.definition, session.state.clone());
         run.say(&session.definition.project().game.title)?;
@@ -86,6 +96,8 @@ impl Session {
         } = run;
         session.state = state.into_owned();
         session.offer = offer;
+        let mut result = result;
+        result.undo = session.enabled_undo_view();
         Ok((session, result))
     }
     /// Validate authored content and restore a compatible saved snapshot.
@@ -116,11 +128,17 @@ impl Session {
             run.prepare_conversation()?;
             run.offer
         };
+        let undo_history = definition
+            .project()
+            .game
+            .allow_player_undo
+            .then(undo::History::new);
         Ok(Self {
             definition,
             state,
             context: InteractionContext::default(),
             offer,
+            undo_history,
         })
     }
     /// Borrow the immutable game definition shared with save storage.
@@ -226,6 +244,9 @@ impl Session {
         self.state = state;
         self.context = InteractionContext::default();
         self.offer = offer;
+        if let Some(history) = &mut self.undo_history {
+            history.clear(crate::UndoUnavailableReason::StateReplaced);
+        }
         Ok(())
     }
 
@@ -320,6 +341,9 @@ impl Session {
         .0
     }
     fn execute(&mut self, input: &str, explain: bool) -> (CommandResult, Option<anyhow::Error>) {
+        if self.undo_history.is_some() && luna_model::normalize(input) == "undo" {
+            return self.execute_undo(input, explain);
+        }
         self.execute_with(input, explain, |run| run.command(input))
     }
 
@@ -359,6 +383,14 @@ impl Session {
         }
         if error.is_none() {
             run.result.state_changed = *run.state != self.state;
+            if let Some(history) = &mut self.undo_history
+                && let Some(reason) = history.commit(&self.state, &run.state, &run.undo_input)
+            {
+                run.result.messages.push(vec![text::Span {
+                    text: reason.notice().into(),
+                    colour: None,
+                }]);
+            }
             self.context = run.context;
             self.offer = run.offer;
             self.state = run.state.into_owned();
@@ -371,6 +403,7 @@ impl Session {
         run.result.conversation = self.offer.clone();
         run.result.turns = self.turn_view();
         run.result.routines = self.routine_view();
+        run.result.undo = self.enabled_undo_view();
         (run.result, error)
     }
 

@@ -1,0 +1,155 @@
+{
+  "id": "lab",
+  "name": "Undo lab",
+  "aliases": [
+    "lab"
+  ],
+  "description": "Optional: use arm, then pull console. Inspect the quest log, timers, routines and world state. Use failing arms a late failure; use repair fixes it. Talk keeper tests replies. Go workshop returns.",
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "lab-examine",
+      "name": "lab examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "lab"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "lab"
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "arm-lab",
+      "name": "arm lab",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "arm"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "arm-call",
+          "procedure": "prepare-lab",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "arm-failure",
+      "name": "arm failure",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "failing"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "call",
+          "id": "failing-arm-call",
+          "procedure": "prepare-lab",
+          "arguments": {}
+        },
+        {
+          "type": "set_variable",
+          "name": "divisor",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "repair-lab",
+      "name": "repair lab",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "literal",
+          "text": "repair"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "set_variable",
+          "name": "divisor",
+          "value": 1
+        },
+        {
+          "type": "say",
+          "text": "The timer is repaired. Pull console again."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "exits": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "to-workshop",
+      "name": "workshop",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "workshop",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "",
+      "text": "",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

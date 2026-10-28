@@ -25,6 +25,9 @@ pub use preferences::*;
 mod playtests;
 pub use playtests::*;
 
+#[cfg(test)]
+mod undo_tests;
+
 #[derive(Clone)]
 pub struct App {
     inner: Arc<Mutex<Workspace>>,
@@ -116,6 +119,16 @@ pub struct ReplyRequest {
     pub reply_id: String,
     #[serde(default)]
     pub explain: bool,
+}
+#[derive(Deserialize, TS)]
+pub struct UndoRequest {
+    #[serde(default)]
+    pub explain: bool,
+}
+#[derive(Serialize, TS)]
+pub struct PlayerUndoReview {
+    pub conflicts: Vec<String>,
+    pub upgrade_errors: Vec<Diagnostic>,
 }
 #[derive(Deserialize, TS)]
 pub struct StateRequest {
@@ -277,6 +290,7 @@ pub fn router(app: App) -> Router {
         .route("/projects/{handle}/export", post(export))
         .route("/projects/{handle}/assets", post(asset))
         .route("/validate", post(diagnostics))
+        .route("/player-undo-review", post(player_undo_review))
         .route("/templates/object-actions", post(object_actions))
         .route("/templates/container-actions", post(container_actions))
         .route("/playtests", post(start_playtest))
@@ -285,6 +299,7 @@ pub fn router(app: App) -> Router {
         .route("/playtests/{id}/capture", post(capture_setup))
         .route("/playtests/{id}/commands", post(command))
         .route("/playtests/{id}/replies", post(select_reply))
+        .route("/playtests/{id}/undo", post(undo_playtest))
         .route("/playtests/{id}/state", put(set_state))
         .layer(DefaultBodyLimit::max(storage::MAX_FILE as usize))
         .layer(middleware::from_fn_with_state(app.clone(), authorize));
@@ -559,6 +574,34 @@ async fn asset(
 async fn diagnostics(Json(p): Json<Project>) -> Json<Vec<Diagnostic>> {
     Json(validate(&p))
 }
+async fn player_undo_review(Json(mut p): Json<Project>) -> Json<PlayerUndoReview> {
+    let conflicts = player_undo_command_conflicts(&p);
+    let upgrade_errors = if p.game.format_version < 8 {
+        let before = validate(&p);
+        p.game.format_version = 8;
+        // Review other compatibility changes introduced by crossing older
+        // content boundaries separately from the exact undo collisions above.
+        p.game.allow_player_undo = false;
+        validate(&p)
+            .into_iter()
+            .filter(|d| {
+                d.severity == Severity::Error
+                    && !before.iter().any(|old| {
+                        old.severity == d.severity
+                            && old.subject == d.subject
+                            && old.field == d.field
+                            && old.message == d.message
+                    })
+            })
+            .collect()
+    } else {
+        vec![]
+    };
+    Json(PlayerUndoReview {
+        conflicts,
+        upgrade_errors,
+    })
+}
 async fn object_actions(Json(o): Json<Object>) -> Json<Vec<Action>> {
     Json(starter_actions(&o))
 }
@@ -631,6 +674,10 @@ async fn set_state(
         session: id,
         quest_log: current.runtime.quest_log(),
         result: CommandResult {
+            undo: {
+                let view = current.runtime.undo_view();
+                view.enabled.then_some(view)
+            },
             turns: current.runtime.turn_view(),
             routines: current.runtime.routine_view(),
             conversation: current.runtime.conversation_view().cloned(),
@@ -658,6 +705,29 @@ async fn select_reply(
         session
             .runtime
             .select_reply(&request.offer_token, &request.reply_id)?
+    };
+    Ok(Json(PlaytestView {
+        session: id,
+        quest_log: session.runtime.quest_log(),
+        result,
+        state: session.runtime.state().clone(),
+        source: session.source.clone(),
+    }))
+}
+async fn undo_playtest(
+    State(app): State<App>,
+    Path(id): Path<String>,
+    Json(request): Json<UndoRequest>,
+) -> Api<Json<PlaytestView>> {
+    let mut w = app.lock()?;
+    let session = w
+        .sessions
+        .get_mut(&id)
+        .context("Playtest expired; restart it")?;
+    let result = if request.explain {
+        session.runtime.undo_explained()
+    } else {
+        session.runtime.undo()?
     };
     Ok(Json(PlaytestView {
         session: id,

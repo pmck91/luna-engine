@@ -1,0 +1,110 @@
+{
+  "allow_player_undo": true,
+  "turns": {
+    "actions": true,
+    "replies": true,
+    "failed_requirements": false,
+    "look": false,
+    "hints": false
+  },
+  "id": "undo-workshop",
+  "title": "The Undo Workshop",
+  "description": "",
+  "author": "",
+  "format_version": 8,
+  "content_version": "0.1.0",
+  "starting_location": "workshop",
+  "opening_text": "Begin with take brass key, undo, then pull lever and undo. Taking and dropping are free. Go lab for optional experiments.",
+  "help_text": "Try take brass key, drop brass key, pull lever, push finish button, and undo. LOOK is free. The optional lab is reached with go lab.",
+  "unknown_command_text": "I couldn't match that command. Try help, or use a visible object's name.",
+  "command_assistance": {
+    "clarification": true,
+    "recent_objects": true,
+    "clarification_text": "Which do you mean?",
+    "retry_text": "Please choose one of the listed items.",
+    "unavailable_reference_text": "I can't tell what “it” refers to here. Use its full name."
+  },
+  "help_mode": "basic",
+  "hints_enabled": true,
+  "ignored_words": [
+    "a",
+    "an",
+    "the"
+  ],
+  "require_ending": false,
+  "variables": {
+    "bells": 0,
+    "coins": 0,
+    "dialogue_entries": 0,
+    "divisor": 1,
+    "ending_hooks": 0,
+    "lab_value": 0,
+    "lever_pulls": 0,
+    "reply_rewards": 0,
+    "routine_moves": 0,
+    "watches": 0
+  },
+  "endings": [
+    {
+      "id": "finished",
+      "name": "Workshop complete",
+      "text": "Workshop finished. Undo can return you to play.",
+      "outcome": null
+    }
+  ],
+  "actions": [],
+  "triggers": [
+    {
+      "id": "ending-hook",
+      "name": "Count ending once",
+      "event": "ending",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "ending_hooks",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "lab-watch",
+      "name": "Watch the lab value",
+      "event": "start",
+      "watch": {
+        "target": {
+          "type": "variable",
+          "name": "lab_value"
+        },
+        "mode": "becomes_true"
+      },
+      "priority": 0,
+      "condition": {
+        "type": "variable",
+        "name": "lab_value",
+        "op": "gt",
+        "value": 0
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "watches",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    }
+  ],
+  "assets": []
+}

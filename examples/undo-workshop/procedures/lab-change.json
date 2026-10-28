@@ -1,0 +1,41 @@
+{
+  "id": "lab-change",
+  "name": "Whole lab change",
+  "description": "One initiating action and its synchronous consequences form one point.",
+  "inputs": [],
+  "effects": [
+    {
+      "type": "update_variable",
+      "name": "lab_value",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    },
+    {
+      "type": "give",
+      "object": "brass-key"
+    },
+    {
+      "type": "respond",
+      "id": "lab-response",
+      "responses": [
+        "The console response advances once."
+      ],
+      "mode": "fallback",
+      "fallback": "The response is already known.",
+      "exhaustion": "once",
+      "on_exhausted": []
+    },
+    {
+      "type": "complete_quest_stage",
+      "quest": "lab-quest",
+      "stage": "lab-stage"
+    },
+    {
+      "type": "complete_quest",
+      "quest": "lab-quest"
+    }
+  ]
+}

@@ -30,7 +30,13 @@ impl<'a> Run<'a> {
             return Ok(());
         }
         self.timing.input = super::turns::TurnInput::Hint;
+        if self.p.game.allow_player_undo {
+            self.undo_input = crate::session::undo::Initiator::Hint;
+        }
         let Some(query) = query else {
+            if self.p.game.allow_player_undo {
+                self.literal("New clues and solutions stay known and clear earlier undo history.");
+            }
             let mut names = self
                 .p
                 .hint_owners()

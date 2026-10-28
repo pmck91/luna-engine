@@ -1,13 +1,12 @@
 //! Per-user installations and full-state player saves. No editor paths are used here.
 use anyhow::{Context, Result, ensure};
 use chrono::{DateTime, Utc};
-use fs2::FileExt;
 use luna_core::{GameDefinition, GameState};
 use luna_model::{Project, new_id, safe_id};
-use luna_project::{self as storage, atomic_write, confined};
+use luna_project::{self as storage, ExclusiveFileLock, atomic_write, confined};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{self, File, OpenOptions},
+    fs::{self, OpenOptions},
     path::{Path, PathBuf},
 };
 
@@ -158,7 +157,7 @@ impl Storage {
         );
         Ok(versions[0].clone())
     }
-    pub fn version_lock(&self, id: &str, version: &str) -> Result<File> {
+    pub fn version_lock(&self, id: &str, version: &str) -> Result<ExclusiveFileLock> {
         Self::identity(id, version)?;
         let path = confined(&self.games, &format!(".locks/{id}/{version}.lock"))?;
         fs::create_dir_all(path.parent().unwrap())?;
@@ -168,10 +167,9 @@ impl Storage {
             .read(true)
             .write(true)
             .open(path)?;
-        file.try_lock_exclusive().context(
+        ExclusiveFileLock::try_lock(file).context(
             "This game version is busy in another runner session or installation operation",
-        )?;
-        Ok(file)
+        )
     }
     pub fn prepare(&self, path: &Path) -> Result<PreparedImport> {
         let bytes = storage::read_bundle(path)?;
@@ -304,8 +302,7 @@ impl Storage {
             .read(true)
             .write(true)
             .open(parent.join(".write.lock"))?;
-        lock.try_lock_exclusive()
-            .context("Save directory is busy")?;
+        let _guard = ExclusiveFileLock::try_lock(lock).context("Save directory is busy")?;
         let now = Utc::now();
         let mut created_at = now;
         let label = name
@@ -690,6 +687,78 @@ mod tests {
         let record = storage.install(prepared, ExistingPolicy::Replace).unwrap();
         (temp, storage, record, p)
     }
+    #[test]
+    fn a_busy_save_directory_preserves_both_slots_and_can_be_used_after_unlock() {
+        let (_temp, store, record, project) = setup();
+        let (mut session, _) = Session::start(project, None).unwrap();
+        let slots = [None, Some("checkpoint")];
+        let originals = slots.map(|slot| {
+            store
+                .write_save(&record, session.definition(), session.state(), slot)
+                .unwrap();
+            let path = store
+                .slot_path(&record.game_id, &record.content_version, slot)
+                .unwrap();
+            let bytes = fs::read(&path).unwrap();
+            (path, bytes)
+        });
+        session.command("examine painting").unwrap();
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(originals[0].0.parent().unwrap().join(".write.lock"))
+            .unwrap();
+        let guard = ExclusiveFileLock::try_lock(file).unwrap();
+        for (slot, (path, bytes)) in slots.into_iter().zip(&originals) {
+            let error = store
+                .write_save(&record, session.definition(), session.state(), slot)
+                .unwrap_err();
+            assert!(error.to_string().contains("Save directory is busy"));
+            assert_eq!(fs::read(path).unwrap(), *bytes);
+        }
+        drop(guard);
+        for slot in slots {
+            store
+                .write_save(&record, session.definition(), session.state(), slot)
+                .unwrap();
+            let saved = store
+                .load_save(&record, session.definition(), slot)
+                .unwrap();
+            assert_eq!(&saved.state, session.state());
+        }
+    }
+
+    #[test]
+    fn an_active_version_guard_prevents_installation_and_removal() {
+        let (_temp, store, record, _) = setup();
+        let guard = store
+            .version_lock(&record.game_id, &record.content_version)
+            .unwrap();
+        let fixture =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.fixtures/locked-study.luna");
+        let prepared = store.prepare(&fixture).unwrap();
+        let error = store
+            .install(prepared, ExistingPolicy::Replace)
+            .unwrap_err();
+        assert!(error.to_string().contains("This game version is busy"));
+        let error = store
+            .remove(&record.game_id, &record.content_version, false)
+            .unwrap_err();
+        assert!(error.to_string().contains("This game version is busy"));
+        assert_eq!(
+            store
+                .record(&record.game_id, &record.content_version)
+                .unwrap()
+                .directory,
+            record.directory
+        );
+        store.load_game(&record).unwrap();
+        drop(guard);
+        store
+            .remove(&record.game_id, &record.content_version, false)
+            .unwrap();
+    }
+
     #[test]
     fn imported_editor_fixture_saves_everything() {
         let (_temp, store, record, p) = setup();

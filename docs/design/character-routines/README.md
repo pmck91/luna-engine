@@ -1,6 +1,6 @@
 # Character routines — design review
 
-Status: **CR0–CR3 accepted; CR4 technical verification complete and ready for owner review**, 28 October 2026. Work is on `feature/character-routines` from merged `main 1275cc5`. The [CR0–CR4 plan](../../plans/character-routines.md) defines the scope, proof and acceptance gates. See the [shared contract](shared-contract.md) and [native/model evidence](runtime-proof-review.md). The [CR2 foundation](foundation-review.md) integrates native execution, content/save 7/setup 5 and host storage; the [CR3 production authoring review](authoring-review.md) provides the owner-accepted working slice committed as `6ec3c6e`. The [CR4 review](final-review.md) records the separate Routine Workshop, release measurements and full verification; final owner acceptance remains open. The preview below remains an isolated interaction illustration.
+Status: **CR0–CR4 complete, accepted and merged as `d5b927c` (PR #7)**, 28 October 2026. Work started on `feature/character-routines` from `main 1275cc5`. The [plan](../../plans/character-routines.md), [shared contract](shared-contract.md), [native/model evidence](runtime-proof-review.md), [foundation review](foundation-review.md) and [production authoring review](authoring-review.md) retain the design and implementation history. The [CR4 review](final-review.md) records the separate Routine Workshop, release measurements, full verification and merge. The preview below remains the isolated CR0 interaction illustration.
 
 ## Open the interactive preview
 

@@ -1,0 +1,33 @@
+{
+  "id": "lab-bell",
+  "name": "Lab bell",
+  "order": 0,
+  "priority": 0,
+  "condition": {
+    "type": "true"
+  },
+  "effects": [
+    {
+      "type": "update_variable",
+      "name": "bells",
+      "op": "add",
+      "operand": {
+        "type": "literal",
+        "value": 1
+      }
+    },
+    {
+      "type": "update_variable",
+      "name": "bells",
+      "op": "divide",
+      "operand": {
+        "type": "variable",
+        "name": "divisor"
+      }
+    },
+    {
+      "type": "say",
+      "text": "The lab bell rings once."
+    }
+  ]
+}

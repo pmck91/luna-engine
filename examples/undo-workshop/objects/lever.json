@@ -1,0 +1,99 @@
+{
+  "id": "lever",
+  "name": "lever",
+  "aliases": [],
+  "description": "Pulls: %lever_pulls%. Pulling spends one turn. Undo restores both the counter and the clock.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "default"
+      },
+      "id": "lever-examine",
+      "name": "lever examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "lever"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "lever"
+        }
+      ]
+    },
+    {
+      "id": "pull-lever",
+      "name": "pull lever",
+      "verb": "pull",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "lever"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "",
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "lever_pulls",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "The lever clicks. Pulls: %lever_pulls%."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": [
+    {
+      "id": "lever-hints",
+      "name": "Trying the lever",
+      "available": {
+        "type": "true"
+      },
+      "solved": {
+        "type": "false"
+      },
+      "stages": [
+        {
+          "id": "lever-clue",
+          "name": "One clue",
+          "condition": {
+            "type": "true"
+          },
+          "clues": [
+            "Pull the lever, then try undo. Looking around does not spend a turn."
+          ],
+          "solution": "Type pull lever, then undo. The counter and clock return together."
+        }
+      ]
+    }
+  ]
+}

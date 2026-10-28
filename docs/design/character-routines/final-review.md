@@ -1,6 +1,6 @@
 # CR4 — character routine acceptance review
 
-Status: **technical verification complete; commit/push authorized** on `feature/character-routines`, 28 October 2026. CR3 was owner accepted and committed as `6ec3c6e`. The owner requested delivery with “ok push the changes”; final PR review and merge remain pending. The [plan](../../plans/character-routines.md), [contract](shared-contract.md) and [working authoring review](authoring-review.md) provide design and implementation context.
+Status: **CR4 complete, accepted and merged as `d5b927c` (PR #7)**, 28 October 2026. CR3 is committed as `6ec3c6e`; CR4 is committed as `9e436e8`. The owner requested delivery and confirmed completion after merge. The [plan](../../plans/character-routines.md), [contract](shared-contract.md) and [working authoring review](authoring-review.md) provide design and implementation context.
 
 ## Progressive example and native boundaries
 
@@ -61,4 +61,4 @@ Completed checks:
 - Linux release package and expanded smoke pass outside the repository with development tools removed from child PATH. The embedded HTML/entry script match the fresh build while `web/dist` is hidden. The packaged editor export matches the checked workshop manifest, excludes editor data and retains unused definitions. Native setup/check restores and independent runner saves cover holds, manual pause/resume, captured waits, blocked requirements, offstage inventory, author order, once-only rewards, late rollback, corrupt-file preservation and ending. Fresh-project smoke assertions now correctly expect save 7/setup 5; explicit legacy fixtures retain their earlier versions.
 - Changed local documentation links and diff whitespace pass. Package scripts parse.
 
-The owner authorized committing and pushing CR4 on 28 October 2026 with “ok push the changes.” Final PR review and merge remain open. The short patrol walkthrough and optional lab cases support that review. Public user guides remain deferred to the planned documentation site.
+The owner authorized committing and pushing CR4 on 28 October 2026 with “ok push the changes.” CR4 was committed as `9e436e8` and merged as `d5b927c` (PR #7), confirmed by the owner and GitHub on 28 October 2026. The short patrol walkthrough and optional lab cases support that review. Public user guides remain deferred to the planned documentation site.

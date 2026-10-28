@@ -35,11 +35,12 @@ The [crate overview](../crates/luna-core/src/lib.rs) demonstrates validation, co
 | Host controls          | `CommandResult.control` asks the host to save/load/list/quit. The core performs no storage or process control.                                                                                       |
 | Saved snapshots        | `definition.validate_state` checks identity/version, exact required sets/types, placements, and progress against cached schemas. Hosts handle fingerprints and save envelopes separately.            |
 | Restore or debug edits | `restore_with_definition` creates a session; `replace_state` replaces an existing session's complete state. Both validate without replaying events or messages.                                      |
+| Player undo            | `undo_view` supplies native availability; `undo` / `undo_explained` restore one complete point without gameplay execution. Exact text `undo` is intercepted only for opted-in games. |
 | Inspection             | `state`, `description`, `resume_messages`, `test_condition`, `turn_view`, `quest_log`, and `conversation_view` read current state. They do not advance visits, response sequences, or hint progress. |
 
 Use `Session::start(project, ...)` or `Session::restore(project, state)` when the caller has arbitrary untrusted content and no reusable definition. Repeated operations should share a definition. To change authored content, clone `project()`, edit it, and construct a new validated definition. Existing sessions retain their original definition and indexes.
 
-The Rust API uses `session.state()` for borrowed reads, `session.state().clone()` followed by `replace_state(edited)?` for edits, and `into_state()` for ownership transfer. Command status comparisons use `CommandStatus` variants; the seven serialized strings remain unchanged. Content/save formats 1–7 are readable. New projects use content/save 7 with explicit assistance defaults and turns disabled until enabled. Existing content-1 games retain save 2, content-2/3 games retain save 3, and content-4/5/6 games retain their respective save versions. Captured setup formats 1–5 have explicit readers; setup 4 adds pending timers and setup 5 adds routine progress. Enabling turns requires a fresh clock-bearing playthrough rather than inferring elapsed time from an earlier save. Parser assistance upgrades preserve compatible story saves and clear interaction context on successful load/state replacement. See the [parser contract](design/parser-context/shared-contract.md) and [P2 verification](design/parser-context/p2-review.md). The [container shared contract](design/containers/shared-contract.md) describes the explicit upgrade, relationship rules, and implemented authoring controls. Container user guides/public reference pages belong to the later documentation-site milestone.
+The Rust API uses `session.state()` for borrowed reads, `session.state().clone()` followed by `replace_state(edited)?` for edits, and `into_state()` for ownership transfer. Command status comparisons use `CommandStatus` variants; the seven serialized strings remain unchanged. Content formats 1–8 and save formats 1–7 are readable. New projects use content 8/save 7 with explicit assistance defaults, turns disabled and player undo off until enabled. Existing content-1 games retain save 2, content-2/3 games retain save 3, and content-4/5/6 games retain their respective save versions. Captured setup formats 1–5 have explicit readers; setup 4 adds pending timers and setup 5 adds routine progress. Enabling turns requires a fresh clock-bearing playthrough rather than inferring elapsed time from an earlier save. Parser assistance upgrades preserve compatible story saves and clear interaction context on successful load/state replacement. See the [parser contract](design/parser-context/shared-contract.md) and [P2 verification](design/parser-context/p2-review.md). The [container shared contract](design/containers/shared-contract.md) describes the explicit upgrade, relationship rules, and implemented authoring controls. Container user guides/public reference pages belong to the later documentation-site milestone.
 
 ## Run verification
 
@@ -152,3 +153,32 @@ cargo bench -p luna-runner --offline --bench routines -- 100 1000 5000
 The routine benchmark uses populated worlds with 100/1,000/5,000 commands and objects, distributed rooms, character properties/inventories and 32 earned quest journals. It compares no clock, empty scheduling, 1,024 idle/paused definitions, 64/256 entered waits, 64/256 due characters and a rejected 1,024-character batch. Preparation is outside tick timing; paused states are synthetic validated captures, while entered waits and journals are earned by native execution. Restoring each due snapshot is outside its measured attempt. Definition/startup, normal/explained ticks, unknown commands, native views, validation, restore, JSON size and overwrite saves are separate rows.
 
 Run alone and interpret timings as observations, with no CI thresholds. The [CR4 review](design/character-routines/final-review.md) links raw release data and practical limits: normal scheduling remains small, detailed per-effect explanations repeatedly copy/diff populated state and can take seconds in a large simultaneous batch, and all callbacks retain the shared budget. Saves measured on tmpfs exclude physical-disk latency. The permanent native test compares normal/explained/API/exported/installed execution and every save boundary; both-browser acceptance and packaged smoke verify real process restoration, holds, pause, offstage inventory, ordering, rollback and ending. Ordinary tests never rewrite examples; the fixture guide documents the explicit refresh switch.
+
+## Player undo foundation
+
+On `feature/player-undo`, U1 is committed as `eca623f`; the [U2 foundation review](design/player-undo/foundation-review.md) records its promotion into ordinary builds. There is no research feature to enable. The canonical `Game.allow_player_undo` Boolean defaults false and is omitted when false. Enabling it requires explicit content 8 and a collision-free `player_undo_command_conflicts` check. Existing authored bare `undo` commands retain their meaning when disabled. The [U3 review](design/player-undo/authoring-review.md) covers the production Player assistance setting/upgrade dialog, separate playtest control and owner-review walkthrough.
+
+Session owns at most 20 complete compact snapshots and 16 MiB of retained payload. Native `undo_view()` and optional `CommandResult.undo` give authoritative count, latest literal label and reason. `undo()` or enabled text `undo` returns `undo_result`; explained restoration has one source-free typed observation and bounded world diffs. `POST /api/v1/playtests/{id}/undo` accepts `{ "explain": true }` or `{}` and returns the normal refreshed PlaytestView. Hosts never maintain another snapshot list.
+
+Newly revealed hints stay known and clear history. Successful loads/debug replacement clear history; failed loads preserve it; saves preserve it in memory. History and policy are absent from GameState, save 7 and captured setup 5. The runner autosaves a successful undo through its ordinary state-change path and preserves named slots. `undo_payload_bytes()` is a diagnostic for encoded retained bytes, excluding worlds/allocator overhead, not a total-memory guarantee.
+
+Focused regressions and the production measurement entry point:
+
+```sh
+cargo test -p luna-core --lib undo::tests --jobs 2
+cargo test -p luna-model --test undo
+cargo test -p luna-project --test undo
+cargo test -p luna-editor --lib undo_tests --jobs 2
+cargo test -p luna-runner --test undo --jobs 2
+cargo bench -p luna-runner --bench undo --jobs 2
+```
+
+The [U1 release CSV](design/player-undo/captures/measurements.csv) remains historical evidence from `eca623f`. The [U4 review](design/player-undo/final-review.md) records 132 fresh production observations, including off/on command/WAIT/inspection, retained payload, restore/save and explanation costs. Run measurement workloads without concurrent browsers/builds. Detailed routine explanations retain the existing full-world-diff scaling limit; large routine-heavy games can turn Record explanations off for ordinary iteration. The permanent [Undo Workshop](../examples/undo-workshop/ACCEPTANCE.md) has eight setup-5 checkpoints, three saved checks and a checked content-8 export; normal acceptance never rewrites it. Public guides remain deferred.
+
+```sh
+cargo test -p luna-editor --test undo_workshop --jobs 2
+cd web
+npx --no-install playwright test tests/e2e/undo-workshop.spec.ts
+```
+
+The authoring UI uses protected `POST /api/v1/player-undo-review` with the current Project. Its generated `PlayerUndoReview` returns canonical collision IDs and additional errors introduced by crossing older content boundaries. Pending/failed/stale reviews cannot apply an upgrade. `CheckRun.undo` supplies final native availability independently of the last step result, so opening a failed check continues with the correct history. Six `player-undo.spec.ts` browser journeys cover authoring, separate histories, endings, saved boundaries, clock/routine/timer panels, conversation/quest/hints, focus and native failure paths in both browsers.

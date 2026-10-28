@@ -153,6 +153,9 @@ impl Project {
     /// content and saved editor setups/templates. This does not upgrade content
     /// or perform semantic validation; saving unfinished authoring is supported.
     pub fn minimum_format(&self) -> u32 {
+        if self.game.allow_player_undo {
+            return 8;
+        }
         if self.requires_routine_format() {
             return 7;
         }

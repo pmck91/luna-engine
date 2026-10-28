@@ -1,6 +1,5 @@
 //! Canonical projects, conflict-aware recoverable writes, and the editor's bundle contract.
 use anyhow::{Context, Result, ensure};
-use fs2::FileExt;
 use luna_model::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -12,6 +11,9 @@ use std::{
 };
 pub const MAX_FILE: u64 = 64 * 1024 * 1024;
 pub const MAX_BUNDLE: u64 = 256 * 1024 * 1024;
+
+mod file_lock;
+pub use file_lock::ExclusiveFileLock;
 
 pub fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
@@ -146,6 +148,10 @@ fn load_unlocked(root: &Path) -> Result<Project> {
     };
     project.timers.sort_by_key(|timer| timer.order);
     project.routines.sort_by_key(|routine| routine.order);
+    ensure!(
+        header.format_version >= 8 || !project.game.allow_player_undo,
+        "Player undo requires an explicit upgrade to content format 8"
+    );
     ensure!(
         header.format_version >= 7 || project.minimum_format() < 7,
         "Routines require content format 7"
@@ -305,7 +311,7 @@ pub fn project_files(p: &Project, editor: bool) -> Result<BTreeMap<String, Strin
     }
     Ok(files)
 }
-fn write_lock(root: &Path) -> Result<File> {
+fn write_lock(root: &Path) -> Result<ExclusiveFileLock> {
     let path = root.join(".luna-write.lock");
     ensure!(!path.is_symlink(), "Unsafe project lock");
     let file = OpenOptions::new()
@@ -314,9 +320,7 @@ fn write_lock(root: &Path) -> Result<File> {
         .read(true)
         .write(true)
         .open(path)?;
-    file.try_lock_exclusive()
-        .context("Project is busy in another operation")?;
-    Ok(file)
+    ExclusiveFileLock::try_lock(file).context("Project is busy in another operation")
 }
 #[derive(Serialize, Deserialize)]
 struct Change {

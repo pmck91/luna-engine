@@ -891,6 +891,18 @@ pub fn validate(p: &Project) -> Vec<Diagnostic> {
         )
     }
     let version_parts = game.content_version.split('.').collect::<Vec<_>>();
+    if game.allow_player_undo {
+        if game.format_version < 8 {
+            c.error(
+                &game.id,
+                "allow_player_undo",
+                "Player undo requires an explicit upgrade to content format 8",
+            );
+        }
+        for id in player_undo_command_conflicts(p) {
+            c.error(&id, "pattern", "The exact command undo is reserved while player undo is enabled. Rename this command or disable player undo in Game settings.");
+        }
+    }
     if version_parts.len() != 3
         || version_parts
             .iter()

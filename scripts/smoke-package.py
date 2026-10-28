@@ -159,10 +159,73 @@ def main():
             # New-game defaults and the permanent parser fixture use the packaged
             # API/export, not a handwritten runner-only substitute.
             fresh = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser defaults"})
-            assert fresh["project"]["game"]["format_version"] == 7
+            assert fresh["project"]["game"]["format_version"] == 8
             assert fresh["project"]["game"].get("turns") is None
+            assert not fresh["project"]["game"].get("allow_player_undo", False)
             assert fresh["project"]["game"]["command_assistance"]["clarification"]
             assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
+            assert api("player-undo-review", "POST", fresh["project"]) == {
+                "conflicts": [], "upgrade_errors": [],
+            }
+
+            # U2 is ordinary release code: canonical opt-in, native HTTP undo,
+            # setup-5 restore, exported/installed CLI and session-local history.
+            undo_project = json.loads(json.dumps(fresh["project"]))
+            undo_game = undo_project["game"]
+            undo_game["allow_player_undo"] = True
+            undo_game["variables"] = {"counter": 0}
+            undo_game["actions"] = [{
+                "id": "undo-lever", "name": "Pull lever", "verb": "use",
+                "pattern": [{"type": "literal", "text": "lever"}],
+                "effects": [{"type": "update_variable", "name": "counter", "op": "add",
+                             "operand": {"type": "literal", "value": 1}}],
+            }]
+            api(f"projects/{fresh['handle']}", "PUT", {
+                "project": undo_project, "revision": fresh["revision"],
+            })
+            undo_start = api("playtests", "POST", {"project": undo_project})
+            undo_session = undo_start["session"]
+            changed = api(f"playtests/{undo_session}/commands", "POST", {"command": "use lever"})
+            assert changed["result"]["undo"]["available"] == 1
+            undo_setup = api(f"playtests/{undo_session}/capture", "POST", {"name": "Changed lever"})
+            assert undo_setup["version"] == 5 and "undo_history" not in undo_setup["state"]
+            restored = api(f"playtests/{undo_session}/undo", "POST", {"explain": True})
+            assert restored["state"] == undo_start["state"]
+            assert restored["result"]["undo_result"] == {"type": "restored", "command": "use lever"}
+            assert restored["result"]["undo"]["available"] == 0
+            assert restored["result"]["selected_flow"] is None
+            assert restored["result"]["explanation"]["steps"][0]["kind"]["type"] == "undo"
+            assert restored["result"]["explanation"]["steps"][0]["source"] is None
+            reopened = api("playtests", "POST", {"project": undo_project, "setup": undo_setup})
+            assert reopened["state"] == changed["state"]
+            assert reopened["result"]["undo"]["available"] == 0
+            undo_check = api("playtests/checks", "POST", {"project": undo_project, "check": {
+                "id": "undo-check", "name": "Change and undo", "start": {"type": "fresh"},
+                "steps": [{"command": "use lever"}, {"command": "undo"}],
+            }})
+            assert undo_check["passed"] and undo_check["undo"]["available"] == 0
+            assert undo_check["state"] == undo_start["state"]
+            undo_bundle = work / "undo-from-editor.luna"
+            undo_bundle.write_bytes(api(f"projects/{fresh['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(undo_bundle) as exported:
+                assert json.loads(exported.read("manifest.json"))["format_version"] == 8
+                assert json.loads(exported.read("game.json"))["allow_player_undo"]
+            run(["import", str(undo_bundle)], profile="undo")
+            transcript = run(["run", undo_game["id"], "--new"],
+                             "help\nuse lever\nsave taken\nundo\nquit\n", profile="undo")
+            assert "UNDO" in transcript and "Undid “use lever”." in transcript, transcript
+            undo_saves = work / "undo/saves" / undo_game["id"] / undo_game["content_version"]
+            undo_auto = undo_saves / "autosave.json"
+            auto_bytes = undo_auto.read_bytes()
+            restored_save = json.loads(auto_bytes)
+            assert restored_save["save_format"] == 7 and restored_save["state"] == undo_start["state"]
+            named = next(undo_saves.glob("named-*.json"))
+            named_bytes = named.read_bytes()
+            assert json.loads(named_bytes)["state"] == changed["state"]
+            transcript = run(["run", undo_game["id"], "--load", "taken"], "undo\nquit\n", profile="undo")
+            assert "Undid" not in transcript, transcript
+            assert named.read_bytes() == named_bytes and undo_auto.read_bytes() == auto_bytes
+
             gallery = api("open", "POST", {"folder": "parser-gallery"})
             gallery_game = gallery["project"]["game"]
             gallery_bundle = work / "gallery-from-editor.luna"
@@ -730,6 +793,66 @@ def main():
                 input="quit\n", text=True, capture_output=True, env=env, cwd=work, timeout=15)
             assert rejected.returncode != 0 and damaged_path.read_bytes() == damaged_bytes
 
+            # Permanent U4 content: actual editor export, empty-history setup
+            # restores, whole-action rollback/restoration and independent CLI slots.
+            undo_workshop = api("open", "POST", {"folder": "undo-workshop"})
+            undo_content = undo_workshop["project"]
+            undo_content_game = undo_content["game"]
+            assert undo_content_game["format_version"] == 8 and undo_content_game["allow_player_undo"]
+            undo_export = work / "undo-workshop-from-editor.luna"
+            undo_export.write_bytes(api(f"projects/{undo_workshop['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(undo_export) as exported, zipfile.ZipFile(package / "examples/undo-workshop.luna") as checked:
+                assert json.loads(exported.read("manifest.json")) == json.loads(checked.read("manifest.json"))
+                assert not any(name.startswith("editor/") for name in exported.namelist())
+            undo_setups = {setup["name"]: setup for setup in undo_content["editor"]["playtest"]["setups"]}
+            assert len(undo_setups) == 8
+            for setup in undo_setups.values():
+                assert setup["version"] == 5 and "undo_history" not in setup["state"]
+                restored = api("playtests", "POST", {"project": undo_content, "setup": setup})
+                assert restored["state"] == setup["state"] and restored["result"]["undo"]["available"] == 0
+            for check in undo_content["editor"]["playtest"]["checks"]:
+                assert api("playtests/checks", "POST", {"project": undo_content, "check": check, "explain": True})["passed"]
+            def undo_restore(name):
+                return api("playtests", "POST", {"project": undo_content, "setup": undo_setups[name]})
+            def undo_command(view, command):
+                return api(f"playtests/{view['session']}/commands", "POST", {"command": command, "explain": True})
+            armed = undo_restore("Lab armed")
+            changed = undo_command(armed, "pull console")
+            assert changed["state"]["variables"]["coins"] == 10
+            assert all(changed["state"]["variables"][key] == 1 for key in ["lab_value", "watches", "bells", "routine_moves"])
+            undone = api(f"playtests/{armed['session']}/undo", "POST", {})
+            assert undone["state"] == armed["state"] and undone["result"]["undo"]["available"] == 0
+            failure = undo_restore("Before late failure")
+            failed = undo_command(failure, "pull console")
+            assert failed["result"]["status"] == "error" and failed["state"] == failure["state"]
+            run(["import", str(undo_export)], profile="undo-workshop")
+            undo_workshop_saves = work / "undo-workshop/saves" / undo_content_game["id"] / undo_content_game["content_version"]
+            def undo_saved(label):
+                return next(json.loads(path.read_text()) for path in undo_workshop_saves.glob("*.json")
+                            if json.loads(path.read_text())["label"] == label)
+            transcript = run(["run", undo_content_game["id"], "--new"],
+                             "take brass key\nsave carrying\nundo\nsave empty\nquit\n", profile="undo-workshop")
+            assert "Undid “take brass key”." in transcript
+            assert undo_saved("empty")["state"]["turns"]["turn"] == 0
+            assert undo_saved("empty")["state"]["objects"]["brass-key"]["placement"]["type"] == "location"
+            run(["run", undo_content_game["id"], "--new"],
+                "go lab\nuse arm\nsave armed\npull console\nsave changed\nundo\nsave undone\nquit\n", profile="undo-workshop")
+            assert undo_saved("changed")["state"] == changed["state"]
+            assert undo_saved("undone")["state"] == armed["state"]
+            assert undo_saved("undone")["save_format"] == 7
+            transcript = run(["run", undo_content_game["id"], "--load", "changed"],
+                             "undo\nsave unchanged\nquit\n", profile="undo-workshop")
+            assert "Undid" not in transcript and undo_saved("unchanged")["state"] == changed["state"]
+            transcript = run(["run", undo_content_game["id"], "--new"],
+                             "pull lever\npush finish button\nsave ended\nundo\nsave playing\nquit\n", profile="undo-workshop")
+            assert "Undid “push finish button”." in transcript and "Outcome:" not in transcript
+            assert undo_saved("ended")["state"] == undo_setups["Completed game"]["state"]
+            assert undo_saved("playing")["state"]["ending"] is None
+            assert undo_saved("playing")["state"]["variables"]["ending_hooks"] == 0
+            run(["run", undo_content_game["id"], "--new"],
+                "pull lever\n" * 25 + "undo\n" * 20 + "save bounded\nquit\n", profile="undo-workshop")
+            assert undo_saved("bounded")["state"]["variables"]["lever_pulls"] == 5
+
             # Exercise optional outcomes through the packaged editor's actual export,
             # then resume that completed game using the packaged runner.
             created = api("projects", "POST", {"folder": "smoke-outcome", "title": "No outcome"})
@@ -774,7 +897,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, Timer Workshop callbacks/rollback/quests/endings, Routine Workshop holds/pauses/waits/order/offstage/rollback/corruption/endings, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, player undo/content-8/session history and Undo Workshop, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, Timer Workshop callbacks/rollback/quests/endings, Routine Workshop holds/pauses/waits/order/offstage/rollback/corruption/endings, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

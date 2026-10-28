@@ -14,6 +14,8 @@ mod state;
 pub use state::*;
 mod turns;
 pub use turns::*;
+mod undo;
+pub use undo::*;
 pub mod text;
 mod validation;
 pub use command_words::EntityWords;
@@ -23,7 +25,7 @@ use ts_rs::TS;
 pub use validation::*;
 
 /// Latest writable content format; format 1 retains its legacy flat semantics.
-pub const FORMAT_VERSION: u32 = 7;
+pub const FORMAT_VERSION: u32 = 8;
 /// Whether a content header is understood, before parsing versioned variants.
 pub fn supported_format(version: u32) -> bool {
     (1..=FORMAT_VERSION).contains(&version)
@@ -653,6 +655,10 @@ pub struct Ending {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Game {
+    /// Opt-in session-local player history; requires an explicit content-8 upgrade.
+    #[serde(default, skip_serializing_if = "is_false")]
+    #[ts(as = "Option<bool>", optional)]
+    pub allow_player_undo: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub turns: Option<TurnPolicy>,
@@ -927,6 +933,9 @@ impl<'de> Deserialize<'de> for Project {
 fn hints_enabled_default() -> bool {
     true
 }
+fn is_false(value: &bool) -> bool {
+    !value
+}
 impl Project {
     pub fn blank(title: &str) -> Self {
         let mut location = Location {
@@ -938,6 +947,7 @@ impl Project {
         location.actions.push(description_action(&location.id));
         Self {
             game: Game {
+                allow_player_undo: false,
                 turns: None,
                 id: new_id(),
                 title: title.into(),

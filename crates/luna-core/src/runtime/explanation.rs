@@ -136,6 +136,11 @@ pub enum NarrativeOperation {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TraceKind {
+    /// Restoring a native snapshot; no authored effect or turn phase executes.
+    Undo {
+        /// Absent only when restoration failed before committing; see the error.
+        outcome: Option<crate::UndoResult>,
+    },
     /// Native routine scheduling within this input transaction.
     Routine {
         /// Control, attempt, hold, wait or cursor transition.
@@ -323,6 +328,19 @@ pub(crate) struct Recorder {
     truncated: bool,
 }
 impl Recorder {
+    pub(crate) fn restoration(
+        &mut self,
+        outcome: Option<crate::UndoResult>,
+        error: Option<String>,
+    ) {
+        if let Some(index) = self.push(TraceKind::Undo { outcome }, None, None)
+            && let Some(error) = error
+        {
+            self.steps[index].outcome = TraceOutcome::Failed;
+            self.steps[index].error = Some(error);
+            self.failed_step = Some(index);
+        }
+    }
     pub(super) fn push(
         &mut self,
         kind: TraceKind,

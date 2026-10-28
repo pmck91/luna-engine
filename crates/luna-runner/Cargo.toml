@@ -3,6 +3,10 @@ name = "luna-runner"
 version.workspace = true
 edition.workspace = true
 
+[[bench]]
+name = "undo"
+harness = false
+
 [[bin]]
 name = "luna"
 path = "src/main.rs"
@@ -26,7 +30,6 @@ clap.workspace = true
 directories.workspace = true
 chrono.workspace = true
 uuid.workspace = true
-fs2.workspace = true
 toml = "0.8"
 tempfile.workspace = true
 
