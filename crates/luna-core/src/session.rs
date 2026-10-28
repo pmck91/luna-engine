@@ -70,9 +70,11 @@ impl Session {
             run.enter(&id)?;
         }
         run.finish_turn()?;
+        run.activate_routines(true)?;
         run.finish_conversation()?;
         run.check_story_bounds()?;
         run.result.conversation = run.offer.clone();
+        run.result.routines = run.routine_view();
         run.result.state_changed = true;
         run.result.turns =
             crate::runtime::turns::view(session.project(), &run.state, session.definition.turns());
@@ -147,6 +149,11 @@ impl Session {
     /// Inspect the committed clock and ordered pending timers without executing effects.
     pub fn turn_view(&self) -> Option<crate::TurnView> {
         crate::runtime::turns::view(self.project(), &self.state, self.definition.turns())
+    }
+
+    /// Inspect routine cursors, captured waits and current hold/guard reasons without effects.
+    pub fn routine_view(&self) -> Vec<crate::RoutineView> {
+        Run::view(&self.definition, &self.state).routine_view()
     }
 
     /// Return the current player-safe question without changing story or context.
@@ -324,19 +331,6 @@ impl Session {
         explain: bool,
         command: impl FnOnce(&mut Run<'_>) -> Result<()>,
     ) -> (CommandResult, Option<anyhow::Error>) {
-        self.execute_phases(input, explain, command, |_| Ok(()), |_| Ok(()))
-    }
-
-    // Test-only candidates use the real transaction after the native timer phase.
-    // Shipping calls supply a no-op; this private seam adds no public model/API.
-    fn execute_phases(
-        &mut self,
-        input: &str,
-        explain: bool,
-        command: impl FnOnce(&mut Run<'_>) -> Result<()>,
-        after_turn: impl FnOnce(&mut Run<'_>) -> Result<()>,
-        after_reconcile: impl FnOnce(&mut Run<'_>) -> Result<()>,
-    ) -> (CommandResult, Option<anyhow::Error>) {
         let mut run = Run::new(&self.definition, self.state.clone());
         run.context = self.context.clone();
         run.offer = self.offer.clone();
@@ -345,10 +339,9 @@ impl Session {
         }
         let error = command(&mut run)
             .and_then(|()| run.finish_turn())
-            .and_then(|()| after_turn(&mut run))
+            .and_then(|()| run.finish_routines())
             .and_then(|()| run.finish_conversation())
             .and_then(|()| run.check_story_bounds())
-            .and_then(|()| after_reconcile(&mut run))
             .err();
         if let Some(recorder) = run.recording.take() {
             let discarded = if error.is_some() {
@@ -377,19 +370,8 @@ impl Session {
         run.result.pending_clarification = self.context.question();
         run.result.conversation = self.offer.clone();
         run.result.turns = self.turn_view();
+        run.result.routines = self.routine_view();
         (run.result, error)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn routine_candidate_attempt(
-        &mut self,
-        input: &str,
-        explain: bool,
-        command: impl FnOnce(&mut Run<'_>) -> Result<()>,
-        after_turn: impl FnOnce(&mut Run<'_>) -> Result<()>,
-        after_reconcile: impl FnOnce(&mut Run<'_>) -> Result<()>,
-    ) -> (CommandResult, Option<anyhow::Error>) {
-        self.execute_phases(input, explain, command, after_turn, after_reconcile)
     }
 
     /// Describe the current location without entering it or advancing progress.

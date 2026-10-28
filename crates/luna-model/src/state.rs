@@ -25,6 +25,9 @@ pub struct GameState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub turns: Option<TurnProgress>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub routines: Option<RoutineProgress>,
     pub game_id: String,
     pub content_version: String,
     pub location: String,
@@ -62,7 +65,7 @@ pub struct PlaytestSetup {
     pub state: GameState,
 }
 /// Latest captured-state envelope. Decode its header before versioned state.
-pub const PLAYTEST_SETUP_VERSION: u32 = 4;
+pub const PLAYTEST_SETUP_VERSION: u32 = 5;
 impl PlaytestSetup {
     pub fn validate_version(&self) -> anyhow::Result<()> {
         anyhow::ensure!(
@@ -81,6 +84,10 @@ impl PlaytestSetup {
         anyhow::ensure!(
             self.version >= 3 || self.state.narrative.is_empty(),
             "Narrative progress requires playtest setup version 3"
+        );
+        anyhow::ensure!(
+            self.version >= 5 || self.state.routines.is_none(),
+            "Routine progress requires playtest setup version 5"
         );
         Ok(())
     }

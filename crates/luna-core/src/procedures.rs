@@ -20,29 +20,9 @@ impl ProcedureIndex {
                 .collect(),
             ..Self::default()
         };
-        for (_, actions, triggers) in project.owners() {
-            for action in actions {
-                index.roots.insert(action.id.clone());
-                index.add(&action.id, &action.effects);
-            }
-            for trigger in triggers {
-                index.roots.insert(trigger.id.clone());
-                index.add(&trigger.id, &trigger.effects);
-            }
-        }
-        for location in &project.locations {
-            for exit in &location.exits {
-                index.roots.insert(exit.id.clone());
-                index.add(&exit.id, &exit.effects);
-            }
-        }
-        for (id, body) in project.narrative_roots() {
+        for (id, body) in project.effect_roots() {
             index.roots.insert(id.into());
             index.add(id, body);
-        }
-        for timer in &project.timers {
-            index.roots.insert(timer.id.clone());
-            index.add(&timer.id, &timer.effects);
         }
         for procedure in &project.procedures {
             index.add(&procedure.id, &procedure.effects);

@@ -1,4 +1,9 @@
-use super::*;
+use anyhow::{Result, ensure};
+use luna_core::{CommandResult, CommandStatus, Session};
+use luna_model::*;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+include!("routines/support.rs");
 
 fn say(text: &str) -> Effect {
     Effect::Say { text: text.into() }
@@ -132,7 +137,9 @@ fn tick(h: &mut Harness) -> CommandResult {
     h.command("wait").unwrap()
 }
 fn cursor<'a>(h: &'a Harness, id: &str) -> &'a Cursor {
-    h.progress.runs[id].cursor().unwrap()
+    h.session.state().routines.as_ref().unwrap().runs[id]
+        .cursor()
+        .unwrap()
 }
 fn control(g: &mut Program, p: &mut Project, name: &str, operation: Control, free: bool) {
     g.controls.insert(name.into(), operation);
@@ -163,7 +170,10 @@ fn first_step_waits_for_first_charged_boundary() {
     }
     tick(&mut h);
     assert_eq!(count(&h, "count"), 1);
-    assert_eq!(h.progress.runs["patrol"], Status::Completed);
+    assert_eq!(
+        h.session.state().routines.as_ref().unwrap().runs["patrol"],
+        Status::Completed
+    );
     tick(&mut h);
     assert_eq!(count(&h, "count"), 1);
 }
@@ -319,7 +329,10 @@ fn live_wait_is_captured_once_and_guard_is_not_retested_after_entry() {
     );
     h.command("use change").unwrap();
     assert_eq!(count(&h, "count"), 1);
-    assert_eq!(h.progress.runs["patrol"], Status::Completed);
+    assert_eq!(
+        h.session.state().routines.as_ref().unwrap().runs["patrol"],
+        Status::Completed
+    );
 }
 
 #[test]
@@ -366,9 +379,15 @@ fn skip_consumes_one_step_and_pause_retries_only_after_explicit_resume() {
         assert_eq!(count(&h, "count"), 0);
         assert_eq!(count(&h, "second"), 0);
         if policy == Blocked::Pause {
-            assert!(matches!(h.progress.runs["patrol"], Status::Paused { .. }));
+            assert!(matches!(
+                h.session.state().routines.as_ref().unwrap().runs["patrol"],
+                Status::Paused { .. }
+            ));
             h.command("use ready").unwrap();
-            assert!(matches!(h.progress.runs["patrol"], Status::Paused { .. }));
+            assert!(matches!(
+                h.session.state().routines.as_ref().unwrap().runs["patrol"],
+                Status::Paused { .. }
+            ));
             h.command("use resume").unwrap();
             assert_eq!(count(&h, "count"), 0);
             tick(&mut h);
@@ -446,12 +465,18 @@ fn keep_preserves_a_paused_run_and_replacement_stops_it_explicitly() {
     let mut h = start(p, g);
     tick(&mut h);
     h.command("use pause").unwrap();
-    let paused = h.progress.clone();
+    let paused = h.session.state().routines.as_ref().unwrap().clone();
     h.command("use keep").unwrap();
-    assert_eq!(h.progress, paused);
+    assert_eq!(h.session.state().routines.as_ref().unwrap(), &paused);
     h.command("use replace").unwrap();
-    assert_eq!(h.progress.runs["patrol"], Status::Stopped);
-    assert!(matches!(h.progress.runs["rest"], Status::Running { .. }));
+    assert_eq!(
+        h.session.state().routines.as_ref().unwrap().runs["patrol"],
+        Status::Stopped
+    );
+    assert!(matches!(
+        h.session.state().routines.as_ref().unwrap().runs["rest"],
+        Status::Running { .. }
+    ));
     assert_eq!(h.session.state().characters["keeper"].location, "study");
     tick(&mut h);
     assert_eq!(h.session.state().characters["keeper"].location, "offstage");
@@ -490,10 +515,10 @@ fn controls_for_another_definition_never_pause_resume_or_stop_current_run() {
         control(&mut g, &mut p, name, op, true);
     }
     let mut h = start(p, g);
-    let before = h.progress.clone();
+    let before = h.session.state().routines.as_ref().unwrap().clone();
     for name in ["pause", "resume", "stop"] {
         h.command(&format!("use {name}")).unwrap();
-        assert_eq!(h.progress, before);
+        assert_eq!(h.session.state().routines.as_ref().unwrap(), &before);
     }
 }
 
@@ -523,7 +548,10 @@ fn self_pause_consumes_effects_before_resume_without_repeating_rewards() {
     );
     let mut h = start(p, g);
     tick(&mut h);
-    assert!(matches!(h.progress.runs["patrol"], Status::Paused { .. }));
+    assert!(matches!(
+        h.session.state().routines.as_ref().unwrap().runs["patrol"],
+        Status::Paused { .. }
+    ));
     assert_eq!(cursor(&h, "patrol").step, "next");
     assert_eq!((count(&h, "count"), count(&h, "second")), (1, 1));
     h.command("use resume").unwrap();
@@ -716,7 +744,7 @@ fn conditional_start_is_once_only_and_excludes_the_matching_input() {
     let mut r = routine("patrol", vec![inc("count")]);
     r.start = Start::When { condition: ready() };
     let mut h = start(world(), program(r));
-    assert!(h.progress.runs.is_empty());
+    assert!(h.session.state().routines.as_ref().unwrap().runs.is_empty());
     h.command("use ready").unwrap();
     assert_eq!(count(&h, "count"), 0);
     assert_eq!(cursor(&h, "patrol").after, 1);
@@ -776,10 +804,21 @@ fn conditional_start_never_preempts_an_active_run() {
     );
     let mut h = start(p, g);
     h.command("use ready").unwrap();
-    assert!(!h.progress.runs.contains_key("auto"));
+    assert!(
+        !h.session
+            .state()
+            .routines
+            .as_ref()
+            .unwrap()
+            .runs
+            .contains_key("auto")
+    );
     tick(&mut h);
     tick(&mut h);
-    assert_eq!(h.progress.runs["rest"], Status::Completed);
+    assert_eq!(
+        h.session.state().routines.as_ref().unwrap().runs["rest"],
+        Status::Completed
+    );
     tick(&mut h);
     assert_eq!(count(&h, "count"), 0);
     assert_eq!(cursor(&h, "auto").after, 4);
@@ -816,7 +855,10 @@ fn explicit_start_and_stop_consume_automatic_activation_without_rearming() {
     h.command("use start").unwrap();
     h.command("use stop").unwrap();
     h.command("use ready").unwrap();
-    assert_eq!(h.progress.runs["patrol"], Status::Stopped);
+    assert_eq!(
+        h.session.state().routines.as_ref().unwrap().runs["patrol"],
+        Status::Stopped
+    );
     assert_eq!(count(&h, "count"), 0);
     h.command("use start").unwrap();
     tick(&mut h);
@@ -856,7 +898,10 @@ fn while_and_until_check_after_last_step_effects_and_never_chain_cycles() {
         tick(&mut h);
         assert_eq!(count(&h, "count"), 1);
         assert_eq!(
-            matches!(h.progress.runs["patrol"], Status::Running { .. }),
+            matches!(
+                h.session.state().routines.as_ref().unwrap().runs["patrol"],
+                Status::Running { .. }
+            ),
             expected_running
         );
         tick(&mut h);
@@ -876,7 +921,10 @@ fn until_does_not_interrupt_a_wait_mid_cycle() {
     assert_eq!(count(&h, "count"), 0);
     tick(&mut h);
     assert_eq!(count(&h, "count"), 1);
-    assert_eq!(h.progress.runs["patrol"], Status::Completed);
+    assert_eq!(
+        h.session.state().routines.as_ref().unwrap().runs["patrol"],
+        Status::Completed
+    );
 }
 
 #[test]
@@ -947,7 +995,7 @@ fn native_watch_depth_budget_is_shared_with_routine_effects() {
 }
 
 #[test]
-fn restore_preserves_captured_wait_without_replay_for_candidate_save_and_setup() {
+fn public_restore_preserves_captured_wait_without_replay() {
     for version in [7, 5] {
         let mut r = routine("patrol", vec![inc("count"), say("Wait finished once.")]);
         r.steps[0].wait = Some(integer(3));
@@ -988,12 +1036,24 @@ fn malformed_saved_progress_rejects_without_mutating_world_or_bytes() {
     for change in [0, 1, 2, 3, 4, 5, 6] {
         let mut value = original.clone();
         match change {
-            0 => value["routines"]["runs"]["patrol"]["cursor"]["step"] = "foreign-step".into(),
-            1 => value["routines"]["runs"]["patrol"]["cursor"]["after"] = 2.into(),
-            2 => value["routines"]["runs"]["patrol"]["cursor"]["wait"]["remaining"] = 0.into(),
-            3 => value["routines"]["runs"]["patrol"]["cursor"]["wait"]["remaining"] = 3.into(),
-            4 => value["routines"]["runs"]["foreign"] = serde_json::json!({"type":"stopped"}),
-            5 => value["routines"]["runs"]["patrol"]["surprise"] = true.into(),
+            0 => {
+                value["world"]["routines"]["runs"]["patrol"]["cursor"]["step"] =
+                    "foreign-step".into()
+            }
+            1 => value["world"]["routines"]["runs"]["patrol"]["cursor"]["after"] = 2.into(),
+            2 => {
+                value["world"]["routines"]["runs"]["patrol"]["cursor"]["wait"]["remaining"] =
+                    0.into()
+            }
+            3 => {
+                value["world"]["routines"]["runs"]["patrol"]["cursor"]["wait"]["remaining"] =
+                    3.into()
+            }
+            4 => {
+                value["world"]["routines"]["runs"]["foreign"] =
+                    serde_json::json!({"type":"stopped"})
+            }
+            5 => value["world"]["routines"]["runs"]["patrol"]["surprise"] = true.into(),
             _ => value["version"] = 99.into(),
         }
         let bytes = serde_json::to_vec(&value).unwrap();
@@ -1025,7 +1085,7 @@ fn state_rejects_multiple_active_runs_for_a_character_and_ended_work() {
         true,
     );
     let mut h = start(p, g);
-    let mut progress = h.progress.clone();
+    let mut progress = h.session.state().routines.as_ref().unwrap().clone();
     progress.runs.insert(
         "rest".into(),
         Status::Running {
@@ -1036,10 +1096,12 @@ fn state_rejects_multiple_active_runs_for_a_character_and_ended_work() {
             },
         },
     );
-    assert!(validation::state(&h.program, h.session.state(), &progress).is_err());
+    let mut invalid = h.session.state().clone();
+    invalid.routines = Some(progress);
+    assert!(h.session.definition().validate_state(&invalid).is_err());
     let mut ended = h.session.state().clone();
     ended.ending = Some("finish".into());
-    assert!(validation::state(&h.program, &ended, &h.progress).is_err());
+    assert!(h.session.definition().validate_state(&ended).is_err());
     h.command("use rest").unwrap();
 }
 
@@ -1227,7 +1289,10 @@ fn conversation_and_manual_pause_independently_preserve_a_wait_remainder() {
     assert_eq!(cursor(&h, "patrol").wait.as_ref().unwrap().remaining, 2);
     h.command("use pause").unwrap();
     h.command("bye").unwrap();
-    assert!(matches!(h.progress.runs["patrol"], Status::Paused { .. }));
+    assert!(matches!(
+        h.session.state().routines.as_ref().unwrap().runs["patrol"],
+        Status::Paused { .. }
+    ));
     h.restore(&h.snapshot(5), 5).unwrap();
     h.command("use resume").unwrap();
     assert_eq!(cursor(&h, "patrol").wait.as_ref().unwrap().remaining, 2);
@@ -1365,7 +1430,16 @@ fn ending_clears_work_before_hooks_and_cannot_revive_a_routine() {
     tick(&mut h);
     assert_eq!(count(&h, "count"), 0);
     assert_eq!(count(&h, "second"), 1);
-    assert!(h.progress.runs.values().all(|s| s.cursor().is_none()));
+    assert!(
+        h.session
+            .state()
+            .routines
+            .as_ref()
+            .unwrap()
+            .runs
+            .values()
+            .all(|s| s.cursor().is_none())
+    );
     h.restore(&h.snapshot(7), 7).unwrap();
     assert_eq!(h.command("wait").unwrap().status, CommandStatus::Ended);
 }
@@ -1390,7 +1464,10 @@ fn ending_hook_failure_rolls_back_the_ending_and_all_routine_statuses() {
     );
     failed(&mut h, "wait");
     assert!(h.session.state().ending.is_none());
-    assert!(matches!(h.progress.runs["patrol"], Status::Running { .. }));
+    assert!(matches!(
+        h.session.state().routines.as_ref().unwrap().runs["patrol"],
+        Status::Running { .. }
+    ));
 }
 
 #[test]
@@ -1509,7 +1586,10 @@ fn normal_and_explained_execution_commit_identical_world_and_routine_progress() 
         assert_eq!(a.status, b.status);
         assert_eq!(a.state_changed, b.state_changed);
         assert_eq!(normal.session.state(), explained.session.state());
-        assert_eq!(normal.progress, explained.progress);
+        assert_eq!(
+            normal.session.state().routines.as_ref().unwrap(),
+            explained.session.state().routines.as_ref().unwrap()
+        );
     }
 }
 
@@ -1585,7 +1665,10 @@ fn routine_status_queries_are_read_only_and_distinguish_manual_pause_from_blocki
     tick(&mut h);
     assert!(output(&h.command("use inspect-status").unwrap()).contains("RUNNING"));
     h.command("use pause").unwrap();
-    assert!(matches!(h.progress.runs["patrol"], Status::Paused { .. }));
+    assert!(matches!(
+        h.session.state().routines.as_ref().unwrap().runs["patrol"],
+        Status::Paused { .. }
+    ));
 }
 
 #[test]
@@ -1604,12 +1687,132 @@ fn decoded_program_and_new_native_definition_resume_the_same_snapshot() {
     );
     second.restore(&saved, 7).unwrap();
     assert_eq!(first.session.state(), second.session.state());
-    assert_eq!(first.progress, second.progress);
+    assert_eq!(
+        first.session.state().routines.as_ref().unwrap(),
+        second.session.state().routines.as_ref().unwrap()
+    );
     for _ in 0..2 {
         tick(&mut first);
         tick(&mut second);
     }
     assert_eq!(first.session.state(), second.session.state());
-    assert_eq!(first.progress, second.progress);
+    assert_eq!(
+        first.session.state().routines.as_ref().unwrap(),
+        second.session.state().routines.as_ref().unwrap()
+    );
     assert_eq!(count(&second, "count"), 1);
+}
+
+#[test]
+fn native_views_and_typed_observations_report_wait_guard_pause_and_source() {
+    use luna_core::{RoutineOperation, TraceKind};
+    let mut r = routine("patrol", vec![inc("count")]);
+    r.steps[0].wait = Some(integer(3));
+    let mut h = start(world(), program(r));
+    let result = h.session.command_explained("wait");
+    assert_eq!(result.routines, h.session.routine_view());
+    assert_eq!(
+        result.routines[0].wait,
+        Some(RoutineWait {
+            captured: 3,
+            remaining: 2
+        })
+    );
+    assert_eq!(result.routines[0].blocked, None);
+    let explanation = result.explanation.unwrap();
+    assert!(explanation.steps.iter().any(|s| {
+        matches!(
+            &s.kind,
+            TraceKind::Routine {
+                operation: RoutineOperation::Wait {
+                    captured: 3,
+                    remaining: 2,
+                    ..
+                }
+            }
+        ) && s
+            .source
+            .as_ref()
+            .is_some_and(|s| s.subject == "patrol-step" && s.path == "wait")
+    }));
+    assert!(
+        explanation
+            .changes
+            .iter()
+            .any(|c| c.path.first().is_some_and(|s| s == "routines"))
+    );
+    let mut state = h.session.state().clone();
+    let cursor = state.routines.as_ref().unwrap().runs["patrol"]
+        .cursor()
+        .unwrap()
+        .clone();
+    state
+        .routines
+        .as_mut()
+        .unwrap()
+        .runs
+        .insert("patrol".into(), RoutineRun::Paused { cursor });
+    h.session.replace_state(state).unwrap();
+    assert_eq!(h.session.routine_view()[0].status, RoutineStatus::Paused);
+    let before = h.session.state().clone();
+    h.session.routine_view();
+    assert_eq!(h.session.state(), &before);
+}
+
+#[test]
+fn routines_require_format_seven_enabled_turns_and_present_progress() {
+    let mut p = world();
+    p.routines = vec![routine("patrol", vec![])];
+    p.game.format_version = 6;
+    assert_eq!(p.minimum_format(), 7);
+    assert!(Session::start(p.clone(), None).is_err());
+    p.game.format_version = 7;
+    p.game.turns = None;
+    assert!(Session::start(p.clone(), None).is_err());
+    p.game.turns = Some(TurnPolicy::default());
+    let (mut s, _) = Session::start(p, None).unwrap();
+    let before = s.state().clone();
+    let mut missing = before.clone();
+    missing.routines = None;
+    assert!(s.replace_state(missing).is_err());
+    assert_eq!(s.state(), &before);
+}
+
+#[test]
+fn automatic_and_explicit_routine_effects_participate_in_reachability_diagnostics() {
+    let mut p = world();
+    p.routines = vec![routine(
+        "patrol",
+        vec![Effect::If {
+            condition: Condition::True,
+            then: vec![Effect::End {
+                ending: "finish".into(),
+            }],
+            otherwise: vec![],
+        }],
+    )];
+    p.game.require_ending = true;
+    assert!(
+        !validate(&p)
+            .iter()
+            .any(|d| d.message.contains("reachable") && d.message.contains("ending"))
+    );
+    p.routines[0].start = RoutineStart::Blocks;
+    assert!(
+        validate(&p)
+            .iter()
+            .any(|d| d.message.contains("reachable") && d.message.contains("ending"))
+    );
+    p.game.actions.push(action(
+        "start",
+        vec![Effect::StartRoutine {
+            routine: "patrol".into(),
+            busy: RoutineBusyPolicy::Keep,
+        }],
+    ));
+    assert!(
+        !validate(&p)
+            .iter()
+            .any(|d| d.message.contains("reachable") && d.message.contains("ending"))
+    );
 }

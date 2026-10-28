@@ -1,10 +1,10 @@
 # Character routines — CR1 shared contract
 
-Status: **CR1 implementation contract frozen**, 28 October 2026, on `feature/character-routines`. The owner accepted the [single Blockly group and root controls](README.md#owner-feedback-and-revision) with “perfect.” The [proof record](runtime-proof-review.md) separates feasibility evidence from shipping implementation. This contract is the CR2 target; routines are not yet available in production.
+Status: **CR1 implementation contract frozen**, 28 October 2026, on `feature/character-routines`. The owner accepted the [single Blockly group and root controls](README.md#owner-feedback-and-revision) with “perfect.” The [proof record](runtime-proof-review.md) separates feasibility evidence from shipping implementation. This contract freezes the CR2 target; the [foundation review](foundation-review.md) records native implementation and host/storage evidence. Production Blockly authoring follows in CR3.
 
 ## Content and compatibility
 
-Reserve **content/save 7 and captured setup 5**. The merged baseline and current production constants remain content/save 6/setup 4. Upgrade models, validators, generated TypeScript, versioned readers/writers, project revisions, recovery, manifests and exported runners together in CR2.
+CR1 reserved **content/save 7 and captured setup 5**, leaving its production constants at content/save 6/setup 4. CR2 implements the reserved versions across models, validators, generated TypeScript, versioned readers/writers, project revisions, recovery, manifests and exported runners together.
 
 | Target | Stored content |
 | --- | --- |

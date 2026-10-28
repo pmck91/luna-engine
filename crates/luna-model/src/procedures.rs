@@ -433,7 +433,7 @@ impl ObjectTarget {
 impl Condition {
     pub fn requires_v4(&self) -> bool {
         match self {
-            Self::TimerPending { .. } => false,
+            Self::TimerPending { .. } | Self::RoutineStatus { .. } => false,
             Self::Compare { .. } => true,
             Self::All { conditions } | Self::Any { conditions } => {
                 conditions.iter().any(Self::requires_v4)
@@ -479,7 +479,11 @@ impl Effect {
         let message = |message: &MessageText| matches!(message, MessageText::Bound { .. });
         match self {
             Self::ScheduleTimer { after, .. } => after.requires_v4(),
-            Self::CancelTimer { .. } => false,
+            Self::CancelTimer { .. }
+            | Self::StartRoutine { .. }
+            | Self::PauseRoutine { .. }
+            | Self::ResumeRoutine { .. }
+            | Self::StopRoutine { .. } => false,
             Self::Call { .. } | Self::Assign { .. } => true,
             Self::Say { text } => message(text),
             Self::SayWithInputs { references, .. } => {

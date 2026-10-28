@@ -4,7 +4,9 @@ Status: **CR1 native and Blockly proof complete; contract frozen**, 28 October 2
 
 ## Native execution
 
-The [test-only coordinator](../../../crates/luna-core/src/runtime/routine_proof/mod.rs), [validation](../../../crates/luna-core/src/runtime/routine_proof/validation.rs) and [48 cases](../../../crates/luna-core/src/runtime/routine_proof/tests.rs) use the real Rust Run, matcher, integer/condition/effect evaluators, IF, CALL, response cursors, watches, narrative/quest hooks, clock, timer queue, bounds and ending flow.
+This is the historical CR1 record at `7841394`. The [CR2 foundation](foundation-review.md) promotes these cases to public native execution and removes the adapters. The descriptions below document the proof at that commit.
+
+The [test-only coordinator](https://github.com/pmck91/luna-engine/blob/7841394/crates/luna-core/src/runtime/routine_proof/mod.rs), [validation](https://github.com/pmck91/luna-engine/blob/7841394/crates/luna-core/src/runtime/routine_proof/validation.rs) and [48 cases](https://github.com/pmck91/luna-engine/blob/7841394/crates/luna-core/src/runtime/routine_proof/tests.rs) use the real Rust Run, matcher, integer/condition/effect evaluators, IF, CALL, response cursors, watches, narrative/quest hooks, clock, timer queue, bounds and ending flow.
 
 Future routine controls are isolated marker SAY leaves and state queries are marker Boolean conditions. Unreachable false-trigger proxies let existing validators/indexes see each candidate root/step's real guard/body and native response/CALL/timer sources. These adapters are compiled only in luna-core unit tests. They do not add published model variants or content files.
 
@@ -70,8 +72,10 @@ The single production Blockly workspace, complete conditions/operands, refs/temp
 
 ## Reproduce
 
+Use commit `7841394` for the original test-only native proof. On the current branch, its promoted public regressions run with the command below.
+
 ```sh
-cargo test -p luna-core --offline --lib routine_proof
+cargo test -p luna-core --offline --test routines
 cargo test --workspace --offline
 cargo clippy --workspace --all-targets --offline -- -D warnings
 cargo fmt --all -- --check

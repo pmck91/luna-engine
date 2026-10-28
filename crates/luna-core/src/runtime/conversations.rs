@@ -170,8 +170,7 @@ impl<'a> Run<'a> {
         if !self.conversation_available(c)? {
             return Ok(Flow::Continue);
         }
-        #[cfg(test)]
-        self.routine_candidate_speaker(&c.character);
+        self.routine_speaker(&c.character);
         if let Some(active) = self.state.narrative.active.as_deref() {
             ensure!(
                 active == id,

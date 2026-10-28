@@ -628,6 +628,8 @@ export function defaultCondition(type: Condition['type'], p: Project): Condition
   const entity = object || location;
   const name = Object.keys(p.game.variables)[0] ?? '';
   switch (type) {
+    case 'routine_status':
+      return { type, routine: p.routines?.[0]?.id ?? '', status: 'running' };
     case 'timer_pending':
       return { type, timer: authoringTimers(p)[0]?.id ?? '' };
     case 'conversation_node_visited':

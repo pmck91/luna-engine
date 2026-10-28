@@ -13,6 +13,7 @@ fn schedule(timer: &str, after: i32) -> Effect {
 pub fn project() -> Project {
     let mut p = Project::blank("Timer integration");
     p.game.id = "timer-integration".into();
+    p.game.format_version = 6;
     p.game.turns = Some(TurnPolicy::default());
     p.locations[0].id = "study".into();
     p.locations[0].name = "Study".into();

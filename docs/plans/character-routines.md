@@ -1,6 +1,6 @@
 # Character routines
 
-Status: **CR0 accepted; CR1 proof complete and contract frozen**, 28 October 2026. Branch `feature/character-routines` starts from merged `main` at `1275cc5` (turns and scheduled events, PR #6). The owner requested this work with “lets get character routines done!” The [gameplay roadmap](gameplay-feature-roadmap.md#f5--character-routines) requires concrete design feedback before implementation. See the [interactive preview and review guide](../design/character-routines/README.md), [shared contract](../design/character-routines/shared-contract.md) and [CR1 evidence](../design/character-routines/runtime-proof-review.md).
+Status: **CR0 accepted; CR1 contract frozen; CR2 foundation complete**, 28 October 2026. Branch `feature/character-routines` starts from merged `main` at `1275cc5` (turns and scheduled events, PR #6). The owner requested this work with “lets get character routines done!” The [gameplay roadmap](gameplay-feature-roadmap.md#f5--character-routines) requires concrete design feedback before implementation. See the [interactive preview and review guide](../design/character-routines/README.md), [shared contract](../design/character-routines/shared-contract.md), [CR1 evidence](../design/character-routines/runtime-proof-review.md) and [CR2 foundation review](../design/character-routines/foundation-review.md).
 
 This plan covers the complete F5 delivery. The owner supported the behavior direction, then requested one Blockly group containing every step instead of individual step menus/workspaces. The owner also requested start and repeat/end conditions on the block itself. The owner accepted the complete revised preview with “perfect.” The preview and authoring design below incorporate both corrections. CR1 proved the shared runtime and canonical projection before shipping models or file formats change; its frozen contract resolves the implementation details below. Preserve the existing block appearance and keep the feature on its branch through final testing and owner acceptance. Public user guides remain part of the later documentation-site milestone.
 
@@ -90,7 +90,7 @@ The root controls are part of the same canonical definition as the inspector. In
 - **Repeat until condition is true** adds an **UNTIL** socket: after the last step and its effects, complete when true and repeat when false.
 - Repeat/end predicates apply at the cycle boundary. Use an existing value/state trigger with STOP for an immediate mid-cycle interruption; do not silently turn UNTIL into a second per-step guard.
 
-The preview uses existing TRUE/FALSE, OPENED and NOT blocks with example condition pickers. Arbitrary native Boolean expressions, requirement insertion, safe reference changes and full block round trips remain CR1/CR3 work. Condition errors must roll back rather than completing/arming a routine as if the predicate were false. The once-only automatic start, non-preemption, ordering and saved activation latch are explicit CR1 proof requirements, not claims of an implemented native runtime.
+The preview uses existing TRUE/FALSE, OPENED and NOT blocks with example condition pickers. Arbitrary native Boolean expressions, requirement insertion, safe reference changes and full block round trips remain CR1/CR3 work. Condition errors must roll back rather than completing/arming a routine as if the predicate were false. The once-only automatic start, non-preemption, ordering and saved activation latch were proved in CR1 and now run through canonical public APIs in CR2.
 
 ## Proposed pacing and controls
 
@@ -147,7 +147,7 @@ Startup, restore and normal/explained execution require native parity. Observati
 - Keep canonical definitions in Rust with generated TypeScript. Build immutable indexes for routine/character/step/lexical identities once in the validated definition. Extend typed effect/condition/source visitors rather than building another interpreter or scanning the open Blockly canvas.
 - Definitions need stable identity, owning character, persisted author order, startup mode/condition, cycle-repeat mode/condition, conversation policy and ordered stable steps. Construction drafts/layout/selection are editor-only. Keep missing/incomplete references as actionable findings; no runtime draft flags.
 - Progress distinguishes current stable step, captured wait/remainder, manual pause/status and bounded per-definition terminal state. CR1 proves a persisted `after` origin, eligible only at a strictly later boundary, plus a single status map that also consumes automatic activation. Attempt-local control revisions and run incarnations separately handle self-pause versus replacement without replaying effects.
-- The merged baseline remains **content/save 6, captured setup 4**. CR1 reserves **content/save 7, setup 5** in its frozen contract; production constants are unchanged until CR2. Preserve explicit legacy reads/writes and reject future/invalid state before mutating disk. An older game must retain its command semantics and must not acquire routines on restore.
+- The merged baseline remains **content/save 6, captured setup 4**. CR1 reserved **content/save 7, setup 5** in its frozen contract; CR2 implements those versions with explicit legacy paths. Preserve explicit legacy reads/writes and reject future/invalid state before mutating disk. An older game must retain its command semantics and must not acquire routines on restore.
 - Validate duplicate/foreign IDs, character ownership, unique active runs, missing steps, invalid counts/status combinations, incompatible changed content, source/CALL cursor reachability, ended games with work pending and all collection/path bounds. Restore must validate without replay. Keep current/backup save and setup files intact on failure.
 - Include canonical definitions in transactional project save, export/import, immutable revisions, runner storage, autosaves/named slots and captured setups. Export editor metadata/drafts only where already permitted; runtime bundles must not depend on it.
 - Extend Used by, safe deletion/reassignment, warnings, project search/findings, templates/dependency repair, duplication, copy/paste, tutorials/catalogue and navigation. Reassigning ownership requires a deliberate review; duplicating a character may offer copying owned routines while retaining external references deliberately. Copying steps remaps owned CALL/response/reset identities and step IDs consistently.
@@ -176,11 +176,11 @@ Owner feedback on 28 October 2026: “yeah feels good,” with a request for the
 
 ### CR2 — Canonical foundation and host parity
 
-The owner reviewed CR1, authorized committing the design/proof work on 28 October 2026, and deferred continuing until the next session. Resume here; CR2 has not started.
+The owner reviewed CR1, authorized committing the design/proof work on 28 October 2026, and deferred continuing until the next session. CR2 now implements canonical models, native execution and storage. The [foundation review](../design/character-routines/foundation-review.md) records 51 native cases, nine project/API/runner cases, 471 workspace tests and 26 affected both-browser passes. Production authoring remains CR3; owner review of that working slice is still required.
 
-- [ ] Implement reviewed model/validation/indexes, native controls/conditions/step execution, typed views/observations and transactional state/source integration.
-- [ ] Implement explicit versioned project/export/save/setup storage with generated contracts. Preserve legacy content/save/setup paths and existing fixtures.
-- [ ] Cover editor HTTP, Session, exported/installed runner, named/autosave and independent-process resume, plus malformed-state preservation and late rollback across timers/replies/quests.
+- [x] Implement reviewed model/validation/indexes, native controls/conditions/step execution, typed views/observations and transactional state/source integration.
+- [x] Implement explicit versioned project/export/save/setup storage with generated contracts. Preserve legacy content/save/setup paths and existing fixtures.
+- [x] Cover editor HTTP, Session, exported/installed runner, named/autosave and independent-process resume, plus malformed-state preservation and late rollback across timers/replies/quests.
 
 ### CR3 — Production authoring and working review
 

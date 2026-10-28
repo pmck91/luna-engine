@@ -28,8 +28,7 @@ mod procedures;
 mod quests;
 mod relations;
 pub(crate) mod resolution;
-#[cfg(test)]
-pub(crate) mod routine_proof;
+pub(crate) mod routines;
 pub(crate) mod turns;
 mod values;
 
@@ -44,6 +43,8 @@ pub(crate) struct Run<'a> {
     story_index: &'a crate::narrative::NarrativeIndex,
     index: &'a RuntimeIndex,
     procedure_index: &'a crate::procedures::ProcedureIndex,
+    routine_index: &'a crate::routines::RoutineIndex,
+    scheduling: routines::Scheduling,
     turn_index: &'a crate::turns::TurnIndex,
     timing: turns::Timing,
     invocation: procedures::Invocation,
@@ -66,8 +67,6 @@ pub(crate) struct Run<'a> {
     encounter_epoch: u64,
     entry_counter: u64,
     entering: HashMap<String, u64>,
-    #[cfg(test)]
-    pub(crate) candidate_routines: Option<routine_proof::Attempt>,
 }
 #[derive(PartialEq)]
 enum Flow {
@@ -92,6 +91,12 @@ impl<'a> Run<'a> {
             index: definition.runtime(),
             procedure_index: definition.procedures(),
             turn_index: definition.turns(),
+            routine_index: definition.routines(),
+            scheduling: routines::Scheduling::new(
+                definition.project(),
+                &state,
+                definition.routines(),
+            ),
             timing: turns::Timing::new(state.ending.is_some()),
             invocation: procedures::Invocation::default(),
             active_procedures: vec![],
@@ -113,8 +118,6 @@ impl<'a> Run<'a> {
             encounter_epoch: 0,
             entry_counter: 0,
             entering: HashMap::new(),
-            #[cfg(test)]
-            candidate_routines: None,
         }
     }
     fn world_mut(&mut self) -> &mut GameState {

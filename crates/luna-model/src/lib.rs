@@ -8,6 +8,8 @@ mod narrative;
 pub use narrative::*;
 mod procedures;
 pub use procedures::*;
+mod routines;
+pub use routines::*;
 mod state;
 pub use state::*;
 mod turns;
@@ -21,7 +23,7 @@ use ts_rs::TS;
 pub use validation::*;
 
 /// Latest writable content format; format 1 retains its legacy flat semantics.
-pub const FORMAT_VERSION: u32 = 6;
+pub const FORMAT_VERSION: u32 = 7;
 /// Whether a content header is understood, before parsing versioned variants.
 pub fn supported_format(version: u32) -> bool {
     (1..=FORMAT_VERSION).contains(&version)
@@ -110,6 +112,10 @@ pub fn compare(a: &Value, op: Comparison, b: &Value) -> bool {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Condition {
+    RoutineStatus {
+        routine: String,
+        status: RoutineStatus,
+    },
     TimerPending {
         timer: String,
     },
@@ -242,6 +248,20 @@ pub enum NumericOperand {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Effect {
+    StartRoutine {
+        routine: String,
+        #[serde(default)]
+        busy: RoutineBusyPolicy,
+    },
+    PauseRoutine {
+        routine: String,
+    },
+    ResumeRoutine {
+        routine: String,
+    },
+    StopRoutine {
+        routine: String,
+    },
     ScheduleTimer {
         timer: String,
         after: NumericOperand,
@@ -828,6 +848,9 @@ pub struct Project {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<_>", optional)]
     pub timers: Vec<ScheduledTrigger>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<_>", optional)]
+    pub routines: Vec<CharacterRoutine>,
     #[serde(default)]
     pub editor: EditorLayout,
 }
@@ -868,6 +891,8 @@ impl<'de> Deserialize<'de> for Project {
             #[serde(default)]
             timers: Vec<ScheduledTrigger>,
             #[serde(default)]
+            routines: Vec<CharacterRoutine>,
+            #[serde(default)]
             editor: EditorLayout,
         }
         let wire: Wire = serde_json::from_str(raw.get()).map_err(serde::de::Error::custom)?;
@@ -881,6 +906,7 @@ impl<'de> Deserialize<'de> for Project {
             conversations: wire.conversations,
             quests: wire.quests,
             timers: wire.timers,
+            routines: wire.routines,
             editor: wire.editor,
         })
     }
@@ -929,6 +955,7 @@ impl Project {
             conversations: vec![],
             quests: vec![],
             timers: vec![],
+            routines: vec![],
             editor: EditorLayout::default(),
         }
     }

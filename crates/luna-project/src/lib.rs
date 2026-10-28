@@ -137,6 +137,7 @@ fn load_unlocked(root: &Path) -> Result<Project> {
         conversations: entity_files(root, "conversations")?,
         quests: entity_files(root, "quests")?,
         timers: entity_files(root, "timers")?,
+        routines: entity_files(root, "routines")?,
         editor: if layout.exists() {
             json(&layout)?
         } else {
@@ -144,6 +145,11 @@ fn load_unlocked(root: &Path) -> Result<Project> {
         },
     };
     project.timers.sort_by_key(|timer| timer.order);
+    project.routines.sort_by_key(|routine| routine.order);
+    ensure!(
+        header.format_version >= 7 || project.minimum_format() < 7,
+        "Routines require content format 7"
+    );
     ensure!(
         header.format_version >= 6 || project.minimum_format() < 6,
         "Turns require an explicit upgrade to content format 6"
@@ -185,6 +191,7 @@ pub fn revision(root: &Path) -> Result<String> {
         "conversations",
         "quests",
         "timers",
+        "routines",
         "editor",
         "assets",
     ] {
@@ -283,6 +290,16 @@ pub fn project_files(p: &Project, editor: bool) -> Result<BTreeMap<String, Strin
             "Duplicate timer ID"
         );
     }
+    for routine in &p.routines {
+        ensure!(safe_id(&routine.id), "Unsafe routine ID");
+        ensure!(
+            files
+                .insert(format!("routines/{}.json", routine.id), pretty(routine)?)
+                .is_none(),
+            "Duplicate routine ID"
+        );
+    }
+
     if editor {
         files.insert("editor/map-layout.json".into(), pretty(&p.editor)?);
     }
@@ -323,6 +340,7 @@ fn managed(path: &str) -> bool {
             "conversations/",
             "quests/",
             "timers/",
+            "routines/",
         ]
         .iter()
         .any(|prefix| {
@@ -385,6 +403,7 @@ pub fn save_project(root: &Path, p: &Project, expected: Option<&str>) -> Result<
         "conversations",
         "quests",
         "timers",
+        "routines",
     ] {
         collect(root, name, &mut old)?
     }

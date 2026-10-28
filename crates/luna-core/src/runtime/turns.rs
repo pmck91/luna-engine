@@ -111,7 +111,7 @@ pub(super) struct Timing {
     // Loaded instances need no durable ticket: every new attempt starts at zero.
     revisions: BTreeMap<String, u32>,
     generation: u32,
-    boundary: bool,
+    pub(super) boundary: bool,
 }
 impl Timing {
     pub(super) fn new(ended_before: bool) -> Self {
@@ -156,11 +156,6 @@ pub(crate) fn view(
     })
 }
 impl Run<'_> {
-    #[cfg(test)]
-    pub(super) fn routine_candidate_at_boundary(&self) -> bool {
-        self.timing.boundary
-    }
-
     pub(super) fn schedule_timer(
         &mut self,
         timer: &str,

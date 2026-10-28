@@ -116,11 +116,20 @@ impl<'a> Run<'a> {
     }
 
     fn effect(&mut self, effect: &Effect) -> Result<Flow> {
-        #[cfg(test)]
-        if let Some(flow) = self.routine_candidate_effect(effect)? {
-            return Ok(flow);
-        }
         match effect {
+            Effect::StartRoutine { routine, busy } => self.control_routine(
+                routine,
+                super::routines::RoutineControl::Start { busy: *busy },
+            )?,
+            Effect::PauseRoutine { routine } => {
+                self.control_routine(routine, super::routines::RoutineControl::Pause)?
+            }
+            Effect::ResumeRoutine { routine } => {
+                self.control_routine(routine, super::routines::RoutineControl::Resume)?
+            }
+            Effect::StopRoutine { routine } => {
+                self.control_routine(routine, super::routines::RoutineControl::Stop)?
+            }
             Effect::ScheduleTimer {
                 timer,
                 after,
@@ -436,8 +445,7 @@ impl<'a> Run<'a> {
                 }
                 let end = self.ending(ending).context("Unknown ending")?;
                 self.state.to_mut().ending = Some(ending.clone());
-                #[cfg(test)]
-                self.routine_candidate_end();
+                self.end_routines();
                 self.end_timers();
                 self.close_conversations();
                 self.finalizing = true;

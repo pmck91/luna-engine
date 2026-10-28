@@ -44,6 +44,8 @@ export function conditionTitle(p: Project, c: Condition): string {
       ? traceEntityName(p, target)
       : 'Command item';
   switch (c.type) {
+    case 'routine_status':
+      return `${p.routines?.find((r) => r.id === c.routine)?.name ?? c.routine} · ${c.status.replaceAll('_', ' ')}`;
     case 'timer_pending':
       return 'Timer pending · ' + (p.timers?.find((t) => t.id === c.timer)?.name ?? c.timer);
     case 'conversation_node_visited':
@@ -112,6 +114,19 @@ function targetTitle(p: Project, target: ValueTarget) {
 }
 export function traceTitle(p: Project, kind: TraceKind): string {
   switch (kind.type) {
+    case 'routine': {
+      const op = kind.operation;
+      const name = p.routines?.find((r) => r.id === op.routine)?.name ?? op.routine;
+      const detail =
+        op.type === 'control'
+          ? ` · ${op.control.type} · ${op.applied ? 'Applied' : 'No change'}`
+          : op.type === 'wait'
+            ? ` · ${op.remaining} of ${op.captured} turns remaining`
+            : op.type === 'advance'
+              ? ` · ${op.status}`
+              : '';
+      return `${op.type} routine · ${name}${detail}`;
+    }
     case 'turn':
       return `Turn ${kind.before} → ${kind.after} · ${kind.cost ? 'Spend 1 turn' : 'Free'} · ${kind.input.type}`;
     case 'timer': {

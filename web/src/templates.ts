@@ -30,6 +30,7 @@ export function templateEntities(p: Project): TemplateEntity[] {
 }
 type Visitor = {
   timer?: (id: string) => string;
+  routine?: (id: string) => string;
   entity: (id: string, allowed: TemplateEntityKind[]) => string;
   narrative?: (id: string, kind: NarrativeReferenceKind) => string;
   text: (text: string, localNames?: string[]) => string;
@@ -91,6 +92,8 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
     v.type === 'property' ? { ...v, entity: entity(v.entity) } : v;
   const condition = (v: Condition): Condition => {
     switch (v.type) {
+      case 'routine_status':
+        return { ...v, routine: visitor.routine?.(v.routine) ?? v.routine };
       case 'timer_pending':
         return { ...v, timer: visitor.timer?.(v.timer) ?? v.timer };
       case 'compare':
@@ -157,6 +160,11 @@ function visitContent(content: TemplateContent, visitor: Visitor): TemplateConte
   };
   const effect = (v: Effect): Effect => {
     switch (v.type) {
+      case 'start_routine':
+      case 'pause_routine':
+      case 'resume_routine':
+      case 'stop_routine':
+        return { ...v, routine: visitor.routine?.(v.routine) ?? v.routine };
       case 'schedule_timer':
         return { ...v, timer: visitor.timer?.(v.timer) ?? v.timer, after: operand(v.after) };
       case 'cancel_timer':

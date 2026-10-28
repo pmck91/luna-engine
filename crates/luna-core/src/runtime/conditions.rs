@@ -7,11 +7,10 @@ impl Run<'_> {
         self.evaluate_condition(condition).unwrap_or(false)
     }
     pub(super) fn evaluate_condition(&self, condition: &Condition) -> Result<bool> {
-        #[cfg(test)]
-        if let Some(value) = self.routine_candidate_condition(condition)? {
-            return Ok(value);
-        }
         Ok(match condition {
+            Condition::RoutineStatus { routine, status } => {
+                self.routine_status(routine)? == *status
+            }
             Condition::TimerPending { timer } => {
                 ensure!(
                     self.turn_index.definitions.contains_key(timer),

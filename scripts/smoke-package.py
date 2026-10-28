@@ -155,7 +155,7 @@ def main():
             # New-game defaults and the permanent parser fixture use the packaged
             # API/export, not a handwritten runner-only substitute.
             fresh = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser defaults"})
-            assert fresh["project"]["game"]["format_version"] == 6
+            assert fresh["project"]["game"]["format_version"] == 7
             assert fresh["project"]["game"].get("turns") is None
             assert fresh["project"]["game"]["command_assistance"]["clarification"]
             assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
@@ -646,7 +646,7 @@ def main():
             assert "Outcome:" not in completed, completed
             autosave = work / "no-outcome/saves" / game["id"] / game["content_version"] / "autosave.json"
             state = json.loads(autosave.read_text())
-            assert state["save_format"] == (6 if game["format_version"] >= 6 else 5 if game["format_version"] >= 5 else 4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
+            assert state["save_format"] == (7 if game["format_version"] >= 7 else 6 if game["format_version"] >= 6 else 5 if game["format_version"] >= 5 else 4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
             assert state["state"]["ending"] == "finish", state
         finally:
             if editor is not None and editor.poll() is None:
