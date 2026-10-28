@@ -155,6 +155,10 @@ pub(crate) async fn start_playtest(
         );
         let runtime = restore(project, &setup)?;
         let mut result = CommandResult {
+            undo: {
+                let view = runtime.undo_view();
+                view.enabled.then_some(view)
+            },
             turns: runtime.turn_view(),
             routines: runtime.routine_view(),
             messages: runtime.description()?,

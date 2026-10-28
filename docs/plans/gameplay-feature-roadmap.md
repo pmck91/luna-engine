@@ -174,7 +174,7 @@ Acceptance: patrol, blocked movement, pause/resume, switch routines, move offsta
 
 ## F6 — Optional player undo
 
-Work has begun on `feature/player-undo` from merged `main d5b927c`. The [U0–U4 plan](player-undo.md) and [clickable preview](../design/player-undo/README.md) expand the proposal below. U0 is accepted and U1 is complete with a [frozen contract](../design/player-undo/shared-contract.md). The owner selected keep-known hints: new clues/solutions stay recorded, clear earlier history and create no point. No production undo/schema changes are implemented in the design slice.
+Work has begun on `feature/player-undo` from merged `main d5b927c`. The [U0–U4 plan](player-undo.md) and [clickable preview](../design/player-undo/README.md) expand the proposal below. U0 is accepted and U1 is committed as `eca623f` with a [frozen contract](../design/player-undo/shared-contract.md). The [U2 foundation](../design/player-undo/foundation-review.md) implements native bounded undo, content-8 opt-in and both hosts; the production authoring/player UX remains U3. The owner selected keep-known hints: new clues/solutions stay recorded, clear earlier history and create no point.
 
 Add **Allow player undo**, proposed default **off**, under Game settings > Player assistance. Explain the setting in plain language and expose the command in player help only when enabled. This is separate from project Undo/Redo and must not affect editor history.
 

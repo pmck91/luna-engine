@@ -475,7 +475,11 @@ export type Outcome = "victory" | "loss" | "neutral";
 
 export type Ending = { id: string, name: string, text: string, outcome: Outcome | null, };
 
-export type Game = { turns?: TurnPolicy, id: string, title: string, description: string, author: string, format_version: number, content_version: string, starting_location: string, opening_text: string, help_text: string, unknown_command_text: string, command_assistance?: CommandAssistance, help_mode: HelpMode, hints_enabled: boolean, ignored_words: Array<string>, require_ending: boolean, variables: { [key in string]?: Value }, endings: Array<Ending>, actions: Array<Action>, triggers: Array<Trigger>, assets: Array<string>, };
+export type Game = {
+/**
+ * Opt-in session-local player history; requires an explicit content-8 upgrade.
+ */
+allow_player_undo?: boolean, turns?: TurnPolicy, id: string, title: string, description: string, author: string, format_version: number, content_version: string, starting_location: string, opening_text: string, help_text: string, unknown_command_text: string, command_assistance?: CommandAssistance, help_mode: HelpMode, hints_enabled: boolean, ignored_words: Array<string>, require_ending: boolean, variables: { [key in string]?: Value }, endings: Array<Ending>, actions: Array<Action>, triggers: Array<Trigger>, assets: Array<string>, };
 
 export type Point = { x: number, y: number, };
 
@@ -539,6 +543,36 @@ export type HintProgress = { clues_seen: number, solution_seen: boolean, };
 
 export type GameState = { turns?: TurnProgress, routines?: RoutineProgress, game_id: string, content_version: string, location: string, ending: string | null, variables: { [key in string]?: Value }, objects: { [key in string]?: ObjectState }, characters: { [key in string]?: CharacterState }, properties: { [key in string]?: { [key in string]?: Value } }, visits: { [key in string]?: number }, sequences: { [key in string]?: number }, procedure_sequences?: Array<ProcedureCursor>, narrative?: NarrativeProgress, hints: { [key in string]?: HintProgress }, };
 
+export type UndoUnavailableReason = "disabled" | "empty" | "new_hint" | "oversized" | "capture_failed" | "unclassified" | "state_replaced";
+
+export type UndoView = {
+/**
+ * Whether this running game opted into player undo.
+ */
+enabled: boolean,
+/**
+ * Number of available complete points.
+ */
+available: number,
+/**
+ * Bounded literal command/reply text, without private flow names or IDs.
+ */
+latest_command: string | null,
+/**
+ * Present only when no point can be restored.
+ */
+unavailable_reason: UndoUnavailableReason | null, };
+
+export type UndoResult = { "type": "restored",
+/**
+ * Bounded literal player command/reply, without private authoring names.
+ */
+command: string, } | { "type": "unavailable",
+/**
+ * Why this session has no available undo operation.
+ */
+reason: UndoUnavailableReason, };
+
 export type HostControl = { "type": "save",
 /**
  * The trimmed label, preserving its original case and punctuation.
@@ -573,7 +607,11 @@ before: JsonValue,
  */
 after: JsonValue, };
 
-export type TraceKind = { "type": "routine",
+export type TraceKind = { "type": "undo",
+/**
+ * Absent only when restoration failed before committing; see the error.
+ */
+outcome: UndoResult | null, } | { "type": "routine",
 /**
  * Control, attempt, hold, wait or cursor transition.
  */
@@ -999,6 +1037,14 @@ limit: string, };
 
 export type CommandResult = {
 /**
+ * Current native availability; absent for disabled/legacy sessions.
+ */
+undo?: UndoView,
+/**
+ * Present only for a native undo operation, including unavailable attempts.
+ */
+undo_result?: UndoResult,
+/**
  * Committed turn/queue view, present only for games using turns.
  */
 turns?: TurnView,
@@ -1082,6 +1128,8 @@ export type StartPlaytest = { project: Project, location: string | null, help_mo
 export type CommandRequest = { command: string, explain: boolean, };
 
 export type ReplyRequest = { offer_token: string, reply_id: string, explain: boolean, };
+
+export type UndoRequest = { explain: boolean, };
 
 export type StateRequest = { state: GameState, };
 

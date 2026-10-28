@@ -1,6 +1,6 @@
 # Player undo — U0 design review
 
-Status: **U0 interaction design accepted; U1 contract frozen**, 28 October 2026. Work is on `feature/player-undo` from `main d5b927c` (merged routines, PR #7). The [U0–U4 implementation plan](../../plans/player-undo.md) defines behaviour, native proof and delivery gates. The owner accepted the UI example and authorized commit/progression on 28 October 2026; U0 is committed as `a1bda30`. The [U1 evidence](runtime-proof-review.md) and [shared contract](shared-contract.md) record the subsequent native proof and frozen target. The owner selected keep-known hints on 28 October 2026; the preview now illustrates that policy. Production delivery remains U2–U4.
+Status: **U0 accepted; U2 native foundation implemented**, 28 October 2026. Work is on `feature/player-undo` from `main d5b927c` (merged routines, PR #7). The [U0–U4 implementation plan](../../plans/player-undo.md) defines behaviour and delivery gates. U0 is committed as `a1bda30`; U1 as `eca623f`. The [historical U1 evidence](runtime-proof-review.md), [shared contract](shared-contract.md) and [U2 foundation review](foundation-review.md) distinguish proof, production native behaviour and the remaining UX work. The owner selected keep-known hints on 28 October 2026; the preview illustrates that policy. Production settings/player controls and final acceptance remain U3–U4.
 
 ## Open the mockup
 

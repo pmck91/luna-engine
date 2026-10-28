@@ -1,10 +1,10 @@
 # U1 — native undo proof review
 
-Status: **U1 native risk proof complete and contract frozen**, 28 October 2026, on `feature/player-undo`. The owner accepted [U0](README.md), authorized committing it and requested progression. The lock fix is committed as `17f1a4d`; U0 is committed as `a1bda30`. The owner selected the recommended keep-known hint policy on 28 October 2026; the [shared contract](shared-contract.md) now freezes the U2 target. This research slice is not production undo or a content-format upgrade.
+Status: **Historical U1 native proof, committed as `eca623f`**, 28 October 2026, on `feature/player-undo`. The owner accepted [U0](README.md), authorized committing it and requested progression. The lock fix is committed as `17f1a4d`; U0 is committed as `a1bda30`. The owner selected the recommended keep-known hint policy on 28 October 2026; the [shared contract](shared-contract.md) now freezes the U2 target. This research slice did not change production formats. U2 subsequently promoted the candidate into ordinary code; the [foundation review](foundation-review.md) records that work. Source links and reproduction commands below refer to `eca623f`, where the research feature still exists.
 
 ## Real native boundary
 
-The [candidate](../../../crates/luna-core/src/undo_proof/mod.rs) attaches directly to [Session’s transaction](../../../crates/luna-core/src/session.rs). Native initiating dispatch supplies a typed classification independently of turn cost and explanations. After all gameplay/timer/routine/conversation/bounds phases succeed, and before Session swaps state, the candidate compares the complete before/after world and admits the pre-input snapshot. Failure does not touch history. Action and selected-reply APIs share this boundary.
+The [candidate](https://github.com/pmck91/luna-engine/blob/eca623f/crates/luna-core/src/undo_proof/mod.rs) attaches directly to [Session’s transaction](https://github.com/pmck91/luna-engine/blob/eca623f/crates/luna-core/src/session.rs). Native initiating dispatch supplies a typed classification independently of turn cost and explanations. After all gameplay/timer/routine/conversation/bounds phases succeed, and before Session swaps state, the candidate compares the complete before/after world and admits the pre-input snapshot. Failure does not touch history. Action and selected-reply APIs share this boundary.
 
 The code is compiled only for core unit tests or the explicit `undo-proof` research feature. Ordinary builds contain neither the candidate, history fields, new parser interception nor classification hooks. Sessions in a proof build still require explicit `proof_enable_undo`; authored files are unchanged. The feature forwarding in editor/runner exists to test their real HTTP/storage code against this same candidate, without an author setting or production endpoint.
 
@@ -12,7 +12,7 @@ Undo decodes/validates the latest owned snapshot and prepares the restored scene
 
 ## Evidence
 
-The [31 native cases](../../../crates/luna-core/src/undo_proof/tests.rs) and [five real-host cases](../../../crates/luna-editor/src/undo_proof_tests.rs) / [runner cases](../../../crates/luna-runner/tests/undo_proof.rs) cover:
+The [31 native cases](https://github.com/pmck91/luna-engine/blob/eca623f/crates/luna-core/src/undo_proof/tests.rs) and [five real-host cases](https://github.com/pmck91/luna-engine/blob/eca623f/crates/luna-editor/src/undo_proof_tests.rs) / [runner cases](https://github.com/pmck91/luna-engine/blob/eca623f/crates/luna-runner/tests/undo_proof.rs) cover:
 
 | Boundary | Observed behaviour |
 | --- | --- |
@@ -63,6 +63,8 @@ Snapshot admission faults happen after successful gameplay and create a visible 
 
 The workspace suite with both host research features passes **517 Rust tests/doctests**, including 31 native and five host proof cases. Clippy with all targets/features and warnings denied passes. The ordinary-build workspace suite also passes **512 tests/doctests**. Default and research-feature Clippy, Rust formatting, warning-denied core rustdoc, unchanged generated TypeScript contracts, 39 retained release observations and local documentation links pass; no production browser/package acceptance is claimed for this native-only slice. The policy-aligned U0 preview also passes both browser walkthroughs, isolated TypeScript and frontend formatting; its refreshed captures show the accepted policy.
 
+Run these commands in a checkout of `eca623f`; current U2 builds no longer have the research feature. The historical CSV remains unchanged.
+
 ```sh
 cargo test --workspace --features luna-runner/undo-proof,luna-editor/undo-proof --jobs 2
 cargo clippy --workspace --all-targets --features luna-runner/undo-proof,luna-editor/undo-proof --jobs 2 -- -D warnings
@@ -72,11 +74,11 @@ cargo fmt --all --check
 cargo run -p luna-editor --example export_types -- --check
 ```
 
-The [benchmark](../../../crates/luna-runner/benches/undo_proof.rs) reuses the [populated routine fixture](../../../tests/support/routine_scaling.rs): 100/1,000/5,000 commands and objects, 32 earned quest journals and 64/256/1,024 paused routine states. Off/on commands run in the same proof build with equal world state; the off path performs no snapshot encoding. Measurements are observations, not CI timing assertions or a claim about maximum playable game size.
+The [benchmark](https://github.com/pmck91/luna-engine/blob/eca623f/crates/luna-runner/benches/undo_proof.rs) reuses the [populated routine fixture](../../../tests/support/routine_scaling.rs): 100/1,000/5,000 commands and objects, 32 earned quest journals and 64/256/1,024 paused routine states. Off/on commands run in the same proof build with equal world state; the off path performs no snapshot encoding. Measurements are observations, not CI timing assertions or a claim about maximum playable game size.
 
 ## Remaining gates
 
-The owner’s keep-known choice closes the U1 decision gate. The complete frozen target is recorded in the shared contract; U2 production promotion is next.
+At `eca623f`, the owner’s keep-known choice closed the U1 decision gate. The complete frozen target is recorded in the shared contract. The following gates describe the remaining work at that commit; see the foundation review for current U2 evidence.
 
 U2 promotes the candidate into ordinary core/model code, adds the authored default/explicit content-8 upgrade, strict validation/storage/manifests, generated native status/restoration observations, help and both host control paths. It must remove the research feature/hooks and retain these regressions against the production implementation. Real content-8 project recovery/export/setup compatibility, enabled installed CLI/process/autosave behaviour and generated-contract integration still need proof after promotion.
 

@@ -3,17 +3,9 @@ name = "luna-runner"
 version.workspace = true
 edition.workspace = true
 
-[features]
-undo-proof = ["luna-core/undo-proof"]
-
-[[test]]
-name = "undo_proof"
-required-features = ["undo-proof"]
-
 [[bench]]
-name = "undo_proof"
+name = "undo"
 harness = false
-required-features = ["undo-proof"]
 
 [[bin]]
 name = "luna"

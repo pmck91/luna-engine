@@ -1,13 +1,14 @@
-//! U1 research at Session's real commit boundary, outside published file formats.
+//! Bounded, session-local restoration of complete native game snapshots.
 //!
-//! Ordinary builds exclude this module and every associated hook. The opt-in
-//! feature exists so real storage and HTTP tests can exercise the same candidate.
+//! History is never serialized with GameState, and restoration runs no effects.
 use super::*;
 use anyhow::{Context, ensure};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
     io::{self, Write},
 };
+use ts_rs::TS;
 
 /// Frozen U1 maximum retained complete snapshots per session.
 pub const POINT_LIMIT: usize = 20;
@@ -15,18 +16,12 @@ pub const POINT_LIMIT: usize = 20;
 pub const BYTE_LIMIT: usize = 16 * 1024 * 1024;
 const LABEL_LIMIT: usize = 160;
 
-/// Historical research alternatives; the owner selected `KeepKnown` for production.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HintPolicy {
-    /// Newly revealed clues remain known and clear older history.
-    KeepKnown,
-    /// Rejected alternative, retained only for the historical comparison tests.
-    Restore,
-}
-
 /// Native reasons for empty history; hosts do not infer them from output text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Reason {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum UndoUnavailableReason {
+    /// The immutable game definition has not enabled player undo.
+    Disabled,
     /// No eligible change has occurred, or all retained points were consumed.
     Empty,
     /// A new hint was revealed under the keep-known policy.
@@ -41,18 +36,36 @@ pub enum Reason {
     StateReplaced,
 }
 
-/// Read-only proof status; deliberately not a generated production wire type.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct View {
+/// Player-safe availability supplied by the native session to both hosts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UndoView {
+    /// Whether this running game opted into player undo.
+    pub enabled: bool,
     /// Number of available complete points.
     pub available: usize,
-    /// Exact retained encoded payload length, not process memory usage.
-    pub payload_bytes: usize,
     /// Bounded literal command/reply text, without private flow names or IDs.
-    pub latest: Option<String>,
-    /// Last history boundary or exhaustion reason.
-    pub reason: Reason,
+    pub latest_command: Option<String>,
+    /// Present only when no point can be restored.
+    pub unavailable_reason: Option<UndoUnavailableReason>,
 }
+
+/// Native result of an undo operation, separate from command dispatch status.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum UndoResult {
+    /// A complete native snapshot was restored without executing gameplay.
+    Restored {
+        /// Bounded literal player command/reply, without private authoring names.
+        command: String,
+    },
+    /// World, history and ephemeral input authority were left unchanged.
+    Unavailable {
+        /// Why this session has no available undo operation.
+        reason: UndoUnavailableReason,
+    },
+}
+
+use UndoUnavailableReason as Reason;
 
 #[derive(Debug, Default)]
 pub(crate) enum Initiator {
@@ -93,11 +106,13 @@ pub(crate) struct History {
     payload_bytes: usize,
     byte_limit: usize,
     point_limit: usize,
-    policy: HintPolicy,
     reason: Reason,
     // Deterministic fault injection for reservation/encoding and restore stages.
+    #[cfg(test)]
     capture_failure: bool,
+    #[cfg(test)]
     prepare_failure: bool,
+    #[cfg(test)]
     captures: usize,
 }
 
@@ -163,16 +178,18 @@ fn bounded_label(label: &str) -> Box<str> {
 }
 
 impl History {
-    fn new(policy: HintPolicy) -> Self {
+    pub(super) fn new() -> Self {
         Self {
             points: VecDeque::new(),
             payload_bytes: 0,
             byte_limit: BYTE_LIMIT,
             point_limit: POINT_LIMIT,
-            policy,
             reason: Reason::Empty,
+            #[cfg(test)]
             capture_failure: false,
+            #[cfg(test)]
             prepare_failure: false,
+            #[cfg(test)]
             captures: 0,
         }
     }
@@ -181,29 +198,33 @@ impl History {
         self.payload_bytes = 0;
         self.reason = reason;
     }
-    pub(crate) fn commit(&mut self, before: &GameState, after: &GameState, input: &Initiator) {
+    pub(crate) fn commit(
+        &mut self,
+        before: &GameState,
+        after: &GameState,
+        input: &Initiator,
+    ) -> Option<Reason> {
         if before == after {
-            return;
+            return None;
         }
-        if self.policy == HintPolicy::KeepKnown
-            && matches!(input, Initiator::Hint)
-            && before.hints != after.hints
-        {
+        if matches!(input, Initiator::Hint) && before.hints != after.hints {
             self.clear(Reason::NewHint);
-            return;
+            return Some(Reason::NewHint);
         }
         let Some(label) = input.label() else {
             self.clear(Reason::Unclassified);
-            return;
+            return Some(Reason::Unclassified);
         };
-        self.captures += 1;
-        let snapshot = if self.capture_failure || self.points.try_reserve(1).is_err() {
-            Err(Reason::CaptureFailed)
-        } else {
-            capture(before, self.byte_limit)
-        };
+        #[cfg(test)]
+        {
+            self.captures += 1;
+        }
+        let snapshot = self.capture(before);
         match snapshot {
-            Err(reason) => self.clear(reason),
+            Err(reason) => {
+                self.clear(reason);
+                Some(reason)
+            }
             Ok(bytes) => {
                 while self.points.len() >= self.point_limit
                     || self.payload_bytes > self.byte_limit - bytes.len()
@@ -217,92 +238,98 @@ impl History {
                     label: bounded_label(label),
                 });
                 self.reason = Reason::Empty;
+                None
             }
         }
     }
-    fn view(&self) -> View {
-        View {
+    fn capture(&mut self, before: &GameState) -> std::result::Result<Box<[u8]>, Reason> {
+        #[cfg(test)]
+        if self.capture_failure {
+            return Err(Reason::CaptureFailed);
+        }
+        if self.points.try_reserve(1).is_err() {
+            Err(Reason::CaptureFailed)
+        } else {
+            capture(before, self.byte_limit)
+        }
+    }
+    fn view(&self) -> UndoView {
+        UndoView {
+            enabled: true,
             available: self.points.len(),
-            payload_bytes: self.payload_bytes,
-            latest: self.points.back().map(|p| p.label.to_string()),
-            reason: self.reason,
+            latest_command: self.points.back().map(|p| p.label.to_string()),
+            unavailable_reason: self.points.is_empty().then_some(self.reason),
         }
     }
 }
 
-/// Exhaustive authored action/exit collisions, including unavailable scopes.
-///
-/// This candidate examines canonical verb phrases and empty/exact literal
-/// patterns. Nouns/templates need explicit U2 validation, never silent rewriting.
-pub fn collisions(project: &Project) -> Vec<String> {
-    fn matches(project: &Project, verb: &str, pattern: &[luna_model::PatternPart]) -> bool {
-        let Some(verb) = project.vocabulary.iter().find(|v| v.id == verb) else {
-            return false;
-        };
-        std::iter::once(&verb.canonical)
-            .chain(&verb.synonyms)
-            .any(|phrase| {
-                let mut parts = vec![phrase.as_str()];
-                for part in pattern {
-                    match part {
-                        luna_model::PatternPart::Literal { text } => parts.push(text),
-                        _ => return false,
-                    }
-                }
-                luna_model::normalize(&parts.join(" ")) == "undo"
-            })
-    }
-    let mut result = vec![];
-    for (_, actions, _) in project.owners() {
-        result.extend(
-            actions
-                .iter()
-                .filter(|a| matches(project, &a.verb, &a.pattern))
-                .map(|a| a.id.clone()),
-        );
-    }
-    for room in &project.locations {
-        for exit in &room.exits {
-            let pattern = if exit.pattern.is_empty() {
-                vec![luna_model::PatternPart::Literal {
-                    text: exit.name.clone(),
-                }]
-            } else {
-                exit.pattern.clone()
-            };
-            if matches(project, &exit.verb, &pattern) {
-                result.push(exit.id.clone());
+impl Reason {
+    pub(super) fn notice(self) -> &'static str {
+        match self {
+            Self::Disabled => "Player undo is disabled for this game.",
+            Self::Empty => "There are no actions to undo in this play session.",
+            Self::StateReplaced => "Loading or replacing state starts a new undo history.",
+            Self::NewHint => "A new hint stays known; earlier undo history was cleared.",
+            Self::Oversized => {
+                "The last change was too large to keep for undo. Earlier history was cleared."
+            }
+            Self::CaptureFailed => {
+                "The last change could not be kept for undo. Earlier history was cleared."
+            }
+            Self::Unclassified => {
+                "The last game change cannot be undone. Earlier history was cleared."
             }
         }
     }
-    result.sort();
-    result
 }
 
 impl Session {
-    /// Enable the U1 candidate without altering authored content or file headers.
+    /// Inspect current player-undo availability without changing play or context.
+    pub fn undo_view(&self) -> UndoView {
+        self.undo_history
+            .as_ref()
+            .map(History::view)
+            .unwrap_or(UndoView {
+                enabled: false,
+                available: 0,
+                latest_command: None,
+                unavailable_reason: Some(Reason::Disabled),
+            })
+    }
+    /// Exact retained encoded snapshot bytes for diagnostics and measurements.
     ///
-    /// Rejects command collisions. Ordinary sessions never enable it implicitly.
-    pub fn proof_enable_undo(&mut self, policy: HintPolicy) -> Result<()> {
-        ensure!(
-            collisions(self.project()).is_empty(),
-            "Authored UNDO command conflicts with player undo"
-        );
-        self.undo_proof = Some(History::new(policy));
-        Ok(())
+    /// Excludes live/attempted/decoded worlds and allocator/metadata overhead;
+    /// this is not total session memory. No snapshots or mutable history escape.
+    pub fn undo_payload_bytes(&self) -> usize {
+        self.undo_history.as_ref().map_or(0, |h| h.payload_bytes)
     }
-    /// Inspect candidate history without exposing snapshots to either host.
-    pub fn proof_undo_view(&self) -> Option<View> {
-        self.undo_proof.as_ref().map(History::view)
+    pub(super) fn enabled_undo_view(&self) -> Option<UndoView> {
+        self.undo_history.as_ref().map(History::view)
     }
-    /// Restore a complete point after validation and read-only offer preparation.
+    /// Restore the latest complete change without spending a turn or running effects.
     ///
-    /// Returns false when unavailable; errors preserve world/history/authority.
-    pub fn proof_undo(&mut self) -> Result<Option<String>> {
-        Ok(self.restore_proof_point()?.map(|restored| restored.label))
+    /// Disabled or empty histories return a typed unavailable result and leave
+    /// questions/offers untouched. Success clears noun context, refreshes reply
+    /// authority and consumes one point. The host owns autosave/transcript output.
+    ///
+    /// # Errors
+    /// Returns an error if decoding, validation or read-only preparation fails;
+    /// the complete world, history and input authority remain unchanged.
+    pub fn undo(&mut self) -> Result<CommandResult> {
+        let (result, error) = self.execute_undo("undo", false);
+        if let Some(error) = error {
+            return Err(error);
+        }
+        Ok(result)
     }
-    fn restore_proof_point(&mut self) -> Result<Option<Restored>> {
-        let Some(history) = &self.undo_proof else {
+    /// Perform the same restoration once with a typed, bounded explanation.
+    ///
+    /// Failure returns Error and diagnostic information, preserving all state.
+    pub fn undo_explained(&mut self) -> CommandResult {
+        self.execute_undo("undo", true).0
+    }
+    fn restore_undo_point(&mut self) -> Result<Option<Restored>> {
+        let Some(history) = &self.undo_history else {
             return Ok(None);
         };
         let Some(point) = history.points.back() else {
@@ -311,6 +338,7 @@ impl Session {
         let state: GameState =
             serde_json::from_slice(&point.bytes).context("Invalid undo snapshot")?;
         self.definition.validate_state(&state)?;
+        #[cfg(test)]
         ensure!(
             !history.prepare_failure,
             "Injected read-only restoration failure"
@@ -325,7 +353,7 @@ impl Session {
         self.state = state;
         self.context = InteractionContext::default();
         self.offer = offer;
-        let history = self.undo_proof.as_mut().expect("enabled history");
+        let history = self.undo_history.as_mut().expect("enabled history");
         let point = history.points.pop_back().expect("validated point");
         history.payload_bytes -= point.bytes.len();
         if history.points.is_empty() {
@@ -333,7 +361,7 @@ impl Session {
         }
         Ok(Some(Restored { label, messages }))
     }
-    pub(crate) fn proof_undo_command(
+    pub(super) fn execute_undo(
         &mut self,
         input: &str,
         explain: bool,
@@ -342,15 +370,32 @@ impl Session {
         let mut result = CommandResult::default();
         let attempt = (|| {
             ensure!(input.len() <= 4096, "Command is too long");
-            self.restore_proof_point()
+            self.restore_undo_point()
         })();
         let error = match attempt {
             Ok(restored) => {
                 result.state_changed = restored.is_some();
-                let (message, messages) = restored.map_or_else(
-                    || ("Nothing to undo.".into(), vec![]),
-                    |restored| (format!("Undid “{}”.", restored.label), restored.messages),
-                );
+                let (message, messages, outcome) = if let Some(restored) = restored {
+                    let outcome = UndoResult::Restored {
+                        command: restored.label.clone(),
+                    };
+                    (
+                        format!("Undid “{}”.", restored.label),
+                        restored.messages,
+                        outcome,
+                    )
+                } else {
+                    let reason = self
+                        .undo_view()
+                        .unavailable_reason
+                        .expect("unavailable undo");
+                    (
+                        reason.notice().into(),
+                        vec![],
+                        UndoResult::Unavailable { reason },
+                    )
+                };
+                result.undo_result = Some(outcome);
                 result.messages.push(vec![text::Span {
                     text: message,
                     colour: None,
@@ -369,7 +414,12 @@ impl Session {
             }
         };
         if let Some(before) = before {
-            result.explanation = Some(explanation::Recorder::default().finish(
+            let mut recorder = explanation::Recorder::default();
+            recorder.restoration(
+                result.undo_result.clone(),
+                error.as_ref().map(|e| format!("{e:#}")),
+            );
+            result.explanation = Some(recorder.finish(
                 input,
                 &before,
                 &self.state,
@@ -381,6 +431,7 @@ impl Session {
         result.conversation = self.offer.clone();
         result.turns = self.turn_view();
         result.routines = self.routine_view();
+        result.undo = self.enabled_undo_view();
         (result, error)
     }
 }

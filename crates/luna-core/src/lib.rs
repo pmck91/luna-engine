@@ -55,9 +55,10 @@
 //! attempted copy, and explained commands can retain additional state snapshots.
 #![warn(missing_docs)]
 
-/// Experimental U1 adapter; absent from ordinary builds and persisted contracts.
-#[cfg(any(test, feature = "undo-proof"))]
-pub use session::undo_proof;
+pub use session::undo::{
+    BYTE_LIMIT as UNDO_BYTE_LIMIT, POINT_LIMIT as UNDO_POINT_LIMIT, UndoResult,
+    UndoUnavailableReason, UndoView,
+};
 
 use luna_model::text;
 use serde::{Deserialize, Serialize};
@@ -140,6 +141,14 @@ pub enum CommandStatus {
 /// retain diagnostic metadata, with ordinary messages empty and state unchanged.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct CommandResult {
+    /// Current native availability; absent for disabled/legacy sessions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub undo: Option<UndoView>,
+    /// Present only for a native undo operation, including unavailable attempts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub undo_result: Option<UndoResult>,
     /// Committed turn/queue view, present only for games using turns.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -181,6 +190,8 @@ pub struct CommandResult {
 impl Default for CommandResult {
     fn default() -> Self {
         Self {
+            undo: None,
+            undo_result: None,
             turns: None,
             routines: vec![],
             messages: vec![],

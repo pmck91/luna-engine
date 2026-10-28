@@ -159,10 +159,64 @@ def main():
             # New-game defaults and the permanent parser fixture use the packaged
             # API/export, not a handwritten runner-only substitute.
             fresh = api("projects", "POST", {"folder": "smoke-parser", "title": "Parser defaults"})
-            assert fresh["project"]["game"]["format_version"] == 7
+            assert fresh["project"]["game"]["format_version"] == 8
             assert fresh["project"]["game"].get("turns") is None
+            assert not fresh["project"]["game"].get("allow_player_undo", False)
             assert fresh["project"]["game"]["command_assistance"]["clarification"]
             assert fresh["project"]["game"]["command_assistance"]["recent_objects"]
+
+            # U2 is ordinary release code: canonical opt-in, native HTTP undo,
+            # setup-5 restore, exported/installed CLI and session-local history.
+            undo_project = json.loads(json.dumps(fresh["project"]))
+            undo_game = undo_project["game"]
+            undo_game["allow_player_undo"] = True
+            undo_game["variables"] = {"counter": 0}
+            undo_game["actions"] = [{
+                "id": "undo-lever", "name": "Pull lever", "verb": "use",
+                "pattern": [{"type": "literal", "text": "lever"}],
+                "effects": [{"type": "update_variable", "name": "counter", "op": "add",
+                             "operand": {"type": "literal", "value": 1}}],
+            }]
+            api(f"projects/{fresh['handle']}", "PUT", {
+                "project": undo_project, "revision": fresh["revision"],
+            })
+            undo_start = api("playtests", "POST", {"project": undo_project})
+            undo_session = undo_start["session"]
+            changed = api(f"playtests/{undo_session}/commands", "POST", {"command": "use lever"})
+            assert changed["result"]["undo"]["available"] == 1
+            undo_setup = api(f"playtests/{undo_session}/capture", "POST", {"name": "Changed lever"})
+            assert undo_setup["version"] == 5 and "undo_history" not in undo_setup["state"]
+            restored = api(f"playtests/{undo_session}/undo", "POST", {"explain": True})
+            assert restored["state"] == undo_start["state"]
+            assert restored["result"]["undo_result"] == {"type": "restored", "command": "use lever"}
+            assert restored["result"]["undo"]["available"] == 0
+            assert restored["result"]["selected_flow"] is None
+            assert restored["result"]["explanation"]["steps"][0]["kind"]["type"] == "undo"
+            assert restored["result"]["explanation"]["steps"][0]["source"] is None
+            reopened = api("playtests", "POST", {"project": undo_project, "setup": undo_setup})
+            assert reopened["state"] == changed["state"]
+            assert reopened["result"]["undo"]["available"] == 0
+            undo_bundle = work / "undo-from-editor.luna"
+            undo_bundle.write_bytes(api(f"projects/{fresh['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(undo_bundle) as exported:
+                assert json.loads(exported.read("manifest.json"))["format_version"] == 8
+                assert json.loads(exported.read("game.json"))["allow_player_undo"]
+            run(["import", str(undo_bundle)], profile="undo")
+            transcript = run(["run", undo_game["id"], "--new"],
+                             "help\nuse lever\nsave taken\nundo\nquit\n", profile="undo")
+            assert "UNDO" in transcript and "Undid “use lever”." in transcript, transcript
+            undo_saves = work / "undo/saves" / undo_game["id"] / undo_game["content_version"]
+            undo_auto = undo_saves / "autosave.json"
+            auto_bytes = undo_auto.read_bytes()
+            restored_save = json.loads(auto_bytes)
+            assert restored_save["save_format"] == 7 and restored_save["state"] == undo_start["state"]
+            named = next(undo_saves.glob("named-*.json"))
+            named_bytes = named.read_bytes()
+            assert json.loads(named_bytes)["state"] == changed["state"]
+            transcript = run(["run", undo_game["id"], "--load", "taken"], "undo\nquit\n", profile="undo")
+            assert "Undid" not in transcript, transcript
+            assert named.read_bytes() == named_bytes and undo_auto.read_bytes() == auto_bytes
+
             gallery = api("open", "POST", {"folder": "parser-gallery"})
             gallery_game = gallery["project"]["game"]
             gallery_bundle = work / "gallery-from-editor.luna"
@@ -774,7 +828,7 @@ def main():
                     editor.wait()
             if moved:
                 hidden.rename(frontend)
-        print("Packaged examples, containers, parser clarification/restart, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, Timer Workshop callbacks/rollback/quests/endings, Routine Workshop holds/pauses/waits/order/offstage/rollback/corruption/endings, fixed walkthrough, optional outcomes, and embedded editor passed "
+        print("Packaged examples, containers, parser clarification/restart, player undo/content-8/session history, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, Timer Workshop callbacks/rollback/quests/endings, Routine Workshop holds/pauses/waits/order/offstage/rollback/corruption/endings, fixed walkthrough, optional outcomes, and embedded editor passed "
               "without source UI or development tools.")
 
 

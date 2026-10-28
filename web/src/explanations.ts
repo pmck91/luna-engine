@@ -114,6 +114,12 @@ function targetTitle(p: Project, target: ValueTarget) {
 }
 export function traceTitle(p: Project, kind: TraceKind): string {
   switch (kind.type) {
+    case 'undo':
+      return kind.outcome?.type === 'restored'
+        ? `Undo · ${kind.outcome.command}`
+        : kind.outcome?.type === 'unavailable'
+          ? `Undo unavailable · ${kind.outcome.reason.replaceAll('_', ' ')}`
+          : 'Undo failed';
     case 'routine': {
       const op = kind.operation;
       const name = p.routines?.find((r) => r.id === op.routine)?.name ?? op.routine;

@@ -1,6 +1,6 @@
 # U1 — player undo contract
 
-Status: **U1 native candidate verified and contract frozen**, 28 October 2026. The owner accepted [U0](README.md) and authorized progression. The owner selected keep-known hints on 28 October 2026, closing the final decision. This document freezes the technical target for U2. The [evidence](runtime-proof-review.md) distinguishes candidate execution from production delivery. The research feature does not change any published model, generated contract, file header or ordinary build.
+Status: **U1 contract frozen; U2 native implementation verified**, 28 October 2026. The owner accepted [U0](README.md) and authorized progression, then selected keep-known hints, closing the final decision. This document retains the frozen technical target. The [historical proof](runtime-proof-review.md) records candidate execution at `eca623f`; the [foundation review](foundation-review.md) records promotion into ordinary builds, canonical content-8 opt-in, generated contracts and both native hosts. Production settings/player UX remains U3.
 
 ## One native history
 

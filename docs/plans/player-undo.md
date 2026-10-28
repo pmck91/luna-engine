@@ -1,6 +1,6 @@
 # Optional player undo
 
-Status: **U0 accepted; U1 native proof complete and contract frozen**, 28 October 2026. Work is isolated on `feature/player-undo`, created from merged `main d5b927c` (character routines, PR #7). This is F6 in the [gameplay roadmap](gameplay-feature-roadmap.md). The [interactive preview and review guide](../design/player-undo/README.md) illustrates the proposal; it does not implement or prove native undo. The owner accepted the UI example and authorized its commit and progression on 28 October 2026. U0 is committed as `a1bda30` after lock fix `17f1a4d`. The [native evidence](../design/player-undo/runtime-proof-review.md) and [shared contract](../design/player-undo/shared-contract.md) record U1. The owner selected the recommended keep-known hint policy on 28 October 2026, closing the final contract decision. U2 production promotion is next.
+Status: **U2 native foundation implemented; production UX next**, 28 October 2026. Work is isolated on `feature/player-undo`, created from merged `main d5b927c` (character routines, PR #7). This is F6 in the [gameplay roadmap](gameplay-feature-roadmap.md). The [interactive preview and review guide](../design/player-undo/README.md) illustrates the accepted experience. U0 is committed as `a1bda30` after lock fix `17f1a4d`; U1 is committed as `eca623f`. The [historical native proof](../design/player-undo/runtime-proof-review.md) and [shared contract](../design/player-undo/shared-contract.md) record U1 and the owner-selected keep-known hint policy. The owner authorized committing U1 and continuing to U2. The [foundation review](../design/player-undo/foundation-review.md) records the production promotion and verification. U3 settings/player controls and U4 workshop/acceptance remain.
 
 The owner agreed to optional casual-play support, while noting that undo can reduce tension. Keep it **off by default**, opt-in per game and separate from editor project Undo/Redo. Preserve the accepted block appearance and [editor UX](../design/editor-ux/README.md). Public guides remain in the documentation-site milestone. Browser publishing remains after v1.
 
@@ -88,7 +88,7 @@ Expose generated native `UndoView` information (enabled, available count, latest
 
 ### U1 — Native risk proof and frozen contract
 
-The [native evidence](../design/player-undo/runtime-proof-review.md) records 31 native and five real-host proof cases, 517 passing workspace tests and the retained [release observations](../design/player-undo/captures/measurements.csv). Candidate code is excluded from ordinary builds; production settings/versions/host views remain U2. The [shared contract](../design/player-undo/shared-contract.md) freezes the technical target with the owner-selected keep-known hint policy.
+The [native evidence](../design/player-undo/runtime-proof-review.md) records 31 native and five real-host proof cases, 517 passing workspace tests and the retained [release observations](../design/player-undo/captures/measurements.csv) at `eca623f`. At that commit candidate code was excluded from ordinary builds. U2 promotes it into ordinary native code and removes the research feature. The [shared contract](../design/player-undo/shared-contract.md) freezes the technical target with the owner-selected keep-known hint policy.
 
 - [x] Prove inside real Session's commit boundary, without shipping model/version changes: complete before-input snapshots, typed eligibility, zero-cost changes, no-op/read-only inputs, charged LOOK/failed requirements, resolved nouns and native reply selections.
 - [x] Prove nested CALL/response/quest/watch/timer/routine consequences, automatic latches and ending reversal with normal/explained parity; preserve history under late failure and restore errors.
@@ -98,9 +98,9 @@ The [native evidence](../design/player-undo/runtime-proof-review.md) records 31 
 
 ### U2 — Canonical core and host foundation
 
-- [ ] Implement reviewed models/defaults/validation, explicit content upgrade/storage/manifest paths and generated contracts, preserving all legacy cases.
-- [ ] Implement Session-owned bounded history and atomic typed undo with documentation; wire both native command and reply APIs without duplicate host history.
-- [ ] Wire editor HTTP/CLI views, return notices, autosave/named-slot behaviour and restored native conversation/quest/turn/routine views. Cover exported/installed games and independent-process empty-history restores.
+- [x] Implement reviewed models/defaults/validation, explicit content upgrade/storage/manifest paths and generated contracts, preserving all legacy cases. New content uses format 8, undo remains off by default, and save 7/setup 5 remain unchanged. The production upgrade dialog belongs to U3.
+- [x] Implement Session-owned bounded history and atomic typed undo with documentation; wire both native command and reply APIs without duplicate host history. Remove research feature flags and expose typed availability/results and a source-free restoration trace.
+- [x] Wire editor HTTP/CLI views, return notices, autosave/named-slot behaviour and restored native conversation/quest/turn/routine views. Cover exported/installed games and independent-process empty-history restores. The [U2 review](../design/player-undo/foundation-review.md) records 33 native cases, eight host cases and compatibility/storage evidence.
 
 ### U3 — Production authoring/player UX
 

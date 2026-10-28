@@ -16,9 +16,8 @@ impl<'a> Run<'a> {
                 self.literal("This playthrough has ended.");
             } else {
                 self.timing.input = super::turns::TurnInput::Wait;
-                #[cfg(any(test, feature = "undo-proof"))]
-                {
-                    self.undo_input = crate::undo_proof::Initiator::Wait;
+                if self.p.game.allow_player_undo {
+                    self.undo_input = crate::session::undo::Initiator::Wait;
                 }
                 self.literal("You wait.");
             }
@@ -76,9 +75,8 @@ impl<'a> Run<'a> {
             }
             "look" => {
                 self.timing.input = super::turns::TurnInput::Look;
-                #[cfg(any(test, feature = "undo-proof"))]
-                {
-                    self.undo_input = crate::undo_proof::Initiator::Look;
+                if self.p.game.allow_player_undo {
+                    self.undo_input = crate::session::undo::Initiator::Look;
                 }
                 return self.look();
             }
@@ -119,8 +117,7 @@ impl<'a> Run<'a> {
     // Resolution selects once; this shared path retains ordinary requirement,
     // effect, event, exit, and explanation semantics for that selected handler.
     pub(super) fn dispatch(&mut self, best: Candidate<'a>, normalized: &str) -> Result<()> {
-        #[cfg(any(test, feature = "undo-proof"))]
-        {
+        if self.p.game.allow_player_undo {
             let label = match best.handler {
                 Handler::Action(action) => {
                     self.command_phrase_with_item(&action.verb, &action.pattern, best.item)
@@ -137,7 +134,7 @@ impl<'a> Run<'a> {
                 }
             }
             .unwrap_or_else(|| normalized.into());
-            self.undo_input = crate::undo_proof::Initiator::Flow(label);
+            self.undo_input = crate::session::undo::Initiator::Flow(label);
         }
         let cost = match best.handler {
             Handler::Action(a) => a.turn_cost.as_ref(),

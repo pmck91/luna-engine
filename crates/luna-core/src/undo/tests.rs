@@ -57,12 +57,12 @@ fn simple() -> Project {
     }
     p
 }
-fn start(p: Project) -> Session {
+fn start(mut p: Project) -> Session {
+    p.game.format_version = 8;
+    p.game.allow_player_undo = true;
     let findings = validate(&p);
     assert!(!has_errors(&findings), "{findings:?}");
-    let mut s = Session::start(p, None).unwrap().0;
-    s.proof_enable_undo(HintPolicy::KeepKnown).unwrap();
-    s
+    Session::start(p, None).unwrap().0
 }
 fn run(s: &mut Session, command: &str, explained: bool) -> CommandResult {
     if explained {
@@ -71,8 +71,24 @@ fn run(s: &mut Session, command: &str, explained: bool) -> CommandResult {
         s.command(command).unwrap()
     }
 }
+// Project native status plus the diagnostic byte counter for retained U1 cases.
+#[derive(Debug, PartialEq, Eq)]
+struct View {
+    available: usize,
+    payload_bytes: usize,
+    latest: Option<String>,
+    reason: Reason,
+}
 fn view(s: &Session) -> View {
-    s.proof_undo_view().unwrap()
+    let view = s.undo_view();
+    assert!(view.enabled);
+    assert_eq!(view.unavailable_reason.is_none(), view.available > 0);
+    View {
+        available: view.available,
+        payload_bytes: s.undo_payload_bytes(),
+        latest: view.latest_command,
+        reason: view.unavailable_reason.unwrap_or(Reason::Empty),
+    }
 }
 
 #[test]
@@ -114,7 +130,7 @@ fn count_eviction_is_oldest_first_and_payload_accounting_is_exact() {
     for i in 0..25 {
         s.command("use change").unwrap();
         assert_eq!(view(&s).available, (i + 1).min(POINT_LIMIT));
-        let h = s.undo_proof.as_ref().unwrap();
+        let h = s.undo_history.as_ref().unwrap();
         assert_eq!(
             h.payload_bytes,
             h.points.iter().map(|p| p.bytes.len()).sum::<usize>()
@@ -122,25 +138,25 @@ fn count_eviction_is_oldest_first_and_payload_accounting_is_exact() {
         assert!(h.payload_bytes <= BYTE_LIMIT);
     }
     for i in (5..25).rev() {
-        assert!(s.proof_undo().unwrap().is_some());
+        assert!(s.undo().unwrap().state_changed);
         assert_eq!(s.state().variables["count"], Value::Integer(i));
     }
     assert_eq!(view(&s).payload_bytes, 0);
-    assert_eq!(s.proof_undo().unwrap(), None);
+    assert!(!s.undo().unwrap().state_changed);
 }
 
 #[test]
 fn byte_limit_evicts_complete_points_and_allows_an_exact_fit() {
     let mut s = start(simple());
     let size = serde_json::to_vec(s.state()).unwrap().len();
-    s.undo_proof.as_mut().unwrap().byte_limit = size * 2;
+    s.undo_history.as_mut().unwrap().byte_limit = size * 2;
     for _ in 0..3 {
         s.command("use change").unwrap();
     }
     assert_eq!(view(&s).available, 2);
     assert_eq!(view(&s).payload_bytes, size * 2);
     let mut s = start(simple());
-    s.undo_proof.as_mut().unwrap().byte_limit = size;
+    s.undo_history.as_mut().unwrap().byte_limit = size;
     s.command("use change").unwrap();
     assert_eq!(view(&s).available, 1);
     assert_eq!(view(&s).payload_bytes, size);
@@ -151,7 +167,7 @@ fn oversized_and_capture_failure_barriers_keep_gameplay_and_clear_older_points()
     for fault in [false, true] {
         let mut s = start(simple());
         s.command("use change").unwrap();
-        let h = s.undo_proof.as_mut().unwrap();
+        let h = s.undo_history.as_mut().unwrap();
         if fault {
             h.capture_failure = true;
         } else {
@@ -169,7 +185,7 @@ fn oversized_and_capture_failure_barriers_keep_gameplay_and_clear_older_points()
                 Reason::Oversized
             }
         );
-        assert_eq!(s.proof_undo().unwrap(), None);
+        assert!(!s.undo().unwrap().state_changed);
     }
 }
 
@@ -180,8 +196,8 @@ fn failed_gameplay_never_attempts_capture_or_evicts_existing_points() {
         s.command("use change").unwrap();
         let before = s.state().clone();
         let history = view(&s);
-        let captures = s.undo_proof.as_ref().unwrap().captures;
-        s.undo_proof.as_mut().unwrap().capture_failure = true;
+        let captures = s.undo_history.as_ref().unwrap().captures;
+        s.undo_history.as_mut().unwrap().capture_failure = true;
         if explained {
             let result = s.command_explained("use fail");
             assert_eq!(result.status, CommandStatus::Error);
@@ -191,7 +207,7 @@ fn failed_gameplay_never_attempts_capture_or_evicts_existing_points() {
         }
         assert_eq!(s.state(), &before);
         assert_eq!(view(&s), history);
-        assert_eq!(s.undo_proof.as_ref().unwrap().captures, captures);
+        assert_eq!(s.undo_history.as_ref().unwrap().captures, captures);
     }
 }
 
@@ -213,7 +229,7 @@ fn charged_look_wait_and_failed_requirements_are_points_but_free_failure_is_not(
             let expected = usize::from(paid || input == "wait");
             assert_eq!(view(&s).available, expected, "{input}");
             if expected > 0 {
-                s.proof_undo().unwrap();
+                s.undo().unwrap();
             }
             assert_eq!(s.state(), &before);
         }
@@ -295,7 +311,7 @@ fn decode_validation_and_presentation_failures_preserve_everything() {
         s.command("talk keeper").unwrap();
         s.command("1").unwrap();
         s.command("take key").unwrap();
-        let h = s.undo_proof.as_mut().unwrap();
+        let h = s.undo_history.as_mut().unwrap();
         if fault == 0 {
             h.points.back_mut().unwrap().bytes = b"invalid".to_vec().into_boxed_slice();
         }
@@ -332,8 +348,7 @@ fn valid_replacement_clears_history_and_invalid_replacement_preserves_it() {
     s.replace_state(s.state().clone()).unwrap();
     assert_eq!(view(&s).available, 0);
     assert_eq!(view(&s).reason, Reason::StateReplaced);
-    let mut restored = Session::restore(s.project().clone(), s.state().clone()).unwrap();
-    restored.proof_enable_undo(HintPolicy::KeepKnown).unwrap();
+    let restored = Session::restore(s.project().clone(), s.state().clone()).unwrap();
     assert_eq!(view(&restored).available, 0);
 }
 
@@ -401,54 +416,43 @@ fn timer_and_routine_failures_after_an_action_do_not_leak_history() {
 }
 
 #[test]
-fn hint_policies_and_repeated_paid_hints_are_explicit() {
-    for policy in [HintPolicy::KeepKnown, HintPolicy::Restore] {
-        let mut p = simple();
-        p.game.turns = Some(TurnPolicy {
-            hints: true,
+fn new_hints_stay_known_and_paid_repeats_only_undo_their_clock_changes() {
+    let mut p = simple();
+    p.game.turns = Some(TurnPolicy {
+        hints: true,
+        ..Default::default()
+    });
+    p.locations[0].name = "Study".into();
+    p.locations[0].hints.push(HintSet {
+        id: "hints".into(),
+        name: "Puzzle".into(),
+        stages: vec![HintStage {
+            id: "clue".into(),
+            clues: vec!["A clue.".into()],
+            solution: Some("The answer.".into()),
             ..Default::default()
-        });
-        p.locations[0].name = "Study".into();
-        p.locations[0].hints.push(HintSet {
-            id: "hints".into(),
-            name: "Puzzle".into(),
-            stages: vec![HintStage {
-                id: "clue".into(),
-                clues: vec!["A clue.".into()],
-                solution: Some("The answer.".into()),
-                ..Default::default()
-            }],
-            ..Default::default()
-        });
-        let mut s = start(p);
-        s.undo_proof.as_mut().unwrap().policy = policy;
-        s.command("use change").unwrap();
-        let before = s.state().clone();
-        s.command("hint study").unwrap();
-        assert_eq!(
-            view(&s).available,
-            if policy == HintPolicy::KeepKnown {
-                0
-            } else {
-                2
-            }
-        );
-        if policy == HintPolicy::Restore {
-            s.command("undo").unwrap();
-            assert_eq!(s.state(), &before);
-            s.command("hint study").unwrap();
-        }
-        let known = s.state().clone();
-        s.command("hint study").unwrap();
-        assert_eq!(s.state().hints, known.hints);
-        s.command("undo").unwrap();
-        assert_eq!(s.state(), &known);
-        s.command("hint study solution").unwrap();
-        assert!(s.state().hints["clue"].solution_seen);
-        if policy == HintPolicy::KeepKnown {
-            assert_eq!(view(&s).available, 0);
-        }
-    }
+        }],
+        ..Default::default()
+    });
+    let mut s = start(p);
+    s.command("use change").unwrap();
+    let hint = s.command("hint study").unwrap();
+    assert_eq!(view(&s).available, 0);
+    assert_eq!(view(&s).reason, Reason::NewHint);
+    assert!(
+        hint.messages
+            .iter()
+            .any(|m| text::plain(m).contains("hint stays known"))
+    );
+    let known = s.state().clone();
+    s.command("hint study").unwrap();
+    assert_eq!(s.state().hints, known.hints);
+    s.command("undo").unwrap();
+    assert_eq!(s.state(), &known);
+    s.command("hint study solution").unwrap();
+    assert!(s.state().hints["clue"].solution_seen);
+    assert_eq!(view(&s).available, 0);
+    assert_eq!(view(&s).reason, Reason::NewHint);
 }
 
 #[test]
@@ -481,7 +485,9 @@ fn disabled_legacy_undo_and_longer_authored_commands_keep_their_meaning() {
     let mut legacy = Session::start(p.clone(), None).unwrap().0;
     legacy.command("undo").unwrap();
     assert_eq!(legacy.state().variables["count"], Value::Integer(1));
-    assert!(legacy.proof_enable_undo(HintPolicy::KeepKnown).is_err());
+    let mut enabled = p.clone();
+    enabled.game.allow_player_undo = true;
+    assert!(crate::GameDefinition::new(enabled).is_err());
     p.game.actions.last_mut().unwrap().pattern = vec![PatternPart::Literal {
         text: "lever".into(),
     }];
@@ -654,7 +660,7 @@ fn unavailable_undo_keeps_conversation_authority_and_invalid_selection_keeps_his
     let mut s = start(conversation_project());
     s.command("talk keeper").unwrap();
     let state = s.state().clone();
-    s.proof_enable_undo(HintPolicy::KeepKnown).unwrap();
+    s.replace_state(s.state().clone()).unwrap();
     let offer = s.offer.clone().unwrap();
     s.command("undo").unwrap();
     assert_eq!(s.offer.as_ref(), Some(&offer));
@@ -805,14 +811,15 @@ fn collision_scan_includes_hidden_scopes_synonyms_empty_literals_and_exits() {
         }],
         ..Default::default()
     });
-    assert_eq!(collisions(&p), ["local", "route"]);
+    assert_eq!(player_undo_command_conflicts(&p), ["local", "route"]);
     // Empty literal sockets are reviewable drafts, rejected by today's schema.
     // A validated hidden action with an actually empty pattern still conflicts.
     p.locations[1].exits.clear();
     p.objects[0].actions[0].pattern.clear();
-    let mut s = Session::start(p, None).unwrap().0;
-    assert!(s.proof_enable_undo(HintPolicy::KeepKnown).is_err());
-    assert!(s.proof_undo_view().is_none());
+    let s = Session::start(p.clone(), None).unwrap().0;
+    assert!(!s.undo_view().enabled);
+    p.game.allow_player_undo = true;
+    assert!(crate::GameDefinition::new(p).is_err());
 }
 
 #[test]
@@ -865,7 +872,7 @@ fn encoded_payload_bound_counts_json_escaping_and_utf8_bytes_exactly() {
         Reason::Oversized
     );
     s.command("help").unwrap();
-    assert_eq!(s.undo_proof.as_ref().unwrap().captures, 0);
+    assert_eq!(s.undo_history.as_ref().unwrap().captures, 0);
 }
 
 #[test]
@@ -939,10 +946,17 @@ fn routine_ending_undo_has_no_end_hook_replay_or_runtime_execution_trace() {
     assert_eq!(ended.variables["bells"], Value::Integer(1));
     let result = s.command_explained("undo");
     assert_eq!(s.state(), &before);
-    assert!(result.explanation.unwrap().steps.is_empty());
+    let trace = result.explanation.unwrap();
+    assert_eq!(trace.steps.len(), 1);
+    assert!(matches!(
+        trace.steps[0].kind,
+        crate::TraceKind::Undo {
+            outcome: Some(UndoResult::Restored { .. })
+        }
+    ));
+    assert!(trace.steps[0].source.is_none());
     assert!(result.selected_flow.is_none());
     let mut loaded = Session::restore(s.project().clone(), ended.clone()).unwrap();
-    loaded.proof_enable_undo(HintPolicy::KeepKnown).unwrap();
     loaded.command("undo").unwrap();
     assert_eq!(loaded.state(), &ended);
 }
@@ -990,4 +1004,93 @@ fn nested_containment_and_open_flags_are_owned_by_the_same_point() {
     assert_eq!(s.state().objects["key"].placement, Placement::Inventory);
     s.command("undo").unwrap();
     assert_eq!(s.state(), &before);
+}
+
+#[test]
+fn public_results_report_restoration_availability_and_failures_without_execution_sources() {
+    let mut p = simple();
+    p.game.allow_player_undo = true;
+    p.game.turns = Some(TurnPolicy::default());
+    let (mut s, initial) = Session::start(p, None).unwrap();
+    assert_eq!(initial.undo, Some(s.undo_view()));
+    assert_eq!(
+        initial.undo.unwrap().unavailable_reason,
+        Some(Reason::Empty)
+    );
+    let before = s.state().clone();
+    let changed = s.command("use change").unwrap();
+    assert_eq!(changed.undo.unwrap().available, 1);
+    assert!(changed.undo_result.is_none());
+    let undone = s.undo_explained();
+    assert_eq!(undone.undo, Some(s.undo_view()));
+    assert_eq!(
+        undone.undo_result,
+        Some(UndoResult::Restored {
+            command: "use change".into()
+        })
+    );
+    assert!(undone.selected_flow.is_none());
+    assert_eq!(s.state(), &before);
+    let trace = undone.explanation.unwrap();
+    assert_eq!(trace.steps.len(), 1);
+    assert!(trace.steps[0].source.is_none());
+    assert!(matches!(trace.steps[0].kind, crate::TraceKind::Undo { .. }));
+    let unavailable = s.undo().unwrap();
+    assert!(!unavailable.state_changed);
+    assert_eq!(
+        unavailable.undo_result,
+        Some(UndoResult::Unavailable {
+            reason: Reason::Empty
+        })
+    );
+    s.command("use change").unwrap();
+    s.undo_history.as_mut().unwrap().prepare_failure = true;
+    let before = s.state().clone();
+    let history = s.undo_view();
+    let failure = s.undo_explained();
+    assert_eq!(failure.status, CommandStatus::Error);
+    assert_eq!(failure.undo, Some(history));
+    assert!(failure.messages.is_empty());
+    assert_eq!(s.state(), &before);
+    let trace = failure.explanation.unwrap();
+    assert!(!trace.committed);
+    assert_eq!(trace.steps[0].outcome, crate::TraceOutcome::Failed);
+    assert!(trace.steps[0].source.is_none());
+}
+
+#[test]
+fn disabled_native_operations_never_dispatch_an_authored_undo_or_retain_payload_in_legacy_games() {
+    for version in 1..=FORMAT_VERSION {
+        let mut p = simple();
+        p.game.format_version = version;
+        if version < 3 {
+            p.game.command_assistance = None;
+        }
+        p.vocabulary.push(Verb {
+            id: "rewind".into(),
+            canonical: "undo".into(),
+            ..Default::default()
+        });
+        p.game.actions.push(Action {
+            id: "authored-undo".into(),
+            verb: "rewind".into(),
+            effects: vec![routines::increment("count")],
+            ..Default::default()
+        });
+        let (mut s, initial) = Session::start(p, None).unwrap();
+        assert!(initial.undo.is_none());
+        let direct = s.undo().unwrap();
+        assert_eq!(
+            direct.undo_result,
+            Some(UndoResult::Unavailable {
+                reason: Reason::Disabled
+            })
+        );
+        assert_eq!(s.state().variables["count"], Value::Integer(0));
+        let authored = s.command("undo").unwrap();
+        assert!(authored.undo.is_none());
+        assert!(authored.undo_result.is_none());
+        assert_eq!(s.state().variables["count"], Value::Integer(1));
+        assert_eq!(s.undo_payload_bytes(), 0);
+    }
 }

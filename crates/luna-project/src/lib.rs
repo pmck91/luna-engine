@@ -149,6 +149,10 @@ fn load_unlocked(root: &Path) -> Result<Project> {
     project.timers.sort_by_key(|timer| timer.order);
     project.routines.sort_by_key(|routine| routine.order);
     ensure!(
+        header.format_version >= 8 || !project.game.allow_player_undo,
+        "Player undo requires an explicit upgrade to content format 8"
+    );
+    ensure!(
         header.format_version >= 7 || project.minimum_format() < 7,
         "Routines require content format 7"
     );

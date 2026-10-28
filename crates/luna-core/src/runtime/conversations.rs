@@ -456,9 +456,8 @@ impl<'a> Run<'a> {
             .reply(ci, ni, id)
             .context("Unknown offered reply")?;
         let reply = &c.nodes[ni].replies[ri];
-        #[cfg(any(test, feature = "undo-proof"))]
-        {
-            self.undo_input = crate::undo_proof::Initiator::Reply(
+        if self.p.game.allow_player_undo {
+            self.undo_input = crate::session::undo::Initiator::Reply(
                 offer
                     .replies
                     .iter()
@@ -566,9 +565,8 @@ impl<'a> Run<'a> {
         {
             ensure!(input.len() <= 4096, "Command is too long");
             self.pause_conversation(&id, false)?;
-            #[cfg(any(test, feature = "undo-proof"))]
-            {
-                self.undo_input = crate::undo_proof::Initiator::Pause;
+            if self.p.game.allow_player_undo {
+                self.undo_input = crate::session::undo::Initiator::Pause;
             }
             return Ok(true);
         }

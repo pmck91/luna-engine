@@ -1,8 +1,8 @@
-//! U1 only: enable the native candidate directly, then use the real HTTP handlers.
+//! Production undo through real HTTP commands, replies, captures and replacements.
 use super::*;
 use axum::{body::Body, http::Request};
 use http_body_util::BodyExt;
-use luna_core::undo_proof::{HintPolicy, View};
+use luna_core::UndoView;
 use serde_json::{Value as JsonValue, json};
 use tower::ServiceExt;
 #[path = "../../../tests/support/routines.rs"]
@@ -21,7 +21,7 @@ async fn request(
                 .method(method)
                 .uri(format!("/api/v1{path}"))
                 .header("host", "127.0.0.1:4318")
-                .header("x-luna-token", "undo-proof")
+                .header("x-luna-token", "undo-tests")
                 .header("content-type", "application/json")
                 .body(Body::from(body.to_string()))
                 .unwrap(),
@@ -37,21 +37,8 @@ async fn api(app: &Router, path: &str, method: &str, body: JsonValue) -> JsonVal
     assert_eq!(status, StatusCode::OK, "{body}");
     body
 }
-fn enable(app: &App, id: &str) {
-    app.lock()
-        .unwrap()
-        .sessions
-        .get_mut(id)
-        .unwrap()
-        .runtime
-        .proof_enable_undo(HintPolicy::KeepKnown)
-        .unwrap();
-}
-fn view(app: &App, id: &str) -> View {
-    app.lock().unwrap().sessions[id]
-        .runtime
-        .proof_undo_view()
-        .unwrap()
+fn view(app: &App, id: &str) -> UndoView {
+    app.lock().unwrap().sessions[id].runtime.undo_view()
 }
 
 #[tokio::test]
@@ -60,14 +47,17 @@ async fn actual_http_commands_replies_and_debug_replacements_use_native_undo() {
     let state = App::new(
         temp.path().join("config.json"),
         Some(temp.path().join("projects")),
-        "undo-proof".into(),
+        "undo-tests".into(),
     )
     .unwrap();
     let app = router(state.clone());
-    let p = fixture::project();
+    let mut p = fixture::project();
+    p.game.format_version = 8;
+    p.game.allow_player_undo = true;
     let start = api(&app, "/playtests", "POST", json!({"project":p})).await;
+    assert_eq!(start["result"]["undo"]["available"], 0);
+    assert_eq!(start["result"]["undo"]["enabled"], true);
     let id = start["session"].as_str().unwrap();
-    enable(&state, id);
     let command_path = format!("/playtests/{id}/commands");
     let talk = api(
         &app,
@@ -89,13 +79,15 @@ async fn actual_http_commands_replies_and_debug_replacements_use_native_undo() {
     assert_eq!(view(&state, id).available, 2);
     let undone = api(
         &app,
-        &command_path,
+        &format!("/playtests/{id}/undo"),
         "POST",
-        json!({"command":"undo","explain":true}),
+        json!({"explain":true}),
     )
     .await;
     assert_eq!(undone["state"], talk["state"]);
     assert_eq!(undone["result"]["explanation"]["committed"], true);
+    assert_eq!(undone["result"]["undo_result"]["type"], "restored");
+    assert_eq!(undone["result"]["undo"]["available"], 1);
     assert_ne!(undone["result"]["conversation"]["offer_token"], token);
     let history = view(&state, id);
     let rejected = api(
@@ -129,19 +121,65 @@ async fn actual_http_commands_replies_and_debug_replacements_use_native_undo() {
 }
 
 #[tokio::test]
-async fn captures_status_checks_and_setup_restores_never_include_candidate_history() {
+async fn disabled_http_undo_preserves_authored_commands_and_new_sessions_get_their_own_policy() {
     let temp = tempfile::tempdir().unwrap();
     let state = App::new(
         temp.path().join("config.json"),
         Some(temp.path().join("projects")),
-        "undo-proof".into(),
+        "undo-tests".into(),
     )
     .unwrap();
     let app = router(state.clone());
-    let p = fixture::project();
+    let mut p = fixture::project();
+    p.game.format_version = 8;
+    p.vocabulary.push(Verb {
+        id: "rewind".into(),
+        canonical: "undo".into(),
+        ..Default::default()
+    });
+    p.game.actions.push(Action {
+        id: "authored-undo".into(),
+        verb: "rewind".into(),
+        effects: vec![fixture::increment("coins")],
+        ..Default::default()
+    });
+    let old = api(&app, "/playtests", "POST", json!({"project":p})).await;
+    let id = old["session"].as_str().unwrap();
+    assert!(old["result"].get("undo").is_none());
+    let direct = api(&app, &format!("/playtests/{id}/undo"), "POST", json!({})).await;
+    assert_eq!(direct["state"], old["state"]);
+    assert_eq!(direct["result"]["undo_result"]["reason"], "disabled");
+    let authored = api(
+        &app,
+        &format!("/playtests/{id}/commands"),
+        "POST",
+        json!({"command":"undo"}),
+    )
+    .await;
+    assert_eq!(authored["state"]["variables"]["coins"], 1);
+    assert!(authored["result"].get("undo").is_none());
+    p.game.actions.pop();
+    p.game.allow_player_undo = true;
+    let fresh = api(&app, "/playtests", "POST", json!({"project":p})).await;
+    assert_eq!(fresh["result"]["undo"]["available"], 0);
+    assert!(!view(&state, id).enabled);
+}
+
+#[tokio::test]
+async fn captures_status_checks_and_setup_restores_never_include_session_history() {
+    let temp = tempfile::tempdir().unwrap();
+    let state = App::new(
+        temp.path().join("config.json"),
+        Some(temp.path().join("projects")),
+        "undo-tests".into(),
+    )
+    .unwrap();
+    let app = router(state.clone());
+    let mut p = fixture::project();
+    p.game.format_version = 8;
+    p.game.allow_player_undo = true;
     let start = api(&app, "/playtests", "POST", json!({"project":p})).await;
     let id = start["session"].as_str().unwrap();
-    enable(&state, id);
     api(
         &app,
         &format!("/playtests/{id}/commands"),
@@ -158,7 +196,7 @@ async fn captures_status_checks_and_setup_restores_never_include_candidate_histo
     )
     .await;
     assert_eq!(setup["version"], 5);
-    assert!(setup["state"].get("undo_proof").is_none());
+    assert!(setup["state"].get("undo_history").is_none());
     assert_eq!(view(&state, id), history);
     let mut invalid = setup.clone();
     invalid["state"]["variables"] = json!({});
@@ -179,7 +217,6 @@ async fn captures_status_checks_and_setup_restores_never_include_candidate_histo
     )
     .await;
     let restored_id = restored["session"].as_str().unwrap();
-    enable(&state, restored_id);
     assert_eq!(view(&state, restored_id).available, 0);
     assert_eq!(restored["state"], setup["state"]);
     assert_eq!(view(&state, id), history);

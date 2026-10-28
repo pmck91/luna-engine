@@ -137,7 +137,7 @@ test('author a scheduled event through real blocks, persist it, resume a pending
   await insert(page, 'CANCEL TIMER', /^THEN · IF/);
   await save(page);
   const game = JSON.parse(readFileSync(join(root, 'game.json'), 'utf8'));
-  expect(game.format_version).toBe(7);
+  expect(game.format_version).toBe(8);
   const timerId = readdirSync(join(root, 'timers'))[0].replace('.json', '');
   await page.reload();
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
