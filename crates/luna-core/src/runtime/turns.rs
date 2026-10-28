@@ -156,6 +156,11 @@ pub(crate) fn view(
     })
 }
 impl Run<'_> {
+    #[cfg(test)]
+    pub(super) fn routine_candidate_at_boundary(&self) -> bool {
+        self.timing.boundary
+    }
+
     pub(super) fn schedule_timer(
         &mut self,
         timer: &str,

@@ -28,6 +28,8 @@ mod procedures;
 mod quests;
 mod relations;
 pub(crate) mod resolution;
+#[cfg(test)]
+pub(crate) mod routine_proof;
 pub(crate) mod turns;
 mod values;
 
@@ -64,6 +66,8 @@ pub(crate) struct Run<'a> {
     encounter_epoch: u64,
     entry_counter: u64,
     entering: HashMap<String, u64>,
+    #[cfg(test)]
+    pub(crate) candidate_routines: Option<routine_proof::Attempt>,
 }
 #[derive(PartialEq)]
 enum Flow {
@@ -109,6 +113,8 @@ impl<'a> Run<'a> {
             encounter_epoch: 0,
             entry_counter: 0,
             entering: HashMap::new(),
+            #[cfg(test)]
+            candidate_routines: None,
         }
     }
     fn world_mut(&mut self) -> &mut GameState {
