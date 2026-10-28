@@ -1,6 +1,6 @@
 # Character routines
 
-Status: **CR0 accepted; CR1 contract frozen; CR2 committed; CR3 authoring accepted**, 28 October 2026. Branch `feature/character-routines` starts from merged `main` at `1275cc5` (turns and scheduled events, PR #6). The owner requested this work with “lets get character routines done!” The [gameplay roadmap](gameplay-feature-roadmap.md#f5--character-routines) requires concrete design feedback before implementation. See the [interactive preview and review guide](../design/character-routines/README.md), [shared contract](../design/character-routines/shared-contract.md), [CR1 evidence](../design/character-routines/runtime-proof-review.md) and [CR2 foundation review](../design/character-routines/foundation-review.md).
+Status: **CR0–CR4 complete, accepted and merged as `d5b927c` (PR #7)**, 28 October 2026. The branch started from `main 1275cc5` (turns/events, PR #6). CR0/CR1 was committed as `7841394`, CR2 as `9b0b729`, CR3 as `6ec3c6e` and CR4 as `9e436e8`. The owner confirmed completion after the PR merged. See the [design guide](../design/character-routines/README.md), [shared contract](../design/character-routines/shared-contract.md) and [final acceptance record](../design/character-routines/final-review.md). Public guides remain deferred.
 
 This plan covers the complete F5 delivery. The owner supported the behavior direction, then requested one Blockly group containing every step instead of individual step menus/workspaces. The owner also requested start and repeat/end conditions on the block itself. The owner accepted the complete revised preview with “perfect.” The preview and authoring design below incorporate both corrections. CR1 proved the shared runtime and canonical projection before shipping models or file formats change; its frozen contract resolves the implementation details below. Preserve the existing block appearance and keep the feature on its branch through final testing and owner acceptance. Public user guides remain part of the later documentation-site milestone.
 
@@ -193,13 +193,13 @@ The [working authoring review](../design/character-routines/authoring-review.md)
 
 ### CR4 — Acceptance, example and merge
 
-The [CR4 review](../design/character-routines/final-review.md) records the separate [Routine Workshop](../../examples/routine-workshop/ACCEPTANCE.md), raw release measurements and verification. The owner authorized commit/push on 28 October 2026 with “ok push the changes.” Final PR review and merge remain open.
+The [CR4 review](../design/character-routines/final-review.md) records the separate [Routine Workshop](../../examples/routine-workshop/ACCEPTANCE.md), raw release measurements and verification. The owner authorized commit/push on 28 October 2026 with “ok push the changes.” CR4 was committed as `9e436e8`, pushed and merged as `d5b927c` (PR #7), confirmed on 28 October 2026.
 
 - [x] Create a separate progressive Routine Workshop project/export with a simple patrol first, then a blocked gate, conversation hold, manual pause/replacement, offstage storage, saved wait, two-character ordering, once-only effects, late rollback and ending. Nine native setups, two saved checks and ten routine workspaces are retained. Locked Study, Keeper and Timer Workshop are unchanged.
 - [x] Measure release tick/restore/save/explanation workloads with many idle/active routines and due characters, plus realistic populated state. Retain shared budgets and report practical limits without hardware timing assertions. The review links 288 raw rows across 27 cases and records the large-batch explanation cost.
 - [x] Complete workspace tests/doctests, fmt, Clippy, generated-contract checks, frontend unit/build/format checks, both-browser authoring/parity checks, package smoke, developer notes and documentation links. All 476 Rust tests, 132 frontend tests, 11 retained proof tests and 159 browser checks pass; one existing Firefox zoom skip remains. Fix numeric-shadow reconciliation and the command-focus race exposed during acceptance.
 - [x] Record technical evidence and the owner's commit/push authorization on 28 October 2026. Public user guides remain deferred.
-- [ ] Complete final PR review and merge the complete branch after acceptance.
+- [x] Complete final PR review and merge the branch: PR #7 merged as `d5b927c`, confirmed by the owner and local `main` on 28 October 2026.
 
 ## References and design rationale
 

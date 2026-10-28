@@ -1,0 +1,356 @@
+.undo-preview {
+  height: 100dvh;
+  overflow: auto;
+  background: #1d2028;
+  font-size: 13px;
+}
+.undo-preview p {
+  line-height: 1.55;
+}
+.undo-preview h1 {
+  font-size: 23px;
+  margin: 0;
+}
+.undo-preview h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.undo-preview button {
+  white-space: normal;
+}
+.undo-banner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 20px;
+  background: #302943;
+  color: #e6dcff;
+  font-size: 12px;
+}
+.undo-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.undo-header img {
+  width: 30px;
+  height: 38px;
+  object-fit: contain;
+}
+.undo-header strong {
+  font-size: 17px;
+}
+.undo-header small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.undo-header-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.undo-layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) 290px;
+  min-height: calc(100dvh - 111px);
+}
+.undo-layout main {
+  min-width: 0;
+}
+.undo-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: var(--panel);
+  padding: 20px 12px;
+  border-right: 1px solid var(--border);
+}
+.undo-nav small {
+  color: var(--muted);
+  margin: 14px 0 3px;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.undo-nav button {
+  text-align: left;
+}
+.undo-nav .active {
+  background: #3c315c;
+  border-color: #7161c6;
+}
+.undo-nav p {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 18px;
+}
+.undo-breadcrumb {
+  display: flex;
+  gap: 10px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+.undo-settings,
+.undo-play {
+  padding: 22px;
+}
+.undo-settings {
+  border-bottom: 1px solid var(--border);
+}
+.undo-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.undo-heading p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+.undo-tag {
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 15px;
+  padding: 5px 12px;
+  font-size: 12px;
+}
+.undo-setting-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 32px;
+}
+.undo-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+}
+.undo-check input {
+  width: 17px;
+  height: 17px;
+  accent-color: #a891ff;
+  flex-shrink: 0;
+}
+.undo-muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+.undo-boundary {
+  border-left: 3px solid #8a74d9;
+  padding: 8px 12px;
+  background: #252333;
+  font-size: 12px;
+}
+.undo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.undo-stale,
+.undo-question {
+  padding: 12px;
+  margin: 10px 0;
+  border-left: 3px solid #c19b4e;
+  background: #2b281f;
+  line-height: 1.55;
+}
+.undo-play-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.undo-play-controls > div {
+  flex: 1;
+  min-width: 160px;
+}
+.undo-play-controls strong,
+.undo-play-controls small {
+  display: block;
+}
+.undo-play-controls small {
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.undo-play-controls output {
+  color: #c5b5ff;
+  font-size: 12px;
+}
+.undo-play-controls p {
+  margin: 0;
+  color: var(--muted);
+}
+.undo-transcript {
+  max-height: 260px;
+  min-height: 100px;
+  overflow: auto;
+  padding: 14px 16px;
+  background: #171a22;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.undo-line {
+  margin: 4px 0 9px;
+  overflow-wrap: anywhere;
+}
+.undo-line.command {
+  color: #b9b0cf;
+}
+.undo-line.notice {
+  color: #c8be9d;
+  font-size: 12px;
+}
+.undo-line.undo {
+  margin-top: 16px;
+  border-top: 1px dashed #8a74d9;
+  padding-top: 12px;
+  color: #d3c6ff;
+  font-weight: 600;
+}
+.undo-ending,
+.undo-conversation {
+  padding: 14px;
+  border: 1px solid #7860ba;
+  border-radius: 8px;
+  background: #282235;
+  margin: 12px 0;
+}
+.undo-ending span,
+.undo-conversation small {
+  display: block;
+  margin-top: 7px;
+  line-height: 1.5;
+}
+.undo-samples {
+  margin: 14px 0;
+}
+.undo-samples span {
+  color: var(--muted);
+}
+.undo-command {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin: 12px 0 18px;
+}
+.undo-world {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.undo-world summary {
+  cursor: pointer;
+}
+.undo-world dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+  margin-bottom: 0;
+}
+.undo-world dt {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+.undo-world dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.undo-world p {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 0;
+}
+.undo-review {
+  padding: 22px 16px;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  min-width: 0;
+}
+.undo-review details {
+  border-top: 1px solid var(--border);
+  padding: 16px 0;
+  margin-top: 12px;
+}
+.undo-review summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.undo-review > p {
+  color: var(--muted);
+}
+.undo-scenario-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.undo-review details > button {
+  margin: 5px 4px 0 0;
+}
+.undo-collision {
+  border-left: 3px solid #cfab65;
+  padding: 12px;
+  background: #302a22;
+  margin: 14px 0;
+}
+.undo-preview.review-compact .undo-layout {
+  grid-template-columns: 54px minmax(0, 1fr);
+}
+.undo-preview.review-compact .undo-nav > * {
+  visibility: hidden;
+}
+.undo-preview.review-compact .undo-review {
+  grid-column: 1 / -1;
+  border-left: 0;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 1200px) {
+  .undo-layout {
+    grid-template-columns: 150px minmax(0, 1fr) 245px;
+  }
+  .undo-setting-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .undo-settings,
+  .undo-play {
+    padding: 18px;
+  }
+}
+@media (max-width: 950px) {
+  .undo-layout {
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+  .undo-nav > * {
+    visibility: hidden;
+  }
+  .undo-review {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .undo-world dl {
+    grid-template-columns: 1fr;
+  }
+  .undo-header-actions {
+    margin-left: 0;
+  }
+}
