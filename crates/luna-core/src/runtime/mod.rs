@@ -64,6 +64,8 @@ pub(crate) struct Run<'a> {
     mutation_events: Vec<(luna_model::Event, String)>,
     story_usage: (usize, usize),
     pub(crate) offer: Option<crate::ConversationView>,
+    #[cfg(any(test, feature = "undo-proof"))]
+    pub(crate) undo_input: crate::undo_proof::Initiator,
     encounter_epoch: u64,
     entry_counter: u64,
     entering: HashMap<String, u64>,
@@ -115,6 +117,8 @@ impl<'a> Run<'a> {
             mutation_events: vec![],
             story_usage,
             offer: None,
+            #[cfg(any(test, feature = "undo-proof"))]
+            undo_input: crate::undo_proof::Initiator::default(),
             encounter_epoch: 0,
             entry_counter: 0,
             entering: HashMap::new(),

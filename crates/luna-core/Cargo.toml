@@ -3,10 +3,13 @@ name = "luna-core"
 version.workspace = true
 edition.workspace = true
 
+[features]
+# U1 research only: no authored setting, format upgrade or shipping host control.
+undo-proof = []
+
 [dependencies]
 luna-model = { path = "../luna-model" }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 ts-rs.workspace = true
-

@@ -24,10 +24,10 @@ The [conversations and quests plan](conversations-and-quests.md) is complete, ac
 | Conversations and quests              | `feature/conversations-and-quests` | Complete, accepted and merged as `bfe2c42` (PR #5). See the [refreshed plan](conversations-and-quests.md).                                                                                                                                                                                                       |
 | F4 — Turns and scheduled events       | `feature/turn-events`              | Complete, accepted and merged as `1275cc5` (PR #6). T0/T1 committed as `b80861a`, T2 as `08dc93f`, T3 as `bf22c72`, T4 as `e135642`. Owns the turn clock and scheduling contract. See the [detailed plan](turn-events.md).                                                                                       |
 | F5 — Character routines | `feature/character-routines` | Complete, accepted and merged as `d5b927c` (PR #7); CR4 commit `9e436e8`. See the [plan](character-routines.md) and [final review](../design/character-routines/final-review.md). |
-| F6 — Optional player undo | `feature/player-undo` | U0 interaction example accepted and commit/progression authorized; U1 native proof next. Hint-policy choice remains open. See the [plan](player-undo.md) and [review guide](../design/player-undo/README.md). |
+| F6 — Optional player undo | `feature/player-undo` | U0 accepted and committed as `a1bda30`; U1 native/host proof and release measurements verified. The owner selected keep-known hints; the U1 contract is frozen and U2 is next. See the [plan](player-undo.md) and [review guide](../design/player-undo/README.md). |
 | F7 — Standalone browser player        | `feature/browser-player`           | Explicitly after v1; investigate Rust/WebAssembly portability and distribution separately.                                                                                                                                                                                                                       |
 
-F1–F5 and conversations/quests are merged, most recently routines as `d5b927c`. F6 starts from that baseline on `feature/player-undo`; its U0 interaction design is accepted and U1 is next, with the separate hint-policy choice open. Create later branches from the current validated `main` when work starts. Later branch names are reserved planning names, not claims of delivered features.
+F1–F5 and conversations/quests are merged, most recently routines as `d5b927c`. F6 starts from that baseline on `feature/player-undo`; its U0 interaction design is accepted, U1 native/host proof is verified, and its contract is frozen with owner-selected keep-known hints. Create later branches from the current validated `main` when work starts. Later branch names are reserved planning names, not claims of delivered features.
 
 ## Shared designer experience
 
@@ -174,13 +174,13 @@ Acceptance: patrol, blocked movement, pause/resume, switch routines, move offsta
 
 ## F6 — Optional player undo
 
-Work has begun on `feature/player-undo` from merged `main d5b927c`. The [U0–U4 plan](player-undo.md) and [clickable preview](../design/player-undo/README.md) expand the proposal below. U0 owner feedback is open, including whether revealing a new hint should clear earlier undo points or be restored with the whole snapshot. No production undo/schema changes are implemented in the design slice.
+Work has begun on `feature/player-undo` from merged `main d5b927c`. The [U0–U4 plan](player-undo.md) and [clickable preview](../design/player-undo/README.md) expand the proposal below. U0 is accepted and U1 is complete with a [frozen contract](../design/player-undo/shared-contract.md). The owner selected keep-known hints: new clues/solutions stay recorded, clear earlier history and create no point. No production undo/schema changes are implemented in the design slice.
 
 Add **Allow player undo**, proposed default **off**, under Game settings > Player assistance. Explain the setting in plain language and expose the command in player help only when enabled. This is separate from project Undo/Redo and must not affect editor history.
 
-Use a bounded, complete before-command snapshot, not reverse effects. Restore all consequences together: objects/ownership, values, visits, response progress, hints, endings, and any merged conversations, quests, timers, or routines. Define which state-changing inputs establish an undo point and how hints count. Information a player has read cannot be erased by restoring state.
+Use a bounded, complete before-command snapshot, not reverse effects. Restore all consequences together: objects/ownership, values, visits, response progress, hints, endings, and any merged conversations, quests, timers, or routines. The U1 contract defines eligible state-changing inputs and the fixed keep-known hint boundary. Information a player has read cannot be erased by restoring state.
 
-Propose session-local undo history, cleared on load/restart, with no undo record for inspection/save/undo itself. Confirm memory limits, ending recovery, command collisions, and displayed transcript treatment before implementation. Keep casual-play support optional rather than making it a global engine policy.
+Keep session-local undo history, cleared on successful load/restart. Free inspection and saving preserve history, while undo consumes a point. The U1 contract fixes the 20-point/16 MiB retained-payload bounds, ending recovery, command collisions and appended restoration marker. Keep casual-play support optional rather than making it a global engine policy.
 
 Acceptance: reverse a chained trigger/action, undo an ending, preserve save slots, handle exhausted history, respect a disabled game, and verify editor/runner parity without partial restoration.
 

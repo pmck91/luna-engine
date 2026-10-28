@@ -1,6 +1,6 @@
 # Player undo — U0 design review
 
-Status: **U0 interaction design accepted; hint-policy choice pending**, 28 October 2026. Work is on `feature/player-undo` from `main d5b927c` (merged routines, PR #7). The [U0–U4 implementation plan](../../plans/player-undo.md) defines behaviour, native proof and delivery gates. The owner accepted the UI example and authorized commit/progression on 28 October 2026. No gameplay/schema changes are implemented by this preview; U1 must prove native behaviour and settle the separate hint-policy choice.
+Status: **U0 interaction design accepted; U1 contract frozen**, 28 October 2026. Work is on `feature/player-undo` from `main d5b927c` (merged routines, PR #7). The [U0–U4 implementation plan](../../plans/player-undo.md) defines behaviour, native proof and delivery gates. The owner accepted the UI example and authorized commit/progression on 28 October 2026; U0 is committed as `a1bda30`. The [U1 evidence](runtime-proof-review.md) and [shared contract](shared-contract.md) record the subsequent native proof and frozen target. The owner selected keep-known hints on 28 October 2026; the preview now illustrates that policy. Production delivery remains U2–U4.
 
 ## Open the mockup
 
@@ -24,32 +24,32 @@ Open [the player-undo preview](http://127.0.0.1:5188/undo-design.html). It is in
 
 - **Two histories:** make a game change, disable the author setting, then use top-bar project Undo. The live playtest keeps its original policy and history. Player Undo restores the game without changing the author setting. Existing Ctrl/Cmd Z behaviour is retained; no player-undo shortcut is proposed.
 - **Saves and loads:** Save checkpoint leaves history intact. Load checkpoint restores its state and clears history. Simulated failed commands/loads preserve the current state, history and pending question. These are illustrative cases, not filesystem/corruption tests.
-- **Conversation:** choose **Conversation reply sample**, accept the prewritten reply and undo. The earlier choices return. U1 must prove native fresh-token authority, stale selection rejection and no repeated node entry/reward hooks.
+- **Conversation:** choose **Conversation reply sample**, accept the prewritten reply and undo. The earlier choices return. U1 separately proves native fresh-token authority, stale selection rejection and no repeated node entry/reward hooks.
 - **Clarification:** make a game change, choose **Ask an ambiguous question**, then type `undo`. Undo restores the last change and clears the question. With no point available, `undo` leaves the question intact.
-- **Hints:** **Compare hint policies** belongs to this design tool, not the proposed author settings. The recommended current proposal keeps newly revealed hints known and clears older history. Read known hint preserves history. The alternative restores hint progress as part of the whole world snapshot. The owner has been asked to choose; feedback remains open.
-- **Collisions:** **Load project with UNDO command** keeps the existing sample command when undo is off. Enabling the feature shows the conflict and blocks confirmation until the sample command is renamed, or the change is cancelled. Native exhaustive collision analysis is U1 work.
-- **Limits:** press the test switch more than 20 times, then undo repeatedly. Oldest points fall away; no redo is proposed. **Simulate oversized change** demonstrates an explicit barrier that clears older points instead of jumping over an unrecorded change. The native 16 MiB retained-payload proposal and serialization/capacity costs are unproved.
+- **Hints:** **Hint behaviour** illustrates the selected keep-known policy. Newly revealed clues/solutions stay recorded and clear older history. Read known hint is free in the sample and preserves history; undoing a later action keeps that clue recorded. There is no policy selector. Native paid repeated hints/listing retain their clock/callback pacing, as recorded in the U1 contract.
+- **Collisions:** **Load project with UNDO command** keeps the existing sample command when undo is off. Enabling the feature shows the conflict and blocks confirmation until the sample command is renamed, or the change is cancelled. U1 records native collision analysis; the production upgrade review remains U2/U3.
+- **Limits:** press the test switch more than 20 times, then undo repeatedly. Oldest points fall away; no redo is proposed. **Simulate oversized change** demonstrates an explicit barrier that clears older points instead of jumping over an unrecorded change. U1 separately proves native admission/eviction and records serialization/restore measurements under the 16 MiB retained-payload limit.
 - **Compact and keyboard:** try a 1100×800 window and **Compact review**. The review panel moves below the main content. Use Tab/Enter on the separate Undo controls; modal Escape restores focus. A typed `undo` is the terminal/player-facing route.
 
-## Decisions to confirm
+## Agreed decisions
 
-| Decision | Proposed default | Review status |
+| Decision | Agreed behaviour | Review status |
 | --- | --- | --- |
 | Optional per game | Off; one author toggle | Owner accepted U0; off by default |
-| What is undone | Complete latest committed game change, including free changes and endings | U0 accepted; U1 proof required |
-| New hints | Remain recorded; clear earlier undo history | Owner feedback requested; alternative illustrated |
+| What is undone | Complete latest committed game change, including free changes and endings | U0 accepted; U1 proved |
+| New hints | Remain recorded; clear earlier undo history | Owner selected keep-known on 28 October 2026 |
 | Read-only / saves | Preserve history | U0 accepted |
 | Loads / restarts / debug replacements | Clear history only after success | U0 accepted |
 | Transcript | Keep text and append a visible restoration marker | U0 accepted |
-| Limits | Up to 20 points / 16 MiB encoded payload; no extra author knobs | U0 accepted; U1 measurement required |
-| Parser/offer context | Clear on successful undo; freshly prepare choices; preserve on failure | U0 accepted; native proof required |
-| Compatibility | Explicit content-8 opt-in; investigate unchanged save-7/setup-5 contracts | Proposed; U1 must freeze |
+| Limits | Up to 20 points / 16 MiB encoded payload; no extra author knobs | U0 accepted; U1 measured |
+| Parser/offer context | Clear on successful undo; freshly prepare choices; preserve on failure | U0 accepted; U1 proved |
+| Compatibility | Explicit content-8 opt-in; unchanged save-7/setup-5 contracts | U1 frozen; U2 promotion required |
 
-The owner accepted the basic journey and ending recovery. The separate hint-policy question remains open and both alternatives stay reviewable. U0 acceptance does not imply native runtime or full feature acceptance.
+The owner accepted the basic journey and ending recovery. The owner also selected the keep-known hint policy, closing the final U1 decision. U0 acceptance does not imply native runtime or full feature acceptance.
 
 ## Captures and verification
 
-Both Chromium and Firefox interaction walkthroughs pass, including modal cancellation/focus, independent project/player histories, both hint policies, illustrative save/load/failure boundaries, conversation/questions, ending recovery, count eviction/oversized barrier, automatic latest-message scrolling and 1100×800 keyboard controls. Neither browser reported exceptions or project API requests. Isolated preview TypeScript, production TypeScript/Vite build, full frontend Prettier checks, changed-document links and whitespace pass. The production build retains its existing chunk-size advisory.
+Both Chromium and Firefox interaction walkthroughs pass, including modal cancellation/focus, independent project/player histories, the selected keep-known hint boundary, illustrative save/load/failure boundaries, conversation/questions, ending recovery, count eviction/oversized barrier, automatic latest-message scrolling and 1100×800 keyboard controls. Neither browser reported exceptions or project API requests. Isolated preview TypeScript, production TypeScript/Vite build, full frontend Prettier checks, changed-document links and whitespace pass. The production build retains its existing chunk-size advisory.
 
 | Capture | Shows |
 | --- | --- |
@@ -70,6 +70,6 @@ npx --no-install tsc -p design/undo/tsconfig.json
 node design/undo/verify.mjs
 ```
 
-Set `LUNA_FIREFOX_EXECUTABLE` to an installed compatible Firefox if needed. `LUNA_DESIGN_URL` and `LUNA_DESIGN_CAPTURES` override the local URL/capture directory. The checker exercises both policies, upgrade/cancellation, separated histories, saved-boundary illustration, ending recovery, questions/replies, exhaustion, oversized barrier and compact keyboard controls, and asserts no browser exceptions or project API requests.
+Set `LUNA_FIREFOX_EXECUTABLE` to an installed compatible Firefox if needed. `LUNA_DESIGN_URL` and `LUNA_DESIGN_CAPTURES` override the local URL/capture directory. The checker exercises keep-known hints, upgrade/cancellation, separated histories, saved-boundary illustration, ending recovery, questions/replies, exhaustion, oversized barrier and compact keyboard controls, and asserts no browser exceptions or project API requests.
 
 References and source distinctions are in the [plan](../../plans/player-undo.md#design-references): bounded grouped savepoints from TADS, read-only current-state rendering from SugarCube, and the accepted Luna editor/native transaction model. The preview is an application of those patterns, not a claim of matching another engine's undo semantics.

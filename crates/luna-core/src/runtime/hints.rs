@@ -30,6 +30,10 @@ impl<'a> Run<'a> {
             return Ok(());
         }
         self.timing.input = super::turns::TurnInput::Hint;
+        #[cfg(any(test, feature = "undo-proof"))]
+        {
+            self.undo_input = crate::undo_proof::Initiator::Hint;
+        }
         let Some(query) = query else {
             let mut names = self
                 .p

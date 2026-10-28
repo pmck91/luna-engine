@@ -3,6 +3,9 @@ name = "luna-editor"
 version.workspace = true
 edition.workspace = true
 
+[features]
+undo-proof = ["luna-core/undo-proof"]
+
 [dependencies]
 luna-model = { path = "../luna-model" }
 luna-core = { path = "../luna-core" }

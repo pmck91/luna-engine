@@ -70,7 +70,6 @@ function Preview() {
   const [question, setQuestion] = useState(false);
   const [reason, setReason] = useState('There are no actions to undo in this play session.');
   const [review, setReview] = useState(false);
-  const [hintPolicy, setHintPolicy] = useState('barrier');
   const [compact, setCompact] = useState(false);
   const [input, setInput] = useState('');
   const commandInput = useRef<HTMLInputElement>(null);
@@ -257,22 +256,12 @@ function Preview() {
   const hint = () => {
     if (!active.hints) return;
     const next = { ...world, hints: world.hints + 1 };
-    if (hintPolicy === 'restore')
-      captureChange(
-        'read new hint',
-        next,
-        'New clue: the lever controls the door. The alternative policy restores this recorded hint on undo.',
-      );
-    else {
-      setWorld(next);
-      setPoints([]);
-      setReason(
-        'A new hint was revealed. Earlier undo history was cleared so the hint stays known.',
-      );
-      notice(
-        'New clue: the lever controls the door. This hint stays known; earlier undo history was cleared.',
-      );
-    }
+    setWorld(next);
+    setPoints([]);
+    setReason('A new hint was revealed. Earlier undo history was cleared so the hint stays known.');
+    notice(
+      'New clue: the lever controls the door. This hint stays known; earlier undo history was cleared.',
+    );
   };
   const legacy = (collision: boolean) => {
     const next = { ...original, collision };
@@ -288,7 +277,7 @@ function Preview() {
   return (
     <div className={`undo-preview ${compact ? 'review-compact' : ''}`}>
       <div className="undo-banner">
-        <strong>U0 design preview · feedback requested</strong>
+        <strong>U0 design preview · accepted</strong>
         <span>Scripted states only · no project files or native game execution</span>
       </div>
       <header className="undo-header">
@@ -369,9 +358,7 @@ function Preview() {
                   restarting clears it.
                 </p>
                 <p className="undo-boundary">
-                  {hintPolicy === 'barrier'
-                    ? 'New hints stay known. Revealing a clue or solution clears earlier undo history.'
-                    : 'Alternative for review: undo also restores recorded hint progress. Players still remember what they read.'}
+                  New hints stay known. Revealing a clue or solution clears earlier undo history.
                 </p>
               </div>
               <div>
@@ -633,26 +620,11 @@ function Preview() {
             </div>
           </details>
           <details open>
-            <summary>Compare hint policies</summary>
+            <summary>Hint behaviour</summary>
             <p className="undo-muted">
-              Design choice pending feedback. This selector is a review aid, not another proposed
-              author setting.
+              New clues and solutions stay recorded and clear earlier undo history. Re-reading a
+              known clue is free in this sample and preserves history.
             </p>
-            <label className="field">
-              Hint policy for preview
-              <select
-                aria-label="Hint policy for preview"
-                value={hintPolicy}
-                onChange={(e) => {
-                  setHintPolicy(e.target.value);
-                  setPoints([]);
-                  notice('Changed the illustrative hint policy. History restarted for comparison.');
-                }}
-              >
-                <option value="barrier">Keep hints known · clear history</option>
-                <option value="restore">Restore hint progress with state</option>
-              </select>
-            </label>
             <button disabled={!active.hints || world.ending} onClick={hint}>
               Reveal a new hint
             </button>
@@ -668,8 +640,8 @@ function Preview() {
             </button>
           </details>
           <p className="undo-muted">
-            Native transaction/authority, byte bounds, actual save files and engine compatibility
-            need U1 proof. No new block UI is proposed.
+            U1 records the native proof. Production settings and player controls are U2/U3 work. No
+            new block UI is proposed.
           </p>
         </aside>
       </div>

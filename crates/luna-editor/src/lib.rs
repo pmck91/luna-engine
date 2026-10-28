@@ -25,6 +25,9 @@ pub use preferences::*;
 mod playtests;
 pub use playtests::*;
 
+#[cfg(all(test, feature = "undo-proof"))]
+mod undo_proof_tests;
+
 #[derive(Clone)]
 pub struct App {
     inner: Arc<Mutex<Workspace>>,

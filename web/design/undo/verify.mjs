@@ -121,6 +121,8 @@ for (const [name, engine] of [
     await expect(page.locator('.undo-question')).toBeVisible();
 
     await restart();
+    await expect(field('Hint policy for preview')).toHaveCount(0);
+    await expect(page.locator('.undo-boundary')).toContainText('New hints stay known.');
     await button('Pull lever').click();
     await button('Reveal a new hint').click();
     await depth(0);
@@ -132,15 +134,9 @@ for (const [name, engine] of [
     await button('Undo last action').click();
     await expect(field('Hints recorded')).toHaveText('1 clues recorded');
     await depth(0);
-    await field('Hint policy for preview').selectOption('restore');
-    await restart();
-    await button('Pull lever').click();
-    await button('Reveal a new hint').click();
-    await depth(2);
-    await button('Undo last action').click();
-    await depth(1);
-    await expect(field('Hints recorded')).toHaveText('0 clues recorded');
-    await field('Hint policy for preview').selectOption('barrier');
+    await command('undo');
+    await depth(0);
+    await expect(field('Hints recorded')).toHaveText('1 clues recorded');
 
     await button('Conversation reply sample').click();
     await button('1. I will help you').click();
@@ -212,7 +208,7 @@ for (const [name, engine] of [
     expect(errors).toEqual([]);
     expect(api).toEqual([]);
     console.log(
-      `${name}: U0 settings, restoration, boundaries, policies, collisions, count limit and compact keyboard illustrations passed; no project API requests.`,
+      `${name}: U0 settings, restoration, boundaries, keep-known hints, collisions, count limit and compact keyboard illustrations passed; no project API requests.`,
     );
   } finally {
     await browser.close();

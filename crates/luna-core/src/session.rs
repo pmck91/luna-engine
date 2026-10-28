@@ -6,6 +6,11 @@ use crate::{
 use anyhow::Result;
 use luna_model::{Condition, Event, GameState, Project, text};
 
+/// U1 research adapter; never included by ordinary builds.
+#[cfg(any(test, feature = "undo-proof"))]
+#[path = "undo_proof/mod.rs"]
+pub mod undo_proof;
+
 /// A playthrough with immutable authored content and validated mutable state.
 ///
 /// Commands commit their state and messages together. Hosts can borrow a state
@@ -25,6 +30,8 @@ pub struct Session {
     state: GameState,
     context: InteractionContext,
     offer: Option<crate::ConversationView>,
+    #[cfg(any(test, feature = "undo-proof"))]
+    pub(crate) undo_proof: Option<crate::undo_proof::History>,
 }
 impl Session {
     /// Validate authored content and start a fresh playthrough.
@@ -60,6 +67,8 @@ impl Session {
             state,
             context: InteractionContext::default(),
             offer: None,
+            #[cfg(any(test, feature = "undo-proof"))]
+            undo_proof: None,
         };
         let mut run = Run::new(&session.definition, session.state.clone());
         run.say(&session.definition.project().game.title)?;
@@ -121,6 +130,8 @@ impl Session {
             state,
             context: InteractionContext::default(),
             offer,
+            #[cfg(any(test, feature = "undo-proof"))]
+            undo_proof: None,
         })
     }
     /// Borrow the immutable game definition shared with save storage.
@@ -226,6 +237,10 @@ impl Session {
         self.state = state;
         self.context = InteractionContext::default();
         self.offer = offer;
+        #[cfg(any(test, feature = "undo-proof"))]
+        if let Some(history) = &mut self.undo_proof {
+            history.clear(crate::undo_proof::Reason::StateReplaced);
+        }
         Ok(())
     }
 
@@ -320,6 +335,10 @@ impl Session {
         .0
     }
     fn execute(&mut self, input: &str, explain: bool) -> (CommandResult, Option<anyhow::Error>) {
+        #[cfg(any(test, feature = "undo-proof"))]
+        if self.undo_proof.is_some() && luna_model::normalize(input) == "undo" {
+            return self.proof_undo_command(input, explain);
+        }
         self.execute_with(input, explain, |run| run.command(input))
     }
 
@@ -359,6 +378,10 @@ impl Session {
         }
         if error.is_none() {
             run.result.state_changed = *run.state != self.state;
+            #[cfg(any(test, feature = "undo-proof"))]
+            if let Some(history) = &mut self.undo_proof {
+                history.commit(&self.state, &run.state, &run.undo_input);
+            }
             self.context = run.context;
             self.offer = run.offer;
             self.state = run.state.into_owned();

@@ -55,6 +55,10 @@
 //! attempted copy, and explained commands can retain additional state snapshots.
 #![warn(missing_docs)]
 
+/// Experimental U1 adapter; absent from ordinary builds and persisted contracts.
+#[cfg(any(test, feature = "undo-proof"))]
+pub use session::undo_proof;
+
 use luna_model::text;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

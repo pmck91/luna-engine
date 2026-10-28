@@ -1,6 +1,6 @@
 # Optional player undo
 
-Status: **U0 interaction design accepted; U1 native proof next**, 28 October 2026. Work is isolated on `feature/player-undo`, created from merged `main d5b927c` (character routines, PR #7). This is F6 in the [gameplay roadmap](gameplay-feature-roadmap.md). The [interactive preview and review guide](../design/player-undo/README.md) illustrates the proposal; it does not implement or prove native undo. The owner accepted the UI example and authorized its commit and progression on 28 October 2026. The separate hint-policy choice remains open before the U1 contract freezes.
+Status: **U0 accepted; U1 native proof complete and contract frozen**, 28 October 2026. Work is isolated on `feature/player-undo`, created from merged `main d5b927c` (character routines, PR #7). This is F6 in the [gameplay roadmap](gameplay-feature-roadmap.md). The [interactive preview and review guide](../design/player-undo/README.md) illustrates the proposal; it does not implement or prove native undo. The owner accepted the UI example and authorized its commit and progression on 28 October 2026. U0 is committed as `a1bda30` after lock fix `17f1a4d`. The [native evidence](../design/player-undo/runtime-proof-review.md) and [shared contract](../design/player-undo/shared-contract.md) record U1. The owner selected the recommended keep-known hint policy on 28 October 2026, closing the final contract decision. U2 production promotion is next.
 
 The owner agreed to optional casual-play support, while noting that undo can reduce tension. Keep it **off by default**, opt-in per game and separate from editor project Undo/Redo. Preserve the accepted block appearance and [editor UX](../design/editor-ux/README.md). Public guides remain in the documentation-site milestone. Browser publishing remains after v1.
 
@@ -12,7 +12,7 @@ When enabled, player help lists `undo`. The editor playtest offers **Undo last a
 
 One undo restores the complete snapshot before the latest eligible input. A lever action, nested procedure, value watches, quest reward, timer callbacks and character routine steps form **one** undo point. Do not reverse individual effects or ask authors to supply compensating logic.
 
-## Proposed behaviour for review
+## Agreed behaviour
 
 | Input or boundary | History behaviour |
 | --- | --- |
@@ -33,11 +33,11 @@ One undo restores the complete snapshot before the latest eligible input. A leve
 
 Undo eligibility requires typed dispatch classification plus the committed state comparison. Do not infer it from transcript strings, turn cost alone, a submitted reply number, or `state_changed` alone. A no-op cannot accidentally evict the most recent useful point. Host-owned controls must not run an extra native turn when dispatching undo.
 
-### Hints: proposed boundary, feedback pending
+### Hints: agreed keep-known boundary
 
-The owner has been asked whether newly revealed hints should remain recorded after undo. The current review proposal is **keep them known**: a newly seen clue/solution clears earlier undo points and is not itself undoable. Repeating an already known clue does not clear history. A repeated hint configured to spend a turn can create a point for its clock/callback consequences, while retaining the already known hint. Hint listing is read-only.
+The owner selected **keep them known** on 28 October 2026: a newly seen clue/solution clears earlier undo points and is not itself undoable. Repeating an already known clue does not clear history. A repeated hint configured to spend a turn can create a point for its clock/callback consequences, while retaining the already known hint. Free hint listing preserves history. Existing paid listing (`TurnPolicy.hints`) retains its clock/callback cost and can create a point, just like charged LOOK; U1 records this qualification to the U0 wording.
 
-Clearing at a newly revealed clue avoids selectively merging hint history into an older world snapshot. If hint execution or a due callback fails, the entire attempt rolls back and history is retained. The UI explains this boundary before requesting a new hint. The alternative is restoring hint progress with the entire snapshot and explicitly accepting that knowledge already read cannot be erased. Resolve this policy before freezing U1; a proposed default is not owner approval.
+Clearing at a newly revealed clue avoids selectively merging hint history into an older world snapshot. If hint execution or a due callback fails, the entire attempt rolls back and history is retained. The UI explains this boundary before requesting a new hint. This is the fixed engine policy, without an additional author setting.
 
 ## State, identity and authority
 
@@ -49,7 +49,7 @@ Recognize exact normalized `undo` inside Session **before** clarification owners
 
 ## Bounded history and atomicity
 
-Propose at most **20 points** and **16 MiB of retained encoded snapshot payload** per Session, plus bounded player-safe command metadata. These are engine limits, not designer settings. The byte limit must be described as retained payload, not a claim about total process RSS or temporary execution memory.
+Retain at most **20 points** and **16 MiB of retained encoded snapshot payload** per Session, plus bounded player-safe command metadata. These are engine limits, not designer settings. The byte limit must be described as retained payload, not a claim about total process RSS or temporary execution memory.
 
 U1 should compare retaining owned state against bounded native JSON snapshots. Prefer an exact retained-payload bound: bounded serialization into owned byte slices, excluding the definition, transcript and explanation tree. Evict the oldest complete points only after the new command successfully commits. Capture is independent of explanation recording; toggling Explain cannot change undo availability.
 
@@ -73,7 +73,7 @@ Merged baseline: content/save **7**, captured setup **5**. The U0 preview change
 
 Propose an authored `allow_player_undo` Boolean, default false, and **content 8** so old engines reject newly enabled semantics rather than ignoring the setting. Existing content 1–7 keeps existing command behaviour. Enabling from an older project requires an explicit, undoable upgrade review, including every executable bare `undo` command/synonym in any scope, even hidden/inactive content. A conflicting authored handler must be renamed or opt-in cancelled. A noun named “undo” remains selectable by a numbered clarification choice; the exact control precedence must be explained and tested. Templates/drafts containing potential collisions must remain reviewable rather than silently rewritten.
 
-The durable state shape does not change, so initially propose retaining **save 7/setup 5** for content 8, with explicit writer mapping and strict validation. U1 must prove that this is safe across format readers, manifests, fingerprints, project recovery, CLI and captures before freezing the contract. Bump a save/setup version only if its actual data contract requires it. A history list is never a persisted state field.
+The durable state shape does not change, so the frozen contract retains **save 7/setup 5** for content 8, with explicit writer mapping and strict validation. U1 proves unchanged state shapes and current-reader rejection; U2 must verify actual content-8 manifests, fingerprints, project recovery, CLI and captures during promotion. Bump a save/setup version only if its actual data contract requires it. A history list is never a persisted state field.
 
 Expose generated native `UndoView` information (enabled, available count, latest player-safe label and unavailable reason) to both hosts. Prefer a typed native undo operation/result inside Session over a new filesystem HostControl. The editor never reconstructs snapshots from logs or calculates authoritative history. New projects remain off by default; opted-out games pay no history encoding/storage cost.
 
@@ -84,15 +84,17 @@ Expose generated native `UndoView` information (enabled, available count, latest
 - [x] Create `feature/player-undo` from `d5b927c`; record the F5 merge separately from this new feature.
 - [x] Complete this detailed proposal and an isolated clickable preview: settings/upgrade/collision review, distinct project and player Undo, full-action restoration, free changes/read-only inspection, hints, pending clarification, endings, save/load boundaries, exhaustion/large action and compact keyboard use.
 - [x] Verify preview TypeScript, production build/format, Chromium/Firefox interactions, six captures and no project API requests. Isolated preview TypeScript and the production TypeScript/Vite build pass, full frontend formatting passes, and both browser walkthroughs pass without exceptions. Record exact illustration/native-proof boundaries in the review guide; native formats/runtime are unchanged.
-- [x] Owner accepted the interaction example on 28 October 2026 with “it looks great were ready to commit the bug fix and the example and move on.” This accepts the journey, ending recovery, transcript and illustrated bounds, subject to native proof. The separate hint-policy question remains open before U1 freezes; the proof can investigate both alternatives without choosing on the owner’s behalf.
+- [x] Owner accepted the interaction example on 28 October 2026 with “it looks great were ready to commit the bug fix and the example and move on.” This accepts the journey, ending recovery, transcript and illustrated bounds, subject to native proof. The owner subsequently selected keep-known hints, closing the final U1 decision.
 
 ### U1 — Native risk proof and frozen contract
 
-- [ ] Prove inside real Session's commit boundary, without shipping model/version changes: complete before-input snapshots, typed eligibility, zero-cost changes, no-op/read-only inputs, charged LOOK/failed requirements, resolved nouns and native reply selections.
-- [ ] Prove nested CALL/response/quest/watch/timer/routine consequences, automatic latches and ending reversal with normal/explained parity; preserve history under late failure and restore errors.
-- [ ] Prove fresh offer tokens, cleared successful-undo questions/pronouns, pending-input precedence, unavailable undo no-ops, explicit legacy `undo` handlers and opt-in collision detection.
-- [ ] Measure/admit bounded snapshots, eviction and oversized/capacity barriers without partial state changes or explanation dependence. Prove save/load/debug/new-session clearing and failed-load preservation through real hosts.
-- [ ] Freeze fields, exact limits/byte accounting, hint policy, disabled dispatch, messages, autosave handling, schema/version mapping and source/trace semantics in a shared contract. Get feedback on any change from U0 before promotion.
+The [native evidence](../design/player-undo/runtime-proof-review.md) records 31 native and five real-host proof cases, 517 passing workspace tests and the retained [release observations](../design/player-undo/captures/measurements.csv). Candidate code is excluded from ordinary builds; production settings/versions/host views remain U2. The [shared contract](../design/player-undo/shared-contract.md) freezes the technical target with the owner-selected keep-known hint policy.
+
+- [x] Prove inside real Session's commit boundary, without shipping model/version changes: complete before-input snapshots, typed eligibility, zero-cost changes, no-op/read-only inputs, charged LOOK/failed requirements, resolved nouns and native reply selections.
+- [x] Prove nested CALL/response/quest/watch/timer/routine consequences, automatic latches and ending reversal with normal/explained parity; preserve history under late failure and restore errors.
+- [x] Prove fresh offer tokens, cleared successful-undo questions/pronouns, pending-input precedence, unavailable undo no-ops, explicit legacy `undo` handlers and opt-in collision detection.
+- [x] Measure/admit bounded snapshots, eviction and oversized/capacity barriers without partial state changes or explanation dependence. Prove save/load/debug/new-session clearing and failed-load preservation through real hosts.
+- [x] Freeze the contract after the owner selected keep-known hints on 28 October 2026: new clues/solutions stay recorded, clear earlier history and create no point. Fields, exact bounds/accounting, disabled dispatch, messages, autosave handling, unchanged save/setup shape and source/trace semantics are recorded in the shared contract. Preserve existing paid hint-listing pacing, as noted in the U1 review; production content-8 acceptance remains U2.
 
 ### U2 — Canonical core and host foundation
 
