@@ -13,6 +13,7 @@ import {
   useUpdateNodeInternals,
   useReactFlow,
   type Node,
+  type Viewport,
   type NodeProps,
   type Edge,
   type EdgeProps,
@@ -202,8 +203,12 @@ export default function Graph({
   move,
   project,
   moveLabel,
+  view,
+  onViewChange,
 }: {
   conversation: Conversation;
+  view?: Viewport;
+  onViewChange?: (view: Viewport) => void;
   project: Project;
   moveLabel: (id: string, offset: Point) => void;
   selected: string;
@@ -390,7 +395,9 @@ export default function Graph({
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
+        defaultViewport={view}
+        onMoveEnd={(_, viewport) => onViewChange?.(viewport)}
+        fitView={!view}
         fitViewOptions={{ padding: 0.12 }}
         minZoom={0.3}
         maxZoom={1.5}

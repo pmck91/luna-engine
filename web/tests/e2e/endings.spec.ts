@@ -29,7 +29,7 @@ test('an ending without an outcome stays completed after reopen, export, and sav
   await expect(second.getByLabel('Outcome', { exact: true }).locator('option:checked')).toHaveText(
     'No outcome',
   );
-  await second.getByRole('button', { name: 'Remove ending', exact: true }).click();
+  await second.getByRole('button', { name: 'Delete ending', exact: true }).click();
   await first.getByLabel('Ending name', { exact: true }).fill('An open ending');
   for (const outcome of ['victory', 'loss', 'neutral', '']) {
     await first.getByLabel('Outcome', { exact: true }).selectOption(outcome);

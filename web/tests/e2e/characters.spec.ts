@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -16,7 +17,7 @@ test('character speech and movement author, reopen, export, and restore with the
   await page.getByLabel('Folder name').fill(folder);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   await hierarchy.getByRole('button', { name: /Starting location/ }).click();
   await inspector.getByLabel('Name', { exact: true }).fill('Study');
   await page.getByRole('button', { name: 'Add location', exact: true }).click();

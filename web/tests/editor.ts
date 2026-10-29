@@ -88,3 +88,12 @@ export async function chooseFlow(page: Page, name: RegExp, triggers = false) {
   expect(target, `A flow matching ${name}`).toBeTruthy();
   await selector.selectOption(target!.id);
 }
+
+/** Shared fields live in the inspector for selections or in an explicit game-data workspace. */
+export function authoringForms(page: Page) {
+  return page.getByRole('complementary', { name: 'Inspector', exact: true }).or(
+    page.getByRole('region', {
+      name: /^(Variables|Command vocabulary|Endings|Game settings) workspace$/,
+    }),
+  );
+}

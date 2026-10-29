@@ -1,3 +1,4 @@
+import { focusCreated } from './creationFocus';
 import type { HistoryControls } from './workspaceHistory';
 import type { ProjectEdit } from './projectHistory';
 import { useState, type Ref } from 'react';
@@ -123,6 +124,7 @@ export default function Actions({
                   owner(project, ownerId)!.actions.push(created);
                 });
                 select(created.id);
+                focusCreated(created.id, 'Name');
                 const menu = click.currentTarget.closest('details');
                 if (menu) menu.open = false;
               }}

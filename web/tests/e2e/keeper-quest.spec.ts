@@ -3,11 +3,15 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { PlaytestView, ProjectView } from '../../src/contracts';
-import { chooseFlow, openEditor, openNewAction, selectBlock } from '../editor';
+import { authoringForms, chooseFlow, openEditor, openNewAction, selectBlock } from '../editor';
 
 // This acceptance game is built with the same forms and blocks a designer uses.
 // API responses are observed for assertions, never used to inject definitions.
 async function insert(page: Page, name: string, branch?: RegExp) {
+  const logic = page
+    .getByRole('group', { name: 'Conversation view' })
+    .getByRole('button', { name: 'Logic', exact: true });
+  if (await logic.isVisible()) await logic.click();
   const catalogueName = name === 'CALL PROCEDURE' ? 'Call procedure' : name;
   await page.getByRole('button', { name: 'Add block', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Add block', exact: true });
@@ -41,7 +45,7 @@ async function insert(page: Page, name: string, branch?: RegExp) {
   await selectBlock(page, name, -1);
 }
 function inspector(page: Page) {
-  return page.getByRole('complementary', { name: 'Inspector', exact: true });
+  return authoringForms(page);
 }
 async function number(page: Page, name: string, amount = 1) {
   await insert(page, 'UPDATE VARIABLE');
@@ -230,7 +234,7 @@ test('author the complete Keeper quest, restore checkpoints, roll back a handove
     ['On return', 'Thank you again for finding my key.', true],
     ['On failure', 'I will have to look for the key myself.', true],
   ] as const) {
-    await page.getByRole('button', { name: 'Add node', exact: true }).click();
+    await page.getByRole('button', { name: 'Add dialogue', exact: true }).click();
     await panel.getByLabel('Dialogue name', { exact: true }).fill(name);
     await panel.getByLabel('Character dialogue', { exact: true }).fill(text);
     if (terminal)

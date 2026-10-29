@@ -228,7 +228,7 @@ test('hint blocks, forms, inspector messages, layout, and live progress stay in 
     'Another puzzle',
   );
   await hints.getByRole('button', { name: 'Move puzzle down', exact: true }).click();
-  await hints.getByRole('button', { name: 'Remove puzzle', exact: true }).click();
+  await hints.getByRole('button', { name: 'Delete puzzle', exact: true }).click();
   await expect(root).toHaveAttribute('transform', rootTransform!);
   await canvas.getByText('Use brass key on door.', { exact: true }).click();
   await expect(inspector.getByLabel('Final solution', { exact: true })).toHaveValue(

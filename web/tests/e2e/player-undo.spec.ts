@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -8,8 +9,7 @@ import { seedProject } from '../editor';
 
 const controls = (page: Page) => page.getByRole('region', { name: 'Player undo', exact: true });
 const count = (page: Page) => page.getByLabel('Actions available to undo', { exact: true });
-const inspector = (page: Page) =>
-  page.getByRole('complementary', { name: 'Inspector', exact: true });
+const inspector = (page: Page) => authoringForms(page);
 const settings = async (page: Page) =>
   page.getByRole('button', { name: '⚙ Game settings', exact: true }).click();
 const tools = (page: Page) =>
@@ -149,7 +149,7 @@ test('review native hidden command conflicts, cancel with focus, upgrade once an
   await expect(
     inspector(page).getByLabel('Enable puzzle hints', { exact: true }),
   ).not.toBeChecked();
-  if (info.project.name === 'chromium')
+  if (info.project.name === 'chromium' && process.env.LUNA_CAPTURE_UNDO === '1')
     await page.screenshot({ path: resolve('../docs/design/player-undo/captures/u3-settings.png') });
   await save(page);
   await page.reload();
@@ -204,7 +204,7 @@ test('restore free changes and endings, retain transcript, separate histories an
     controls(page).getByRole('button', { name: 'Undo last action', exact: true }),
   ).toBeInViewport();
   await expect(controls(page)).toContainText('Undo last action can return you to play.');
-  if (info.project.name === 'chromium')
+  if (info.project.name === 'chromium' && process.env.LUNA_CAPTURE_UNDO === '1')
     await page.screenshot({ path: resolve('../docs/design/player-undo/captures/u3-ending.png') });
   const recovered = await undo(page);
   expect(recovered.state).toEqual(changed.state);
@@ -219,7 +219,7 @@ test('restore free changes and endings, retain transcript, separate histories an
   await expect(count(page)).toHaveText('0 available');
   await expect(page.getByLabel('Player command')).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1100);
-  if (info.project.name === 'chromium')
+  if (info.project.name === 'chromium' && process.env.LUNA_CAPTURE_UNDO === '1')
     await page.screenshot({ path: resolve('../docs/design/player-undo/captures/u3-compact.png') });
   await save(page);
   const downloading = page.waitForEvent('download');

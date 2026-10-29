@@ -144,3 +144,11 @@ it('copies recipes with explicit typed references, independent IDs, and no hidde
   ).toThrow('integer');
   expect(JSON.stringify(p)).toBe(before);
 });
+
+it('restores legacy data selections into their explicit workspace and preserves map-first opening', () => {
+  const p = fixture();
+  for (const selected of ['project:variables', 'project:vocabulary', 'project:endings'])
+    expect(restoredNavigation(p, { selected, mode: 'map' }).mode).toBe('data');
+  expect(restoredNavigation(p, undefined).mode).toBe('map');
+  expect(restoredNavigation(p, { selected: 'study', mode: 'data' }).mode).toBe('map');
+});

@@ -1,3 +1,4 @@
+import { focusCreated } from './creationFocus';
 import { useMemo, useState, type Ref } from 'react';
 import type { Procedure, ProcedureInput, Project } from './contracts';
 import type { ProjectEdit } from './projectHistory';
@@ -20,6 +21,7 @@ import {
 } from './procedureEditing';
 import { ReferenceButton } from './ReferenceManager';
 import { referenceContext, usedBy, type ReferenceSite } from './references';
+import LibraryWorkspace, { LibraryEmpty, useLibrarySearch } from './LibraryWorkspace';
 
 export default function Procedures({
   project,
@@ -44,7 +46,10 @@ export default function Procedures({
   history: HistoryControls;
   error: (message: string) => void;
 }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useLibrarySearch('procedures');
+  const visible = (project.procedures ?? []).filter((item) =>
+    `${item.name} ${item.description}`.toLowerCase().includes(query.trim().toLowerCase()),
+  );
   const [upgrade, setUpgrade] = useState(false);
   const uses = useMemo(() => procedureUsageIndex(project), [project]);
   const create = () => {
@@ -63,30 +68,33 @@ export default function Procedures({
       { label: 'Add procedure' },
     );
     select(definition.id);
+    focusCreated(definition.id, 'Procedure name');
+    setQuery('');
     setUpgrade(false);
   };
   return (
-    <section className="procedure-workspace" aria-label="Procedures editor">
-      <section className="procedure-library" aria-label="Procedure library">
-        <div className="section-heading">
-          <h2>Procedures</h2>
-          <button
-            className="primary"
-            onClick={() => (project.game.format_version < 4 ? setUpgrade(true) : create())}
-          >
-            Add procedure
-          </button>
-        </div>
-        <p className="muted">
-          Write shared behaviour once, then call it from actions, triggers or another procedure.
-        </p>
-        <Text label="Search procedures" value={query} onChange={setQuery} />
-        <div className="procedure-list">
-          {(project.procedures ?? [])
-            .filter((item) =>
-              `${item.name} ${item.description}`.toLowerCase().includes(query.toLowerCase()),
-            )
-            .map((item) => {
+    <LibraryWorkspace
+      kind="procedures"
+      label="Procedures"
+      selected={active?.name}
+      selectedId={active?.id}
+      library={
+        <>
+          <div className="section-heading">
+            <h2>Procedures</h2>
+            <button
+              className="primary"
+              onClick={() => (project.game.format_version < 4 ? setUpgrade(true) : create())}
+            >
+              Add procedure
+            </button>
+          </div>
+          <p className="muted">
+            Write shared behaviour once, then call it from actions, triggers or another procedure.
+          </p>
+          <Text label="Search procedures" value={query} onChange={setQuery} />
+          <div className="procedure-list">
+            {visible.map((item) => {
               const calls = uses.get(item.id) ?? [];
               return (
                 <button
@@ -106,8 +114,13 @@ export default function Procedures({
                 </button>
               );
             })}
-        </div>
-      </section>
+          </div>
+          {!visible.length && (
+            <LibraryEmpty kind="procedures" query={query} clear={() => setQuery('')} />
+          )}
+        </>
+      }
+    >
       <section className="action-editor" aria-label="Procedure logic">
         {active ? (
           <div className="action-blocks">
@@ -154,7 +167,7 @@ export default function Procedures({
           </button>
         </Modal>
       )}
-    </section>
+    </LibraryWorkspace>
   );
 }
 

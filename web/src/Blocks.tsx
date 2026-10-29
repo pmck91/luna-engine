@@ -650,7 +650,7 @@ export const blockCatalogue: CatalogueBlock[] = [
         ? 'Responses'
         : type === 'if'
           ? 'Logic'
-          : 'World and state',
+          : 'World & state',
     aliases:
       (
         {
@@ -691,7 +691,7 @@ export const blockCatalogue: CatalogueBlock[] = [
   {
     type: 'luna_assign',
     name: 'ASSIGN VALUE',
-    category: 'World and state',
+    category: 'World & state',
     kind: 'effect',
     aliases: 'set input variable property',
   },
@@ -717,6 +717,21 @@ export const blockCatalogue: CatalogueBlock[] = [
     aliases: type === 'literal' ? 'integer amount literal' : `numeric ${type}`,
   })),
 ];
+const categoryOrder = [
+  'Responses',
+  'Logic',
+  'World & state',
+  'Values',
+  'Numbers',
+  'Procedures',
+  'Conversations & quests',
+  'Timers',
+  'Routines',
+];
+const categoryRank = (name: string) => {
+  const at = categoryOrder.indexOf(name);
+  return at < 0 ? categoryOrder.length : at;
+};
 export function catalogue(project: Project, scope?: string) {
   return [
     ...blockCatalogue.filter(
@@ -731,7 +746,7 @@ export function catalogue(project: Project, scope?: string) {
       kind: 'effect' as const,
       aliases: definition.description,
     })),
-  ];
+  ].sort((a, b) => categoryRank(a.category) - categoryRank(b.category));
 }
 export function createCatalogueBlock(workspace: Blockly.Workspace, type: string) {
   if (type.startsWith('procedure:')) {
@@ -1678,7 +1693,7 @@ const toolbox = {
         )
         .map((t) => ({ kind: 'block', type: `luna_${t}` })),
     },
-  ],
+  ].sort((a, b) => categoryRank(a.name) - categoryRank(b.name)),
 };
 function parkDraft(block: Blockly.Block) {
   const others = block.workspace.getTopBlocks(false).filter((item) => item.id !== block.id);

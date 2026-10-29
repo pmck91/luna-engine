@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -56,7 +57,7 @@ test('keyboard splitters, preferences, and occurrence search preserve content an
   const folder = `ux-layout-${info.project.name}`;
   const project = await seed(page, folder);
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const left = page.getByRole('separator', { name: 'Resize hierarchy' });
   await left.focus();
   await left.press('ArrowRight');

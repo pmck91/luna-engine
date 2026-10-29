@@ -1,3 +1,5 @@
+import ValueCreationFields from './ValueCreationFields';
+import { newValue, type ValueType } from './valueCreation';
 import { routineChoices } from './routineModel';
 import { authoringTimers, timerChoices } from './turnModel';
 import { authoringNarrative } from './narrativeAuthoring';
@@ -451,11 +453,13 @@ export function Values({
   onChange,
   fixed = false,
   referenceOwner,
+  scopeLabel,
 }: {
   values?: Record<string, Value | undefined>;
   onChange: (v: Record<string, Value>) => void;
   fixed?: boolean;
   referenceOwner?: string;
+  scopeLabel?: string;
 }) {
   const references = useReferenceActions();
   const values = Object.fromEntries(
@@ -464,8 +468,21 @@ export function Values({
     ),
   );
   const [name, setName] = useState('');
+  const [type, setType] = useState<ValueType>('boolean');
+  const [raw, setRaw] = useState('false');
+  const [problem, setProblem] = useState('');
   return (
     <div className="values">
+      {!fixed && (
+        <p className="muted">
+          {scopeLabel ??
+            (referenceOwner === '@variables'
+              ? 'Global variables · available throughout this game'
+              : referenceOwner
+                ? 'Properties · stored separately on this entity'
+                : 'Typed values')}
+        </p>
+      )}
       {Object.entries(values).map(([key, value]) => (
         <div
           className="value-row"
@@ -548,7 +565,7 @@ export function Values({
                 </>
               )}
               <button
-                aria-label={`Remove ${key}`}
+                aria-label={`Delete ${key}`}
                 onClick={() => {
                   if (references && referenceOwner) {
                     references({
@@ -573,23 +590,43 @@ export function Values({
       ))}
       {!fixed && (
         <form
-          className="inline"
+          className="value-creation"
+          noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            const key = name.trim();
-            if (key && !(key in values)) {
-              onChange({ ...values, [key]: false });
+            try {
+              const { key, initial } = newValue(values, name, type, raw);
+              const owner = e.currentTarget.parentElement;
+              onChange({ ...values, [key]: initial });
               setName('');
+              setProblem('');
+              requestAnimationFrame(() => {
+                const row = [...document.querySelectorAll<HTMLElement>('.value-row')].find(
+                  (row) =>
+                    row.querySelector('span')?.textContent === key &&
+                    row.closest('.values') === owner,
+                );
+                row?.querySelector<HTMLElement>(`[aria-label="${CSS.escape(key)} value"]`)?.focus();
+              });
+            } catch (error) {
+              setProblem(String(error).replace(/^Error: /, ''));
             }
           }}
         >
-          <input
-            aria-label="New variable or property name"
-            placeholder="New name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+          <ValueCreationFields
+            name={name}
+            setName={(value) => {
+              setName(value);
+              setProblem('');
+            }}
+            type={type}
+            setType={setType}
+            raw={raw}
+            setRaw={setRaw}
+            nameLabel="New variable or property name"
           />
-          <button>Add</button>
+          {problem && <p role="alert">{problem}</p>}
+          <button className="primary">Add</button>
         </form>
       )}
     </div>

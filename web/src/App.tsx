@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type FocusEvent,
 } from 'react';
 import type {
   ConfigView,
@@ -56,7 +57,13 @@ import { useNavigation } from './navigation';
 import { authoringRoom } from './authoring';
 import ReferenceCreation from './ReferenceCreation';
 import ReferenceManager, { ReferenceActions, type ReferenceRequest } from './ReferenceManager';
-import { referencePlan, usedBy, type ReferenceSite, type ReferenceTarget } from './references';
+import {
+  referenceName,
+  referencePlan,
+  usedBy,
+  type ReferenceSite,
+  type ReferenceTarget,
+} from './references';
 import {
   connectedFindings,
   findingSite,
@@ -78,8 +85,12 @@ import type { HintSelection } from './HintBlocks';
 import Templates, { type TemplateContext } from './Templates';
 import { defaultLayout, restoredNavigation, usePreferenceWriter } from './preferences';
 import ResizeHandle from './ResizeHandle';
+import { useDockLayout } from './useDockLayout';
+import { LibraryPreferencesContext, type LibraryPreferences } from './LibraryWorkspace';
 import ProjectSearch from './ProjectSearch';
 import Modal from './Modal';
+import SaveAs from './SaveAs';
+import { focusCreated } from './creationFocus';
 import ExitCreation from './ExitCreation';
 import Tutorial from './Tutorial';
 import AuthoringHelp from './AuthoringHelp';
@@ -107,6 +118,11 @@ export default function App() {
   const [doc, setDoc] = useState<Project | null>(null);
   const [selected, setSelected] = useState('');
   const [search, setSearch] = useState('');
+  const [libraryPreferences, setLibraryPreferences] = useState<LibraryPreferences>({
+    search: {},
+    expanded: {},
+    filters: {},
+  });
   const [layout, setLayout] = useState(defaultLayout);
   const [projectSearch, setProjectSearch] = useState('');
   const [fieldSelection, setFieldSelection] = useState<ReferenceSite | null>(null);
@@ -117,9 +133,15 @@ export default function App() {
   const [helpTopic, setHelpTopic] = useState<string | null>(null);
   const [newTutorial, setNewTutorial] = useState(false);
   const [playtestFocused, setPlaytestFocused] = useState(false);
+  const [workspaceFocused, setWorkspaceFocused] = useState(false);
+  const [showSaveAs, setShowSaveAs] = useState(false);
+  const [narrativeLogicRequest, setNarrativeLogicRequest] = useState<
+    { id: string; nonce: number } | undefined
+  >();
   const flushPreferences = useRef<(() => void) | null>(null);
   const [mode, setMode] = useState<
     | 'map'
+    | 'data'
     | 'actions'
     | 'hints'
     | 'triggers'
@@ -161,6 +183,8 @@ export default function App() {
   }, []);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [playtestCollapsed, setPlaytestCollapsed] = useState(false);
+  const dockCollapsed = playtestCollapsed || workspaceFocused;
+  const dockLayout = useDockLayout(!!doc, dockCollapsed, playtestFocused);
   const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('Saved');
@@ -306,6 +330,8 @@ export default function App() {
     setDoc(v.project);
     setSelected(navigation.selected);
     setSearch(navigation.search);
+    setLibraryPreferences(navigation.library);
+    setWorkspaceFocused(false);
     setConflict(false);
     setComparison(null);
     setMessage('');
@@ -506,6 +532,14 @@ export default function App() {
       key === gameDataPages.quests ||
       key.startsWith(`${gameDataPages.conversations}:`)
     ) {
+      if (key.startsWith(`${gameDataPages.conversations}:`))
+        setLibraryPreferences((old) => ({
+          ...old,
+          filters: {
+            ...old.filters,
+            conversations: key.slice(gameDataPages.conversations.length + 1),
+          },
+        }));
       setSelected(key);
       setMode(
         narrative
@@ -526,6 +560,11 @@ export default function App() {
       (project && routineFor(project, key))
     ) {
       const r = project && routineFor(project, key);
+      if (key.startsWith(`${routinePage}:`))
+        setLibraryPreferences((old) => ({
+          ...old,
+          filters: { ...old.filters, routines: key.slice(routinePage.length + 1) },
+        }));
       setSelected(r?.id ?? key);
       setMode('routines');
       setConnecting(false);
@@ -564,8 +603,7 @@ export default function App() {
     setSelected(page ?? key);
     if (page) {
       setConnecting(false);
-      setInspectorCollapsed(false);
-      setMode('map');
+      setMode('data');
       return;
     }
     const selectedFlow = project && flow(project, key);
@@ -583,6 +621,7 @@ export default function App() {
         setMode('actions');
       }
     } else if (
+      mode === 'data' ||
       mode === 'triggers' ||
       mode === 'procedures' ||
       mode === 'conversations' ||
@@ -810,21 +849,17 @@ export default function App() {
       error(e);
     }
   };
-  const saveAs = async () => {
-    if (!view || !doc) return;
-    const folder = window.prompt('New project folder name');
-    if (!folder) return;
-    try {
-      apply(
-        await request<ProjectView>(`/projects/${view.handle}/save-as`, 'POST', {
-          folder,
-          project: doc,
-        }),
-      );
-      void refreshProjects();
-    } catch (e) {
-      error(e);
-    }
+  const saveAs = async (folder: string) => {
+    await queue.current;
+    const { doc, view } = current.current;
+    if (!view || !doc) throw new Error('Open a project before saving a copy.');
+    apply(
+      await request<ProjectView>(`/projects/${view.handle}/save-as`, 'POST', {
+        folder,
+        project: doc,
+      }),
+    );
+    void refreshProjects();
   };
   const exportGame = async () => {
     if (!view || !doc) return;
@@ -859,13 +894,15 @@ export default function App() {
       setReferenceRequest({ target, action: 'delete' });
       return;
     }
-    if (!window.confirm('Delete this unused content? You can undo this change.')) return;
     const parent = doc && flowOwner(doc, key);
-    edit((p) => {
-      const result = referencePlan(p, target);
-      if (result.errors.length) throw new Error(result.errors.join(' '));
-      Object.assign(p, result.project);
-    });
+    edit(
+      (p) => {
+        const result = referencePlan(p, target);
+        if (result.errors.length) throw new Error(result.errors.join(' '));
+        Object.assign(p, result.project);
+      },
+      { label: `Delete ${referenceName(doc, target)}` },
+    );
     if (narrative)
       select(
         'conversation' in narrative
@@ -932,7 +969,10 @@ export default function App() {
       select(site.flowId);
     } else if (doc.vocabulary.some((verb) => verb.id === site.subject))
       select(gameDataPages.vocabulary);
-    else select(site.subject);
+    else {
+      select(site.subject);
+      if (site.subject === doc.game.id) setMode('data');
+    }
     if (!site.flowId && !site.puzzleId && !site.templateId)
       setFieldSelection({
         subject: site.subject,
@@ -981,7 +1021,7 @@ export default function App() {
   const activeRoutineScript = doc && activeRoutine ? script(doc, activeRoutine.id) : undefined;
   const routineCharacter = selected.startsWith(`${routinePage}:`)
     ? selected.slice(routinePage.length + 1)
-    : (activeRoutine?.character ?? '');
+    : (libraryPreferences.filters.routines ?? '');
   const activeTimer = doc ? timer(doc, selected) : undefined;
   const scheduled = selected === gameDataPages.scheduled || !!activeTimer;
   const activeFlow = doc && flow(doc, selected);
@@ -1095,6 +1135,7 @@ export default function App() {
     if (!frame) return;
     setProcedureReturns((old) => old.slice(0, -1));
     select(frame.scriptId);
+    setNarrativeLogicRequest((old) => ({ id: frame.scriptId, nonce: (old?.nonce ?? 0) + 1 }));
     setBlockSelections((old) => ({
       ...old,
       [frame.scriptId]: { ...frame.selection, flowId: frame.scriptId, blockId: frame.blockId },
@@ -1243,6 +1284,22 @@ export default function App() {
         inspectorPositions.current[navigationKey] = pane.scrollTop;
     };
   }, [navigationKey, view?.handle]);
+  const rememberFormFocus = (event: FocusEvent<HTMLElement>) => {
+    const input = event.target;
+    if (
+      input instanceof HTMLInputElement ||
+      input instanceof HTMLTextAreaElement ||
+      input instanceof HTMLSelectElement
+    ) {
+      const label = input.labels?.[0]?.textContent?.trim();
+      if (label)
+        inspectorFocus.current[navigationKey] = {
+          label,
+          start: input instanceof HTMLSelectElement ? null : input.selectionStart,
+          end: input instanceof HTMLSelectElement ? null : input.selectionEnd,
+        };
+    }
+  };
   const navigation = useNavigation(
     view?.handle ?? '',
     navigationKey,
@@ -1257,6 +1314,7 @@ export default function App() {
       blockSelections,
       fieldSelection,
       procedureReturns,
+      libraryPreferences,
     },
     (entry) => {
       setSelected(entry.selected);
@@ -1264,6 +1322,7 @@ export default function App() {
       setTriggerFilter(entry.triggerFilter);
       setHintSelection(entry.hintSelection);
       setSearch(entry.search);
+      setLibraryPreferences(entry.libraryPreferences);
       setFlowSelections(entry.flowSelections);
       setFlowBreadcrumb(entry.flowBreadcrumb);
       setBlockSelections(entry.blockSelections);
@@ -1291,6 +1350,7 @@ export default function App() {
           selected,
           mode,
           search,
+          library: libraryPreferences,
           triggerFilter,
           flowSelections,
           flowBreadcrumb,
@@ -1345,6 +1405,15 @@ export default function App() {
     (d) => d.scope !== 'draft' && d.severity === 'warning',
   ).length;
   const inspectorHidden = inspectorCollapsed || playtestFocused;
+  const dataPage = mode === 'data';
+  const dataTitle =
+    selected === gameDataPages.variables
+      ? 'Variables'
+      : selected === gameDataPages.vocabulary
+        ? 'Command vocabulary'
+        : selected === gameDataPages.endings
+          ? 'Endings'
+          : 'Game settings';
   const hierarchyHidden = layout.hierarchy_collapsed || playtestFocused;
   const traceTarget =
     doc && explanationFocus && explanationIsCurrent(explanationFocus.record, doc)
@@ -1369,7 +1438,11 @@ export default function App() {
           {doc && <span className="project-title">/ {doc.game.title}</span>}
         </div>
         <div className="header-actions">
-          <span className={`save-status ${conflict ? 'warning' : ''}`} role="status">
+          <span
+            className={`save-status ${conflict ? 'warning' : ''}`}
+            role="status"
+            title={doc ? status : undefined}
+          >
             {doc && status}
           </span>
           {doc && (
@@ -1432,7 +1505,7 @@ export default function App() {
           <button
             disabled={!doc}
             onClick={() => {
-              void saveAs();
+              setShowSaveAs(true);
             }}
           >
             Save As
@@ -1484,7 +1557,7 @@ export default function App() {
           </button>
           <button
             onClick={() => {
-              void saveAs();
+              setShowSaveAs(true);
             }}
           >
             Save As
@@ -1596,7 +1669,8 @@ export default function App() {
         </main>
       ) : (
         <main
-          className={`workspace ${inspectorHidden ? 'inspector-collapsed' : ''} ${hierarchyHidden ? 'hierarchy-collapsed' : ''} ${playtestFocused ? 'playtest-focused' : ''} ${playtestCollapsed ? 'playtest-collapsed' : ''}`}
+          ref={dockLayout.workspace}
+          className={`workspace ${dataPage ? 'data-page' : ''} ${inspectorHidden ? 'inspector-collapsed' : ''} ${hierarchyHidden ? 'hierarchy-collapsed' : ''} ${playtestFocused ? 'playtest-focused' : ''} ${dockCollapsed ? 'playtest-collapsed' : ''}`}
           style={
             {
               '--hierarchy-size': `${layout.hierarchy_width}px`,
@@ -1646,6 +1720,7 @@ export default function App() {
                       const l = makeLocation();
                       p.locations.push(l);
                       select(l.id);
+                      focusCreated(l.id, 'Name');
                       setInspectorCollapsed(false);
                       setMode('map');
                     }),
@@ -1658,6 +1733,7 @@ export default function App() {
                       const o = makeObject(creationRoom);
                       p.objects.push(o);
                       select(o.id);
+                      focusCreated(o.id, 'Name');
                       setInspectorCollapsed(false);
                     }),
                 },
@@ -1669,6 +1745,7 @@ export default function App() {
                       const c = character(creationRoom);
                       p.characters.push(c);
                       select(c.id);
+                      focusCreated(c.id, 'Name');
                       setInspectorCollapsed(false);
                     }),
                 },
@@ -1751,7 +1828,14 @@ export default function App() {
               </section>
               <section aria-label="Tools">
                 <h3>Tools</h3>
-                <button className="tree-item" onClick={() => select(doc.game.id)}>
+                <button
+                  className="tree-item"
+                  aria-current={dataPage && selected === doc.game.id ? 'page' : undefined}
+                  onClick={() => {
+                    select(doc.game.id);
+                    setMode('data');
+                  }}
+                >
                   ⚙ Game settings
                 </button>
                 <button className="tree-item" onClick={() => setHelpTopic('start')}>
@@ -1778,6 +1862,10 @@ export default function App() {
                 </button>
                 <details className="assets">
                   <summary>Assets · {doc.game.assets.length}</summary>
+                  <p className="muted">
+                    Files bundled with the exported game. The text runner does not display images or
+                    play audio.
+                  </p>
                   {doc.game.assets.map((a) => (
                     <small key={a}>{a}</small>
                   ))}
@@ -1923,28 +2011,32 @@ export default function App() {
                 )}
                 <span aria-hidden="true">›</span>
                 <span>
-                  {mode === 'routines'
-                    ? 'Routines'
-                    : mode === 'conversations'
-                      ? 'Conversations'
-                      : mode === 'quests'
-                        ? 'Quests'
-                        : mode === 'map'
-                          ? 'World map'
-                          : mode === 'hints'
-                            ? 'Hints'
-                            : mode === 'contents'
-                              ? 'Contents'
-                              : mode === 'procedures'
-                                ? 'Procedures'
-                                : mode === 'triggers'
-                                  ? 'Triggers'
-                                  : 'Actions'}
+                  {dataPage
+                    ? dataTitle
+                    : mode === 'routines'
+                      ? 'Routines'
+                      : mode === 'conversations'
+                        ? 'Conversations'
+                        : mode === 'quests'
+                          ? 'Quests'
+                          : mode === 'map'
+                            ? 'World map'
+                            : mode === 'hints'
+                              ? 'Hints'
+                              : mode === 'contents'
+                                ? 'Contents'
+                                : mode === 'procedures'
+                                  ? 'Procedures'
+                                  : mode === 'triggers'
+                                    ? 'Triggers'
+                                    : 'Actions'}
                 </span>
                 {mode === 'triggers' && scheduled && (
                   <>
                     <span aria-hidden="true">›</span>
-                    <button onClick={() => select(gameDataPages.scheduled)}>Scheduled</button>
+                    <button onClick={() => select(gameDataPages.scheduled)}>
+                      Scheduled timers
+                    </button>
                   </>
                 )}
                 {activeNarrative && (
@@ -2017,11 +2109,23 @@ export default function App() {
                 )}
               </nav>
               <div className="canvas-toolbar">
+                <button
+                  className="focus-workspace"
+                  aria-pressed={workspaceFocused}
+                  onClick={() => {
+                    setPlaytestFocused(false);
+                    setWorkspaceFocused((focused) => !focused);
+                  }}
+                >
+                  {workspaceFocused ? 'Return to split view' : 'Focus workspace'}
+                </button>
                 <div className="tabs">
                   <button
                     className={mode === 'map' ? 'active' : ''}
+                    aria-pressed={mode === 'map'}
                     onClick={() => {
                       if (
+                        dataPage ||
                         scheduled ||
                         mode === 'routines' ||
                         mode === 'procedures' ||
@@ -2036,6 +2140,7 @@ export default function App() {
                   </button>
                   <button
                     className={mode === 'actions' ? 'active' : ''}
+                    aria-pressed={mode === 'actions'}
                     disabled={!actionOwner}
                     onClick={() => {
                       setConnecting(false);
@@ -2059,6 +2164,7 @@ export default function App() {
                   {storageOwner && (
                     <button
                       className={mode === 'contents' ? 'active' : ''}
+                      aria-pressed={mode === 'contents'}
                       onClick={() => {
                         setSelected(storageOwner.id);
                         setFlowBreadcrumb('');
@@ -2071,6 +2177,7 @@ export default function App() {
                   )}
                   <button
                     className={mode === 'hints' ? 'active' : ''}
+                    aria-pressed={mode === 'hints'}
                     disabled={!hintOwner}
                     onClick={() => {
                       setConnecting(false);
@@ -2084,6 +2191,7 @@ export default function App() {
                 {actionOwner && 'location' in actionOwner && (
                   <button
                     className={mode === 'routines' ? 'active' : ''}
+                    aria-pressed={mode === 'routines'}
                     onClick={() => select(`${routinePage}:${actionOwner.id}`)}
                   >
                     Character routines
@@ -2107,6 +2215,11 @@ export default function App() {
                               : mode === 'procedures'
                                 ? activeProcedure
                                 : undefined;
+                    if (activeNarrativeScript)
+                      setNarrativeLogicRequest((old) => ({
+                        id: activeNarrativeScript.id,
+                        nonce: (old?.nonce ?? 0) + 1,
+                      }));
                     setTemplateContext({
                       ownerId:
                         (source && flowOwner(doc, source.id)?.id) ?? actionOwner?.id ?? doc.game.id,
@@ -2130,29 +2243,31 @@ export default function App() {
                   </button>
                 )}
                 <span>
-                  {mode === 'map'
-                    ? connecting
-                      ? 'Click a source room, then a target room · Esc cancels'
-                      : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
-                    : mode === 'routines'
-                      ? 'Keep every step in one group · one step attempt per charged turn'
-                      : mode === 'conversations'
-                        ? 'Connect dialogue and authored replies, then build the selected logic'
-                        : mode === 'quests'
-                          ? 'Author stages, earned journal lines and status hooks'
-                          : mode === 'procedures'
-                            ? 'Shared definitions with typed local inputs'
-                            : mode === 'hints'
-                              ? 'Author progressive clues and optional solutions'
-                              : mode === 'triggers'
-                                ? scheduled
-                                  ? 'Schedule events after player turns'
-                                  : 'Command, state, and value triggers'
-                                : mode === 'contents'
-                                  ? 'Arrange initial contents and set up interactions'
-                                  : actionOwner
-                                    ? 'Choose an action or exit, then build its logic'
-                                    : 'Select an object, location, or character'}
+                  {dataPage
+                    ? 'Game-wide settings and content'
+                    : mode === 'map'
+                      ? connecting
+                        ? 'Click a source room, then a target room · Esc cancels'
+                        : `${doc.locations.length} locations · ${doc.locations.reduce((n, l) => n + l.exits.length, 0)} routes`
+                      : mode === 'routines'
+                        ? 'Keep every step in one group · one step attempt per charged turn'
+                        : mode === 'conversations'
+                          ? 'Connect dialogue and authored replies, then build the selected logic'
+                          : mode === 'quests'
+                            ? 'Author stages, earned journal lines and status hooks'
+                            : mode === 'procedures'
+                              ? 'Shared definitions with typed local inputs'
+                              : mode === 'hints'
+                                ? 'Author progressive clues and optional solutions'
+                                : mode === 'triggers'
+                                  ? scheduled
+                                    ? 'Schedule events after player turns'
+                                    : 'Command, state, and value triggers'
+                                  : mode === 'contents'
+                                    ? 'Arrange initial contents and set up interactions'
+                                    : actionOwner
+                                      ? 'Choose an action or exit, then build its logic'
+                                      : 'Select an object, location, or character'}
                 </span>
               </div>
               {(activeRoutine || activeTimer || (mode === 'procedures' && activeProcedure)) &&
@@ -2184,17 +2299,49 @@ export default function App() {
                     aria-pressed={scheduled}
                     onClick={() => select(gameDataPages.scheduled)}
                   >
-                    Scheduled
+                    Scheduled timers
                   </button>
                 </div>
               )}
               <div className="canvas">
-                {mode === 'conversations' || mode === 'quests' ? (
+                {dataPage ? (
+                  <section
+                    className="data-workspace inspector"
+                    aria-label={`${dataTitle} workspace`}
+                    data-edit-subject={selected}
+                    ref={inspectorContent}
+                    onBlurCapture={rememberFormFocus}
+                    onScroll={(event) => {
+                      inspectorPositions.current[navigationKey] = event.currentTarget.scrollTop;
+                    }}
+                  >
+                    <FindingSubject.Provider value={selected}>
+                      <InlineFindings subject={selected} />
+                      <Inspector
+                        project={doc}
+                        selected={selected}
+                        edit={edit}
+                        select={select}
+                        remove={remove}
+                        error={error}
+                      />
+                    </FindingSubject.Provider>
+                    <button
+                      onClick={() => {
+                        select(doc.game.id);
+                        setMode('actions');
+                      }}
+                    >
+                      Game-wide actions
+                    </button>
+                  </section>
+                ) : mode === 'conversations' || mode === 'quests' ? (
                   <Narrative
                     key={mode}
                     project={doc}
                     selected={selected}
                     kind={mode}
+                    logicRequest={narrativeLogicRequest}
                     edit={edit}
                     select={select}
                     blocksRef={blocks}
@@ -2209,6 +2356,13 @@ export default function App() {
                     project={doc}
                     active={activeRoutine}
                     character={routineCharacter}
+                    filterCharacter={(character) => {
+                      setLibraryPreferences((old) => ({
+                        ...old,
+                        filters: { ...old.filters, routines: character },
+                      }));
+                      select(character ? `${routinePage}:${character}` : routinePage);
+                    }}
                     edit={edit}
                     select={select}
                     history={historyControls}
@@ -2326,7 +2480,7 @@ export default function App() {
                 )}
               </div>
             </section>
-            {!playtestCollapsed && !playtestFocused && (
+            {!dockCollapsed && !playtestFocused && (
               <ResizeHandle
                 label="Resize playtest"
                 orientation="horizontal"
@@ -2346,13 +2500,19 @@ export default function App() {
               />
             )}
             <section
-              className={`playtest ${playtestCollapsed ? 'is-collapsed' : ''} ${play?.result.conversation ? 'has-conversation' : ''} ${!playtestCollapsed && play?.result.undo?.enabled ? 'has-player-undo' : ''}`}
+              ref={dockLayout.dock}
+              className={`playtest ${dockCollapsed ? 'is-collapsed' : ''} ${play?.result.conversation ? 'has-conversation' : ''} ${!dockCollapsed && play?.result.undo?.enabled ? 'has-player-undo' : ''}`}
               aria-label="Playtest"
             >
               <div className="playtest-toolbar">
                 <h2>Playtest</h2>
-                {!playtestCollapsed && (
-                  <button onClick={() => setPlaytestFocused((focused) => !focused)}>
+                {!dockCollapsed && (
+                  <button
+                    onClick={() => {
+                      setWorkspaceFocused(false);
+                      setPlaytestFocused((focused) => !focused);
+                    }}
+                  >
                     {playtestFocused ? 'Return to editor' : 'Focus playtest'}
                   </button>
                 )}
@@ -2361,7 +2521,7 @@ export default function App() {
                     ? `● ${busy ? 'Command running' : playSource !== playVersion ? 'Edits need restart' : play.state.ending ? 'Ended' : 'Running'}`
                     : 'Ready to start'}
                 </span>
-                <div className="playtest-controls" hidden={playtestCollapsed}>
+                <div className="playtest-controls" hidden={dockCollapsed}>
                   <button disabled={!play} onClick={() => setShowJournal(true)}>
                     Quest log
                   </button>
@@ -2405,19 +2565,20 @@ export default function App() {
                 </div>
                 <button
                   className="panel-toggle"
-                  aria-label={playtestCollapsed ? 'Expand playtest' : 'Collapse playtest'}
-                  aria-expanded={!playtestCollapsed}
+                  aria-label={dockCollapsed ? 'Expand playtest' : 'Collapse playtest'}
+                  aria-expanded={!dockCollapsed}
                   aria-controls="playtest-content"
-                  title={playtestCollapsed ? 'Expand playtest' : 'Collapse playtest'}
+                  title={dockCollapsed ? 'Expand playtest' : 'Collapse playtest'}
                   onClick={() => {
                     setPlaytestFocused(false);
-                    setPlaytestCollapsed((collapsed) => !collapsed);
+                    setWorkspaceFocused(false);
+                    setPlaytestCollapsed(!dockCollapsed);
                   }}
                 >
-                  <span aria-hidden="true">{playtestCollapsed ? '▴' : '▾'}</span>
+                  <span aria-hidden="true">{dockCollapsed ? '▴' : '▾'}</span>
                 </button>
               </div>
-              {!playtestCollapsed && (
+              {!dockCollapsed && (
                 <PlayerUndo
                   view={play?.result.undo}
                   busy={busy}
@@ -2426,7 +2587,7 @@ export default function App() {
                   undo={() => void send('undo', undefined, true)}
                 />
               )}
-              <div id="playtest-content" className="playtest-content" hidden={playtestCollapsed}>
+              <div id="playtest-content" className="playtest-content" hidden={dockCollapsed}>
                 {play && (
                   <div className="playtest-revision">
                     <span>
@@ -2586,7 +2747,7 @@ export default function App() {
               </div>
             </section>
           </div>
-          {!inspectorHidden && (
+          {!dataPage && !inspectorHidden && (
             <ResizeHandle
               label="Resize inspector"
               reverse
@@ -2602,281 +2763,287 @@ export default function App() {
               }
             />
           )}
-          <aside
-            className={`inspector-panel ${inspectorHidden ? 'is-collapsed' : ''}`}
-            aria-label="Inspector"
-          >
-            <div className="inspector-toolbar">
-              {!inspectorHidden &&
-                (mode === 'conversations' || mode === 'quests' ? (
-                  <button
-                    className="inspector-back"
-                    onClick={() => {
-                      if (inspectedBlock) {
-                        blocks.current?.selectBlock(null);
-                        setBlockSelections((old) => {
-                          const next = { ...old };
-                          delete next[selected];
-                          return next;
-                        });
-                      } else if (activeNarrative && activeNarrative.kind === 'reply')
-                        select(activeNarrative.node.id);
-                      else select(gameDataPages[mode]);
-                    }}
-                  >
-                    ←{' '}
-                    {inspectedBlock
-                      ? 'Narrative settings'
-                      : activeNarrative?.kind === 'reply'
-                        ? 'Back to node'
-                        : mode === 'conversations'
-                          ? 'Conversations'
-                          : 'Quests'}
-                  </button>
-                ) : mode === 'routines' ? (
-                  <button className="inspector-back" onClick={() => select(routinePage)}>
-                    ← Routines
-                  </button>
-                ) : mode === 'triggers' && scheduled ? (
-                  <button
-                    className="inspector-back"
-                    onClick={() => select(gameDataPages.scheduled)}
-                  >
-                    ← Scheduled triggers
-                  </button>
-                ) : mode === 'procedures' ? (
-                  <button
-                    className="inspector-back"
-                    onClick={() => select(gameDataPages.procedures)}
-                  >
-                    ← Procedures
-                  </button>
-                ) : mode === 'hints' && hintOwner ? (
-                  <button
-                    className="inspector-back"
-                    onClick={() => {
-                      setSelected(hintOwner.id);
-                      setMode('map');
-                    }}
-                  >
-                    ← Back to {hintOwner.name}
-                  </button>
-                ) : inspectedFlow && inspectedOwner ? (
-                  <button
-                    className="inspector-back"
-                    onClick={() => select(inspectedOwner.id)}
-                    title={`Back to ${'title' in inspectedOwner ? inspectedOwner.title : inspectedOwner.name} properties`}
-                  >
-                    ← Back to{' '}
-                    {'title' in inspectedOwner ? inspectedOwner.title : inspectedOwner.name}
-                  </button>
-                ) : (
-                  <span>Properties</span>
-                ))}
-              <button
-                className="panel-toggle"
-                aria-label={inspectorHidden ? 'Expand inspector' : 'Collapse inspector'}
-                aria-expanded={!inspectorHidden}
-                aria-controls="inspector-content"
-                title={inspectorHidden ? 'Expand inspector' : 'Collapse inspector'}
-                onClick={() => {
-                  if (playtestFocused) {
-                    setPlaytestFocused(false);
-                    setInspectorCollapsed(false);
-                  } else setInspectorCollapsed((collapsed) => !collapsed);
-                }}
-              >
-                <span aria-hidden="true">{inspectorHidden ? '‹' : '›'}</span>
-                {inspectorHidden && <span>Inspector</span>}
-              </button>
-            </div>
-            <div
-              id="inspector-content"
-              ref={inspectorContent}
-              onBlurCapture={(event) => {
-                const input = event.target;
-                if (
-                  input instanceof HTMLInputElement ||
-                  input instanceof HTMLTextAreaElement ||
-                  input instanceof HTMLSelectElement
-                ) {
-                  const label = input.labels?.[0]?.textContent?.trim();
-                  if (label)
-                    inspectorFocus.current[navigationKey] = {
-                      label,
-                      start: input instanceof HTMLSelectElement ? null : input.selectionStart,
-                      end: input instanceof HTMLSelectElement ? null : input.selectionEnd,
-                    };
-                }
-              }}
-              onScroll={(event) => {
-                inspectorPositions.current[navigationKey] = event.currentTarget.scrollTop;
-              }}
-              className="inspector"
-              hidden={inspectorHidden}
+          {!dataPage && (
+            <aside
+              className={`inspector-panel ${inspectorHidden ? 'is-collapsed' : ''}`}
+              aria-label="Inspector"
             >
-              <FindingSubject.Provider
-                value={
-                  mode === 'triggers' && activeTrigger
-                    ? activeTrigger.id
-                    : mode === 'hints' && hintSelection
-                      ? 'stageId' in hintSelection.part
-                        ? hintSelection.part.stageId
-                        : hintSelection.puzzleId
-                      : selected
-                }
+              <div className="inspector-toolbar">
+                {!inspectorHidden &&
+                  (mode === 'conversations' || mode === 'quests' ? (
+                    <button
+                      className="inspector-back"
+                      onClick={() => {
+                        if (inspectedBlock) {
+                          blocks.current?.selectBlock(null);
+                          setBlockSelections((old) => {
+                            const next = { ...old };
+                            delete next[selected];
+                            return next;
+                          });
+                        } else if (activeNarrative && activeNarrative.kind === 'reply')
+                          select(activeNarrative.node.id);
+                        else select(gameDataPages[mode]);
+                      }}
+                    >
+                      ←{' '}
+                      {inspectedBlock
+                        ? 'Narrative settings'
+                        : activeNarrative?.kind === 'reply'
+                          ? 'Back to node'
+                          : mode === 'conversations'
+                            ? 'Conversations'
+                            : 'Quests'}
+                    </button>
+                  ) : mode === 'routines' ? (
+                    <button className="inspector-back" onClick={() => select(routinePage)}>
+                      ← Routines
+                    </button>
+                  ) : mode === 'triggers' && scheduled ? (
+                    <button
+                      className="inspector-back"
+                      onClick={() => select(gameDataPages.scheduled)}
+                    >
+                      ← Scheduled timers
+                    </button>
+                  ) : mode === 'procedures' ? (
+                    <button
+                      className="inspector-back"
+                      onClick={() => select(gameDataPages.procedures)}
+                    >
+                      ← Procedures
+                    </button>
+                  ) : mode === 'hints' && hintOwner ? (
+                    <button
+                      className="inspector-back"
+                      onClick={() => {
+                        setSelected(hintOwner.id);
+                        setMode('map');
+                      }}
+                    >
+                      ← Back to {hintOwner.name}
+                    </button>
+                  ) : inspectedFlow && inspectedOwner ? (
+                    <button
+                      className="inspector-back"
+                      onClick={() => select(inspectedOwner.id)}
+                      title={`Back to ${'title' in inspectedOwner ? inspectedOwner.title : inspectedOwner.name} properties`}
+                    >
+                      ← Back to{' '}
+                      {'title' in inspectedOwner ? inspectedOwner.title : inspectedOwner.name}
+                    </button>
+                  ) : (
+                    <span>Properties</span>
+                  ))}
+                <button
+                  className="panel-toggle"
+                  aria-label={inspectorHidden ? 'Expand inspector' : 'Collapse inspector'}
+                  aria-expanded={!inspectorHidden}
+                  aria-controls="inspector-content"
+                  title={inspectorHidden ? 'Expand inspector' : 'Collapse inspector'}
+                  onClick={() => {
+                    if (playtestFocused) {
+                      setPlaytestFocused(false);
+                      setInspectorCollapsed(false);
+                    } else setInspectorCollapsed((collapsed) => !collapsed);
+                  }}
+                >
+                  <span aria-hidden="true">{inspectorHidden ? '‹' : '›'}</span>
+                  {inspectorHidden && <span>Inspector</span>}
+                </button>
+              </div>
+              <div
+                id="inspector-content"
+                data-edit-subject={selected}
+                ref={inspectorContent}
+                onBlurCapture={rememberFormFocus}
+                onScroll={(event) => {
+                  inspectorPositions.current[navigationKey] = event.currentTarget.scrollTop;
+                }}
+                className="inspector"
+                hidden={inspectorHidden}
               >
-                {!inspectedBlock && (
-                  <InlineFindings
-                    subject={
-                      mode === 'triggers' && activeTrigger
-                        ? activeTrigger.id
-                        : mode === 'hints' && hintSelection
-                          ? 'stageId' in hintSelection.part
-                            ? hintSelection.part.stageId
-                            : hintSelection.puzzleId
-                          : selected
-                    }
-                  />
-                )}
-                {(mode === 'conversations' || mode === 'quests') && !inspectedBlock ? (
-                  <NarrativeInspector
-                    key={selected}
-                    project={doc}
-                    selected={selected}
-                    edit={edit}
-                    select={select}
-                    reveal={reveal}
-                  />
-                ) : mode === 'procedures' && !inspectedBlock ? (
-                  activeProcedure ? (
-                    <ProcedureInspector
-                      key={activeProcedure.id}
+                <FindingSubject.Provider
+                  value={
+                    mode === 'triggers' && activeTrigger
+                      ? activeTrigger.id
+                      : mode === 'hints' && hintSelection
+                        ? 'stageId' in hintSelection.part
+                          ? hintSelection.part.stageId
+                          : hintSelection.puzzleId
+                        : selected
+                  }
+                >
+                  {!inspectedBlock && (
+                    <InlineFindings
+                      subject={
+                        mode === 'triggers' && activeTrigger
+                          ? activeTrigger.id
+                          : mode === 'hints' && hintSelection
+                            ? 'stageId' in hintSelection.part
+                              ? hintSelection.part.stageId
+                              : hintSelection.puzzleId
+                            : selected
+                      }
+                    />
+                  )}
+                  {(mode === 'conversations' || mode === 'quests') && !inspectedBlock ? (
+                    <NarrativeInspector
+                      key={selected}
                       project={doc}
-                      definition={activeProcedure}
+                      selected={selected}
                       edit={edit}
                       select={select}
                       reveal={reveal}
-                      remove={() => remove(activeProcedure.id)}
                     />
-                  ) : (
-                    <>
-                      <h2>Procedures</h2>
-                      <p>Select or add a procedure to edit its inputs and shared effects.</p>
-                    </>
-                  )
-                ) : mode === 'hints' && hintOwner ? (
-                  <HintInspector
-                    project={doc}
-                    ownerId={hintOwner.id}
-                    selection={hintSelection}
-                    select={(selection) => setHintSelection(selection)}
-                    edit={edit}
-                  />
-                ) : mode === 'routines' ? (
-                  activeRoutine ? (
-                    <RoutineInspector
-                      key={activeRoutine.id}
+                  ) : mode === 'procedures' && !inspectedBlock ? (
+                    activeProcedure ? (
+                      <ProcedureInspector
+                        key={activeProcedure.id}
+                        project={doc}
+                        definition={activeProcedure}
+                        edit={edit}
+                        select={select}
+                        reveal={reveal}
+                        remove={() => remove(activeProcedure.id)}
+                      />
+                    ) : (
+                      <>
+                        <h2>Procedures</h2>
+                        <p>Select or add a procedure to edit its inputs and shared effects.</p>
+                      </>
+                    )
+                  ) : mode === 'hints' && hintOwner ? (
+                    <HintInspector
                       project={doc}
-                      definition={activeRoutine}
-                      selection={blockSelections[activeRoutine.id]}
+                      ownerId={hintOwner.id}
+                      selection={hintSelection}
+                      select={(selection) => setHintSelection(selection)}
                       edit={edit}
-                      select={select}
-                      selectBlock={(id) => blocks.current?.selectBlock(id)}
-                      clear={() => {
-                        blocks.current?.selectBlock(routineBlockId(doc, activeRoutine.id) ?? null);
-                        setBlockSelections((old) => {
-                          const next = { ...old };
-                          delete next[activeRoutine.id];
-                          return next;
-                        });
+                    />
+                  ) : mode === 'routines' ? (
+                    activeRoutine ? (
+                      <RoutineInspector
+                        key={activeRoutine.id}
+                        project={doc}
+                        definition={activeRoutine}
+                        selection={blockSelections[activeRoutine.id]}
+                        edit={edit}
+                        select={select}
+                        selectBlock={(id) => blocks.current?.selectBlock(id)}
+                        clear={() => {
+                          blocks.current?.selectBlock(
+                            routineBlockId(doc, activeRoutine.id) ?? null,
+                          );
+                          setBlockSelections((old) => {
+                            const next = { ...old };
+                            delete next[activeRoutine.id];
+                            return next;
+                          });
+                        }}
+                        changeBlock={(selection, value) =>
+                          blocks.current?.updateBlock(
+                            selection,
+                            value,
+                            current.current.doc ?? undefined,
+                          )
+                        }
+                        openDefinition={openDefinition}
+                        createDefinition={createDefinition}
+                        remove={() => remove(activeRoutine.id)}
+                        error={error}
+                      />
+                    ) : (
+                      <>
+                        <h2>Routines</h2>
+                        <p>
+                          Select a routine or create one for a character. Its steps stay together in
+                          one Blockly group.
+                        </p>
+                      </>
+                    )
+                  ) : mode === 'triggers' && scheduled && !inspectedBlock ? (
+                    activeTimer ? (
+                      <TimerInspector
+                        key={activeTimer.id}
+                        project={doc}
+                        definition={activeTimer}
+                        edit={edit}
+                        select={select}
+                        remove={() => remove(activeTimer.id)}
+                      />
+                    ) : (
+                      <>
+                        <h2>Scheduled timers</h2>
+                        <p>Select or add a named timer to build its guard and effects.</p>
+                      </>
+                    )
+                  ) : mode === 'triggers' && !scheduled && !activeTrigger ? (
+                    <>
+                      <h2>Triggers</h2>
+                      <p className="muted">Add a trigger to build its conditions and effects.</p>
+                    </>
+                  ) : inspectedBlock ? (
+                    <BlockInspector
+                      project={doc}
+                      selection={inspectedBlock}
+                      openDefinition={openDefinition}
+                      createDefinition={createDefinition}
+                      help={() => {
+                        const type = inspectedBlock.value?.type ?? '';
+                        setHelpTopic(
+                          type.includes('routine')
+                            ? 'routines'
+                            : type.includes('timer')
+                              ? 'turns'
+                              : type.includes('conversation')
+                                ? 'conversations'
+                                : type.includes('quest')
+                                  ? 'quests'
+                                  : type === 'call'
+                                    ? 'procedures'
+                                    : 'blocks',
+                        );
                       }}
-                      changeBlock={(selection, value) =>
+                      change={(selection, value) =>
                         blocks.current?.updateBlock(
                           selection,
                           value,
                           current.current.doc ?? undefined,
                         )
                       }
-                      openDefinition={openDefinition}
-                      createDefinition={createDefinition}
-                      remove={() => remove(activeRoutine.id)}
-                      error={error}
+                      settings={() => {
+                        blocks.current?.selectBlock(null);
+                        setBlockSelections((old) => {
+                          const next = { ...old };
+                          delete next[inspectedBlock.flowId];
+                          return next;
+                        });
+                      }}
                     />
                   ) : (
-                    <>
-                      <h2>Routines</h2>
-                      <p>
-                        Select a routine or create one for a character. Its steps stay together in
-                        one Blockly group.
-                      </p>
-                    </>
-                  )
-                ) : mode === 'triggers' && scheduled && !inspectedBlock ? (
-                  activeTimer ? (
-                    <TimerInspector
-                      key={activeTimer.id}
+                    <Inspector
                       project={doc}
-                      definition={activeTimer}
+                      selected={mode === 'triggers' && activeTrigger ? activeTrigger.id : selected}
                       edit={edit}
                       select={select}
-                      remove={() => remove(activeTimer.id)}
+                      remove={remove}
+                      error={error}
+                      contents={(id) => {
+                        select(id);
+                        setMode('contents');
+                        setConnecting(false);
+                      }}
+                      containerSetup={setContainerSetup}
                     />
-                  ) : (
-                    <>
-                      <h2>Scheduled triggers</h2>
-                      <p>Select or add a named timer to build its guard and effects.</p>
-                    </>
-                  )
-                ) : mode === 'triggers' && !scheduled && !activeTrigger ? (
-                  <>
-                    <h2>Triggers</h2>
-                    <p className="muted">Add a trigger to build its conditions and effects.</p>
-                  </>
-                ) : inspectedBlock ? (
-                  <BlockInspector
-                    project={doc}
-                    selection={inspectedBlock}
-                    openDefinition={openDefinition}
-                    createDefinition={createDefinition}
-                    help={() => setHelpTopic('blocks')}
-                    change={(selection, value) =>
-                      blocks.current?.updateBlock(
-                        selection,
-                        value,
-                        current.current.doc ?? undefined,
-                      )
-                    }
-                    settings={() => {
-                      blocks.current?.selectBlock(null);
-                      setBlockSelections((old) => {
-                        const next = { ...old };
-                        delete next[inspectedBlock.flowId];
-                        return next;
-                      });
-                    }}
-                  />
-                ) : (
-                  <Inspector
-                    project={doc}
-                    selected={mode === 'triggers' && activeTrigger ? activeTrigger.id : selected}
-                    edit={edit}
-                    select={select}
-                    remove={remove}
-                    error={error}
-                    contents={(id) => {
-                      select(id);
-                      setMode('contents');
-                      setConnecting(false);
-                    }}
-                    containerSetup={setContainerSetup}
-                  />
-                )}
-              </FindingSubject.Provider>
-            </div>
-          </aside>
+                  )}
+                </FindingSubject.Provider>
+              </div>
+            </aside>
+          )}
         </main>
       )}
+      {showSaveAs && doc && <SaveAs save={saveAs} close={() => setShowSaveAs(false)} />}
       {showJournal && play && (
         <NarrativeJournal
           entries={play.quest_log}
@@ -3190,99 +3357,103 @@ export default function App() {
     </div>
   );
   return (
-    <ReferenceActions.Provider
-      value={(reference) => {
-        if (doc && reference.action === 'delete' && !usedBy(doc, reference.target).length) {
-          edit(
-            (p) => {
-              const result = referencePlan(p, reference.target);
-              if (result.errors.length) throw new Error(result.errors.join(' '));
-              Object.assign(p, result.project);
-            },
-            { label: 'Delete unused content' },
-          );
-          if ('id' in reference.target) {
-            const parent = narrativeRemovalDestination(doc, reference.target.id, selected);
-            if (parent) select(parent);
-          }
-        } else setReferenceRequest(reference);
-      }}
+    <LibraryPreferencesContext.Provider
+      value={{ preferences: libraryPreferences, change: setLibraryPreferences }}
     >
-      <ProcedureScope.Provider
-        value={
-          doc
-            ? {
-                project: doc,
-                procedure: mode === 'procedures' ? activeProcedure : undefined,
-                scriptId: inspectedFlow?.id ?? '',
-              }
-            : null
-        }
+      <ReferenceActions.Provider
+        value={(reference) => {
+          if (doc && reference.action === 'delete' && !usedBy(doc, reference.target).length) {
+            edit(
+              (p) => {
+                const result = referencePlan(p, reference.target);
+                if (result.errors.length) throw new Error(result.errors.join(' '));
+                Object.assign(p, result.project);
+              },
+              { label: `Delete ${referenceName(doc, reference.target)}` },
+            );
+            if ('id' in reference.target) {
+              const parent = narrativeRemovalDestination(doc, reference.target.id, selected);
+              if (parent) select(parent);
+            }
+          } else setReferenceRequest(reference);
+        }}
       >
-        <ExplanationFocus.Provider value={traceTarget}>
-          <FindingContext.Provider value={{ findings: diagnostics, reveal: revealTarget }}>
-            <ReferenceCreation
-              project={doc}
-              edit={edit}
-              reserved={config?.reserved ?? []}
-              onTimerCreated={(id) => openDefinition(id)}
-              transact={(label, change) => {
-                const previous = creationTransaction.current;
-                const before = current.current.doc;
-                const context = { group: crypto.randomUUID(), label };
-                creationTransaction.current = context;
-                try {
-                  change();
-                  const after = current.current.doc;
-                  current.current.doc = before;
-                  creationTransaction.current = previous;
-                  if (after && after !== before)
-                    edit((project) => Object.assign(project, after), context);
-                } catch (error) {
-                  current.current.doc = before;
-                  throw error;
-                } finally {
-                  creationTransaction.current = previous;
+        <ProcedureScope.Provider
+          value={
+            doc
+              ? {
+                  project: doc,
+                  procedure: mode === 'procedures' ? activeProcedure : undefined,
+                  scriptId: inspectedFlow?.id ?? '',
                 }
-              }}
-            >
-              {editor}
-              {doc && referenceRequest && (
-                <ReferenceManager
-                  key={JSON.stringify(referenceRequest)}
-                  project={doc}
-                  request={referenceRequest}
-                  close={() => setReferenceRequest(null)}
-                  edit={edit}
-                  reveal={reveal}
-                  removed={(target) => {
-                    if ('id' in target) {
-                      const parent = narrativeRemovalDestination(doc, target.id, selected);
-                      if (parent) {
-                        select(parent);
-                        return;
+              : null
+          }
+        >
+          <ExplanationFocus.Provider value={traceTarget}>
+            <FindingContext.Provider value={{ findings: diagnostics, reveal: revealTarget }}>
+              <ReferenceCreation
+                project={doc}
+                edit={edit}
+                reserved={config?.reserved ?? []}
+                onTimerCreated={(id) => openDefinition(id)}
+                transact={(label, change) => {
+                  const previous = creationTransaction.current;
+                  const before = current.current.doc;
+                  const context = { group: crypto.randomUUID(), label };
+                  creationTransaction.current = context;
+                  try {
+                    change();
+                    const after = current.current.doc;
+                    current.current.doc = before;
+                    creationTransaction.current = previous;
+                    if (after && after !== before)
+                      edit((project) => Object.assign(project, after), context);
+                  } catch (error) {
+                    current.current.doc = before;
+                    throw error;
+                  } finally {
+                    creationTransaction.current = previous;
+                  }
+                }}
+              >
+                {editor}
+                {doc && referenceRequest && (
+                  <ReferenceManager
+                    key={JSON.stringify(referenceRequest)}
+                    project={doc}
+                    request={referenceRequest}
+                    close={() => setReferenceRequest(null)}
+                    edit={edit}
+                    reveal={reveal}
+                    removed={(target) => {
+                      if ('id' in target) {
+                        const parent = narrativeRemovalDestination(doc, target.id, selected);
+                        if (parent) {
+                          select(parent);
+                          return;
+                        }
                       }
-                    }
-                    if (
-                      'id' in target &&
-                      (selected === target.id || flowOwner(doc, selected)?.id === target.id)
-                    )
-                      select(
-                        target.kind === 'routine'
-                          ? routinePage
-                          : target.kind === 'timer'
-                            ? gameDataPages.scheduled
-                            : target.kind === 'procedure'
-                              ? gameDataPages.procedures
-                              : (flowOwner(doc, target.id)?.id ?? doc.game.id),
-                      );
-                  }}
-                />
-              )}
-            </ReferenceCreation>
-          </FindingContext.Provider>
-        </ExplanationFocus.Provider>
-      </ProcedureScope.Provider>
-    </ReferenceActions.Provider>
+                      if (
+                        'id' in target &&
+                        (selected === target.id || flowOwner(doc, selected)?.id === target.id)
+                      )
+                        select(
+                          target.kind === 'routine'
+                            ? routinePage
+                            : target.kind === 'timer'
+                              ? gameDataPages.scheduled
+                              : target.kind === 'procedure'
+                                ? gameDataPages.procedures
+                                : (flowOwner(doc, target.id)?.id ?? doc.game.id),
+                        );
+                    }}
+                  />
+                )}
+              </ReferenceCreation>
+            </FindingContext.Provider>
+          </ExplanationFocus.Provider>
+        </ProcedureScope.Provider>
+      </ReferenceActions.Provider>
+    </LibraryPreferencesContext.Provider>
   );
 }

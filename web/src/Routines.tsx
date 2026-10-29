@@ -1,3 +1,4 @@
+import { focusCreated } from './creationFocus';
 import { useState, useEffect, type Ref } from 'react';
 import * as Blockly from 'blockly/core';
 import type {
@@ -25,6 +26,7 @@ import { playContentKey } from './playtest';
 import { ReferenceButton } from './ReferenceManager';
 import { reassignRoutineOwner } from './references';
 import { allEffects } from './model';
+import LibraryWorkspace, { LibraryEmpty, useLibrarySearch } from './LibraryWorkspace';
 import {
   authoringRoutines,
   routine,
@@ -102,10 +104,12 @@ export function RoutineCreation({
   return (
     <Modal title="Create routine" close={close}>
       <h2>Create routine</h2>
-      <p>
-        Routines require content format 7 and a compatible Luna runner. Existing saves need a fresh
-        playthrough after enabling turns.
-      </p>
+      {(project.game.format_version < 7 || !project.game.turns) && (
+        <p>
+          Routines require content format 7 and a compatible Luna runner.{' '}
+          {!project.game.turns && 'Existing saves need a fresh playthrough after enabling turns.'}
+        </p>
+      )}
       {!project.game.turns && <TurnEnableReview project={project} />}
       {!project.characters.length && <p>Add a character before creating a routine.</p>}
       <form
@@ -123,6 +127,7 @@ export function RoutineCreation({
             { label: from ? 'Create and bind routine' : 'Create routine' },
           );
           created(r.id);
+          focusCreated(r.id, 'Routine name');
           close();
         }}
       >
@@ -166,6 +171,7 @@ export default function Routines({
   project,
   active,
   character,
+  filterCharacter,
   edit,
   select,
   history,
@@ -178,6 +184,7 @@ export default function Routines({
   project: Project;
   active?: CharacterRoutine;
   character: string;
+  filterCharacter: (id: string) => void;
   edit: ProjectEdit;
   select: (id: string) => void;
   history: HistoryControls;
@@ -187,38 +194,40 @@ export default function Routines({
   blockViews: { current: Record<string, BlockView> };
   error: (message: string) => void;
 }) {
-  const [creating, setCreating] = useState(false),
-    [query, setQuery] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useLibrarySearch('routines');
+  const visible = authoringRoutines(project).filter(
+    (r) =>
+      (!character || r.character === character) &&
+      r.name.toLowerCase().includes(query.trim().toLowerCase()),
+  );
   return (
-    <section
-      className="procedure-workspace routine-workspace"
-      aria-label="Character routines editor"
-    >
-      <section className="procedure-library" aria-label="Routine library">
-        <div className="section-heading">
-          <h2>Routines</h2>
-          <button className="primary" onClick={() => setCreating(true)}>
-            Add routine
-          </button>
-        </div>
-        <p className="muted">
-          One step attempt per charged turn. Each character has one running or paused routine.
-        </p>
-        <Select
-          label="Filter routines by character"
-          value={character}
-          items={[{ id: '', name: 'All characters' }, ...project.characters]}
-          onChange={(key) => select(key ? `${routinePage}:${key}` : routinePage)}
-        />
-        <Text label="Search routines" value={query} onChange={setQuery} />
-        <div className="procedure-list">
-          {authoringRoutines(project)
-            .filter(
-              (r) =>
-                (!character || r.character === character) &&
-                r.name.toLowerCase().includes(query.toLowerCase()),
-            )
-            .map((r) => (
+    <LibraryWorkspace
+      kind="routines"
+      label="Character routines"
+      className="routine-workspace"
+      selected={active?.name}
+      selectedId={active?.id}
+      library={
+        <>
+          <div className="section-heading">
+            <h2>Routines</h2>
+            <button className="primary" onClick={() => setCreating(true)}>
+              Add routine
+            </button>
+          </div>
+          <p className="muted">
+            One step attempt per charged turn. Each character has one running or paused routine.
+          </p>
+          <Select
+            label="Filter routines by character"
+            value={character}
+            items={[{ id: '', name: 'All characters' }, ...project.characters]}
+            onChange={filterCharacter}
+          />
+          <Text label="Search routines" value={query} onChange={setQuery} />
+          <div className="procedure-list">
+            {visible.map((r) => (
               <button
                 key={r.id}
                 className={`list-item ${active?.id === r.id ? 'active' : ''}`}
@@ -233,8 +242,13 @@ export default function Routines({
                 </small>
               </button>
             ))}
-        </div>
-      </section>
+          </div>
+          {!visible.length && (
+            <LibraryEmpty kind="routines" query={query} clear={() => setQuery('')} />
+          )}
+        </>
+      }
+    >
       <section className="action-editor" aria-label="Routine logic">
         {active ? (
           <div className="action-blocks">
@@ -290,10 +304,13 @@ export default function Routines({
           edit={edit}
           character={character || undefined}
           close={() => setCreating(false)}
-          created={select}
+          created={(id) => {
+            setQuery('');
+            select(id);
+          }}
         />
       )}
-    </section>
+    </LibraryWorkspace>
   );
 }
 export function RoutineInspector({

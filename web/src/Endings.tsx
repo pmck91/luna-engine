@@ -1,3 +1,4 @@
+import { focusCreated } from './creationFocus';
 import type { Ending, Project } from './contracts';
 import { id } from './model';
 import { Check, RichText, Select, Text } from './Forms';
@@ -43,6 +44,7 @@ export default function Endings({
             role="group"
             aria-label={`Ending ${index + 1}`}
             key={ending.id}
+            data-edit-subject={ending.id}
           >
             <h3>{ending.name || 'Unnamed ending'}</h3>
             <Text
@@ -78,7 +80,7 @@ export default function Endings({
                     })
               }
             >
-              Remove ending
+              Delete ending
             </button>
             <ReferenceButton target={{ kind: 'ending', id: ending.id }} />
             <p className="stable-id">Stable ID: {ending.id}</p>
@@ -86,11 +88,14 @@ export default function Endings({
         </FindingSubject.Provider>
       ))}
       <button
-        onClick={() =>
+        className="primary"
+        onClick={() => {
+          const key = id();
           edit((next) => {
-            next.game.endings.push({ id: id(), name: 'New ending', outcome: null, text: '' });
-          })
-        }
+            next.game.endings.push({ id: key, name: 'New ending', outcome: null, text: '' });
+          });
+          focusCreated(key, 'Ending name');
+        }}
       >
         Add ending
       </button>

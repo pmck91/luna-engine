@@ -1,3 +1,4 @@
+import { focusCreated } from './creationFocus';
 import type { HistoryControls } from './workspaceHistory';
 import type { ProjectEdit } from './projectHistory';
 import { useState, type Ref } from 'react';
@@ -131,6 +132,7 @@ export default function Triggers({
                     : project.game.id);
                 edit((p) => owner(p, ownerId)!.triggers.push(created));
                 select(created.id);
+                focusCreated(created.id, 'Name');
                 const menu = click.currentTarget.closest('details');
                 if (menu) menu.open = false;
               }}

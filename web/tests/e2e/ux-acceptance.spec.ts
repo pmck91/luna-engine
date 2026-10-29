@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { chromium, expect, test, type Locator, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -66,7 +67,7 @@ test('author a complete two-room puzzle without dragging, reopen, and continue i
   const folder = `ux-acceptance-${info.project.name}`;
   await create(page, folder);
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   await hierarchy.getByRole('button', { name: /Starting location/ }).click();
   await inspector.getByLabel('Name', { exact: true }).fill('Study');
   await inspector.getByLabel('Description', { exact: true }).fill('A quiet study.');
@@ -315,9 +316,7 @@ test('actual 200 percent browser zoom keeps authoring and modal controls reachab
     await page.getByRole('button', { name: 'Add object', exact: true }).click();
     const expand = page.getByRole('button', { name: 'Expand inspector', exact: true });
     if (await expand.isVisible()) await expand.click();
-    const name = page
-      .getByRole('complementary', { name: 'Inspector', exact: true })
-      .getByLabel('Name', { exact: true });
+    const name = authoringForms(page).getByLabel('Name', { exact: true });
     await name.fill('Zoomed object');
     await expect(name).toBeInViewport();
     const editor = await cdp.send('Page.captureScreenshot', {

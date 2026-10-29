@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,7 +15,7 @@ test('acknowledged warnings save reasons, support history and restoration, and k
     project.locations.push(location('Dev room'));
   });
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const validate = page.getByRole('button', { name: /^Validate/ });
   await expect(validate).toContainText('1 warnings');
   await hierarchy.getByRole('button', { name: /◇ Dev room/ }).click();
@@ -96,7 +97,7 @@ test('optional reasons and acknowledgements survive unrelated edits while change
     project.locations.push(location('Dev room'));
   });
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const validate = page.getByRole('button', { name: /^Validate/ });
   await expect(validate).toContainText('1 warnings');
   await validate.click();

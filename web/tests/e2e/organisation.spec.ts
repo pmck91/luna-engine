@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
 import { openEditor } from '../editor';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -19,7 +20,7 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
   const data = hierarchy.getByRole('region', { name: 'Game data', exact: true });
   const tools = hierarchy.getByRole('region', { name: 'Tools', exact: true });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const root = join(process.env.LUNA_TEST_DIR!, 'projects', folder);
   await expect(hierarchy.getByRole('button', { name: /◇ rose/ })).toBeVisible();
   const originalGame = JSON.parse(readFileSync(join(root, 'game.json'), 'utf8'));
@@ -38,8 +39,9 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
   await page.getByRole('button', { name: 'Collapse inspector', exact: true }).click();
   await data.getByRole('button', { name: 'Command vocabulary', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: 'Collapse inspector', exact: true }),
-  ).toHaveAttribute('aria-expanded', 'true');
+    page.getByRole('region', { name: 'Command vocabulary workspace', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Inspector', exact: true })).toHaveCount(0);
   await expect(
     data.getByRole('button', { name: 'Command vocabulary', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
@@ -48,7 +50,7 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
     .fill('a, an, the, this');
   await inspector.getByRole('button', { name: 'Add verb', exact: true }).click();
   const verb = inspector.locator('details').last();
-  await verb.locator('summary').click();
+  await expect(verb.getByLabel('Canonical verb')).toBeFocused();
   await verb.getByLabel('Canonical verb').fill('ponder');
   await verb.getByLabel('Synonyms (comma separated)').fill('consider');
   await data.getByRole('button', { name: 'Variables', exact: true }).click();
@@ -63,7 +65,6 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
   await inspector.getByRole('button', { name: 'Add', exact: true }).click();
   await inspector.getByLabel('chances type').selectOption('number');
   await inspector.getByLabel('chances value').fill('2');
-  await page.getByRole('button', { name: 'Collapse inspector', exact: true }).click();
   await data.getByRole('button', { name: 'Endings', exact: true }).click();
   const endings = inspector.getByRole('region', { name: 'Endings editor', exact: true });
   await expect(endings.getByLabel('Require a reachable ending')).toBeChecked();
@@ -78,7 +79,7 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
   const second = endings.getByRole('group', { name: 'Ending 2', exact: true });
   await expect(second.getByLabel('Outcome')).toHaveValue('');
   await second.getByLabel('Ending name').fill('Unused ending');
-  await second.getByRole('button', { name: 'Remove ending', exact: true }).click();
+  await second.getByRole('button', { name: 'Delete ending', exact: true }).click();
   await expect(endings.getByRole('group')).toHaveCount(1);
   await tools.getByRole('button', { name: /Game settings/ }).click();
   await expect(inspector.getByRole('region', { name: 'Endings editor', exact: true })).toHaveCount(
@@ -93,6 +94,7 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
   await expect(endings.getByLabel('Require a reachable ending')).not.toBeChecked();
   await endings.getByLabel('Require a reachable ending').check();
   await hierarchy.getByRole('button', { name: /◇ rose/ }).click();
+  await page.getByRole('button', { name: 'Expand inspector', exact: true }).click();
   await inspector.getByRole('button', { name: /Examine rose/ }).click();
   await expect(page.locator('.blocklyBlockCanvas .luna_end')).toContainText('Garden escape');
   await page.getByLabel('Action verb', { exact: true }).selectOption({ label: 'ponder' });

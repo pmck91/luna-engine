@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -14,7 +15,7 @@ test('custom unknown-command messages survive reopening, playtest, export and ru
     project.game.variables.chances = 3;
   });
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   await hierarchy.getByRole('button', { name: /Game settings/ }).click();
   const message = inspector.getByLabel('Unknown command message', { exact: true });
   const standard = "I couldn't match that command. Try help, or use a visible object's name.";

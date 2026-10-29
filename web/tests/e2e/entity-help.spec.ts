@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
 import { openEditor, openNewAction } from '../editor';
 
@@ -10,7 +11,7 @@ test('entity help lists authored commands and changes with inventory requirement
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Folder name').fill(`help-${info.project.name}`);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
   await page.getByRole('button', { name: 'Add object', exact: true }).click();
   await inspector.getByLabel('Name', { exact: true }).fill('brass key');
@@ -21,7 +22,7 @@ test('entity help lists authored commands and changes with inventory requirement
   await inspector.getByLabel('Name', { exact: true }).fill('Keeper');
   await hierarchy.getByRole('button', { name: /Command vocabulary/ }).click();
   await inspector.getByRole('button', { name: 'Add verb', exact: true }).click();
-  await inspector.getByText('new verb', { exact: true }).click();
+  await expect(inspector.getByLabel('Canonical verb', { exact: true }).last()).toBeFocused();
   await inspector.getByLabel('Canonical verb', { exact: true }).last().fill('give');
   await hierarchy.getByRole('button', { name: /brass key/ }).click();
   await inspector.getByRole('button', { name: /Examine/ }).click();
