@@ -272,6 +272,15 @@ impl Storage {
         };
         Ok(self.save_dir(id, version)?.join(key))
     }
+    /// Check whether a slot exists without reading or modifying its saved state.
+    ///
+    /// # Errors
+    /// Rejects unsafe identities/labels/paths or propagates filesystem errors.
+    pub fn save_exists(&self, record: &Installed, name: Option<&str>) -> Result<bool> {
+        Ok(self
+            .slot_path(&record.game_id, &record.content_version, name)?
+            .try_exists()?)
+    }
     /// Atomically write compatible state using a previously validated definition.
     ///
     /// # Errors

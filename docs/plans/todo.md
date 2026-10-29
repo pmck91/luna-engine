@@ -1,5 +1,16 @@
 # Project todo
 
+## Runner usability patch before release
+
+The owner accepted the Linux package launch and requested a separate branch from
+current main before release work continues. See [runner terminal usability](runner-terminal-ux.md).
+
+- [x] Create `feature/runner-terminal-ux` from `86337e4`; preserve `feature/v1-release`.
+- [x] Add a title/version picker for bare `luna run`, with explicit-ID script compatibility.
+- [x] Add real terminal editing and session-local Up/Down history, including Unicode and cancellation tests.
+- [x] Implement the five accepted follow-ups: save/launch menus with safe replacement confirmation, friendly busy-game recovery, searchable game selection, first-play controls guide, and opt-in plain transcripts. Tab completion is excluded. Expanded local verification passes 53 runner tests; owner review is accepted; native-CI verification remains open.
+- [ ] Complete verification, owner review and native CI, then integrate the accepted patch into the release branch and rebuild packages.
+
 Last reviewed: **29 October 2026**, against the implementation, tests, and accepted plans.
 
 The editor UX work (M0–M7 and M9) is accepted and merged into `main` as `1608340`. Custom unknown-command messages and warning acknowledgements are also implemented and committed. Completed work is recorded below; human screen-reader/new-author evaluation remains open.

@@ -7,7 +7,11 @@ use std::{
     process::{Command, Output, Stdio},
 };
 fn command(temp: &Path, args: &[&str], input: &[u8]) -> Output {
+    let config = temp.join("runner.toml");
+    fs::write(&config, "").unwrap();
     let mut child = Command::new(env!("CARGO_BIN_EXE_luna"))
+        .arg("--config")
+        .arg(config)
         .arg("--games-dir")
         .arg(temp.join("games"))
         .arg("--saves-dir")
@@ -23,6 +27,97 @@ fn command(temp: &Path, args: &[&str], input: &[u8]) -> Output {
 }
 fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.fixtures/locked-study.luna")
+}
+
+#[test]
+fn run_without_an_id_explains_empty_libraries_and_rejects_piped_selection() {
+    let temp = tempfile::tempdir().unwrap();
+    let empty = command(temp.path(), &["run"], b"");
+    assert!(empty.status.success());
+    assert!(String::from_utf8_lossy(&empty.stdout).contains("No installed games"));
+    assert!(
+        command(temp.path(), &["import", fixture().to_str().unwrap()], b"")
+            .status
+            .success()
+    );
+    let piped = command(temp.path(), &["run"], b"");
+    assert!(!piped.status.success());
+    assert!(String::from_utf8_lossy(&piped.stderr).contains("luna run <game-id>"));
+    assert!(!piped.stdout.contains(&0x1b));
+}
+
+#[test]
+fn controls_and_transcripts_keep_scripted_output_plain_and_existing_files_safe() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut project = luna_model::Project::blank("Transcript proof");
+    project.locations[0].description = "<green>A green room.</green>".into();
+    let bundle = temp.path().join("proof.luna");
+    fs::write(
+        &bundle,
+        luna_project::export_bundle(temp.path(), &project).unwrap(),
+    )
+    .unwrap();
+    let store = Storage::new(temp.path().join("games"), temp.path().join("saves")).unwrap();
+    let game = store
+        .install(store.prepare(&bundle).unwrap(), ExistingPolicy::Replace)
+        .unwrap();
+    let path = temp.path().join("play through.txt");
+    let controls = command(temp.path(), &["controls"], b"");
+    assert!(controls.status.success());
+    assert!(String::from_utf8_lossy(&controls.stdout).contains("/transcript"));
+    let output = command(
+        temp.path(),
+        &[
+            "run",
+            &game.game_id,
+            "--new",
+            "--color",
+            "always",
+            "--transcript",
+            path.to_str().unwrap(),
+        ],
+        b"look\nquit\n",
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.contains(&0x1b));
+    let text = fs::read_to_string(&path).unwrap();
+    assert!(text.contains("> look\n") && text.contains("A green room."));
+    assert!(!text.contains('\x1b') && !text.contains("<green>"));
+    let save = store
+        .saves
+        .join(&game.game_id)
+        .join(&game.content_version)
+        .join("autosave.json");
+    let saved_before = fs::read(&save).unwrap();
+    let rejected = command(
+        temp.path(),
+        &[
+            "run",
+            &game.game_id,
+            "--new",
+            "--transcript",
+            path.to_str().unwrap(),
+        ],
+        b"",
+    );
+    assert!(!rejected.status.success());
+    assert_eq!(fs::read_to_string(&path).unwrap(), text);
+    assert_eq!(fs::read(&save).unwrap(), saved_before);
+    let reopened = command(
+        temp.path(),
+        &["run", &game.game_id, "--load", "autosave"],
+        b"/controls\n/transcript status\nquit\n",
+    );
+    assert!(reopened.status.success());
+    assert_eq!(fs::read(&save).unwrap(), saved_before);
+    assert!(
+        !temp.path().join("runner.guide.json").exists(),
+        "Pipes must not write onboarding state"
+    );
 }
 
 #[test]

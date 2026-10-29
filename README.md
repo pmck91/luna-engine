@@ -28,10 +28,9 @@ Download the artifact from a [successful main build](https://github.com/pmck91/l
 ```sh
 ./luna-editor --projects-dir ./examples
 ./luna import examples/locked-study.luna
-./luna list
-./luna run <game-id>
+./luna run
 ```
 
-Use the ID printed by `list`. See [installation and running from source](https://pmck91.github.io/luna-engine/getting-started/install/) and the [complete tutorial](https://pmck91.github.io/luna-engine/tutorials/observatory/).
+Type to search your games, choose with Up/Down and Enter, then continue or select a save. While playing, Up/Down recall commands and Left/Right move the input cursor. Use `/controls` for help and `/transcript start <new-file>` for optional plain-text recording. Scripts can still use `luna run <game-id>`. See [installation and running from source](https://pmck91.github.io/luna-engine/getting-started/install/) and the [complete tutorial](https://pmck91.github.io/luna-engine/tutorials/observatory/).
 
 For local development, tests, packaging and architecture, start with [Developer documentation](https://pmck91.github.io/luna-engine/developer/development/). Repository [development notes](docs/development.md) and [design plans](docs/plans/todo.md) retain implementation evidence.

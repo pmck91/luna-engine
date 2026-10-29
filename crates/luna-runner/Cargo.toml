@@ -32,9 +32,13 @@ chrono.workspace = true
 uuid.workspace = true
 toml = "0.8"
 tempfile.workspace = true
+dialoguer = { version = "0.12", default-features = false, features = ["fuzzy-select"] }
+rustyline = { version = "19", default-features = false }
+fs2.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+portable-pty = "0.9"
 
 [[bench]]
 name = "procedures"
