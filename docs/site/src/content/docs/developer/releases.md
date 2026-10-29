@@ -30,11 +30,11 @@ The **Native release packages** workflow runs on PRs and manually through Action
 scripts/release-targets.json supplies both the workflow matrix and package identity. Native jobs use Ubuntu 22.04 x86_64, macOS 15 Apple Silicon, macOS 15 Intel and Windows Server 2022 x86_64. Each job:
 
 1. Verifies the actual Rust host triple and records tooling.
-2. Runs release-tool regressions and frontend tests, builds the UI and locked release workspace, and runs native Rust tests.
+2. Runs release-tool regressions and frontend tests, builds the UI and locked release workspace, and runs native Rust tests (including real PTY/ConPTY keyboard journeys).
 3. Checks dynamic-library requirements. Linux CI rejects required glibc symbols newer than 2.35. macOS rejects local package-manager libraries. Windows release builds use static MSVC CRT linkage with explicit native --target so the flags stay off host proc macros/build scripts, and check PE import names for an unexpected dynamic CRT dependency. Ordinary developer builds keep their default linkage.
 4. Builds and verifies its archive, then runs the extracted editor and runner with no developer tools on child PATH, explicit temporary config and a path containing spaces/Unicode.
 5. Exercises authenticated embedded assets, real project editing/export, examples including the Observatory tutorial, named/autosave reloads in separate processes, completed games and corruption/rollback cases.
-6. Runs Chromium authoring/playtest/export journeys against another extracted release executable.
+6. Runs the six terminal-control journeys against the extracted release runner itself, then Chromium authoring/playtest/export journeys against another extracted release editor. This verifies searchable launch/save menus, locks, keyboard history/editing, guide state and transcripts in the distributed executable.
 
 Only successful jobs upload `release-package-<platform>` with the archive and checksum. Baseline/dependency JSON and browser failure artifacts are retained separately. Linux's existing full lint/frontend/Chromium/Firefox application checks remain in Validate Luna. Host checks run independently so one failure does not hide other results.
 

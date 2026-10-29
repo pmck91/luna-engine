@@ -25,4 +25,5 @@ jobs:
           components: clippy
       - run: cargo clippy --locked -p luna-runner --all-targets -- -D warnings
       - name: Test runner, real terminal keys and script compatibility
+        timeout-minutes: 15
         run: cargo test --locked -p luna-runner

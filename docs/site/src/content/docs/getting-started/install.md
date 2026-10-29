@@ -48,6 +48,28 @@ If your file manager does not launch the executable, open a terminal in the extr
 ./luna-editor --port 0
 ```
 
+## Play an exported game
+
+From the extracted package on Linux/macOS:
+
+```sh
+./luna import examples/observatory.luna
+./luna run
+```
+
+On Windows PowerShell:
+
+```powershell
+.\luna.exe import .\examples\observatory.luna
+.\luna.exe run
+```
+
+Type to search installed games, use Up/Down and Enter to choose, then continue,
+load a save or start a new game. The first interactive play shows a short guide;
+`/controls` repeats it. Up/Down recall commands while Left/Right and
+Backspace/Delete edit the input. See [playing and recording a transcript](/luna-engine/playing/sharing/)
+for save menus, optional recording and scripted launches.
+
 ## Choose a projects directory
 
 Without `--projects-dir`, the first launch asks for **Projects directory (absolute path)**. Choose a folder you own, then **Use this directory**. The editor remembers it. Each project is a subfolder.

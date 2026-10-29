@@ -70,11 +70,14 @@ jobs:
         env:
           LUNA_ENFORCE_LINUX_BASELINE: '1'
       - name: Run native Rust tests
+        timeout-minutes: 20
         run: cargo test --locked --workspace ${{ join(matrix.cargo_args, ' ') }}
       - name: Package the native release
         run: python scripts/package.py --skip-build
       - name: Exercise extracted editor, exports, runner and real saves
         run: python scripts/smoke-package.py
+      - name: Exercise real keyboard, launch/save menus and transcripts in the extracted runner
+        run: python scripts/release.py test-terminal
       - run: npx playwright install --with-deps chromium
         working-directory: web
       - name: Install Firefox for complete Linux browser acceptance

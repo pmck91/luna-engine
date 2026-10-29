@@ -13,7 +13,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 
-from release_common import extract_verified, native_target, package_path
+from release_common import extract_verified, native_target, package_path, version
 
 
 def main():
@@ -53,7 +53,8 @@ def main():
         fixture = work / "walkthrough.luna"
         fixture.write_bytes((root / ".fixtures/locked-study.luna").read_bytes())
         run(["import", str(fixture)])
-        game_id = run(["list"]).splitlines()[0].split("\t")[0]
+        installed = run(["list"]).splitlines()[0].split("\t")
+        game_id = installed[0]
         transcript = run(["run", game_id, "--new"],
                          "examine painting\nexamine painting\ntake key\nuse key on door\n"
                          "save before garden\ngo east\nexamine rose\nsave completed\n"
@@ -67,6 +68,22 @@ def main():
         assert transcript.count("You enter the study for the first time.") == 1, transcript
         assert "I couldn't match that command." not in transcript, transcript
         assert "\x1b" not in transcript, transcript
+
+        # Host-only controls/logging must be present in the actual release and
+        # must not advance gameplay, rewrite a restored save or enable onboarding in pipes.
+        auto = work / "walkthrough/saves" / game_id / installed[1] / "autosave.json"
+        saved_before = auto.read_bytes()
+        log = work / "session transcript.txt"
+        assert "/transcript" in run(["controls"])
+        run(["run", game_id, "--load", "before garden", "--transcript", str(log)],
+            "/controls\nlook\n/transcript status\n/transcript stop\ninventory\nquit\n")
+        recorded = log.read_text(encoding="utf-8")
+        assert f"Runner version: {version()}" in recorded
+        assert "> /controls\n" in recorded and "> look\n" in recorded
+        assert "Transcript stopped." in recorded and "> inventory" not in recorded
+        assert "\x1b" not in recorded
+        assert auto.read_bytes() == saved_before, "Host-only controls rewrote restored gameplay"
+        assert not (work / "runner.guide.json").exists(), "Piped package tests wrote onboarding state"
 
         frontend = root / "web/dist"
         hidden = root / "web/dist.smoke-hidden"

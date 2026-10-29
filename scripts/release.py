@@ -99,6 +99,7 @@ def main():
     browser = commands.add_parser("test-browser")
     browser.add_argument("--full", action="store_true", help="Run the full editor browser suite")
     browser.add_argument("--spec", action="append", help="Run a particular browser spec (repeatable)")
+    commands.add_parser("test-terminal")
     release = commands.add_parser("draft")
     release.add_argument("directory", type=Path)
     release.add_argument("tag")
@@ -110,18 +111,24 @@ def main():
     elif args.command == "verify-set":
         for asset in verify_set(args.directory, output("git", "rev-parse", "HEAD")):
             print(f"Verified {asset.name}")
-    elif args.command == "test-browser":
+    elif args.command in ("test-browser", "test-terminal"):
         target = native_target()
         with tempfile.TemporaryDirectory(prefix="luna-browser-package-") as directory:
             root = extract_verified(package_path(target), Path(directory), target=target)
             binary = root / ("luna-editor.exe" if os.name == "nt" else "luna-editor")
             runner = root / ("luna.exe" if os.name == "nt" else "luna")
-            command = ["node", str(ROOT / "web/node_modules/@playwright/test/cli.js"), "test"]
-            if args.spec:
-                command += args.spec
-            elif not args.full:
-                command += ["tests/e2e/editor.spec.ts", "--project=chromium"]
-            subprocess.run(command, cwd=ROOT / "web", check=True,
+            if args.command == "test-terminal":
+                command = ["cargo", "test", "--locked", "-p", "luna-runner", "--test", "terminal"] + target["cargo_args"]
+                cwd = ROOT
+            else:
+                command = ["node", str(ROOT / "web/node_modules/@playwright/test/cli.js"), "test"]
+                if args.spec:
+                    command += args.spec
+                elif not args.full:
+                    command += ["tests/e2e/editor.spec.ts", "--project=chromium"]
+                cwd = ROOT / "web"
+            subprocess.run(command, cwd=cwd, check=True,
+                           timeout=180 if args.command == "test-terminal" else None,
                            env=dict(os.environ, LUNA_TEST_EDITOR=str(binary), LUNA_TEST_RUNNER=str(runner)))
     else:
         draft(args.directory, args.tag)

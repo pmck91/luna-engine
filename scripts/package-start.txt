@@ -10,18 +10,27 @@ Keep the terminal running while editing. The editor opens a local desktop browse
 Linux / macOS (Terminal, from the extracted folder):
   ./luna-editor --projects-dir ./examples
   ./luna import examples/observatory.luna
-  ./luna list
-  ./luna run <game-id>
+  ./luna run
 
 Windows (PowerShell, from the extracted folder):
   .\luna-editor.exe --projects-dir .\examples
   .\luna.exe import .\examples\observatory.luna
-  .\luna.exe list
-  .\luna.exe run <game-id>
+  .\luna.exe run
 
-Replace <game-id> with the ID from list. The example folders are editable projects;
+Type to search installed games, use Up/Down and Enter to choose, then select
+Continue, Load a save or New game. Esc cancels; Back returns to the game list.
+The example folders are editable projects;
 the .luna files are exported games for the terminal runner. Use a copy of a project
 to experiment. The complete Observatory tutorial is in the online documentation.
+
+While playing, Up/Down recall commands and Left/Right, Backspace/Delete edit them.
+The controls guide appears on first interactive play. Show it again with
+  ./luna controls          (Windows: .\luna.exe controls)
+or type /controls in a game. Optional recording uses --transcript <new-file> at
+launch, or /transcript start <new-file>, /transcript status and /transcript stop
+while playing. Existing transcript files are never overwritten.
+
+Scripts can still use luna list and luna run <game-id> with --new or --load.
 
 Windows and macOS builds are experimental and unsigned. macOS binaries are not
 notarized; downloaded applications may be blocked by Gatekeeper. Windows may

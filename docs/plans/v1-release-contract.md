@@ -163,3 +163,34 @@ Windows release builds/tests use an explicit native --target so static CRT flags
 do not leak into host proc macros/build scripts, per Cargo’s target flag rules.
 Developer builds keep their default linkage. The shared target configuration
 and binary-directory helper account for the Windows target subdirectory.
+
+### Rebase after the accepted runner usability patch
+
+PR #12 merged as `ace30f2`; `feature/v1-release` was rebased onto it without
+conflicts. Application version 1.0.0, explicit unsigned/experimental Mac/Windows
+policy and release assembly protections remain intact. Package instructions and
+installation docs now recommend searchable bare `luna run` and describe save
+menus, controls/history and optional transcripts. Main's runner changes are no
+longer a separate prerequisite.
+
+The previous release matrix `40921915890` and application/docs workflows passed
+on `bce6149`; all four downloaded archives/checksums were verified together, with
+181 files each and clean metadata sharing PR merge revision `0d9c9e3`. Its tree
+matched the branch exactly. The owner accepted the Linux download, then requested
+the now-merged runner UX patch before tagging. Those older downloads therefore
+precede the usability changes and must be rebuilt.
+
+The refreshed smoke check covers packaged `/controls`, transcript start/stop and
+no save/onboarding changes from pipe-only controls. Actual keyboard journeys run
+against a separately extracted release runner. A Windows ConPTY test-harness
+startup deadlock discovered in the runner CI is corrected as recorded in the
+runner plan; its native result is still pending. No tag or release is created by
+this integration work.
+
+Local rebased verification: all 546 workspace tests/doctests and Clippy pass,
+including seven terminal-harness cases. The rebuilt Linux package passes full
+smoke (with controls/transcripts) and the same keyboard/save/guide journeys
+against the extracted release runner. Release-tool regressions, Rust formatting,
+workflow validation, docs formatting/build and 3,350 local link/asset/fragment
+checks pass. The new native matrix must confirm Windows startup and all four
+rebuilt downloads before the branch is ready for release review.

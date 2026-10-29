@@ -8,8 +8,9 @@ current main before release work continues. See [runner terminal usability](runn
 - [x] Create `feature/runner-terminal-ux` from `86337e4`; preserve `feature/v1-release`.
 - [x] Add a title/version picker for bare `luna run`, with explicit-ID script compatibility.
 - [x] Add real terminal editing and session-local Up/Down history, including Unicode and cancellation tests.
-- [x] Implement the five accepted follow-ups: save/launch menus with safe replacement confirmation, friendly busy-game recovery, searchable game selection, first-play controls guide, and opt-in plain transcripts. Tab completion is excluded. Expanded local verification passes 53 runner tests; owner review is accepted; native-CI verification remains open.
-- [ ] Complete verification, owner review and native CI, then integrate the accepted patch into the release branch and rebuild packages.
+- [x] Implement the five accepted follow-ups: save/launch menus with safe replacement confirmation, friendly busy-game recovery, searchable game selection, first-play controls guide, and opt-in plain transcripts. Tab completion is excluded. Expanded local verification passes 53 runner tests; owner review is accepted and PR #12 is merged as `ace30f2`; Windows ConPTY verification remains open after a harness startup stall.
+- [x] Owner accepted and merged PR #12; rebase the release branch onto main `ace30f2` and refresh package instructions.
+- [ ] Finish rebuilt package/native acceptance, including the corrected Windows ConPTY harness, before release tagging.
 
 Last reviewed: **29 October 2026**, against the implementation, tests, and accepted plans.
 
