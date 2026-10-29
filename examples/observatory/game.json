@@ -1,0 +1,109 @@
+{
+  "allow_player_undo": true,
+  "turns": {
+    "actions": true,
+    "replies": true,
+    "failed_requirements": false,
+    "look": false,
+    "hints": false
+  },
+  "id": "02602dae-1565-4ad5-ab59-20899bd12658",
+  "title": "Restore the Observatory",
+  "description": "A progressive Luna tutorial: restore a telescope and share the first starlight.",
+  "author": "Luna Engine",
+  "format_version": 8,
+  "content_version": "1.0.0",
+  "starting_location": "workshop",
+  "opening_text": "Tonight is the first clear night in weeks. Help Mira restore the old observatory.",
+  "help_text": "Examine your surroundings. Talk to Mira, open the satchel and repair the lens. Type quests for your journal, or hint door for a clue.",
+  "unknown_command_text": "That does not quite fit the night’s work. Try help, or name something you can see.",
+  "command_assistance": {
+    "clarification": true,
+    "recent_objects": true,
+    "clarification_text": "Which do you mean?",
+    "retry_text": "Choose one of the listed items.",
+    "unavailable_reference_text": "Name the object you mean; it is not clear here."
+  },
+  "help_mode": "basic",
+  "hints_enabled": true,
+  "ignored_words": [
+    "a",
+    "an",
+    "the"
+  ],
+  "require_ending": true,
+  "variables": {
+    "chart_finished": false,
+    "courtyard_entries": 0,
+    "door_unlocked": false,
+    "health": 3,
+    "score": 0
+  },
+  "endings": [
+    {
+      "id": "first-light",
+      "name": "First light",
+      "text": "The restored telescope gathers a field of stars. You earned %score% points. Mira smiles: the observatory is alive again.",
+      "outcome": null
+    },
+    {
+      "id": "guided-light",
+      "name": "A little guidance",
+      "text": "With a little guidance, the stars return. You earned %score% points.",
+      "outcome": "victory"
+    },
+    {
+      "id": "rest-needed",
+      "name": "Rest for tonight",
+      "text": "Your hands are too tired. The stars will wait for another night.",
+      "outcome": "loss"
+    }
+  ],
+  "actions": [],
+  "triggers": [
+    {
+      "id": "welcome",
+      "name": "Welcome",
+      "event": "start",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "say",
+          "text": "Mira has left a satchel and a lens frame on the workbench."
+        }
+      ]
+    },
+    {
+      "id": "health-zero",
+      "name": "Too tired",
+      "event": "command",
+      "watch": {
+        "target": {
+          "type": "variable",
+          "name": "health"
+        },
+        "mode": "becomes_true"
+      },
+      "priority": 0,
+      "condition": {
+        "type": "variable",
+        "name": "health",
+        "op": "le",
+        "value": 0
+      },
+      "effects": [
+        {
+          "type": "end",
+          "ending": "rest-needed"
+        }
+      ]
+    }
+  ],
+  "assets": [
+    "assets/field-notes.txt"
+  ]
+}

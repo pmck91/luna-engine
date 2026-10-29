@@ -1,0 +1,30 @@
+:root {
+  --sl-color-accent-low: #31251c;
+  --sl-color-accent: #b98537;
+  --sl-color-accent-high: #efd4a4;
+  --sl-font: 'Inter', system-ui, sans-serif;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #f8eedb;
+  --sl-color-accent: #815615;
+  --sl-color-accent-high: #4b3210;
+}
+.site-title img {
+  border-radius: 50%;
+  background: #f6eddc;
+}
+.sl-markdown-content img {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.65rem;
+}
+.sl-markdown-content img {
+  height: auto;
+}
+.hero img {
+  background: #f6eddc;
+  border-radius: 50%;
+  padding: 1.5rem;
+}
+.sl-markdown-content table {
+  font-size: 0.9rem;
+}

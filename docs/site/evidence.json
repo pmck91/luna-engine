@@ -1,0 +1,71 @@
+{
+  "engineSourceRevision": "150e26f14e26aeb25acaabe976fcdb4ec91bec5d",
+  "recordedAt": "2026-10-29T02:02:29.663Z",
+  "examples": {
+    "observatory": "19b52b93320de9889ad0c91e4a4be262314bdb823003f0f0869338e2e61a5913",
+    "locked-study": "7079f94ce5e5b9bb9ac430f2e8c1525b01ccf16d66f265a899682405bc722a48"
+  },
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "browser": "Chromium 156.0.8078.4",
+  "command": "node docs/site/scripts/capture-editor.mjs",
+  "screenshots": [
+    {
+      "file": "src/assets/screenshots/world.png",
+      "description": "Project hierarchy, directed world map, inspector and native playtest",
+      "sha256": "5c9effc0f71aaece06e1fa712f399975de3ebb3346dc693fb55f96ae49944031"
+    },
+    {
+      "file": "src/assets/screenshots/containers.png",
+      "description": "Satchel storage settings and initial contents context",
+      "sha256": "1a8eafaa77ecef3b1a12ab1f2022aab37bd0bd8ea6d41be44c621afe52c473c0"
+    },
+    {
+      "file": "src/assets/screenshots/actions.png",
+      "description": "Accessible-key requirements and the unlock IF/ELSE effects",
+      "sha256": "67f415abdd59aea72e390c88e5b53bdc61465ebbab25d94217f23c796608e047"
+    },
+    {
+      "file": "src/assets/screenshots/hints.png",
+      "description": "Door hint puzzle with ordered stages, clues and explicit solution",
+      "sha256": "f5550e2200c32e933c69a4fbfc29f6631f66acf6b56985f19e1fe4710ff34ec3"
+    },
+    {
+      "file": "src/assets/screenshots/procedures.png",
+      "description": "Award points procedure and local integer input",
+      "sha256": "5bdfbd050315b435758cf14633329a04d801407726a54ee5727276ee7c6c12dc"
+    },
+    {
+      "file": "src/assets/screenshots/conversations.png",
+      "description": "Prewritten reply graph with terminal and return dialogue",
+      "sha256": "d6948aa826afb0928658770d6f16c880e002d84ca85823310193cb87d90936de"
+    },
+    {
+      "file": "src/assets/screenshots/quests.png",
+      "description": "Quest stages, prerequisites and once-only hooks",
+      "sha256": "cfa43940ae2aef0ae0c980d012b9e1db86bc3f0c89f56311620c015857e9fbf1"
+    },
+    {
+      "file": "src/assets/screenshots/timers.png",
+      "description": "Named shutter callback with guard and effects",
+      "sha256": "6b632d06823cbb6bf0be0b514cd55254519f87dc7e8a296ccc78bbac73306af6"
+    },
+    {
+      "file": "src/assets/screenshots/routines.png",
+      "description": "One connected ROUTINE root with both guarded STEP containers",
+      "sha256": "daa62e251d5a69f36770ae42f2c62c9ae4205d62dc3725b4c047519a854b549a"
+    },
+    {
+      "file": "src/assets/screenshots/testing.png",
+      "description": "Native saved setups and repeatable checks library",
+      "sha256": "acc86f257d0f56b539e32da89f3bb51aa1d720ddeca7bc9640cf74d00a8431ec"
+    },
+    {
+      "file": "src/assets/screenshots/locked-study.png",
+      "description": "Owner-authored Locked Study with Study, Garden and the intentional Dev room",
+      "sha256": "6d43d1584851dff7d163ea78133a05d63da9dc2eee1e250fe9f3789c2cc57f38"
+    }
+  ]
+}

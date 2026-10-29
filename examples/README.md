@@ -1,14 +1,37 @@
-# The Locked Study
+# Example games
 
-`locked-study/` is the readable project saved by Luna's browser editor. `locked-study.luna` is its actual export, captured by the Chromium/Firefox authoring acceptance workflow. The project includes the saved map and response-block layout; the bundle excludes that editor-only data.
+Start with the [designer documentation](https://pmck91.github.io/luna-engine/) for guided instructions and downloads.
 
-The example template in `web/src/example.ts` uses generated Rust authoring types and is saved/exported through the same API as other projects. Runner and parity tests consume the retained bundle rather than maintaining a separate game schema or handwritten runner fixture.
+## Restore the Observatory
 
-The painting has two ordered replies, the brass key unlocks the garden door without being consumed, and examining the garden's rose reaches a neutral ending. A first-entry trigger records the first Study visit. Player state is separate from these authored files.
+`observatory/` and `observatory.luna` are the complete progressive tutorial project and native export. Build a small world, repair and calibrate a lens with Mira, complete a quest, open a timed shutter and restore the telescope. The tutorial also demonstrates routines, hints, player undo and the editor's testing workflow. Four native checkpoints and two saved checks are included in the editable project.
+
+Read the [tutorial](https://pmck91.github.io/luna-engine/tutorials/observatory/) or the [acceptance notes](observatory/ACCEPTANCE.md). The docs build checks source/export equality and screenshot provenance.
+
+## The Locked Study
+
+`locked-study/` is the owner's expanded editable project; `locked-study.luna` is refreshed from it through the native editor export API. It includes Study, Garden and an intentionally unreachable Dev room. Adjusting the uneven painting reveals the key. Returning the toy to Tom transfers it to his inventory and moves him offstage; admiring the rose then gives the best ending.
+
+From a fresh game:
+
+```text
+examine painting
+adjust painting
+take key
+take toy
+use key on door
+go garden
+give toy to tom
+examine rose
+```
+
+Without returning the toy, examining the rose reaches A quiet moment. Taking the rose reaches Stolen. Use a fresh playthrough or checkpoint for each ending.
+
+The editor's built-in Locked Study template is an earlier, smaller two-room introduction. The fixed `.fixtures/locked-study.luna` bundle is a historical regression specimen. Neither should be substituted for this current editable story or its downloadable export.
 
 ## Developer acceptance examples
 
-[Packing the Study](packing-study/ACCEPTANCE.md) exercises containers/surfaces. [The Parser Gallery](parser-gallery/ACCEPTANCE.md) exercises clarification, recent references, ambiguity, rollback, and save/process boundaries. [The Reward Workshop](procedure-workshop/ACCEPTANCE.md) exercises typed shared/nested calls, independent progress, events/watches, STOP/END, rollback and process restoration. Each has editable canonical content and a checked `.luna` export. These acceptance notes are separate from the planned public documentation site.
+[Packing the Study](packing-study/ACCEPTANCE.md) exercises containers/surfaces. [The Parser Gallery](parser-gallery/ACCEPTANCE.md) exercises clarification, recent references, ambiguity, rollback, and save/process boundaries. [The Reward Workshop](procedure-workshop/ACCEPTANCE.md) exercises typed shared/nested calls, independent progress, events/watches, STOP/END, rollback and process restoration. Each has editable canonical content and a checked `.luna` export. These developer acceptance notes complement the public feature guides.
 
 [The Keeper's Key](keeper-quest/ACCEPTANCE.md) is the complete editor-authored conversation and quest example: prewritten replies, clue loops, terminal revisit dialogue, quest stages and a once-only shared reward, a deliberately failing handover, and three captured checkpoints. Its checked export is exercised across independent runner processes and packaged editor/runner builds.
 

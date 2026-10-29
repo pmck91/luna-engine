@@ -8,7 +8,7 @@ The owner has accepted this checkpoint and the subsequent toolbar/breadcrumb cor
 
 ## Try the working editor
 
-Build and launch from this branch using the [development instructions](../../../README.md#build-and-launch). No installation is required.
+Build and launch from this branch using the [development instructions](../../development.md#build-locally). No installation is required.
 
 1. Select an object, character, or location and open **Actions**. Use **Choose action or exit** above the workspace. **Add action** opens the verb picker and closes after creating the action. Triggers and hints have equivalent workspace selectors.
 2. Select a SAY, CHARACTER SAYS, response sequence, world effect, condition, or number block. The inspector follows that occurrence. Inline Blockly fields still work and show the existing content. **Flow settings** returns to action/trigger settings; **Back to …** returns to the entity.

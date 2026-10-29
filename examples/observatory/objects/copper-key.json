@@ -1,0 +1,76 @@
+{
+  "id": "copper-key",
+  "name": "copper key",
+  "aliases": [
+    "key"
+  ],
+  "description": "A spare key with a copper bow.",
+  "placement": {
+    "type": "on",
+    "object": "bench"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "copper-key-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "copper-key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "copper-key"
+        }
+      ]
+    },
+    {
+      "id": "copper-key-take",
+      "name": "Take",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "copper-key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "copper-key"
+        }
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "copper-key"
+        },
+        {
+          "type": "say",
+          "text": "Taken."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

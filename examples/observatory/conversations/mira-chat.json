@@ -1,0 +1,164 @@
+{
+  "id": "mira-chat",
+  "name": "Mira and the missing lens",
+  "character": "mira",
+  "available": {
+    "type": "true"
+  },
+  "default_entry": "dialogue-greeting",
+  "entries": [
+    {
+      "condition": {
+        "type": "quest_status",
+        "quest": "restore",
+        "status": "completed"
+      },
+      "node": "dialogue-return"
+    },
+    {
+      "condition": {
+        "type": "quest_status",
+        "quest": "restore",
+        "status": "active"
+      },
+      "node": "dialogue-progress"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "dialogue-greeting",
+      "name": "First meeting",
+      "text": "Will you help restore the telescope?",
+      "terminal": false,
+      "effects": [],
+      "replies": [
+        {
+          "id": "reply-accept",
+          "text": "Yes, I will help.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": "dialogue-progress",
+          "effects": [
+            {
+              "type": "start_quest",
+              "quest": "restore"
+            }
+          ]
+        },
+        {
+          "id": "reply-decline",
+          "text": "Not just now.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": null,
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "dialogue-progress",
+      "name": "Work in progress",
+      "text": "Bring me the repaired lens and I will calibrate it.",
+      "terminal": false,
+      "effects": [],
+      "replies": [
+        {
+          "id": "reply-advice",
+          "text": "Where do I begin?",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": "dialogue-advice",
+          "effects": []
+        },
+        {
+          "id": "reply-handover",
+          "text": "Please calibrate this lens.",
+          "condition": {
+            "type": "all",
+            "conditions": [
+              {
+                "type": "carrying",
+                "object": "lens"
+              },
+              {
+                "type": "not",
+                "condition": {
+                  "type": "property",
+                  "entity": "mira",
+                  "name": "calibrated",
+                  "op": "eq",
+                  "value": true
+                }
+              }
+            ]
+          },
+          "once": true,
+          "destination": "dialogue-calibrated",
+          "effects": [
+            {
+              "type": "give_character",
+              "object": "lens",
+              "character": "mira"
+            },
+            {
+              "type": "complete_quest_stage",
+              "quest": "restore",
+              "stage": "calibrated"
+            }
+          ]
+        },
+        {
+          "id": "reply-leave",
+          "text": "I will get back to work.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": null,
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "dialogue-advice",
+      "name": "Advice",
+      "text": "The blank and frame are on the workbench. Combine them, then bring the result to me.",
+      "terminal": false,
+      "effects": [],
+      "replies": [
+        {
+          "id": "reply-back",
+          "text": "Back to the work.",
+          "condition": {
+            "type": "true"
+          },
+          "once": false,
+          "destination": "dialogue-progress",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "dialogue-calibrated",
+      "name": "Lens calibrated",
+      "text": "The lens is true. Install it in the observatory telescope.",
+      "terminal": true,
+      "effects": [],
+      "replies": []
+    },
+    {
+      "id": "dialogue-return",
+      "name": "A later visit",
+      "text": "Thank you again. The observatory is ready for the stars.",
+      "terminal": true,
+      "effects": [],
+      "replies": []
+    }
+  ]
+}

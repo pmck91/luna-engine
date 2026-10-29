@@ -1,0 +1,65 @@
+{
+  "id": "mira-patrol",
+  "name": "Mira’s evening round",
+  "character": "mira",
+  "order": 0,
+  "start": {
+    "type": "blocks"
+  },
+  "repeat": {
+    "type": "loop"
+  },
+  "hold_conversation": true,
+  "steps": [
+    {
+      "id": "round-workshop",
+      "name": "Check the workshop",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": null,
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "mira",
+          "location": "workshop"
+        }
+      ]
+    },
+    {
+      "id": "round-courtyard",
+      "name": "Wait in the courtyard",
+      "condition": {
+        "type": "true"
+      },
+      "blocked": "retry",
+      "wait": {
+        "type": "literal",
+        "value": 1
+      },
+      "effects": [
+        {
+          "type": "move_character",
+          "character": "mira",
+          "location": "courtyard"
+        },
+        {
+          "type": "if",
+          "condition": {
+            "type": "visible",
+            "entity": "mira"
+          },
+          "then": [
+            {
+              "type": "character_says",
+              "character": "mira",
+              "text": "A clear night at last."
+            }
+          ],
+          "otherwise": []
+        }
+      ]
+    }
+  ]
+}

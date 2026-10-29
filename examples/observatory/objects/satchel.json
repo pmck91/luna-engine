@@ -1,0 +1,361 @@
+{
+  "id": "satchel",
+  "name": "canvas satchel",
+  "aliases": [
+    "satchel"
+  ],
+  "description": "A canvas satchel with a fastening flap.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "satchel-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "satchel"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "satchel"
+        }
+      ]
+    },
+    {
+      "id": "fb4948bb-7685-4c8c-873c-c16ac31a230b",
+      "name": "Open canvas satchel",
+      "verb": "open",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "satchel"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "opened",
+          "object": "satchel"
+        }
+      },
+      "failure_text": "It is already open.",
+      "effects": [
+        {
+          "type": "open",
+          "object": "satchel"
+        },
+        {
+          "type": "say",
+          "text": "Opened."
+        }
+      ],
+      "standard": {
+        "interaction": "open",
+        "enabled": true
+      }
+    },
+    {
+      "id": "baf8141a-7025-44d8-a04d-5612dabd93aa",
+      "name": "Close canvas satchel",
+      "verb": "close",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "satchel"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "opened",
+        "object": "satchel"
+      },
+      "failure_text": "It is already closed.",
+      "effects": [
+        {
+          "type": "close",
+          "object": "satchel"
+        },
+        {
+          "type": "say",
+          "text": "Closed."
+        }
+      ],
+      "standard": {
+        "interaction": "close",
+        "enabled": true
+      }
+    },
+    {
+      "id": "19eb9e3c-0522-4361-a685-d503ae26ec36",
+      "name": "Look inside canvas satchel",
+      "verb": "look-in",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "satchel"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "opened",
+        "object": "satchel"
+      },
+      "failure_text": "It is closed.",
+      "effects": [
+        {
+          "type": "list_contents",
+          "object": "satchel",
+          "relation": "inside"
+        }
+      ],
+      "standard": {
+        "interaction": "look_inside",
+        "enabled": true
+      }
+    },
+    {
+      "id": "de014cd1-87ac-44b8-91e9-dc4833d65aa0",
+      "name": "Put an item inside canvas satchel",
+      "verb": "put",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "in"
+        },
+        {
+          "type": "entity",
+          "entity": "satchel"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": {
+          "input": "item"
+        },
+        "placement": {
+          "type": "inside",
+          "object": "satchel"
+        }
+      },
+      "failure_text": "You cannot put that there.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "inside",
+            "object": "satchel"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You put %__luna_name_b3ea55d5-0966-4ad2-a586-ccd5fd50168c% inside %__luna_holder_53d37341-894a-449b-991d-3e443d0e5312%.",
+          "references": {
+            "__luna_holder_53d37341-894a-449b-991d-3e443d0e5312": {
+              "type": "entity_name",
+              "entity": "satchel"
+            },
+            "__luna_name_b3ea55d5-0966-4ad2-a586-ccd5fd50168c": {
+              "type": "item_name"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "put_inside",
+        "enabled": true
+      }
+    },
+    {
+      "id": "574942a5-7d55-4425-8b8b-22261f8cac67",
+      "name": "Take an item from canvas satchel",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "from"
+        },
+        {
+          "type": "entity",
+          "entity": "satchel"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "can_transfer",
+            "object": {
+              "input": "item"
+            },
+            "placement": {
+              "type": "inventory"
+            }
+          },
+          {
+            "type": "any",
+            "conditions": [
+              {
+                "type": "in_object",
+                "object": {
+                  "input": "item"
+                },
+                "parent": "satchel",
+                "relation": "inside"
+              }
+            ]
+          }
+        ]
+      },
+      "failure_text": "You cannot take that from here.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %__luna_name_9aa04124-9783-4902-9c4a-6277df4c4f39%.",
+          "references": {
+            "__luna_name_9aa04124-9783-4902-9c4a-6277df4c4f39": {
+              "type": "item_name"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take_from",
+        "enabled": true
+      }
+    },
+    {
+      "id": "ac975ce7-c149-429a-ba3f-72fee94eba39",
+      "name": "Take canvas satchel",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "satchel"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "satchel",
+        "placement": {
+          "type": "inventory"
+        }
+      },
+      "failure_text": "You cannot take that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "satchel",
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %__luna_name_685853d9-42b3-486c-b11f-5463a74e5f62%.",
+          "references": {
+            "__luna_name_685853d9-42b3-486c-b11f-5463a74e5f62": {
+              "type": "entity_name",
+              "entity": "satchel"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take",
+        "enabled": true
+      }
+    },
+    {
+      "id": "0e4e2cf5-3e33-445d-96ec-270329e1a155",
+      "name": "Drop canvas satchel",
+      "verb": "drop",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "satchel"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": "satchel",
+        "placement": {
+          "type": "location",
+          "location": "@current"
+        }
+      },
+      "failure_text": "You are not carrying that.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": "satchel",
+          "placement": {
+            "type": "location",
+            "location": "@current"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You drop %__luna_name_df783517-6df9-4a70-bf4e-2c57527f3ef2%.",
+          "references": {
+            "__luna_name_df783517-6df9-4a70-bf4e-2c57527f3ef2": {
+              "type": "entity_name",
+              "entity": "satchel"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "drop",
+        "enabled": true
+      }
+    }
+  ],
+  "triggers": [],
+  "hints": [],
+  "storage": {
+    "container": "openable",
+    "surface": false
+  }
+}

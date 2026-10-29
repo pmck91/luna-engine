@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="510" viewBox="0 0 960 510" role="img" aria-labelledby="title desc">
+  <title id="title">Luna component dependencies</title>
+  <desc id="desc">React browser UI calls the native editor. The editor and terminal runner depend on the same core interpreter and project storage. Core and project storage depend on the shared model. Arrows point from a caller to its dependency.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#815615"/></marker></defs>
+  <rect width="960" height="510" rx="16" fill="#fbf5e9"/>
+  <g stroke="#815615" stroke-width="2" fill="none" marker-end="url(#arrow)">
+    <path d="M220 84V135"/><path d="M740 84V135"/>
+    <path d="M220 205V275"/><path d="M740 205V275"/>
+    <path d="M310 205 650 275"/><path d="M650 205 310 275"/>
+    <path d="M220 345 410 415"/><path d="M740 345 550 415"/>
+  </g>
+  <g fill="#fff" stroke="#ba9c6a" stroke-width="1.5">
+    <rect x="70" y="20" width="300" height="64" rx="10"/><rect x="590" y="20" width="300" height="64" rx="10"/>
+    <rect x="70" y="135" width="300" height="70" rx="10"/><rect x="590" y="135" width="300" height="70" rx="10"/>
+    <rect x="70" y="275" width="300" height="70" rx="10"/><rect x="590" y="275" width="300" height="70" rx="10"/>
+    <rect x="330" y="415" width="300" height="70" rx="10"/>
+  </g>
+  <g fill="#30291d" font-family="system-ui,sans-serif" text-anchor="middle" font-size="20" font-weight="600">
+    <text x="220" y="48">React / Blockly / React Flow</text><text x="740" y="48">Terminal input / output</text>
+    <text x="220" y="163">luna-editor</text><text x="740" y="163">luna-runner</text>
+    <text x="220" y="303">luna-core</text><text x="740" y="303">luna-project</text>
+    <text x="480" y="443">luna-model</text>
+  </g>
+  <g fill="#655640" font-family="system-ui,sans-serif" text-anchor="middle" font-size="15">
+    <text x="220" y="70">Authoring projections</text><text x="740" y="70">CLI host</text>
+    <text x="220" y="187">Authenticated loopback API / playtests</text><text x="740" y="187">Installations / saves / presentation</text>
+    <text x="220" y="327">One transactional interpreter</text><text x="740" y="327">Files / revisions / recovery / bundles</text>
+    <text x="480" y="467">Content / state types / validation</text>
+  </g>
+</svg>

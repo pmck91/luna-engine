@@ -1,0 +1,2 @@
+Field notes: repair the lens, ask Mira to calibrate it, install it, then open the shutter.
+This file demonstrates bundled assets; the text runner does not render media.

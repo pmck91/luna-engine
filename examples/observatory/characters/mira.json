@@ -1,0 +1,104 @@
+{
+  "id": "mira",
+  "name": "Mira",
+  "name_colour": "cyan",
+  "aliases": [
+    "keeper"
+  ],
+  "description": "Mira keeps the observatory. She can calibrate a repaired lens.",
+  "location": "workshop",
+  "hidden": false,
+  "state": {
+    "calibrated": false,
+    "patience": 2
+  },
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "mira-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "mira"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "mira"
+        }
+      ]
+    },
+    {
+      "id": "talk-mira",
+      "name": "Talk to Mira",
+      "verb": "talk",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "mira"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "start_conversation",
+          "conversation": "mira-chat"
+        }
+      ]
+    },
+    {
+      "id": "give-token",
+      "name": "Return the token",
+      "verb": "give",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "token"
+        },
+        {
+          "type": "literal",
+          "text": "to"
+        },
+        {
+          "type": "entity",
+          "entity": "mira"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "carrying",
+        "object": "token"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "give_character",
+          "object": "token",
+          "character": "mira"
+        },
+        {
+          "type": "character_says",
+          "character": "mira",
+          "text": "Keep the memory, then. Thank you."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

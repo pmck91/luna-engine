@@ -1,0 +1,76 @@
+{
+  "id": "brass-key",
+  "name": "brass key",
+  "aliases": [
+    "key"
+  ],
+  "description": "The brass key fits the observatory lock.",
+  "placement": {
+    "type": "inside",
+    "object": "satchel"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "brass-key-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "brass-key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "brass-key"
+        }
+      ]
+    },
+    {
+      "id": "brass-key-take",
+      "name": "Take",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "brass-key"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "brass-key"
+        }
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "brass-key"
+        },
+        {
+          "type": "say",
+          "text": "Taken."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

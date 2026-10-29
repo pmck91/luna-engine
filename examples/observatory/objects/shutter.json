@@ -1,0 +1,46 @@
+{
+  "id": "shutter",
+  "name": "shutter",
+  "aliases": [
+    "shutter"
+  ],
+  "description": "A heavy shutter above the telescope.",
+  "placement": {
+    "type": "location",
+    "location": "observatory"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "shutter-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "shutter"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "shutter"
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

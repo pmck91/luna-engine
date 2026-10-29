@@ -6,7 +6,7 @@ This follows the accepted [contextual authoring checkpoint](contextual-authoring
 
 ## Try it
 
-Build and launch using the [development instructions](../../../README.md#build-and-launch). No installation is required.
+Build and launch using the [development instructions](../../development.md#build-locally). No installation is required.
 
 1. Open **Validate**. Filter game errors, warnings, or drafts. Select a finding to open its owner, action/trigger/puzzle, and affected block or field. Nested ALL/ANY/NOT and IF/ELSE conditions keep their own paths; a response error targets its individual reply, and a hint text error targets its clue or solution. The inspector opens when collapsed. Repair the value and the finding clears as the current revision is checked.
 2. Disconnect an invalid block. Its dashed outline and draft notice explain that it is saved but does not run. Draft findings remain visible separately; they allow saving, exporting, and starting a playtest. Reopen to inspect or repair the same draft, including drafts in hint workspaces. Connected game errors block new playtests and exports. The Rust validator remains authoritative; older validation replies cannot restore findings from an earlier edit.
