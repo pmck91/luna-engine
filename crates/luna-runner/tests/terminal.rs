@@ -27,6 +27,31 @@ fn runner_binary() -> std::ffi::OsString {
     std::env::var_os("LUNA_TEST_RUNNER").unwrap_or_else(|| env!("CARGO_BIN_EXE_luna").into())
 }
 
+/// ConPTY renders a trailing blank as erase-to-end + cursor-forward, rather
+/// than a literal space. Recognize that same visible prompt without accepting
+/// arbitrary text beginning with '>'. All keyboard/state assertions still run.
+fn prompt_end(pending: &str) -> Option<usize> {
+    for (index, _) in pending.match_indices('>') {
+        let tail = &pending[index + 1..];
+        let tail = tail.strip_prefix("\x1b[K").unwrap_or(tail);
+        for space in [" ", "\x1b[1C", "\x1b[C"] {
+            if tail.starts_with(space) {
+                return Some(pending.len() - tail.len() + space.len());
+            }
+        }
+    }
+    None
+}
+
+#[test]
+fn prompt_detection_accepts_literal_and_conpty_spaces_without_matching_text() {
+    assert_eq!(prompt_end("> "), Some(2));
+    let encoded = ">\x1b[K\x1b[1C";
+    assert_eq!(prompt_end(encoded), Some(encoded.len()));
+    assert_eq!(prompt_end(">not a prompt"), None);
+    assert_eq!(prompt_end(">\x1b[K"), None);
+}
+
 /// Answer terminal queries, including requests split across pipe reads. ConPTY
 /// inherits cursor position and can block CreateProcess until a host replies.
 fn terminal_replies(pending: &mut Vec<u8>, bytes: &[u8]) -> Vec<&'static [u8]> {
@@ -150,8 +175,13 @@ impl Terminal {
         let deadline = Instant::now() + Duration::from_secs(15);
         loop {
             let pending = String::from_utf8_lossy(&self.transcript[self.consumed..]);
-            if let Some(index) = pending.find(needle) {
-                self.consumed += index + needle.len();
+            let end = if needle == "> " {
+                prompt_end(&pending)
+            } else {
+                pending.find(needle).map(|index| index + needle.len())
+            };
+            if let Some(end) = end {
+                self.consumed += end;
                 return;
             }
             let remaining = deadline.saturating_duration_since(Instant::now());

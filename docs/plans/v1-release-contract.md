@@ -194,3 +194,12 @@ against the extracted release runner. Release-tool regressions, Rust formatting,
 workflow validation, docs formatting/build and 3,350 local link/asset/fragment
 checks pass. The new native matrix must confirm Windows startup and all four
 rebuilt downloads before the branch is ready for release review.
+
+The first refreshed Windows runner job (`123708875853`, run `40948159746`)
+confirmed the startup deadlock was resolved and reached real game/menu flows.
+Its remaining assertions expected a literal prompt space; ConPTY legitimately
+emits `>` followed by erase-line and cursor-forward instead. The test host now
+recognizes those equivalent visible spaces, with a regression rejecting arbitrary
+`>` text. All six keyboard/state journeys still run; none are skipped. Eight
+focused terminal tests and Clippy pass locally after this normalization. Hosted
+Windows verification remains required on the corrected revision.
