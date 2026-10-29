@@ -1,0 +1,66 @@
+name: Native release baseline
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Native ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            deployment: ''
+          - platform: macos-aarch64
+            runner: macos-15
+            target: aarch64-apple-darwin
+            deployment: '11.0'
+          - platform: macos-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            deployment: '11.0'
+          - platform: windows-x86_64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            deployment: ''
+    env:
+      CARGO_BUILD_JOBS: 2
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Record native host and require the intended architecture
+        run: python scripts/native-release-probe.py host --target ${{ matrix.target }}
+      - run: npm --prefix web ci
+      - run: npm --prefix web run build
+      - name: Build embedded release executables
+        run: cargo build --locked --release --workspace
+      - name: Check release executable metadata
+        run: python scripts/native-release-probe.py binaries
+      - name: Run native Rust tests
+        run: cargo test --locked --workspace
+      - name: Retain native baseline evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-baseline-${{ matrix.platform }}
+          path: dist/native-baseline.json
+          if-no-files-found: error
+          retention-days: 14

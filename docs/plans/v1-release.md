@@ -1,6 +1,6 @@
 # Version 1 release preparation
 
-Status: **next major work item; approach approved, implementation not started**, 29 October 2026. The owner accepted the cross-platform release proposal and requested that it be documented as the next major piece of work. Documentation is accepted and committed as `e9b348b` on `feature/documentation`; its merge and first Pages publication are tracked separately in [todo](todo.md#documentation--v1).
+Status: **V1-0 in progress**, 29 October 2026. Implementation started on `feature/v1-release` from `main` at `86337e4`, including documentation merge `cabe082`. See the [release contract and evidence](v1-release-contract.md). First Pages publication remains unverified.
 
 Begin implementation on **`feature/v1-release`**, created from current merged `main` after the documentation work is integrated. Prepare and test **`v1.0.0-rc.1`** before publishing **`v1.0.0`**. Recording this plan does not create a release tag, promise untested platform support or authorize publishing a release now.
 
@@ -45,7 +45,7 @@ Do not repair compatibility by changing identities, silently normalizing saved r
 
 ### V1-0 — Establish the release contract and prove the matrix
 
-- [ ] Create `feature/v1-release` from current merged `main`; record the baseline and verify that the documentation is included.
+- [x] Create `feature/v1-release` from current merged `main`; record the baseline and verify that the documentation is included (`86337e4`, documentation merge `cabe082`).
 - [ ] Confirm the four native runner/target combinations, supported compiler/Node/Python versions and proposed minimum OS versions. Choose a Linux baseline and macOS deployment targets deliberately.
 - [ ] Compile the frontend and release binaries on each native host; run native tests and record actual failures. Linux success and cross-target type checking do not substitute for native execution.
 - [ ] Freeze archive names/layout, example contents, checksums, CLI version output and RC/stable version rules. Identify whether system-runtime dependencies must be included or documented.
