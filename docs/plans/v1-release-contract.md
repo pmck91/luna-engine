@@ -76,6 +76,17 @@ packaging, `.exe`/configuration isolation, pipe/process handling and native
 filesystem/save validation, as listed in the parent plan. Record additional
 failures from the actual native jobs instead of guessing fixes.
 
+### First Windows finding
+
+The owner supplied a Windows frontend build failure: extensionless imports
+resolved ambiguously between `Templates.tsx`/`templates.ts` and
+`ProjectSearch.tsx`/`projectSearch.ts`. The same source audit also found
+`Recipes.tsx`/`recipes.ts`. Rename the UI files to `TemplatePanel.tsx`,
+`ProjectSearchDialog.tsx` and `RecipePanel.tsx`, preserving their behavior and
+the helper module names. A frontend regression test checks case-insensitive
+module stems, including `.ts` versus `.tsx`, on Linux as well. Native Windows
+confirmation remains pending a rerun of the hosted job.
+
 ### Local baseline validation
 
 On the Linux development host (glibc 2.44, Rust 1.96.0, Node 26.12.1,
