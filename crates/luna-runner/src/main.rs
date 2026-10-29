@@ -1,14 +1,18 @@
+mod output;
+mod playback;
+mod terminal;
+
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
-use luna_core::{CommandResult, GameDefinition, GameState, HostControl, Session};
-use luna_model::{Project, text};
-use luna_runner::{ExistingPolicy, Installed, Storage};
+use luna_runner::{ExistingPolicy, Storage};
+use output::Output;
 use serde::Deserialize;
 use std::{
     fs,
-    io::{self, BufRead, IsTerminal, Write},
+    io::{self, IsTerminal},
     path::PathBuf,
 };
+use terminal::{Input, pick_game};
 
 #[derive(Clone, Copy, ValueEnum)]
 enum Colour {
@@ -40,6 +44,8 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Show terminal controls and transcript commands.
+    Controls,
     /// Validate and atomically install an editor-exported .luna ZIP.
     Import {
         path: PathBuf,
@@ -48,15 +54,18 @@ enum Command {
     },
     /// List installed games and all content versions.
     List,
-    /// Play an installed game. Choose --new or --load for noninteractive use when saves exist.
+    /// Choose an installed game, or play an ID directly. Use --new or --load for scripts.
     Run {
-        game_id: String,
+        game_id: Option<String>,
         #[arg(long)]
         version: Option<String>,
         #[arg(long, conflicts_with = "load")]
         new: bool,
         #[arg(long)]
         load: Option<String>,
+        /// Record commands and responses to a new plain-text file.
+        #[arg(long)]
+        transcript: Option<PathBuf>,
     },
     /// Remove a game version; saves are preserved unless --delete-saves is explicit.
     Remove {
@@ -92,6 +101,9 @@ fn main() {
     }
 }
 fn run(cli: Cli) -> Result<()> {
+    if matches!(&cli.command, Command::Controls) {
+        return output::controls(&mut Output::default());
+    }
     let dirs = directories::ProjectDirs::from("", "", "luna")
         .context("Cannot find per-user application directories; configure XDG directories")?;
     let config_path = cli
@@ -118,6 +130,7 @@ fn run(cli: Cli) -> Result<()> {
             .unwrap_or_else(|| dirs.data_dir().join("saves")),
     )?;
     match cli.command {
+        Command::Controls => output::controls(&mut Output::default())?,
         Command::Import { path, on_existing } => {
             let prepared = store.prepare(&path)?;
             let id = prepared.project.game.id.clone();
@@ -138,11 +151,10 @@ fn run(cli: Cli) -> Result<()> {
                             io::stdin().is_terminal(),
                             "Game/version already installed. Choose --on-existing keep|replace|cancel"
                         );
-                        eprint!(
-                            "{id} {version} already installed. Keep, replace, or cancel? [keep]: "
-                        );
-                        io::stderr().flush()?;
-                        let response = read_line(&mut io::stdin().lock())?.unwrap_or_default();
+                        let response = Input::new()?.read(
+                            &format!("{id} {version} already installed. Keep, replace, or cancel? [keep]: "),
+                            false,
+                        )?.unwrap_or_default();
                         match response.trim().to_ascii_lowercase().as_str() {
                             "" | "keep" | "k" => ExistingPolicy::Keep,
                             "replace" | "r" => ExistingPolicy::Replace,
@@ -170,7 +182,7 @@ fn run(cli: Cli) -> Result<()> {
         }
         Command::Saves { game_id, version } => {
             let version = store.select_version(&game_id, version.as_deref(), true)?;
-            print_saves(&store, &game_id, &version)?;
+            playback::print_saves(&store, &game_id, &version, &mut Output::default())?;
         }
         Command::Remove {
             game_id,
@@ -193,14 +205,52 @@ fn run(cli: Cli) -> Result<()> {
             version,
             new,
             load,
+            transcript,
         } => {
-            let version = store.select_version(&game_id, version.as_deref(), false)?;
-            let _guard = store.version_lock(&game_id, &version)?;
-            let record = store.record(&game_id, &version)?;
-            let project = store.load_game(&record)?;
-            let no_colour = std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty());
-            let colour = colour_enabled(cli.color, io::stdout().is_terminal(), no_colour);
-            play(&store, &record, project, new, load, colour)?;
+            let picker = game_id.is_none();
+            let no_colour = std::env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty());
+            let options = playback::Options {
+                new,
+                load,
+                transcript,
+                colour: colour_enabled(cli.color, io::stdout().is_terminal(), no_colour),
+                guide_state: config_path.with_extension("guide.json"),
+            };
+            loop {
+                let (id, selected_version) = if let Some(id) = &game_id {
+                    (
+                        id.clone(),
+                        store.select_version(id, version.as_deref(), false)?,
+                    )
+                } else if let Some(record) = pick_game(&store, version.as_deref())? {
+                    (record.game_id, record.content_version)
+                } else {
+                    break;
+                };
+                let selected = store.record(&id, &selected_version)?;
+                let _guard = match store.version_lock(&id, &selected_version) {
+                    Ok(guard) => guard,
+                    Err(error) if lock_contended(&error) => {
+                        let message = format!(
+                            "{} (version {}) is already running or being updated. Quit the other session or wait for installation to finish, then try again.",
+                            terminal::clean_label(&selected.title),
+                            selected_version
+                        );
+                        if picker {
+                            eprintln!("{message}");
+                            continue;
+                        }
+                        return Err(anyhow::anyhow!(message));
+                    }
+                    Err(error) => return Err(error),
+                };
+                let record = store.record(&id, &selected_version)?;
+                let project = store.load_game(&record)?;
+                match playback::play(&store, &record, project, &options)? {
+                    playback::Outcome::Back if picker => continue,
+                    _ => break,
+                }
+            }
         }
     }
     Ok(())
@@ -212,271 +262,11 @@ fn colour_enabled(mode: Colour, terminal: bool, no_colour: bool) -> bool {
         Colour::Auto => terminal && !no_colour,
     }
 }
-fn print_messages(result: &CommandResult, colour: bool) -> Result<()> {
-    let mut stdout = io::stdout().lock();
-    for message in &result.messages {
-        writeln!(stdout, "{}", text::render(message, colour))?;
-    }
-    stdout.flush()?;
-    Ok(())
-}
-fn show_restored(session: &Session, label: &str, colour: bool) -> Result<()> {
-    let messages = session.resume_messages()?;
-    println!("Loaded {label}.");
-    print_messages(
-        &CommandResult {
-            messages,
-            ..Default::default()
-        },
-        colour,
-    )
-}
-fn print_saves(store: &Storage, id: &str, version: &str) -> Result<()> {
-    let saves = store.list_saves(id, version)?;
-    if saves.is_empty() {
-        println!("No saves for {id} version {version}.")
-    }
-    for save in saves {
-        println!(
-            "{}\t{}",
-            save.name,
-            if save.corrupt {
-                "corrupt; preserved".into()
-            } else {
-                save.updated.map(|t| t.to_rfc3339()).unwrap_or_default()
-            }
-        )
-    }
-    Ok(())
-}
-fn auto_save(
-    store: &Storage,
-    record: &Installed,
-    session: &Session,
-    last_saved: &mut Option<GameState>,
-) {
-    match store.write_save(record, session.definition(), session.state(), None) {
-        Ok(()) => *last_saved = Some(session.state().clone()),
-        Err(e) => eprintln!(
-            "Autosave failed: {e:#}. Your previous valid save remains available; use save to retry."
-        ),
-    }
-}
-fn dirty(session: &Session, last_saved: &Option<GameState>) -> bool {
-    last_saved.as_ref() != Some(session.state())
-}
-fn confirm_discard(input: &mut impl BufRead, interactive: bool) -> Result<bool> {
-    if !interactive {
-        eprintln!(
-            "Unsaved progress would be lost; save successfully before loading in a noninteractive session."
-        );
-        return Ok(false);
-    }
-    print!("Discard progress since the last successful save? [y/N] ");
-    io::stdout().flush()?;
-    Ok(read_line(input)?
-        .is_some_and(|s| matches!(s.trim().to_ascii_lowercase().as_str(), "y" | "yes")))
-}
-fn play(
-    store: &Storage,
-    record: &Installed,
-    project: Project,
-    new: bool,
-    mut load: Option<String>,
-    colour: bool,
-) -> Result<()> {
-    let definition = GameDefinition::new(project)?;
-    let stdin = io::stdin();
-    let interactive = stdin.is_terminal();
-    let mut input = stdin.lock();
-    let saves = store.list_saves(&record.game_id, &record.content_version)?;
-    if !new && load.is_none() && !saves.is_empty() {
-        ensure!(
-            interactive,
-            "Saved progress exists. Use --load autosave, --load <name>, or --new"
-        );
-        print_saves(store, &record.game_id, &record.content_version)?;
-        print!("Start new, load autosave, or enter a named slot [autosave]: ");
-        io::stdout().flush()?;
-        let answer = read_line(&mut input)?.context("No launch choice supplied")?;
-        if !answer.trim().eq_ignore_ascii_case("new") {
-            load = Some(if answer.trim().is_empty() {
-                "autosave".into()
-            } else {
-                answer.trim().into()
-            });
-        }
-    }
-    let (mut session, mut last_saved) = if let Some(name) = load {
-        let slot = if name.eq_ignore_ascii_case("autosave") {
-            None
-        } else {
-            Some(name.as_str())
-        };
-        let save = store.load_save(record, &definition, slot)?;
-        if save.fingerprint != record.fingerprint {
-            eprintln!(
-                "Warning: content was replaced under this version. The restored state passed compatibility validation."
-            )
-        };
-        let session = Session::restore_with_definition(definition, save.state)?;
-        show_restored(&session, &name, colour)?;
-        let saved = session.state().clone();
-        (session, Some(saved))
-    } else {
-        let (session, result) = Session::start_with_definition(definition, None)?;
-        let mut saved = None;
-        auto_save(store, record, &session, &mut saved);
-        print_messages(&result, colour)?;
-        (session, saved)
-    };
-    loop {
-        if interactive {
-            print!("> ");
-            io::stdout().flush()?
-        }
-        let line = match read_line(&mut input) {
-            Ok(v) => v,
-            Err(e)
-                if matches!(
-                    e.kind(),
-                    io::ErrorKind::InvalidData | io::ErrorKind::InvalidInput
-                ) =>
-            {
-                eprintln!("Input rejected: {e}");
-                continue;
-            }
-            Err(e) => return Err(e.into()),
-        };
-        let eof = line.is_none();
-        let command = line.unwrap_or_else(|| "quit".into());
-        if command.trim().is_empty() {
-            continue;
-        }
-        let result = match session.command(&command) {
-            Ok(result) => result,
-            Err(error) => {
-                eprintln!("Command failed and was rolled back: {error:#}");
-                continue;
-            }
-        };
-        match result.control {
-            Some(HostControl::Save { name }) => {
-                match store.write_save(
-                    record,
-                    session.definition(),
-                    session.state(),
-                    name.as_deref(),
-                ) {
-                    Ok(()) => {
-                        last_saved = Some(session.state().clone());
-                        println!("Saved {}.", name.as_deref().unwrap_or("autosave"))
-                    }
-                    Err(e) => eprintln!("Could not save: {e:#}"),
-                }
-            }
-            Some(HostControl::Load { name }) => {
-                if dirty(&session, &last_saved) && !confirm_discard(&mut input, interactive)? {
-                    continue;
-                }
-                let slot = name
-                    .as_deref()
-                    .filter(|n| !n.eq_ignore_ascii_case("autosave"));
-                match store.load_save(record, session.definition(), slot) {
-                    Ok(saved) => {
-                        if saved.fingerprint != record.fingerprint {
-                            eprintln!(
-                                "Warning: game content changed; saved state passed compatibility validation."
-                            )
-                        }
-                        session.replace_state(saved.state)?;
-                        last_saved = Some(session.state().clone());
-                        show_restored(&session, name.as_deref().unwrap_or("autosave"), colour)?;
-                        // Resuming a named slot establishes the rolling autosave at that safe boundary.
-                        auto_save(store, record, &session, &mut last_saved);
-                    }
-                    Err(e) => eprintln!("Could not load: {e:#}"),
-                }
-            }
-            Some(HostControl::Saves) => {
-                print_saves(store, &record.game_id, &record.content_version)?
-            }
-            Some(HostControl::Quit) => {
-                if dirty(&session, &last_saved) {
-                    if !interactive || eof {
-                        store.write_save(record,session.definition(),session.state(),None).context("Could not save remaining progress on exit; previous saves were preserved")?;
-                    } else {
-                        print!("Save remaining progress before quitting? [Y/n/cancel] ");
-                        io::stdout().flush()?;
-                        let choice = read_line(&mut input)?.unwrap_or_default();
-                        match choice.trim().to_ascii_lowercase().as_str() {
-                            "cancel" | "c" => continue,
-                            "n" | "no" => {}
-                            _ => {
-                                if let Err(e) = store.write_save(
-                                    record,
-                                    session.definition(),
-                                    session.state(),
-                                    None,
-                                ) {
-                                    eprintln!("Could not save: {e:#}; still playing.");
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-                break;
-            }
-            None => {
-                if result.state_changed {
-                    auto_save(store, record, &session, &mut last_saved)
-                }
-                print_messages(&result, colour)?;
-            }
-        }
-    }
-    Ok(())
-}
-/// Bound input allocation and consume a malformed/oversized line before reporting it.
-fn read_line(reader: &mut impl BufRead) -> io::Result<Option<String>> {
-    let mut bytes = Vec::new();
-    let mut seen = false;
-    let mut too_long = false;
-    loop {
-        let chunk = reader.fill_buf()?;
-        if chunk.is_empty() {
-            if !seen {
-                return Ok(None);
-            }
-            break;
-        }
-        seen = true;
-        let end = chunk
-            .iter()
-            .position(|b| *b == b'\n')
-            .map(|n| n + 1)
-            .unwrap_or(chunk.len());
-        let done = chunk[end - 1] == b'\n';
-        if bytes.len() + end <= 4097 {
-            bytes.extend_from_slice(&chunk[..end]);
-        } else {
-            too_long = true
-        }
-        reader.consume(end);
-        if done {
-            break;
-        }
-    }
-    if too_long {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "Commands are limited to 4096 bytes",
-        ));
-    }
-    let text = String::from_utf8(bytes)
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Use UTF-8 text"))?;
-    Ok(Some(text.trim_end_matches(['\r', '\n']).into()))
+fn lock_contended(error: &anyhow::Error) -> bool {
+    error
+        .chain()
+        .filter_map(|cause| cause.downcast_ref::<io::Error>())
+        .any(|cause| cause.raw_os_error() == fs2::lock_contended_error().raw_os_error())
 }
 #[cfg(test)]
 mod tests {
@@ -488,14 +278,5 @@ mod tests {
         assert!(colour_enabled(Colour::Auto, true, false));
         assert!(colour_enabled(Colour::Always, false, true));
         assert!(!colour_enabled(Colour::Never, true, false));
-    }
-    #[test]
-    fn input_is_bounded_and_recovers() {
-        let mut input = io::Cursor::new([vec![b'x'; 5000], b"\nlook\n".to_vec()].concat());
-        assert!(read_line(&mut input).is_err());
-        assert_eq!(read_line(&mut input).unwrap().as_deref(), Some("look"));
-        let mut invalid = io::Cursor::new(vec![255, b'\n', b'q', b'\n']);
-        assert!(read_line(&mut invalid).is_err());
-        assert_eq!(read_line(&mut invalid).unwrap().as_deref(), Some("q"));
     }
 }

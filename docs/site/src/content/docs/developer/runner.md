@@ -7,7 +7,19 @@ sidebar:
 
 ## Host and storage split
 
-main.rs handles Clap/configuration, terminal prompts, input/output and the play loop. lib.rs exposes Storage for installations and saves. Gameplay remains in Session.
+main.rs handles Clap/configuration and locked launch dispatch. playback.rs owns launch/save flows and the play loop. terminal.rs owns searchable game selection, save/confirmation menus and input: dialoguer for selection, rustyline for supported interactive terminals, and a bounded UTF-8 reader for pipes. output.rs owns presentation, opt-in transcripts and the first-play guide marker. lib.rs exposes Storage for installations and saves. Gameplay remains in Session.
+
+`luna run` enumerates installed title/version pairs without starting a game or holding a version lock while the user chooses. Selection resolves to the same ID/version launch path as an explicit CLI argument, which reopens the record under its existing exclusive lock. Cancel starts no session and writes no saves. Noninteractive selection requires an explicit ID; empty libraries provide import guidance. Bare `run --version` filters available versions without choosing a default implicitly.
+
+The selected version remains locked through launch/save selection and play. Contention is classified using fs2's platform lock error, not message matching. Interactive library selection returns to the list with a title/version message; explicit-ID contention retains a failing exit status. No lock is removed or taken over. Launch menus validate restoration before displaying success; unreadable/incompatible saves remain untouched and allow choosing another option. New-game and named-save replacement confirmations default to cancellation. Explicit script flags and pipe behavior stay compatible.
+
+The line editor owns at most 500 in-memory history entries for one process/game and never loads or saves history files. Only submitted commands enter history, not confirmation answers or cancelled/oversized edits. Cursor/history navigation does not call Session or advance a turn. Ctrl-C cancels the current edit; empty-line EOF uses the existing safe-quit behavior. Pipe input retains the 4096-byte bound, UTF-8/oversize recovery and plain output. Both input paths enforce the byte limit. Terminal control characters in author-controlled picker titles are replaced before display.
+
+The first-play guide uses a versioned JSON marker beside the chosen TOML path (`runner.toml` → `runner.guide.json`). It does not rewrite runner.toml or game saves, and is never persisted for piped sessions. Marker-write failures leave play available. `luna controls` works before configuration/library initialization; `/controls` repeats the guide in a game. Runner slash controls are dispatched before Session, preserving world state, pending parser context and turn/undo progress. No command completer or gameplay suggestions are installed.
+
+`--transcript <path>` or `/transcript start <path>` creates a new file using create_new (mode 0600 on Unix), never overwriting an existing path. Output records plain semantic messages rather than colour rendering or line-editor redraws, plus submitted commands/status/errors. It includes host version, game title/version and start time. In-session stop closes recording, and a subsequent write failure disables capture without aborting gameplay. Startup file errors occur before autosaving a fresh world. The transcript is a stream, not a save or executable command replay; it never enters game fingerprints or save envelopes.
+
+Real PTY/ConPTY integration tests exercise arrow selection, version filtering, cancellation, history/draft restoration, left/right/backspace/delete, Unicode and interrupt/EOF paths. A dedicated native runner workflow runs these on Linux, both Mac architectures and Windows; the editor frontend is not needed for these tests.
 
 CLI directory flags override runner.toml, which overrides XDG defaults. Default Linux paths are:
 
@@ -40,7 +52,7 @@ Successful restore uses core restoration and read-only resume messages. It does 
 
 ## Presentation
 
-The core produces semantic text/colour spans. The host converts them to terminal output. `--color auto|always|never` controls ANSI emission; automatic colour requires a terminal and respects non-empty NO_COLOR. Piped output defaults plain.
+The core produces semantic text/colour spans. The host converts them to terminal output. `--color auto|always|never` controls game text colour; automatic colour requires a terminal and respects non-empty NO_COLOR. Interactive editing still uses terminal cursor controls. Piped output defaults plain.
 
 Do not store terminal escapes in game text or saves. Quest log, conversation offers and restored endings come from the same core views as editor playtests.
 
