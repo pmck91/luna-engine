@@ -1,8 +1,8 @@
+import { execRunner } from '../native';
 import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 import type { PlaytestView, Project } from '../../src/contracts';
 import { action, descriptionAction, object } from '../../src/model';
 import { seedProject } from '../editor';
@@ -123,8 +123,7 @@ test('author parser messages, resolve questions and recent references, inspect e
   const game = JSON.parse(readFileSync(join(root, 'game.json'), 'utf8'));
   expect(game.format_version).toBe(8);
   const runner = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(root, 'games'),

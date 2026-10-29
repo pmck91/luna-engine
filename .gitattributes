@@ -1,0 +1,5 @@
+# Native builds must package identical source/asset bytes on all hosts.
+* text=auto eol=lf
+*.luna binary
+*.png binary
+*.zip binary

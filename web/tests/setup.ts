@@ -1,14 +1,20 @@
 import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
+import { editorBinary, editorConfig } from './native';
 export default async function setup() {
   const temp = mkdtempSync(join(tmpdir(), 'luna-e2e-'));
   mkdirSync(join(temp, 'config'));
-  const child = spawn(resolve('../target/debug/luna-editor'), ['--port', '0', '--no-browser'], {
-    env: { ...process.env, XDG_CONFIG_HOME: join(temp, 'config') },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  writeFileSync(join(temp, 'config', 'runner.toml'), '');
+  const child = spawn(
+    editorBinary,
+    ['--config', editorConfig(temp), '--port', '0', '--no-browser'],
+    {
+      env: { ...process.env, XDG_CONFIG_HOME: join(temp, 'config') },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
   let output = '';
   const url = await new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Editor did not start: ${output}`)), 15000);

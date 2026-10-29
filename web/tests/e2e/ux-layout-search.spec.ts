@@ -1,3 +1,4 @@
+import { editorBinary, editorConfig } from '../native';
 import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { join, resolve } from 'node:path';
@@ -160,11 +161,9 @@ test('keyboard splitters, preferences, and occurrence search preserve content an
   await page.getByRole('button', { name: 'Return to editor', exact: true }).click();
   await expect
     .poll(() => {
-      const config = JSON.parse(
-        readFileSync(join(process.env.LUNA_TEST_DIR!, 'config', 'luna', 'editor.json'), 'utf8'),
-      );
+      const config = JSON.parse(readFileSync(editorConfig(process.env.LUNA_TEST_DIR!), 'utf8'));
       const preferences = Object.entries(config.project_preferences).find(([key]) =>
-        key.endsWith(`/${folder}`),
+        key.replaceAll('\\', '/').endsWith(`/${folder}`),
       )?.[1] as any;
       return (
         !preferences?.layout.hierarchy_collapsed &&
@@ -202,10 +201,14 @@ test('personal layout survives a new loopback port and fresh browser storage', a
   );
   await page.getByRole('button', { name: 'Collapse inspector', exact: true }).click();
   await saved;
-  const child = spawn(resolve('../target/debug/luna-editor'), ['--port', '0', '--no-browser'], {
-    env: { ...process.env, XDG_CONFIG_HOME: join(process.env.LUNA_TEST_DIR!, 'config') },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const child = spawn(
+    editorBinary,
+    ['--config', editorConfig(process.env.LUNA_TEST_DIR!), '--port', '0', '--no-browser'],
+    {
+      env: { ...process.env, XDG_CONFIG_HOME: join(process.env.LUNA_TEST_DIR!, 'config') },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
   try {
     const url = await new Promise<string>((resolve, reject) => {
       let output = '';

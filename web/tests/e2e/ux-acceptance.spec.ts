@@ -1,8 +1,8 @@
+import { execRunner } from '../native';
 import { authoringForms } from '../editor';
 import { chromium, expect, test, type Locator, type Page } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { openEditor, openNewAction } from '../editor';
 
 async function create(page: Page, folder: string) {
@@ -163,8 +163,7 @@ test('author a complete two-room puzzle without dragging, reopen, and continue i
   const root = join(process.env.LUNA_TEST_DIR!, 'projects', folder);
   const game = JSON.parse(readFileSync(join(root, 'game.json'), 'utf8'));
   const run = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(process.env.LUNA_TEST_DIR!, `${folder}-games`),

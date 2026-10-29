@@ -1,0 +1,59 @@
+Luna Engine — start here
+
+Documentation: https://pmck91.github.io/luna-engine/
+Version, source revision, target and file hashes: build.json
+
+Extract the entire archive into a writable folder before launching.
+No Rust, Node.js or Python installation is needed to run these applications.
+Keep the terminal running while editing. The editor opens a local desktop browser.
+
+Linux / macOS (Terminal, from the extracted folder):
+  ./luna-editor --projects-dir ./examples
+  ./luna import examples/observatory.luna
+  ./luna run
+
+Windows (PowerShell, from the extracted folder):
+  .\luna-editor.exe --projects-dir .\examples
+  .\luna.exe import .\examples\observatory.luna
+  .\luna.exe run
+
+Type to search installed games, use Up/Down and Enter to choose, then select
+Continue, Load a save or New game. Esc cancels; Back returns to the game list.
+The example folders are editable projects;
+the .luna files are exported games for the terminal runner. Use a copy of a project
+to experiment. The complete Observatory tutorial is in the online documentation.
+
+While playing, Up/Down recall commands and Left/Right, Backspace/Delete edit them.
+The controls guide appears on first interactive play. Show it again with
+  ./luna controls          (Windows: .\luna.exe controls)
+or type /controls in a game. Optional recording uses --transcript <new-file> at
+launch, or /transcript start <new-file>, /transcript status and /transcript stop
+while playing. Existing transcript files are never overwritten.
+
+Scripts can still use luna list and luna run <game-id> with --new or --load.
+
+Windows and macOS builds are experimental and unsigned. macOS binaries are not
+notarized; downloaded applications may be blocked by Gatekeeper. Windows may
+display an unknown-publisher/SmartScreen warning. Review the download source and
+checksums before deciding whether to run it. Do not disable OS-wide protections.
+
+Linux build baseline: Ubuntu 22.04 x86_64 (glibc 2.35). Other distributions need
+compatible system libraries. macOS deployment target: 11.0; native CI executes on
+macOS 15, not every older OS release. Windows builds use x64 MSVC on Windows Server
+2022; ordinary Windows 10/11 desktop acceptance is tracked separately. Minimum OS
+and desktop support claims remain experimental until verified on those systems.
+
+The Windows binaries use the static MSVC runtime; no separate Visual C++ runtime
+installer is required. A Chromium or Firefox desktop browser is recommended.
+
+If the editor's port is occupied, add --port 0. If automatic browser launch fails,
+open the complete URL printed by the editor, including its launch token.
+
+Verify a download against its .sha256 sidecar:
+  Linux:   sha256sum <archive>
+  macOS:   shasum -a 256 <archive>
+  Windows: Get-FileHash <archive> -Algorithm SHA256
+
+Player saves and editor configuration normally live in per-user directories.
+For isolated use, luna accepts --config <existing runner.toml>, --games-dir and
+--saves-dir; luna-editor accepts --config <editor.json> and --projects-dir.

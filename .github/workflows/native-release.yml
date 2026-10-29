@@ -1,0 +1,114 @@
+name: Native release packages
+
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release-tag:
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.targets.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require matching release tag and application metadata
+        if: inputs.release-tag != ''
+        env:
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        run: python scripts/release.py check-tag "$RELEASE_TAG"
+      - id: targets
+        run: echo "matrix=$(python scripts/release.py matrix)" >> "$GITHUB_OUTPUT"
+
+  native:
+    needs: configure
+    name: Native ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.configure.outputs.matrix) }}
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: -C target-feature=+crt-static
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Record native host and require the intended architecture
+        run: python scripts/native-release-probe.py host --target ${{ matrix.target }}
+      - run: python -m unittest discover -s scripts -p "test_release*.py"
+      - run: npm --prefix web ci
+      - run: npm --prefix web run build
+      - run: npm --prefix web test
+      - name: Build embedded release executables
+        run: cargo build --locked --release --workspace ${{ join(matrix.cargo_args, ' ') }}
+      - name: Check release executable metadata
+        run: python scripts/native-release-probe.py binaries
+      - name: Check native system-library requirements
+        run: python scripts/check_native_dependencies.py
+        env:
+          LUNA_ENFORCE_LINUX_BASELINE: '1'
+      - name: Run native Rust tests
+        timeout-minutes: 20
+        run: cargo test --locked --workspace ${{ join(matrix.cargo_args, ' ') }}
+      - name: Package the native release
+        run: python scripts/package.py --skip-build
+      - name: Exercise extracted editor, exports, runner and real saves
+        run: python scripts/smoke-package.py
+      - name: Exercise real keyboard, launch/save menus and transcripts in the extracted runner
+        run: python scripts/release.py test-terminal
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - name: Install Firefox for complete Linux browser acceptance
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps firefox
+        working-directory: web
+      - name: Author, playtest and export through the packaged UI
+        if: runner.os != 'Linux'
+        run: python scripts/release.py test-browser
+      - name: Complete Chromium and Firefox acceptance through the packaged UI
+        if: runner.os == 'Linux'
+        run: python scripts/release.py test-browser --full
+        env:
+          LUNA_TEST_FIREFOX: '1'
+      - name: Upload tested native download and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package-${{ matrix.platform }}
+          path: |
+            dist/luna-engine-v*-${{ matrix.platform }}${{ matrix.extension }}
+            dist/luna-engine-v*-${{ matrix.platform }}${{ matrix.extension }}.sha256
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain native baseline evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-baseline-${{ matrix.platform }}
+          path: |
+            dist/native-baseline.json
+            dist/native-dependencies.json
+            web/test-results/
+          if-no-files-found: ignore
+          retention-days: 14

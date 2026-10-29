@@ -1,0 +1,43 @@
+name: Draft GitHub release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  packages:
+    uses: ./.github/workflows/native-release.yml
+    with:
+      release-tag: ${{ github.ref_name }}
+
+  draft:
+    needs: packages
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-package-*
+          merge-multiple: true
+          path: dist/release-assets
+      - name: Verify complete platform set and exact tagged source
+        run: python scripts/release.py verify-set dist/release-assets
+      - name: Assemble draft for owner review (never publish automatically)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python scripts/release.py draft dist/release-assets "$RELEASE_TAG"

@@ -1,7 +1,7 @@
+import { execRunner } from '../native';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import type { Project, PlaytestView } from '../../src/contracts';
 import { seedProject } from '../editor';
 
@@ -67,8 +67,7 @@ test('native conversation checkpoints restore through the UI and match the expor
   await (await download).saveAs(bundle);
   const profile = join(process.env.LUNA_TEST_DIR!, `${folder}-runner`);
   const cli = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       ['--games-dir', join(profile, 'games'), '--saves-dir', join(profile, 'saves'), ...args],
       { input, encoding: 'utf8', timeout: 15000 },
     );

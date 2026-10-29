@@ -6,7 +6,10 @@ use std::{
     fs,
     io::{Read, Write},
     path::Path,
-    sync::mpsc::{self, Receiver},
+    sync::{
+        Arc, Mutex,
+        mpsc::{self, Receiver},
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -14,10 +17,84 @@ use std::{
 struct Terminal {
     child: Box<dyn Child + Send + Sync>,
     _master: Box<dyn MasterPty + Send>,
-    writer: Box<dyn Write + Send>,
+    writer: Arc<Mutex<Box<dyn Write + Send>>>,
     output: Receiver<Vec<u8>>,
     transcript: Vec<u8>,
     consumed: usize,
+}
+
+fn runner_binary() -> std::ffi::OsString {
+    std::env::var_os("LUNA_TEST_RUNNER").unwrap_or_else(|| env!("CARGO_BIN_EXE_luna").into())
+}
+
+/// ConPTY renders a trailing blank as erase-to-end + cursor-forward, rather
+/// than a literal space. Recognize that same visible prompt without accepting
+/// arbitrary text beginning with '>'. All keyboard/state assertions still run.
+fn prompt_end(pending: &str) -> Option<usize> {
+    for (index, _) in pending.match_indices('>') {
+        let tail = &pending[index + 1..];
+        let tail = tail.strip_prefix("\x1b[K").unwrap_or(tail);
+        for space in [" ", "\x1b[1C", "\x1b[C"] {
+            if tail.starts_with(space) {
+                return Some(pending.len() - tail.len() + space.len());
+            }
+        }
+    }
+    None
+}
+
+#[test]
+fn prompt_detection_accepts_literal_and_conpty_spaces_without_matching_text() {
+    assert_eq!(prompt_end("> "), Some(2));
+    let encoded = ">\x1b[K\x1b[1C";
+    assert_eq!(prompt_end(encoded), Some(encoded.len()));
+    assert_eq!(prompt_end(">not a prompt"), None);
+    assert_eq!(prompt_end(">\x1b[K"), None);
+}
+
+/// Answer terminal queries, including requests split across pipe reads. ConPTY
+/// inherits cursor position and can block CreateProcess until a host replies.
+fn terminal_replies(pending: &mut Vec<u8>, bytes: &[u8]) -> Vec<&'static [u8]> {
+    const QUERIES: &[(&[u8], &[u8])] = &[
+        (b"\x1b[6n", b"\x1b[1;1R"),
+        (b"\x1b[c", b"\x1b[?1;2c"),
+        (b"\x1b[0c", b"\x1b[?1;2c"),
+        (b"\x1b[>c", b"\x1b[>0;0;0c"),
+    ];
+    pending.extend_from_slice(bytes);
+    let mut replies = vec![];
+    loop {
+        let found = QUERIES
+            .iter()
+            .filter_map(|(query, reply)| {
+                pending
+                    .windows(query.len())
+                    .position(|bytes| bytes == *query)
+                    .map(|index| (index, query.len(), *reply))
+            })
+            .min_by_key(|(index, _, _)| *index);
+        if let Some((index, length, reply)) = found {
+            replies.push(reply);
+            pending.drain(..index + length);
+        } else {
+            let discard = pending.len().saturating_sub(4);
+            pending.drain(..discard);
+            break;
+        }
+    }
+    replies
+}
+
+#[test]
+fn terminal_query_replies_survive_split_reads_and_keep_no_unbounded_buffer() {
+    let mut pending = vec![];
+    assert!(terminal_replies(&mut pending, b"hello\x1b[").is_empty());
+    assert_eq!(
+        terminal_replies(&mut pending, b"6n\x1b[c"),
+        [b"\x1b[1;1R".as_slice(), b"\x1b[?1;2c".as_slice()]
+    );
+    assert!(terminal_replies(&mut pending, &[b'x'; 1000]).is_empty());
+    assert!(pending.len() <= 4);
 }
 
 impl Terminal {
@@ -32,7 +109,7 @@ impl Terminal {
             .unwrap();
         let config = root.join("runner.toml");
         fs::write(&config, "").unwrap();
-        let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_luna"));
+        let mut command = CommandBuilder::new(runner_binary());
         command.arg("--config");
         command.arg(config);
         command.arg("--games-dir");
@@ -43,19 +120,41 @@ impl Terminal {
         command.env("TERM", "xterm-256color");
         command.env("NO_COLOR", "1");
         command.cwd(root);
-        let child = pair.slave.spawn_command(command).unwrap();
-        drop(pair.slave);
         let mut reader = pair.master.try_clone_reader().unwrap();
-        let writer = pair.master.take_writer().unwrap();
+        let writer = Arc::new(Mutex::new(pair.master.take_writer().unwrap()));
+        let responder = writer.clone();
         let (tx, output) = mpsc::channel();
         thread::spawn(move || {
             let mut buffer = [0u8; 4096];
+            let mut pending = vec![];
             while let Ok(length) = reader.read(&mut buffer) {
-                if length == 0 || tx.send(buffer[..length].to_vec()).is_err() {
+                if length == 0 {
+                    break;
+                }
+                for reply in terminal_replies(&mut pending, &buffer[..length]) {
+                    let mut writer = responder.lock().unwrap();
+                    let _ = writer.write_all(reply).and_then(|_| writer.flush());
+                }
+                if tx.send(buffer[..length].to_vec()).is_err() {
                     break;
                 }
             }
         });
+        // Start output servicing BEFORE spawning. portable-pty enables Windows
+        // PSEUDOCONSOLE_INHERIT_CURSOR; waiting until after spawn deadlocks.
+        let (ready, spawned) = mpsc::channel();
+        thread::spawn(move || {
+            let result = pair.slave.spawn_command(command);
+            if let Err(unsent) = ready.send(result)
+                && let Ok(mut child) = unsent.0
+            {
+                let _ = child.kill();
+            }
+        });
+        let child = spawned
+            .recv_timeout(Duration::from_secs(20))
+            .expect("Terminal process startup timed out")
+            .unwrap();
         Self {
             child,
             _master: pair.master,
@@ -67,16 +166,22 @@ impl Terminal {
     }
 
     fn send(&mut self, keys: &str) {
-        self.writer.write_all(keys.as_bytes()).unwrap();
-        self.writer.flush().unwrap();
+        let mut writer = self.writer.lock().unwrap();
+        writer.write_all(keys.as_bytes()).unwrap();
+        writer.flush().unwrap();
     }
 
     fn expect(&mut self, needle: &str) {
         let deadline = Instant::now() + Duration::from_secs(15);
         loop {
             let pending = String::from_utf8_lossy(&self.transcript[self.consumed..]);
-            if let Some(index) = pending.find(needle) {
-                self.consumed += index + needle.len();
+            let end = if needle == "> " {
+                prompt_end(&pending)
+            } else {
+                pending.find(needle).map(|index| index + needle.len())
+            };
+            if let Some(end) = end {
+                self.consumed += end;
                 return;
             }
             let remaining = deadline.saturating_duration_since(Instant::now());
@@ -284,7 +389,7 @@ fn busy_game_returns_to_the_searchable_library_without_releasing_the_other_lock(
     );
     assert!(!save_path(&store, &busy).exists());
     assert!(save_path(&store, &free).exists());
-    let explicit = std::process::Command::new(env!("CARGO_BIN_EXE_luna"))
+    let explicit = std::process::Command::new(runner_binary())
         .arg("--config")
         .arg(temp.path().join("runner.toml"))
         .arg("--games-dir")

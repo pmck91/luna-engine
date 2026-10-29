@@ -8,8 +8,9 @@ current main before release work continues. See [runner terminal usability](runn
 - [x] Create `feature/runner-terminal-ux` from `86337e4`; preserve `feature/v1-release`.
 - [x] Add a title/version picker for bare `luna run`, with explicit-ID script compatibility.
 - [x] Add real terminal editing and session-local Up/Down history, including Unicode and cancellation tests.
-- [x] Implement the five accepted follow-ups: save/launch menus with safe replacement confirmation, friendly busy-game recovery, searchable game selection, first-play controls guide, and opt-in plain transcripts. Tab completion is excluded. Expanded local verification passes 53 runner tests; owner review is accepted; native-CI verification remains open.
-- [ ] Complete verification, owner review and native CI, then integrate the accepted patch into the release branch and rebuild packages.
+- [x] Implement the five accepted follow-ups: save/launch menus with safe replacement confirmation, friendly busy-game recovery, searchable game selection, first-play controls guide, and opt-in plain transcripts. Tab completion is excluded. Expanded local verification passes 53 runner tests; owner review is accepted and PR #12 is merged as `ace30f2`; Windows ConPTY verification remains open after a harness startup stall.
+- [x] Owner accepted and merged PR #12; rebase the release branch onto main `ace30f2` and refresh package instructions.
+- [ ] Finish rebuilt package/native acceptance, including the corrected Windows ConPTY harness, before release tagging.
 
 Last reviewed: **29 October 2026**, against the implementation, tests, and accepted plans.
 
@@ -17,13 +18,19 @@ The editor UX work (M0–M7 and M9) is accepted and merged into `main` as `16083
 
 Shared-core and runner hardening (H1–H6) is merged as `835f009`. [Containers and surfaces](containers-and-surfaces.md), C0–C3, are accepted and merged as `3b34bc5` (PR #2). [Parser context](parser-context.md), P0–P3, is accepted and merged as `d3c7860` (PR #3); its [acceptance record](../design/parser-context/final-review.md) covers the Gallery, measurements, and checks. [F3 focused procedures](block-procedures.md) is accepted and merged as `040715d` (PR #4): R0 design is accepted and the [R1 proof/contract](../design/block-procedures/shared-contract.md) is complete (commit `0912607`); [R2 canonical foundation](../design/block-procedures/foundation-review.md) is committed as `665170c`, and the [working authoring slice](../design/block-procedures/authoring-review.md) is accepted after the owner completed the UI walkthrough. The [R3 review](../design/block-procedures/final-review.md) records acceptance and technical checks; R3 was committed as `6e1bbb6` before the branch merged. The owner agreed to basic procedures → conversations/quests → turns/routines, with extraction/refactoring later. The [gameplay roadmap](gameplay-feature-roadmap.md) records scope and separate branches; it does not make every feature a v1 requirement. Browser publishing remains after v1.
 
-The owner chose to focus on gameplay features before the documentation milestone on 26 October 2026. The public documentation milestone is owner accepted and committed/pushed as `e9b348b` on `feature/documentation`: the Starlight site, designer guides, complete Observatory tutorial and screenshots, shortened README and detailed developer section. See the [documentation plan](documentation.md). Merge and the first main-branch Pages deployment remain unconfirmed here.
+The owner chose to focus on gameplay features before the documentation milestone on 26 October 2026. The public documentation milestone is owner accepted and committed/pushed as `e9b348b` on `feature/documentation`: the Starlight site, designer guides, complete Observatory tutorial and screenshots, shortened README and detailed developer section. See the [documentation plan](documentation.md). Merged into `main` as `cabe082` (PR #10); the first main-branch Pages deployment remains unverified here.
 
 ## Next major work — version 1 release preparation
 
-The owner approved the cross-platform release approach on 29 October 2026 and requested it as the next major work item. Follow the [version 1 release plan](v1-release.md), with implementation on a new `feature/v1-release` branch from current merged `main` after documentation is integrated. Prove Linux x86_64, macOS Apple Silicon, macOS Intel and Windows x86_64 through `v1.0.0-rc.1` before publishing `v1.0.0`. Current verified application support remains Linux until the native platform checks pass.
+The owner reports the native matrix passing and requested application version
+**1.0.0** directly, superseding the RC-first version proposal below. README and
+public installation docs mark Windows and macOS builds **experimental**.
+Portable packaging and draft automation are implemented; four-host package and desktop acceptance remain open. The current distribution policy is explicitly unsigned; no release tag or
+publication is implied by the version update.
 
-- [x] Record the agreed four-target direction, current portability/packaging gaps, staged milestones and release acceptance criteria. This approves planning; implementation has not started.
+The owner approved the cross-platform release approach on 29 October 2026 and requested it as the next major work item. Follow the [version 1 release plan](v1-release.md), with implementation on a new `feature/v1-release` branch from current merged `main` after documentation is integrated. Prove the extracted Linux x86_64, macOS Apple Silicon, macOS Intel and Windows x86_64 packages before publishing `v1.0.0`. The owner chose 1.0.0 directly instead of an RC version. Current verified application support remains Linux until the native platform checks pass.
+
+- [x] Record the agreed four-target direction, current portability/packaging gaps, staged milestones and release acceptance criteria. Native build baseline passed at `594fc99` (run `40912008147`); packaging and draft automation are implemented on `feature/v1-release` with acceptance in progress; see the [release contract and evidence](v1-release-contract.md).
 - [ ] **V1-0:** Create the release branch when work begins; prove native build targets and agree minimum OS/runtime, package layout, version and signing policy.
 - [ ] **V1-1:** Implement portable packaging with embedded UI, explicit distributable contents/examples, executable permissions, versioned archives and SHA-256 checksums. Exclude documentation dependencies, caches and development artifacts.
 - [ ] **V1-2:** Make test/process/configuration helpers portable and fix demonstrated platform issues; verify native paths, locking, recovery, terminal/browser behavior and real saves.

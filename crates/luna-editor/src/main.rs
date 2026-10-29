@@ -4,6 +4,9 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(version, about = "Luna's local visual game editor")]
 struct Args {
+    /// Override the editor configuration file (useful for isolated testing).
+    #[arg(long)]
+    config: Option<PathBuf>,
     #[arg(long)]
     projects_dir: Option<PathBuf>,
     #[arg(long, default_value_t = 4318)]
@@ -24,7 +27,8 @@ async fn run() -> Result<()> {
         .context("Cannot determine per-user configuration directory")?;
     let token = luna_model::new_id();
     let app = luna_editor::App::new(
-        dirs.config_dir().join("editor.json"),
+        args.config
+            .unwrap_or_else(|| dirs.config_dir().join("editor.json")),
         args.projects_dir,
         token.clone(),
     )?;

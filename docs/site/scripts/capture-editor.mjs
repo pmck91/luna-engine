@@ -31,8 +31,19 @@ await cp(
   { recursive: true },
 );
 const child = spawn(
-  join(root, 'target/debug/luna-editor'),
-  ['--port', '0', '--no-browser', '--projects-dir', join(temp, 'projects')],
+  join(
+    root,
+    `target/debug/luna-editor${process.platform === 'win32' ? '.exe' : ''}`,
+  ),
+  [
+    '--config',
+    join(temp, 'editor.json'),
+    '--port',
+    '0',
+    '--no-browser',
+    '--projects-dir',
+    join(temp, 'projects'),
+  ],
   {
     cwd: root,
     env: { ...process.env, XDG_CONFIG_HOME: join(temp, 'config') },

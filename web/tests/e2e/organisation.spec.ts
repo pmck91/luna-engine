@@ -1,9 +1,9 @@
+import { execRunner } from '../native';
 import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
 import { openEditor } from '../editor';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 
 test('game data navigation edits vocabulary, variables, and endings with stable exported references', async ({
   page,
@@ -133,11 +133,10 @@ test('game data navigation edits vocabulary, variables, and endings with stable 
   const games = join(process.env.LUNA_TEST_DIR!, `${folder}-games`),
     saves = join(process.env.LUNA_TEST_DIR!, `${folder}-saves`);
   const runner = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
-      ['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args],
-      { input, encoding: 'utf8' },
-    );
+    execRunner(['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args], {
+      input,
+      encoding: 'utf8',
+    });
   runner(['import', bundle]);
   const transcript = runner(
     ['run', saved.id, '--new'],

@@ -109,11 +109,11 @@ This paired production benchmark compares equivalent native bodies with shared c
 From the repository root:
 
 ```sh
-./scripts/package.sh
+python3 scripts/package.py
 python3 scripts/smoke-package.py
 ```
 
-The first command rebuilds the frontend and release executables, then writes the Linux archive and checksum under `dist/`. It does not install or publish them. The smoke check extracts the archive outside the repository, clears development tools from the child processes' `PATH`, exercises runner import/play/save/load, and checks the embedded editor and its real export API. Both the editable Packing the Study project and its bundle ship in the archive. The smoke check also includes the Parser Gallery and Reward Workshop canonical/checked exports, nested procedure rollback, independent progress and restoration of completion. It compares their manifests, restores closed nested contents across process restarts, completes an outcome-free game, and loads the earlier checkpoint without replaying events.
+With Python 3.12+, the first command rebuilds the frontend and release executables, then writes the native platform’s versioned archive and checksum under `dist/` (Linux, macOS Apple Silicon/Intel or Windows x86_64). The shell script remains a Unix wrapper. See the public [release maintenance guide](site/src/content/docs/developer/releases.md) for four-target CI, unsigned experimental builds, tag validation and draft/publication recovery. It does not install or publish them. The smoke check extracts the archive outside the repository, clears development tools from the child processes' `PATH`, exercises runner import/play/save/load, and checks the embedded editor and its real export API. Both the editable Packing the Study project and its bundle ship in the archive. The smoke check also includes the Parser Gallery and Reward Workshop canonical/checked exports, nested procedure rollback, independent progress and restoration of completion. It compares their manifests, restores closed nested contents across process restarts, completes an outcome-free game, and loads the earlier checkpoint without replaying events.
 
 Run the smoke check after browser tests finish: it temporarily hides `web/dist` to prove the package's UI is embedded, then restores it. Its fixed historical walkthrough is separate from the editable example, so changes to the example puzzle do not redefine compatibility expectations. Format and persistence details are documented in [architecture and player persistence](architecture.md#player-persistence-and-rendering).
 

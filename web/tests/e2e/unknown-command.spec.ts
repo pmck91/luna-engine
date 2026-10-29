@@ -1,8 +1,8 @@
+import { execRunner } from '../native';
 import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { seedProject } from '../editor';
 
 test('custom unknown-command messages survive reopening, playtest, export and runner saves', async ({
@@ -63,8 +63,7 @@ test('custom unknown-command messages survive reopening, playtest, export and ru
   );
   expect(game.unknown_command_text).toBe(authored);
   const run = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(process.env.LUNA_TEST_DIR!, `${folder}-games`),

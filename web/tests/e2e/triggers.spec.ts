@@ -1,9 +1,9 @@
+import { execRunner } from '../native';
 import { authoringForms } from '../editor';
 import { expect, test, type Locator } from '@playwright/test';
 import { openEditor, openNewAction, flowSettings } from '../editor';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 
 test('central triggers author command, lifecycle, and value rules with exported save parity', async ({
   page,
@@ -174,11 +174,10 @@ test('central triggers author command, lifecycle, and value rules with exported 
   const games = join(process.env.LUNA_TEST_DIR!, `${folder}-games`),
     saves = join(process.env.LUNA_TEST_DIR!, `${folder}-saves`);
   const runner = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
-      ['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args],
-      { input, encoding: 'utf8' },
-    );
+    execRunner(['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args], {
+      input,
+      encoding: 'utf8',
+    });
   runner(['import', bundle]);
   const first = runner(['run', game.id, '--new'], 'use lever\nuse lever\nsave wounded\nquit\n');
   expect(first.match(/Goblin defeated\./g)).toHaveLength(1);

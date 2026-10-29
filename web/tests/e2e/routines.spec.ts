@@ -1,8 +1,8 @@
+import { execRunner } from '../native';
 import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 import { seedProject } from '../editor';
 import { action, character } from '../../src/model';
 import { newRoutine, newRoutineStep } from '../../src/routineModel';
@@ -172,11 +172,10 @@ test('build one connected routine through the UI, persist it and restore an ente
   await (await download).saveAs(bundle);
   const game = JSON.parse(readFileSync(join(root, 'game.json'), 'utf8'));
   const run = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
-      ['--games-dir', join(root, 'games'), '--saves-dir', join(root, 'saves'), ...args],
-      { input, encoding: 'utf8' },
-    );
+    execRunner(['--games-dir', join(root, 'games'), '--saves-dir', join(root, 'saves'), ...args], {
+      input,
+      encoding: 'utf8',
+    });
   run(['import', bundle]);
   run(['run', game.id, '--new'], 'wait\nwait\nsave patrol\nquit\n');
   const transcript = run(['run', game.id, '--load', 'patrol'], 'look\nwait\nwait\nwait\nquit\n');

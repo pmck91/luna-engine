@@ -1,9 +1,8 @@
 # Runner terminal usability patch
 
-Status: implementation and local Linux verification complete; owner accepted; native-CI review pending on
-`feature/runner-terminal-ux`, based directly on current `origin/main` (`86337e4`).
+Status: owner accepted and merged into main as `ace30f2` (PR #12), then integrated into `feature/v1-release` by rebase. The patch originally started on `feature/runner-terminal-ux` from `86337e4`.
 The owner accepted Linux release downloads and requested these fixes before
-continuing release work. `feature/v1-release` remains untouched at `bce6149`.
+continuing release work. Release integration resumes from main `ace30f2`; the old release tip was `bce6149`.
 
 ## Scope
 
@@ -71,7 +70,7 @@ native keyboard regressions do not depend on the editor frontend.
   runner table and the already-passing release workflow.
 - [x] Owner walkthrough accepted with “all working great”; commit and push authorized.
 - [ ] Hosted Mac/Windows/ConPTY verification.
-- [ ] Commit/push for native CI and owner review; merge only after acceptance.
+- [x] Committed/pushed as `f22de83`; owner accepted and merged PR #12 as `ace30f2`.
 - [ ] Bring the accepted main-branch patch into the release branch, refresh
   START-HERE and installation/release examples to recommend bare `luna run`,
   rebuild all four packages and repeat release checks before any v1 tag/publication.
@@ -96,3 +95,20 @@ unfinished draft with Down. Confirm that Ctrl-C cancels the edit and that save,
 load, quit and reopening still behave normally. Pipe an explicit-ID playthrough
 to verify plain/scripted behavior. The release download stays unchanged until
 this patch is accepted and integrated there.
+
+## Release integration follow-up
+
+The release branch rebased cleanly onto `ace30f2`. Packaged launch instructions
+now use bare `luna run`. Package smoke verifies controls and transcript capture
+without rewriting a restored save or enabling onboarding for pipes; the native
+package workflow also runs real terminal tests against the extracted release
+runner through `LUNA_TEST_RUNNER`.
+
+Runner CI run `40942512350` passed Linux and both Macs, but Windows stalled in
+ConPTY startup and was cancelled. The test host started servicing terminal output
+only after spawning, despite portable-pty enabling cursor inheritance. Windows
+requires asynchronous cursor-query replies during startup. The harness now starts
+its reader/responder first, replies to split cursor/device queries, bounds startup
+and records a regression test for query parsing. Workflow and package-test
+timeouts prevent another silent half-hour stall. Native Windows verification of
+this correction remains required; a cancelled job is not recorded as a pass.

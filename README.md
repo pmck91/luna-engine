@@ -19,11 +19,11 @@
 - Playtest beside your work, inspect state and replay saved checks.
 - Export a `.luna` game. Editor and runner execute the same transactional engine.
 
-Projects and player saves stay local. The packaged target is **Linux x86_64**; the editor opens in a desktop browser. Packaged applications need no Rust or Node installation.
+Projects and player saves stay local. **Luna Engine 1.0.0** targets Linux x86_64. **Windows x86_64 and macOS (Apple Silicon and Intel) builds are experimental and unsigned**; macOS builds are not notarized. The editor opens in a desktop browser. Packaged applications need no Rust or Node installation.
 
 ## Try Luna
 
-Download the artifact from a [successful main build](https://github.com/pmck91/luna-engine/actions/workflows/ci.yml?query=branch%3Amain), extract its ZIP and inner tar archive, then run:
+Download your platform archive and checksum from [GitHub Releases](https://github.com/pmck91/luna-engine/releases). Before the first release is published, tested archives are available as `release-package-*` artifacts from successful [native package checks](https://github.com/pmck91/luna-engine/actions/workflows/native-release.yml). Extract the download, then run:
 
 ```sh
 ./luna-editor --projects-dir ./examples
@@ -32,5 +32,7 @@ Download the artifact from a [successful main build](https://github.com/pmck91/l
 ```
 
 Type to search your games, choose with Up/Down and Enter, then continue or select a save. While playing, Up/Down recall commands and Left/Right move the input cursor. Use `/controls` for help and `/transcript start <new-file>` for optional plain-text recording. Scripts can still use `luna run <game-id>`. See [installation and running from source](https://pmck91.github.io/luna-engine/getting-started/install/) and the [complete tutorial](https://pmck91.github.io/luna-engine/tutorials/observatory/).
+
+On Windows, use PowerShell with `.\luna-editor.exe` and `.\luna.exe`. Launch instructions and exact build metadata are included in every archive.
 
 For local development, tests, packaging and architecture, start with [Developer documentation](https://pmck91.github.io/luna-engine/developer/development/). Repository [development notes](docs/development.md) and [design plans](docs/plans/todo.md) retain implementation evidence.

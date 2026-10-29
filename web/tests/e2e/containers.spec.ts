@@ -1,7 +1,7 @@
+import { execRunner } from '../native';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 import { chooseFlow, flowSettings, openEditor, seedProject, selectBlock } from '../editor';
 import { action, descriptionAction, object } from '../../src/model';
 
@@ -125,8 +125,7 @@ test('create containers through Details and Contents, edit scoped blocks, reopen
   const bundle = join(process.env.LUNA_TEST_DIR!, `${folder}.luna`);
   await (await download).saveAs(bundle);
   const runner = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(root, 'games'),

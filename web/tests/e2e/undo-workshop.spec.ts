@@ -1,5 +1,5 @@
+import { execRunner } from '../native';
 import { expect, test, type Page } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
 import { copyFileSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { PlaytestView, Project } from '../../src/contracts';
@@ -163,8 +163,7 @@ test('Undo Workshop preserves complete native changes, retained captures, isolat
   await (await downloading).saveAs(bundle);
   const profile = join(process.env.LUNA_TEST_DIR!, `${folder}-runner`);
   const cli = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(profile, 'games'),

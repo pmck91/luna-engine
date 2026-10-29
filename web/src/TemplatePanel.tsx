@@ -6,7 +6,7 @@ import { allEffects, flow, owner, script } from './model';
 import { Field, Select, Text } from './Forms';
 import { request } from './api';
 import { ReferenceButton, useReferenceActions } from './ReferenceManager';
-import Recipes, { recipeNames } from './Recipes';
+import Recipes, { recipeNames } from './RecipePanel';
 import Modal from './Modal';
 import type { RecipeKind } from './recipes';
 import {

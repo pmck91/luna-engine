@@ -1,6 +1,6 @@
+import { execRunner } from '../native';
 import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { Effect, PlaytestView, Project } from '../../src/contracts';
@@ -228,8 +228,7 @@ test('restore free changes and endings, retain transcript, separate histories an
   await (await downloading).saveAs(bundle);
   const profile = join(process.env.LUNA_TEST_DIR!, `${folder}-runner`);
   const cli = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(profile, 'games'),
