@@ -25,19 +25,30 @@ fn route() -> Vec<String> {
         root().join("docs/site/src/content/docs/tutorials/observatory/index.md"),
     )
     .unwrap();
-    guide
-        .split("## Complete player route")
-        .nth(1)
-        .unwrap()
-        .split("```text\n")
-        .nth(1)
-        .unwrap()
-        .split("```")
-        .next()
-        .unwrap()
-        .lines()
+    player_route(&guide)
+}
+
+fn player_route(guide: &str) -> Vec<String> {
+    // Git checkouts can use CRLF on Windows; Markdown lines have the same meaning.
+    let mut lines = guide.lines();
+    lines
+        .find(|line| *line == "## Complete player route")
+        .expect("tutorial must include the complete player route heading");
+    lines
+        .find(|line| *line == "```text")
+        .expect("player route must include a text code block");
+    lines
+        .take_while(|line| *line != "```")
         .map(str::to_owned)
         .collect()
+}
+
+#[test]
+fn documented_route_accepts_lf_and_crlf_checkouts() {
+    let guide = "## Complete player route\n\n```text\nlook\ntake key\n```\n";
+    let expected = vec!["look".to_owned(), "take key".to_owned()];
+    assert_eq!(player_route(guide), expected);
+    assert_eq!(player_route(&guide.replace('\n', "\r\n")), expected);
 }
 
 fn run(session: &mut Session, commands: &[String]) {

@@ -87,6 +87,12 @@ the helper module names. A frontend regression test checks case-insensitive
 module stems, including `.ts` versus `.tsx`, on Linux as well. Native Windows
 confirmation remains pending a rerun of the hosted job.
 
+The owner then confirmed both macOS jobs pass, while Windows reaches the Rust
+documentation tests and fails parsing the tutorial route. Its parser assumed LF
+after the Markdown code fence; Windows checkouts can use CRLF. Parse Markdown
+lines with `str::lines()` and exercise both newline styles in a regression test.
+The full native Windows result remains pending another hosted run.
+
 ### Local baseline validation
 
 On the Linux development host (glibc 2.44, Rust 1.96.0, Node 26.12.1,
