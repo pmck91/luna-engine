@@ -1,0 +1,124 @@
+{
+  "id": "frame",
+  "name": "lens frame",
+  "aliases": [
+    "frame"
+  ],
+  "description": "A brass frame sized for the lens blank.",
+  "placement": {
+    "type": "on",
+    "object": "bench"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "frame-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "frame"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "frame"
+        }
+      ]
+    },
+    {
+      "id": "frame-take",
+      "name": "Take",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "frame"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "frame"
+        }
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "frame"
+        },
+        {
+          "type": "say",
+          "text": "Taken."
+        }
+      ]
+    },
+    {
+      "id": "repair-lens",
+      "name": "Repair lens",
+      "verb": "combine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "blank"
+        },
+        {
+          "type": "literal",
+          "text": "with"
+        },
+        {
+          "type": "entity",
+          "entity": "frame"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "carrying",
+            "object": "blank"
+          },
+          {
+            "type": "carrying",
+            "object": "frame"
+          }
+        ]
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "combine",
+          "first": "blank",
+          "second": "frame",
+          "consume_first": true,
+          "consume_second": true,
+          "result": "lens"
+        },
+        {
+          "type": "say",
+          "text": "You fit the lens blank into its frame."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

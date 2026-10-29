@@ -1,0 +1,102 @@
+{
+  "id": "courtyard",
+  "name": "Courtyard",
+  "aliases": [
+    "courtyard"
+  ],
+  "description": "Cool air fills the courtyard. The observatory door is east; the workshop is south.",
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "courtyard-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "courtyard"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "courtyard"
+        }
+      ]
+    }
+  ],
+  "triggers": [
+    {
+      "id": "courtyard-visits",
+      "name": "Count courtyard entries",
+      "event": "enter",
+      "watch": null,
+      "priority": 0,
+      "condition": {
+        "type": "true"
+      },
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "courtyard_entries",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "courtyard-south",
+      "name": "south",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "workshop",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "true"
+      },
+      "blocked_text": "The observatory door is locked.",
+      "text": "",
+      "effects": []
+    },
+    {
+      "id": "courtyard-east",
+      "name": "east",
+      "aliases": [],
+      "verb": "go",
+      "priority": 0,
+      "pattern": [],
+      "destination": "observatory",
+      "visible": {
+        "type": "true"
+      },
+      "available": {
+        "type": "variable",
+        "name": "door_unlocked",
+        "op": "eq",
+        "value": true
+      },
+      "blocked_text": "The observatory door is locked.",
+      "text": "",
+      "effects": []
+    }
+  ],
+  "state": {},
+  "hints": []
+}

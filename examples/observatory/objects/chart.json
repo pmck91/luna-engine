@@ -1,0 +1,68 @@
+{
+  "id": "chart",
+  "name": "star chart",
+  "aliases": [
+    "chart"
+  ],
+  "description": "A faded chart. Read it a few times to check its notes.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "chart-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "chart"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "respond",
+          "id": "chart-replies",
+          "responses": [
+            "The chart marks the north courtyard.",
+            "A note says: repair, calibrate, install."
+          ],
+          "mode": "fallback",
+          "fallback": "You have read every note.",
+          "exhaustion": "once",
+          "on_exhausted": [
+            {
+              "type": "reveal",
+              "entity": "oil"
+            },
+            {
+              "type": "set_variable",
+              "name": "chart_finished",
+              "value": true
+            },
+            {
+              "type": "say",
+              "text": "An oil flask slips from behind the chart."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

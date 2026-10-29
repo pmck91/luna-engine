@@ -1,0 +1,1274 @@
+{
+  "positions": {
+    "courtyard": {
+      "x": 390.0,
+      "y": 70.0
+    },
+    "observatory": {
+      "x": 710.0,
+      "y": 210.0
+    },
+    "store": {
+      "x": 70.0,
+      "y": 440.0
+    },
+    "workshop": {
+      "x": 70.0,
+      "y": 210.0
+    }
+  },
+  "blocks": {},
+  "routes": {},
+  "templates": [],
+  "warning_acknowledgements": [
+    {
+      "warning_key": "a3b469702e7f0440cece15621c1dfe0245719a7c9a4de19dea24ce47fb76e8bb",
+      "subject": "copper-key-examine",
+      "field": "pattern",
+      "message": "Command 'examine key' overlaps with brass-key-examine; inspect scope, requirements, and priority",
+      "reason": "Intentional shared key alias; demonstrates noun clarification."
+    },
+    {
+      "warning_key": "745208248cc5dbd314b873475e4eff316bb27423672eeaf4d5633ba9be9dab29",
+      "subject": "copper-key-take",
+      "field": "pattern",
+      "message": "Command 'take key' overlaps with brass-key-take; inspect scope, requirements, and priority",
+      "reason": "Intentional shared key alias; demonstrates noun clarification."
+    },
+    {
+      "warning_key": "eab6e302bd82ce5b985aa564abb87d6ab129c710fd29e30db71cb4d03f0984e4",
+      "subject": "store",
+      "field": "exits",
+      "message": "Location is structurally unreachable from the start",
+      "reason": "Intentional offstage staging room; no player route."
+    }
+  ],
+  "playtest": {
+    "setups": [
+      {
+        "version": 5,
+        "id": "c691041e-ce34-40e5-9f2b-353df3ddbd19",
+        "name": "Fresh workshop",
+        "source": {
+          "revision": "3d5ff51779ed83d927d91e8880c7fcac0771fd72f278a1b1ae41cacfcca8d069",
+          "title": "Restore the Observatory",
+          "content_version": "1.0.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 0,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {}
+          },
+          "game_id": "02602dae-1565-4ad5-ab59-20899bd12658",
+          "content_version": "1.0.0",
+          "location": "workshop",
+          "ending": null,
+          "variables": {
+            "chart_finished": false,
+            "courtyard_entries": 0,
+            "door_unlocked": false,
+            "health": 3,
+            "score": 0
+          },
+          "objects": {
+            "bench": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "blank": {
+              "placement": {
+                "type": "on",
+                "object": "bench"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "brass-key": {
+              "placement": {
+                "type": "inside",
+                "object": "satchel"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "chart": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "copper-key": {
+              "placement": {
+                "type": "on",
+                "object": "bench"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "door": {
+              "placement": {
+                "type": "location",
+                "location": "courtyard"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "frame": {
+              "placement": {
+                "type": "on",
+                "object": "bench"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "handle": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lens": {
+              "placement": {
+                "type": "absent"
+              },
+              "exists": false,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "oil": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": true,
+              "open": false
+            },
+            "satchel": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "shutter": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "telescope": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "token": {
+              "placement": {
+                "type": "character",
+                "character": "mira"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "mira": {
+              "location": "workshop",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "bench": {},
+            "blank": {},
+            "brass-key": {},
+            "chart": {},
+            "copper-key": {},
+            "courtyard": {},
+            "door": {},
+            "frame": {},
+            "handle": {},
+            "lens": {},
+            "mira": {
+              "calibrated": false,
+              "patience": 2
+            },
+            "observatory": {},
+            "oil": {},
+            "satchel": {},
+            "shutter": {},
+            "store": {},
+            "telescope": {
+              "installed": false
+            },
+            "token": {},
+            "workshop": {}
+          },
+          "visits": {
+            "courtyard": 0,
+            "observatory": 0,
+            "store": 0,
+            "workshop": 1
+          },
+          "sequences": {
+            "chart-replies": 0
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "aa3c52fb-7dc7-400b-a506-0b01bafd23fd",
+        "name": "Ready for calibration",
+        "source": {
+          "revision": "3d5ff51779ed83d927d91e8880c7fcac0771fd72f278a1b1ae41cacfcca8d069",
+          "title": "Restore the Observatory",
+          "content_version": "1.0.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 8,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {}
+          },
+          "game_id": "02602dae-1565-4ad5-ab59-20899bd12658",
+          "content_version": "1.0.0",
+          "location": "workshop",
+          "ending": null,
+          "variables": {
+            "chart_finished": false,
+            "courtyard_entries": 0,
+            "door_unlocked": false,
+            "health": 3,
+            "score": 0
+          },
+          "objects": {
+            "bench": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "blank": {
+              "placement": {
+                "type": "absent"
+              },
+              "exists": false,
+              "consumed": true,
+              "hidden": false,
+              "open": false
+            },
+            "brass-key": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "chart": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "copper-key": {
+              "placement": {
+                "type": "on",
+                "object": "bench"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "door": {
+              "placement": {
+                "type": "location",
+                "location": "courtyard"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "frame": {
+              "placement": {
+                "type": "absent"
+              },
+              "exists": false,
+              "consumed": true,
+              "hidden": false,
+              "open": false
+            },
+            "handle": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lens": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "oil": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": true,
+              "open": false
+            },
+            "satchel": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "shutter": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "telescope": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "token": {
+              "placement": {
+                "type": "character",
+                "character": "mira"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "mira": {
+              "location": "workshop",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "bench": {},
+            "blank": {},
+            "brass-key": {},
+            "chart": {},
+            "copper-key": {},
+            "courtyard": {},
+            "door": {},
+            "frame": {},
+            "handle": {},
+            "lens": {},
+            "mira": {
+              "calibrated": false,
+              "patience": 2
+            },
+            "observatory": {},
+            "oil": {},
+            "satchel": {},
+            "shutter": {},
+            "store": {},
+            "telescope": {
+              "installed": false
+            },
+            "token": {},
+            "workshop": {}
+          },
+          "visits": {
+            "courtyard": 0,
+            "observatory": 0,
+            "store": 0,
+            "workshop": 1
+          },
+          "sequences": {
+            "chart-replies": 0
+          },
+          "narrative": {
+            "active": null,
+            "conversations": {
+              "mira-chat": {
+                "checkpoint": null,
+                "visited": [
+                  "dialogue-greeting",
+                  "dialogue-progress"
+                ],
+                "chosen": [
+                  "reply-accept",
+                  "reply-leave"
+                ]
+              }
+            },
+            "quests": {
+              "restore": {
+                "status": "active",
+                "stages": [],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "I promised to repair, calibrate and install the telescope lens.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "ed6a9d15-7164-48cc-a170-837ebdf2a74f",
+        "name": "Ready to open shutter",
+        "source": {
+          "revision": "3d5ff51779ed83d927d91e8880c7fcac0771fd72f278a1b1ae41cacfcca8d069",
+          "title": "Restore the Observatory",
+          "content_version": "1.0.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 14,
+            "pending": {}
+          },
+          "routines": {
+            "runs": {
+              "mira-patrol": {
+                "type": "running",
+                "cursor": {
+                  "step": "round-workshop",
+                  "after": 14,
+                  "wait": null
+                }
+              }
+            }
+          },
+          "game_id": "02602dae-1565-4ad5-ab59-20899bd12658",
+          "content_version": "1.0.0",
+          "location": "observatory",
+          "ending": null,
+          "variables": {
+            "chart_finished": false,
+            "courtyard_entries": 1,
+            "door_unlocked": true,
+            "health": 3,
+            "score": 10
+          },
+          "objects": {
+            "bench": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "blank": {
+              "placement": {
+                "type": "absent"
+              },
+              "exists": false,
+              "consumed": true,
+              "hidden": false,
+              "open": false
+            },
+            "brass-key": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "chart": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "copper-key": {
+              "placement": {
+                "type": "on",
+                "object": "bench"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "door": {
+              "placement": {
+                "type": "location",
+                "location": "courtyard"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "frame": {
+              "placement": {
+                "type": "absent"
+              },
+              "exists": false,
+              "consumed": true,
+              "hidden": false,
+              "open": false
+            },
+            "handle": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lens": {
+              "placement": {
+                "type": "absent"
+              },
+              "exists": false,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "oil": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": true,
+              "open": false
+            },
+            "satchel": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "shutter": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "telescope": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "token": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "mira": {
+              "location": "workshop",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "bench": {},
+            "blank": {},
+            "brass-key": {},
+            "chart": {},
+            "copper-key": {},
+            "courtyard": {},
+            "door": {},
+            "frame": {},
+            "handle": {},
+            "lens": {},
+            "mira": {
+              "calibrated": true,
+              "patience": 2
+            },
+            "observatory": {},
+            "oil": {},
+            "satchel": {},
+            "shutter": {},
+            "store": {},
+            "telescope": {
+              "installed": true
+            },
+            "token": {},
+            "workshop": {}
+          },
+          "visits": {
+            "courtyard": 1,
+            "observatory": 1,
+            "store": 0,
+            "workshop": 1
+          },
+          "sequences": {
+            "chart-replies": 0
+          },
+          "narrative": {
+            "active": null,
+            "conversations": {
+              "mira-chat": {
+                "checkpoint": null,
+                "visited": [
+                  "dialogue-calibrated",
+                  "dialogue-greeting",
+                  "dialogue-progress"
+                ],
+                "chosen": [
+                  "reply-accept",
+                  "reply-handover",
+                  "reply-leave"
+                ]
+              }
+            },
+            "quests": {
+              "restore": {
+                "status": "completed",
+                "stages": [
+                  "calibrated",
+                  "fitted"
+                ],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "I promised to repair, calibrate and install the telescope lens.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "stage",
+                      "stage": "calibrated"
+                    },
+                    "text": [
+                      {
+                        "text": "Mira calibrated the repaired lens.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "stage",
+                      "stage": "fitted"
+                    },
+                    "text": [
+                      {
+                        "text": "I fitted the calibrated lens in the telescope.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "completed"
+                    },
+                    "text": [
+                      {
+                        "text": "The telescope is restored. I had 0 points before Mira’s reward.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      },
+      {
+        "version": 5,
+        "id": "5aa37346-c2ce-4d00-bc9e-ceee74676e22",
+        "name": "Shutter countdown",
+        "source": {
+          "revision": "3d5ff51779ed83d927d91e8880c7fcac0771fd72f278a1b1ae41cacfcca8d069",
+          "title": "Restore the Observatory",
+          "content_version": "1.0.0",
+          "help_mode": "basic"
+        },
+        "state": {
+          "turns": {
+            "turn": 15,
+            "pending": {
+              "shutter-closes": {
+                "deadline": 18,
+                "source": {
+                  "root": "wind-shutter",
+                  "subject": "wind-shutter",
+                  "path": "effects.1"
+                }
+              }
+            }
+          },
+          "routines": {
+            "runs": {
+              "mira-patrol": {
+                "type": "running",
+                "cursor": {
+                  "step": "round-courtyard",
+                  "after": 15,
+                  "wait": null
+                }
+              }
+            }
+          },
+          "game_id": "02602dae-1565-4ad5-ab59-20899bd12658",
+          "content_version": "1.0.0",
+          "location": "observatory",
+          "ending": null,
+          "variables": {
+            "chart_finished": false,
+            "courtyard_entries": 1,
+            "door_unlocked": true,
+            "health": 3,
+            "score": 10
+          },
+          "objects": {
+            "bench": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "blank": {
+              "placement": {
+                "type": "absent"
+              },
+              "exists": false,
+              "consumed": true,
+              "hidden": false,
+              "open": false
+            },
+            "brass-key": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "chart": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "copper-key": {
+              "placement": {
+                "type": "on",
+                "object": "bench"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "door": {
+              "placement": {
+                "type": "location",
+                "location": "courtyard"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "frame": {
+              "placement": {
+                "type": "absent"
+              },
+              "exists": false,
+              "consumed": true,
+              "hidden": false,
+              "open": false
+            },
+            "handle": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "lens": {
+              "placement": {
+                "type": "absent"
+              },
+              "exists": false,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "oil": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": true,
+              "open": false
+            },
+            "satchel": {
+              "placement": {
+                "type": "location",
+                "location": "workshop"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "shutter": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": true
+            },
+            "telescope": {
+              "placement": {
+                "type": "location",
+                "location": "observatory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            },
+            "token": {
+              "placement": {
+                "type": "inventory"
+              },
+              "exists": true,
+              "consumed": false,
+              "hidden": false,
+              "open": false
+            }
+          },
+          "characters": {
+            "mira": {
+              "location": "workshop",
+              "hidden": false
+            }
+          },
+          "properties": {
+            "bench": {},
+            "blank": {},
+            "brass-key": {},
+            "chart": {},
+            "copper-key": {},
+            "courtyard": {},
+            "door": {},
+            "frame": {},
+            "handle": {},
+            "lens": {},
+            "mira": {
+              "calibrated": true,
+              "patience": 2
+            },
+            "observatory": {},
+            "oil": {},
+            "satchel": {},
+            "shutter": {},
+            "store": {},
+            "telescope": {
+              "installed": true
+            },
+            "token": {},
+            "workshop": {}
+          },
+          "visits": {
+            "courtyard": 1,
+            "observatory": 1,
+            "store": 0,
+            "workshop": 1
+          },
+          "sequences": {
+            "chart-replies": 0
+          },
+          "narrative": {
+            "active": null,
+            "conversations": {
+              "mira-chat": {
+                "checkpoint": null,
+                "visited": [
+                  "dialogue-calibrated",
+                  "dialogue-greeting",
+                  "dialogue-progress"
+                ],
+                "chosen": [
+                  "reply-accept",
+                  "reply-handover",
+                  "reply-leave"
+                ]
+              }
+            },
+            "quests": {
+              "restore": {
+                "status": "completed",
+                "stages": [
+                  "calibrated",
+                  "fitted"
+                ],
+                "journal": [
+                  {
+                    "kind": {
+                      "type": "started"
+                    },
+                    "text": [
+                      {
+                        "text": "I promised to repair, calibrate and install the telescope lens.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "stage",
+                      "stage": "calibrated"
+                    },
+                    "text": [
+                      {
+                        "text": "Mira calibrated the repaired lens.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "stage",
+                      "stage": "fitted"
+                    },
+                    "text": [
+                      {
+                        "text": "I fitted the calibrated lens in the telescope.",
+                        "colour": null
+                      }
+                    ]
+                  },
+                  {
+                    "kind": {
+                      "type": "completed"
+                    },
+                    "text": [
+                      {
+                        "text": "The telescope is restored. I had 0 points before Mira’s reward.",
+                        "colour": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "sequences": {}
+          },
+          "hints": {}
+        }
+      }
+    ],
+    "checks": [
+      {
+        "id": "tutorial-winning-route",
+        "name": "First light walkthrough",
+        "start": {
+          "type": "fresh",
+          "location": null
+        },
+        "help_mode": null,
+        "steps": [
+          {
+            "command": "talk mira",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "reply 1",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "reply 2",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "open satchel",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "take brass key",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "take blank",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "take frame",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "combine blank with frame",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "talk mira",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "reply 2",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "go north",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "use brass key on door",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "go east",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "use lens on telescope",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "turn handle",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "wait",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "wait",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "use telescope",
+            "transcript": null,
+            "condition": {
+              "type": "variable",
+              "name": "score",
+              "op": "eq",
+              "value": 10
+            },
+            "completion": {
+              "type": "ended",
+              "ending": "first-light"
+            }
+          }
+        ]
+      },
+      {
+        "id": "tutorial-countdown",
+        "name": "Shutter closes after three turns",
+        "start": {
+          "type": "setup",
+          "setup": "5aa37346-c2ce-4d00-bc9e-ceee74676e22"
+        },
+        "help_mode": null,
+        "steps": [
+          {
+            "command": "wait",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "wait",
+            "transcript": null,
+            "condition": null,
+            "completion": null
+          },
+          {
+            "command": "wait",
+            "transcript": null,
+            "condition": {
+              "type": "not",
+              "condition": {
+                "type": "opened",
+                "object": "shutter"
+              }
+            },
+            "completion": null
+          }
+        ]
+      }
+    ]
+  }
+}

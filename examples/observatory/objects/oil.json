@@ -1,0 +1,112 @@
+{
+  "id": "oil",
+  "name": "oil flask",
+  "aliases": [
+    "oil"
+  ],
+  "description": "A small flask of lamp oil found behind the chart.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": true,
+  "hidden": true,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "oil-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "oil"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "oil"
+        }
+      ]
+    },
+    {
+      "id": "oil-take",
+      "name": "Take",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "oil"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "oil"
+        }
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "oil"
+        },
+        {
+          "type": "say",
+          "text": "Taken."
+        }
+      ]
+    },
+    {
+      "id": "use-oil",
+      "name": "Use the oil",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "oil"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "carrying",
+        "object": "oil"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "consume",
+          "object": "oil"
+        },
+        {
+          "type": "update_variable",
+          "name": "health",
+          "op": "add",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "The handle runs smoothly. You recover a little strength."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

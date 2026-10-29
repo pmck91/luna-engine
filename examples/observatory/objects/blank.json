@@ -1,0 +1,76 @@
+{
+  "id": "blank",
+  "name": "lens blank",
+  "aliases": [
+    "blank"
+  ],
+  "description": "A clear disc waiting for a frame.",
+  "placement": {
+    "type": "on",
+    "object": "bench"
+  },
+  "portable": true,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "blank-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "blank"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "blank"
+        }
+      ]
+    },
+    {
+      "id": "blank-take",
+      "name": "Take",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "blank"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "not",
+        "condition": {
+          "type": "carrying",
+          "object": "blank"
+        }
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "give",
+          "object": "blank"
+        },
+        {
+          "type": "say",
+          "text": "Taken."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

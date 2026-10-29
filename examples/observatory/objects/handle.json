@@ -1,0 +1,139 @@
+{
+  "id": "handle",
+  "name": "winding handle",
+  "aliases": [
+    "handle"
+  ],
+  "description": "A handle opens the shutter for three subsequent turns.",
+  "placement": {
+    "type": "location",
+    "location": "observatory"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "handle-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "handle"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "handle"
+        }
+      ]
+    },
+    {
+      "id": "wind-shutter",
+      "name": "Wind the shutter",
+      "verb": "turn",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "handle"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "open",
+          "object": "shutter"
+        },
+        {
+          "type": "schedule_timer",
+          "timer": "shutter-closes",
+          "after": {
+            "type": "literal",
+            "value": 3
+          },
+          "pending": "restart"
+        },
+        {
+          "type": "say",
+          "text": "The shutter opens. It will close after three more turns."
+        }
+      ]
+    },
+    {
+      "id": "stop-shutter",
+      "name": "Hold the shutter",
+      "verb": "push",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "handle"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "timer_pending",
+        "timer": "shutter-closes"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "cancel_timer",
+          "timer": "shutter-closes"
+        },
+        {
+          "type": "say",
+          "text": "The catch holds the shutter open."
+        }
+      ]
+    },
+    {
+      "id": "strain-handle",
+      "name": "Force the handle",
+      "verb": "pull",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "handle"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "update_variable",
+          "name": "health",
+          "op": "subtract",
+          "operand": {
+            "type": "literal",
+            "value": 1
+          }
+        },
+        {
+          "type": "say",
+          "text": "The strain costs one health. Health: %health%."
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

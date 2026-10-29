@@ -1,0 +1,27 @@
+{
+  "id": "award",
+  "name": "Award points",
+  "description": "One maintained reward flow with a typed local amount.",
+  "inputs": [
+    {
+      "id": "amount",
+      "name": "amount",
+      "kind": "integer"
+    }
+  ],
+  "effects": [
+    {
+      "type": "update_variable",
+      "name": "score",
+      "op": "add",
+      "operand": {
+        "type": "input",
+        "input": "amount"
+      }
+    },
+    {
+      "type": "say",
+      "text": "You now have %score% points."
+    }
+  ]
+}

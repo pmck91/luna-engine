@@ -5,6 +5,10 @@
 /web/test-results/
 /web/playwright-report/
 /dist/
+/docs/site/node_modules/
+/docs/site/dist/
+/docs/site/.astro/
+/docs/site/test-results/
 *.luna
 !.fixtures/*.luna
 !/examples/locked-study.luna
@@ -15,6 +19,8 @@
 !/examples/timer-workshop.luna
 !/examples/routine-workshop.luna
 !/examples/undo-workshop.luna
+!/examples/observatory.luna
+/docs/site/public/downloads/
 /web/*.tsbuildinfo
 .luna-recovery/
 .luna-transaction.json

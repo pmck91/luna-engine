@@ -6,7 +6,7 @@ This follows the accepted [first checkpoint](first-checkpoint.md). It brings com
 
 ## Try it
 
-Build and launch from this branch using the [development instructions](../../../README.md#build-and-launch). No installation is required.
+Build and launch from this branch using the [development instructions](../../development.md#build-locally). No installation is required.
 
 1. Create a second location, then use **Add character** and **Add object**. Both use that location. Creating from another entity or its action uses its initial authored room; a character-held object's context follows its character's initial room. The hierarchy names the proposed room. A running playtest's location does not affect this choice.
 2. Open **Actions → Add action**. Choose **Verb + entity + connector + target**, then choose `to`, `on`, `in`, or `with` and the target. The preview updates as you choose. Create a verb and its synonyms with **Create verb…** without leaving the form. Existing actions also have a **Use a command preset** section; applying a preset is explicit, and changing the verb preserves the pattern.

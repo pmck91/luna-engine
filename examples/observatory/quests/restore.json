@@ -1,0 +1,96 @@
+{
+  "id": "restore",
+  "title": "Restore the telescope",
+  "aliases": [
+    "telescope"
+  ],
+  "introduction": "I promised to repair, calibrate and install the telescope lens.",
+  "completion": "The telescope is restored. I had %score% points before Mira’s reward.",
+  "failure": "The work must wait.",
+  "stages": [
+    {
+      "id": "calibrated",
+      "name": "Calibrate the lens",
+      "text": "Mira calibrated the repaired lens.",
+      "prerequisites": [],
+      "condition": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "quest_status",
+            "quest": "restore",
+            "status": "active"
+          },
+          {
+            "type": "character_carrying",
+            "character": "mira",
+            "object": "lens"
+          }
+        ]
+      },
+      "required": true,
+      "effects": [
+        {
+          "type": "set_property",
+          "entity": "mira",
+          "name": "calibrated",
+          "value": true
+        },
+        {
+          "type": "give",
+          "object": "lens"
+        }
+      ]
+    },
+    {
+      "id": "fitted",
+      "name": "Install the lens",
+      "text": "I fitted the calibrated lens in the telescope.",
+      "prerequisites": [
+        "calibrated"
+      ],
+      "condition": {
+        "type": "property",
+        "entity": "telescope",
+        "name": "installed",
+        "op": "eq",
+        "value": true
+      },
+      "required": true,
+      "effects": []
+    }
+  ],
+  "on_start": {
+    "id": "restore-start",
+    "effects": []
+  },
+  "on_complete": {
+    "id": "restore-complete",
+    "effects": [
+      {
+        "type": "call",
+        "id": "completion-award",
+        "procedure": "award",
+        "arguments": {
+          "amount": {
+            "type": "literal",
+            "value": 10
+          }
+        }
+      },
+      {
+        "type": "give",
+        "object": "token"
+      },
+      {
+        "type": "start_routine",
+        "routine": "mira-patrol",
+        "busy": "keep"
+      }
+    ]
+  },
+  "on_fail": {
+    "id": "restore-fail",
+    "effects": []
+  }
+}

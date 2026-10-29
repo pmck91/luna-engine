@@ -1,0 +1,67 @@
+name: Documentation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: docs/site/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: npm --prefix docs/site ci
+      - run: npm --prefix docs/site run format:check
+      - run: npm --prefix docs/site run check
+      - run: npm --prefix docs/site run build
+      - run: npm --prefix docs/site run check:links
+      - run: npx playwright install --with-deps chromium
+        working-directory: docs/site
+      - run: npm --prefix docs/site run test:browser
+      - name: Upload documentation browser failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-browser-failure
+          path: docs/site/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          path: docs/site/dist
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request'
+        with:
+          name: documentation-preview
+          path: docs/site/dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy documentation
+        id: deployment
+        uses: actions/deploy-pages@v4

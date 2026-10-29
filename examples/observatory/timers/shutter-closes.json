@@ -1,0 +1,20 @@
+{
+  "id": "shutter-closes",
+  "name": "Shutter closes",
+  "order": 0,
+  "priority": 0,
+  "condition": {
+    "type": "opened",
+    "object": "shutter"
+  },
+  "effects": [
+    {
+      "type": "close",
+      "object": "shutter"
+    },
+    {
+      "type": "say",
+      "text": "The shutter settles closed with a gentle clunk."
+    }
+  ]
+}

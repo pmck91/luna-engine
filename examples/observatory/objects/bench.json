@@ -1,0 +1,180 @@
+{
+  "id": "bench",
+  "name": "workbench",
+  "aliases": [
+    "bench"
+  ],
+  "description": "A sturdy workbench. Its top is a useful place for small parts.",
+  "placement": {
+    "type": "location",
+    "location": "workshop"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": true,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "bench-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "bench"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "bench"
+        }
+      ]
+    },
+    {
+      "id": "81a348e1-122b-4079-b348-08acf18caa96",
+      "name": "Put an item on top of workbench",
+      "verb": "put",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "on"
+        },
+        {
+          "type": "entity",
+          "entity": "bench"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "can_transfer",
+        "object": {
+          "input": "item"
+        },
+        "placement": {
+          "type": "on",
+          "object": "bench"
+        }
+      },
+      "failure_text": "You cannot put that there.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "on",
+            "object": "bench"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You put %__luna_name_5160b50d-224d-47b7-bf7b-dab499f4668b% on %__luna_holder_be66f82e-1609-4d82-b07e-bb909bc0d550%.",
+          "references": {
+            "__luna_holder_be66f82e-1609-4d82-b07e-bb909bc0d550": {
+              "type": "entity_name",
+              "entity": "bench"
+            },
+            "__luna_name_5160b50d-224d-47b7-bf7b-dab499f4668b": {
+              "type": "item_name"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "put_on",
+        "enabled": true
+      }
+    },
+    {
+      "id": "f8b88e81-0deb-45d5-a6be-978c5aebc17c",
+      "name": "Take an item from workbench",
+      "verb": "take",
+      "pattern": [
+        {
+          "type": "object_input"
+        },
+        {
+          "type": "literal",
+          "text": "from"
+        },
+        {
+          "type": "entity",
+          "entity": "bench"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "can_transfer",
+            "object": {
+              "input": "item"
+            },
+            "placement": {
+              "type": "inventory"
+            }
+          },
+          {
+            "type": "any",
+            "conditions": [
+              {
+                "type": "in_object",
+                "object": {
+                  "input": "item"
+                },
+                "parent": "bench",
+                "relation": "on"
+              }
+            ]
+          }
+        ]
+      },
+      "failure_text": "You cannot take that from here.",
+      "effects": [
+        {
+          "type": "transfer",
+          "object": {
+            "input": "item"
+          },
+          "placement": {
+            "type": "inventory"
+          }
+        },
+        {
+          "type": "say_with_inputs",
+          "text": "You take %__luna_name_68f87df1-fdca-4976-a4ad-8f118c32b9c2%.",
+          "references": {
+            "__luna_name_68f87df1-fdca-4976-a4ad-8f118c32b9c2": {
+              "type": "item_name"
+            }
+          }
+        }
+      ],
+      "standard": {
+        "interaction": "take_from",
+        "enabled": true
+      }
+    }
+  ],
+  "triggers": [],
+  "hints": [],
+  "storage": {
+    "container": null,
+    "surface": true
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "id": "door",
+  "name": "observatory door",
+  "aliases": [
+    "door"
+  ],
+  "description": "A locked oak door with a brass keyhole.",
+  "placement": {
+    "type": "location",
+    "location": "courtyard"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {},
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "door-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "door"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "door"
+        }
+      ]
+    },
+    {
+      "id": "unlock-door",
+      "name": "Unlock observatory",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "brass-key"
+        },
+        {
+          "type": "literal",
+          "text": "on"
+        },
+        {
+          "type": "entity",
+          "entity": "door"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "possesses",
+            "object": "brass-key",
+            "character": null
+          },
+          {
+            "type": "reachable",
+            "object": "brass-key"
+          }
+        ]
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "if",
+          "condition": {
+            "type": "variable",
+            "name": "door_unlocked",
+            "op": "eq",
+            "value": true
+          },
+          "then": [
+            {
+              "type": "say",
+              "text": "It is already unlocked."
+            }
+          ],
+          "otherwise": [
+            {
+              "type": "set_variable",
+              "name": "door_unlocked",
+              "value": true
+            },
+            {
+              "type": "open",
+              "object": "door"
+            },
+            {
+              "type": "say",
+              "text": "<green>The observatory door unlocks.</green>"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": [
+    {
+      "id": "door-puzzle",
+      "name": "The observatory lock",
+      "available": {
+        "type": "true"
+      },
+      "solved": {
+        "type": "variable",
+        "name": "door_unlocked",
+        "op": "eq",
+        "value": true
+      },
+      "stages": [
+        {
+          "id": "door-key-stage",
+          "name": "Have the key",
+          "condition": {
+            "type": "possesses",
+            "object": "brass-key",
+            "character": null
+          },
+          "clues": [
+            "The key and the lock share the same metal.",
+            "A closed satchel can keep a key out of reach."
+          ],
+          "solution": "Open the satchel, then use brass key on door."
+        },
+        {
+          "id": "door-search-stage",
+          "name": "Find a key",
+          "condition": {
+            "type": "true"
+          },
+          "clues": [
+            "Mira brought something useful in the canvas satchel.",
+            "Open the satchel and look inside."
+          ],
+          "solution": "Open satchel, take brass key, then use brass key on door."
+        }
+      ]
+    }
+  ]
+}

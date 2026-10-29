@@ -1,6 +1,6 @@
 # Developing Luna
 
-The editor and terminal runner embed the same `luna-core` interpreter. Start with the [architecture map](architecture.md#shared-runtime-modules) for crate responsibilities and the [README](../README.md#build-and-launch) for toolchain requirements and launch options.
+The editor and terminal runner embed the same `luna-core` interpreter. The public [developer documentation](site/src/content/docs/developer/architecture.md) explains the current components; [local setup](site/src/content/docs/developer/development.md) covers toolchains and launching. These repository notes retain detailed feature acceptance and measurement records.
 
 ## Build locally
 

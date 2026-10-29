@@ -1,0 +1,165 @@
+{
+  "id": "telescope",
+  "name": "telescope",
+  "aliases": [
+    "telescope"
+  ],
+  "description": "An old telescope with an empty lens mount.",
+  "placement": {
+    "type": "location",
+    "location": "observatory"
+  },
+  "portable": false,
+  "hidden": false,
+  "open": false,
+  "state": {
+    "installed": false
+  },
+  "actions": [
+    {
+      "turn_cost": {
+        "success": "free",
+        "failed_requirements": "free"
+      },
+      "id": "telescope-examine",
+      "name": "Examine",
+      "verb": "examine",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "telescope"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "true"
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "print_description",
+          "entity": "telescope"
+        }
+      ]
+    },
+    {
+      "id": "install-lens",
+      "name": "Install calibrated lens",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "lens"
+        },
+        {
+          "type": "literal",
+          "text": "on"
+        },
+        {
+          "type": "entity",
+          "entity": "telescope"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "carrying",
+            "object": "lens"
+          },
+          {
+            "type": "property",
+            "entity": "mira",
+            "name": "calibrated",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "type": "quest_status",
+            "quest": "restore",
+            "status": "active"
+          }
+        ]
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "remove",
+          "object": "lens"
+        },
+        {
+          "type": "set_property",
+          "entity": "telescope",
+          "name": "installed",
+          "value": true
+        },
+        {
+          "type": "complete_quest_stage",
+          "quest": "restore",
+          "stage": "fitted"
+        },
+        {
+          "type": "complete_quest",
+          "quest": "restore"
+        },
+        {
+          "type": "say",
+          "text": "The calibrated lens clicks into the telescope."
+        }
+      ]
+    },
+    {
+      "id": "view-stars",
+      "name": "View the stars",
+      "verb": "use",
+      "pattern": [
+        {
+          "type": "entity",
+          "entity": "telescope"
+        }
+      ],
+      "priority": 0,
+      "requirements": {
+        "type": "all",
+        "conditions": [
+          {
+            "type": "property",
+            "entity": "telescope",
+            "name": "installed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "type": "opened",
+            "object": "shutter"
+          }
+        ]
+      },
+      "failure_text": "You are not ready for that yet.",
+      "effects": [
+        {
+          "type": "if",
+          "condition": {
+            "type": "hint_used",
+            "hint": "door-puzzle"
+          },
+          "then": [
+            {
+              "type": "end",
+              "ending": "guided-light"
+            }
+          ],
+          "otherwise": [
+            {
+              "type": "end",
+              "ending": "first-light"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "triggers": [],
+  "hints": []
+}

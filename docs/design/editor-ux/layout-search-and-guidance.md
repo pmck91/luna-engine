@@ -6,7 +6,7 @@ This follows [findings and references](findings-and-references.md). It uses the 
 
 ## Try it
 
-Build and launch using the [development instructions](../../../README.md#build-and-launch). No installation is required.
+Build and launch using the [development instructions](../../development.md#build-locally). No installation is required.
 
 1. **Resize and remember.** Drag the dividers beside the hierarchy/inspector or above playtest. With a divider focused, arrow keys adjust by 10 px; Shift+arrow adjusts by 40 px; Home/End use its limits. Double-click resets that size. Starting preferences are 220 px for the hierarchy, 320 px for the inspector, and 240 px for playtest, bounded by available space. Each panel can collapse independently. At compact widths the inspector overlays the canvas as a drawer; at narrower widths the hierarchy does too. Drawers stop above the playtest dock so its controls stay accessible. **Focus playtest** temporarily folds both side panels and expands the transcript; **Return to editor** restores the authoring layout.
 2. **Reopen your view.** Sizes, collapse state, selections, filters, canvas pan/zoom, expanded inspector sections, recent search text, and tutorial progress live in the editor's per-user configuration, keyed to the server-resolved project folder. They survive restarting on a new `--port 0` address and do not enter game bundles or player saves. Existing configurations receive defaults. Preferences save separately from project content and undo. Opening a different folder with the same game ID has independent preferences.
