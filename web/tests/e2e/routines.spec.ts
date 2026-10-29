@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -9,8 +10,7 @@ import { turnDefaults } from '../../src/turnModel';
 import type { PlaytestView } from '../../src/contracts';
 import { openEditor } from '../editor';
 
-const inspector = (page: Page) =>
-  page.getByRole('complementary', { name: 'Inspector', exact: true });
+const inspector = (page: Page) => authoringForms(page);
 async function pickBlock(page: Page, label: string, index = 0) {
   const outline = page.locator('.flow-outline');
   if (!(await outline.evaluate((node) => node.hasAttribute('open'))))

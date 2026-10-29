@@ -5,6 +5,7 @@ import type { EditorPreferences, PanelLayout, Project } from './contracts';
 import type { HintSelection } from './HintBlocks';
 import { entity, flow, script, gameDataPages, owner } from './model';
 import type { ReferenceSite } from './references';
+import { readLibraryPreferences, type LibraryPreferences } from './LibraryWorkspace';
 export const defaultLayout: PanelLayout = {
   hierarchy_width: 220,
   inspector_width: 320,
@@ -17,6 +18,7 @@ export type SavedNavigation = {
   selected: string;
   mode:
     | 'map'
+    | 'data'
     | 'actions'
     | 'hints'
     | 'triggers'
@@ -26,6 +28,7 @@ export type SavedNavigation = {
     | 'quests'
     | 'routines';
   search: string;
+  library: LibraryPreferences;
   triggerFilter: string;
   flowSelections: Record<string, string>;
   flowBreadcrumb: string;
@@ -67,24 +70,43 @@ export function restoredNavigation(project: Project, raw: unknown): SavedNavigat
         ['stage', 'clue', 'solution'].includes(part.type)))
       ? hint!
       : null;
+  const mode =
+    saved.mode &&
+    [
+      'map',
+      'data',
+      'actions',
+      'hints',
+      'triggers',
+      'contents',
+      'procedures',
+      'conversations',
+      'quests',
+      'routines',
+    ].includes(saved.mode)
+      ? saved.mode
+      : 'map';
+  const dataSelection = [
+    gameDataPages.variables,
+    gameDataPages.vocabulary,
+    gameDataPages.endings,
+  ].includes(selected as any);
   return {
     selected,
     mode:
-      saved.mode &&
-      [
-        'map',
-        'actions',
-        'hints',
-        'triggers',
-        'contents',
-        'procedures',
-        'conversations',
-        'quests',
-        'routines',
-      ].includes(saved.mode)
-        ? saved.mode
-        : 'map',
+      dataSelection && (mode === 'map' || mode === 'data')
+        ? 'data'
+        : mode === 'data' && selected !== project.game.id && !dataSelection
+          ? 'map'
+          : mode,
     search: typeof saved.search === 'string' ? saved.search : '',
+    library: (() => {
+      const library = readLibraryPreferences(saved.library);
+      for (const kind of ['routines', 'conversations'])
+        if (!project.characters.some((c) => c.id === library.filters[kind]))
+          delete library.filters[kind];
+      return library;
+    })(),
     triggerFilter:
       typeof saved.triggerFilter === 'string' && owner(project, saved.triggerFilter)
         ? saved.triggerFilter

@@ -60,7 +60,7 @@ test('Timer Workshop restores simple and advanced checkpoints, reveals nested so
     .click();
   await page
     .getByRole('group', { name: 'Trigger groups' })
-    .getByRole('button', { name: 'Scheduled', exact: true })
+    .getByRole('button', { name: 'Scheduled timers', exact: true })
     .click();
   await page
     .getByRole('region', { name: 'Scheduled timer library' })

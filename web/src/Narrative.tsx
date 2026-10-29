@@ -1,7 +1,9 @@
+import type { Viewport } from '@xyflow/react';
+import { focusCreated } from './creationFocus';
 import { turnCostChoices } from './turnModel';
 import type { TurnCost } from './contracts';
 import { playContentKey } from './playtest';
-import { useState, type Ref } from 'react';
+import { useContext, useEffect, useRef, useState, type Ref } from 'react';
 import type { Diagnostic, Project } from './contracts';
 import type { ProjectEdit } from './projectHistory';
 import type { HistoryControls } from './workspaceHistory';
@@ -32,6 +34,8 @@ import {
   promotionFields,
 } from './narrativeAuthoring';
 import Graph from './NarrativeGraph';
+import { FindingContext } from './FindingContext';
+import { LibraryEmpty, useLibraryFilter, useLibrarySearch } from './LibraryWorkspace';
 import './narrative.css';
 
 type Common = {
@@ -44,6 +48,7 @@ export default function Narrative({
   project,
   selected,
   kind,
+  logicRequest,
   edit,
   select,
   blocksRef,
@@ -54,6 +59,7 @@ export default function Narrative({
   error,
 }: Common & {
   kind: 'conversations' | 'quests';
+  logicRequest?: { id: string; nonce: number };
   blocksRef: Ref<BlocksHandle>;
   selectedBlock?: string;
   onBlockSelect: (selection: BlockSelection | null) => void;
@@ -61,7 +67,19 @@ export default function Narrative({
   history: HistoryControls;
   error: (message: string) => void;
 }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useLibrarySearch(kind);
+  const [characterFilter, filterCharacterBy] = useLibraryFilter('conversations');
+  const [view, setView] = useState<'graph' | 'logic'>('graph');
+  const graphViews = useRef<Record<string, Viewport>>({});
+  const { reveal } = useContext(FindingContext);
+  // Template insertion and Return to caller request Logic once; graph selection keeps its view.
+  useEffect(() => {
+    if (logicRequest?.id === selected) setView('logic');
+  }, [logicRequest]);
+  // A search/finding reveal opens Logic once; later graph selections keep their chosen view.
+  useEffect(() => {
+    if (reveal?.flowId === selected) setView('logic');
+  }, [reveal]);
   const [upgrade, setUpgrade] = useState(false);
   const [problem, setProblem] = useState('');
   const all = authoringNarrative(project);
@@ -72,9 +90,12 @@ export default function Narrative({
       : undefined;
   const q = item && 'quest' in item ? all.quests.find((q) => q.id === item.quest.id) : undefined;
   const node = c?.nodes.find((n) => n.id === selected || n.replies.some((r) => r.id === selected));
-  const filterCharacter = selected.startsWith(`${gameDataPages.conversations}:`)
-    ? selected.slice(gameDataPages.conversations.length + 1)
-    : '';
+  const filterCharacter =
+    kind === 'conversations'
+      ? selected.startsWith(`${gameDataPages.conversations}:`)
+        ? selected.slice(gameDataPages.conversations.length + 1)
+        : characterFilter
+      : '';
   const create = async () => {
     const draft =
       kind === 'conversations'
@@ -102,7 +123,10 @@ export default function Narrative({
       { label: `Add ${kind === 'conversations' ? 'conversation' : 'quest'} draft` },
     );
     setUpgrade(false);
+    setQuery('');
+    setView('graph');
     select(draftId(draft));
+    focusCreated(draftId(draft), kind === 'conversations' ? 'Conversation name' : 'Quest title');
   };
   const add = (part: 'dialogue' | 'reply' | 'quest_stage') => {
     if (part === 'dialogue' && c) {
@@ -117,6 +141,7 @@ export default function Narrative({
         { label: 'Add dialogue draft' },
       );
       select(next.id);
+      focusCreated(next.id, 'Dialogue name');
     } else if (part === 'reply' && c && node) {
       const reply = newReply();
       edit(
@@ -129,6 +154,7 @@ export default function Narrative({
         { label: 'Add reply draft' },
       );
       select(reply.id);
+      focusCreated(reply.id, 'Response text');
     } else if (part === 'quest_stage' && q) {
       const stage = newStage();
       edit(
@@ -140,12 +166,24 @@ export default function Narrative({
         { label: 'Add quest stage draft' },
       );
       select(stage.id);
+      focusCreated(stage.id, 'Stage name');
     }
   };
   const effectRoot = item && 'effects' in item.value ? item.value : undefined;
+  const logic = !c || (!!effectRoot && view === 'logic');
+  const visible = (kind === 'conversations' ? all.conversations : all.quests).filter(
+    (v) =>
+      ('name' in v
+        ? `${v.name} ${project.characters.find((c) => c.id === v.character)?.name ?? ''}`
+        : v.title
+      )
+        .toLowerCase()
+        .includes(query.trim().toLowerCase()) &&
+      (!filterCharacter || ('character' in v && v.character === filterCharacter)),
+  );
   return (
     <section
-      className="narrative-workspace"
+      className={`narrative-workspace ${c || q ? 'is-open' : ''}`}
       aria-label={kind === 'conversations' ? 'Conversations editor' : 'Quests editor'}
     >
       {!c && !q ? (
@@ -179,34 +217,31 @@ export default function Narrative({
           )}
           <Text label={`Search ${kind}`} value={query} onChange={setQuery} />
           {filterCharacter && (
-            <button onClick={() => select(gameDataPages.conversations)}>All conversations</button>
+            <button
+              onClick={() => {
+                filterCharacterBy('');
+                select(gameDataPages.conversations);
+              }}
+            >
+              All conversations
+            </button>
           )}
           <div className="narrative-library-list">
-            {(kind === 'conversations' ? all.conversations : all.quests)
-              .filter(
-                (v) =>
-                  ('name' in v
-                    ? `${v.name} ${project.characters.find((c) => c.id === v.character)?.name ?? ''}`
-                    : v.title
-                  )
-                    .toLowerCase()
-                    .includes(query.toLowerCase()) &&
-                  (!filterCharacter || ('character' in v && v.character === filterCharacter)),
-              )
-              .map((v) => (
-                <button key={v.id} className="list-item" onClick={() => select(v.id)}>
-                  <strong>
-                    {'name' in v ? v.name || 'Unnamed conversation' : v.title || 'Unnamed quest'}
-                  </strong>
-                  <small>
-                    {construction(project, v.id) ? 'Construction draft · ' : ''}
-                    {'nodes' in v
-                      ? `${project.characters.find((c) => c.id === v.character)?.name ?? 'Choose a character'} · ${v.nodes.length} dialogue nodes`
-                      : `${v.stages.length} stages`}
-                  </small>
-                </button>
-              ))}
+            {visible.map((v) => (
+              <button key={v.id} className="list-item" onClick={() => select(v.id)}>
+                <strong>
+                  {'name' in v ? v.name || 'Unnamed conversation' : v.title || 'Unnamed quest'}
+                </strong>
+                <small>
+                  {construction(project, v.id) ? 'Construction draft · ' : ''}
+                  {'nodes' in v
+                    ? `${project.characters.find((c) => c.id === v.character)?.name ?? 'Choose a character'} · ${v.nodes.length} dialogue nodes`
+                    : `${v.stages.length} stages`}
+                </small>
+              </button>
+            ))}
           </div>
+          {!visible.length && <LibraryEmpty kind={kind} query={query} clear={() => setQuery('')} />}
         </section>
       ) : (
         <>
@@ -217,10 +252,38 @@ export default function Narrative({
             <h2>{c?.name ?? q?.title}</h2>
             {c ? (
               <>
+                <Select
+                  label="Choose dialogue"
+                  value={node?.id ?? ''}
+                  items={c.nodes}
+                  onChange={select}
+                />
                 <button onClick={() => select(c.id)}>Start &amp; return</button>
                 <button className="primary" onClick={() => add('dialogue')}>
-                  Add node
+                  Add dialogue
                 </button>
+                {node && !node.terminal && (
+                  <button className="primary" onClick={() => add('reply')}>
+                    Add reply
+                  </button>
+                )}
+                <div role="group" aria-label="Conversation view" className="tabs">
+                  <button
+                    className={!logic ? 'active' : ''}
+                    aria-pressed={!logic}
+                    onClick={() => setView('graph')}
+                  >
+                    Graph
+                  </button>
+                  <button
+                    className={logic ? 'active' : ''}
+                    aria-pressed={logic}
+                    disabled={!effectRoot}
+                    onClick={() => setView('logic')}
+                  >
+                    Logic
+                  </button>
+                </div>
               </>
             ) : (
               <button className="primary" onClick={() => add('quest_stage')}>
@@ -228,11 +291,15 @@ export default function Narrative({
               </button>
             )}
           </div>
-          {c && (
+          {c && !logic && (
             <Graph
               key={c.id}
               project={project}
               conversation={c}
+              view={graphViews.current[c.id]}
+              onViewChange={(view) => {
+                graphViews.current[c.id] = view;
+              }}
               selected={node?.id ?? ''}
               reply={item?.kind === 'reply' ? item.reply.id : null}
               selectNode={select}
@@ -259,145 +326,138 @@ export default function Narrative({
               }
             />
           )}
-          <div className="narrative-detail">
-            <nav
-              className="narrative-parts"
-              aria-label={c ? 'Dialogue and replies' : 'Quest stages and hooks'}
-            >
-              {c ? (
-                <>
-                  <Select
-                    label="Choose dialogue"
-                    value={node?.id ?? ''}
-                    items={c.nodes}
-                    onChange={select}
-                  />
-                  {node && (
-                    <>
-                      <button
-                        aria-current={selected === node.id ? 'page' : undefined}
-                        onClick={() => select(node.id)}
-                      >
-                        {node.name} · On entered
-                      </button>
-                      {node.terminal ? (
-                        <p className="muted">■ Ends after dialogue</p>
-                      ) : (
-                        <>
-                          {node.replies.map((r, i) => (
-                            <button
-                              key={r.id}
-                              className={`list-item ${selected === r.id ? 'active' : ''}`}
-                              aria-current={selected === r.id ? 'page' : undefined}
-                              onClick={() => select(r.id)}
-                            >
-                              <strong>
-                                {i + 1}. {r.text || 'New reply'}
-                              </strong>
-                              <small>
-                                {construction(project, r.id) ? 'Construction draft · ' : ''}
-                                {r.destination
-                                  ? (c.nodes.find((n) => n.id === r.destination)?.name ??
-                                    'Missing destination')
-                                  : 'End conversation'}
-                                {r.condition.type !== 'true' ? ' · Conditional' : ''}
-                              </small>
-                            </button>
-                          ))}
-                          <button className="primary" onClick={() => add('reply')}>
-                            Add reply
-                          </button>
-                        </>
-                      )}
-                    </>
-                  )}
-                </>
-              ) : (
-                q && (
+          {logic && (
+            <div className="narrative-detail">
+              <nav
+                className="narrative-parts"
+                aria-label={c ? 'Dialogue and replies' : 'Quest stages and hooks'}
+              >
+                {c ? (
                   <>
-                    {q.stages.map((s, i) => (
-                      <button
-                        key={s.id}
-                        className={`list-item ${selected === s.id ? 'active' : ''}`}
-                        onClick={() => select(s.id)}
-                      >
-                        <strong>
-                          {i + 1}. {s.name}
-                        </strong>
-                        <small>
-                          {construction(project, s.id) ? 'Construction draft · ' : ''}
-                          {s.required ? 'Required' : 'Optional'}
-                          {s.prerequisites.length
-                            ? ` · After ${s.prerequisites.map((id) => q.stages.find((v) => v.id === id)?.name ?? 'Missing stage').join(', ')}`
-                            : ' · No prerequisites'}
-                        </small>
-                      </button>
-                    ))}
-                    {hookKeys.map((key) => (
-                      <button
-                        key={key}
-                        aria-current={selected === q[key].id ? 'page' : undefined}
-                        onClick={() => select(q[key].id)}
-                      >
-                        {hookNames[key]} · Effects
-                      </button>
-                    ))}
-                    <p className="muted">
-                      Rewards belong in On completed. Each status transition and stage is recorded
-                      once.
-                    </p>
+                    {node && (
+                      <>
+                        <button
+                          aria-current={selected === node.id ? 'page' : undefined}
+                          onClick={() => select(node.id)}
+                        >
+                          {node.name} · On entered
+                        </button>
+                        {node.terminal ? (
+                          <p className="muted">■ Ends after dialogue</p>
+                        ) : (
+                          <>
+                            {node.replies.map((r, i) => (
+                              <button
+                                key={r.id}
+                                className={`list-item ${selected === r.id ? 'active' : ''}`}
+                                aria-current={selected === r.id ? 'page' : undefined}
+                                onClick={() => select(r.id)}
+                              >
+                                <strong>
+                                  {i + 1}. {r.text || 'New reply'}
+                                </strong>
+                                <small>
+                                  {construction(project, r.id) ? 'Construction draft · ' : ''}
+                                  {r.destination
+                                    ? (c.nodes.find((n) => n.id === r.destination)?.name ??
+                                      'Missing destination')
+                                    : 'End conversation'}
+                                  {r.condition.type !== 'true' ? ' · Conditional' : ''}
+                                </small>
+                              </button>
+                            ))}
+                          </>
+                        )}
+                      </>
+                    )}
                   </>
-                )
-              )}
-            </nav>
-            <section className="narrative-logic" aria-label="Narrative logic">
-              {effectRoot ? (
-                <Blocks
-                  key={selected}
-                  ref={blocksRef}
-                  project={project}
-                  flowId={selected}
-                  effects={effectRoot.effects}
-                  title={
-                    item?.kind === 'reply'
-                      ? 'WHEN THIS REPLY IS CHOSEN'
-                      : item?.kind === 'dialogue'
-                        ? 'WHEN THIS DIALOGUE IS ENTERED'
-                        : item?.kind === 'quest_stage'
-                          ? 'WHEN THIS STAGE IS RECORDED'
-                          : item?.kind === 'narrative_hook'
-                            ? hookNames[item.hook].toUpperCase()
-                            : ''
-                  }
-                  saved={project.editor.blocks[selected]}
-                  selectedId={selectedBlock}
-                  onSelect={onBlockSelect}
-                  view={blockViews.current[selected]}
-                  onViewChange={(v) => {
-                    blockViews.current[selected] = v;
-                  }}
-                  history={history}
-                  onError={error}
-                  onChange={(effects, workspace, conditions, context) =>
-                    edit((p) => {
-                      const value = narrativeItem(p, selected)?.value;
-                      if (!value || !('effects' in value)) return;
-                      value.effects = effects;
-                      if ('condition' in value && conditions.condition)
-                        value.condition = conditions.condition;
-                      p.editor.blocks[selected] = workspace as (typeof p.editor.blocks)[string];
-                    }, context)
-                  }
-                />
-              ) : (
-                <div className="canvas-empty">
-                  {c
-                    ? 'Select a dialogue or reply to build its conditions and effects. Start & return settings are in the inspector.'
-                    : 'Select a stage or status hook to build its conditions and effects. Quest journal settings are in the inspector.'}
-                </div>
-              )}
-            </section>
-          </div>
+                ) : (
+                  q && (
+                    <>
+                      {q.stages.map((s, i) => (
+                        <button
+                          key={s.id}
+                          className={`list-item ${selected === s.id ? 'active' : ''}`}
+                          onClick={() => select(s.id)}
+                        >
+                          <strong>
+                            {i + 1}. {s.name}
+                          </strong>
+                          <small>
+                            {construction(project, s.id) ? 'Construction draft · ' : ''}
+                            {s.required ? 'Required' : 'Optional'}
+                            {s.prerequisites.length
+                              ? ` · After ${s.prerequisites.map((id) => q.stages.find((v) => v.id === id)?.name ?? 'Missing stage').join(', ')}`
+                              : ' · No prerequisites'}
+                          </small>
+                        </button>
+                      ))}
+                      {hookKeys.map((key) => (
+                        <button
+                          key={key}
+                          aria-current={selected === q[key].id ? 'page' : undefined}
+                          onClick={() => select(q[key].id)}
+                        >
+                          {hookNames[key]} · Effects
+                        </button>
+                      ))}
+                      <p className="muted">
+                        Rewards belong in On completed. Each status transition and stage is recorded
+                        once.
+                      </p>
+                    </>
+                  )
+                )}
+              </nav>
+              <section className="narrative-logic" aria-label="Narrative logic">
+                {effectRoot ? (
+                  <Blocks
+                    key={selected}
+                    ref={blocksRef}
+                    project={project}
+                    flowId={selected}
+                    effects={effectRoot.effects}
+                    title={
+                      item?.kind === 'reply'
+                        ? 'WHEN THIS REPLY IS CHOSEN'
+                        : item?.kind === 'dialogue'
+                          ? 'WHEN THIS DIALOGUE IS ENTERED'
+                          : item?.kind === 'quest_stage'
+                            ? 'WHEN THIS STAGE IS RECORDED'
+                            : item?.kind === 'narrative_hook'
+                              ? hookNames[item.hook].toUpperCase()
+                              : ''
+                    }
+                    saved={project.editor.blocks[selected]}
+                    selectedId={selectedBlock}
+                    onSelect={onBlockSelect}
+                    view={blockViews.current[selected]}
+                    onViewChange={(v) => {
+                      blockViews.current[selected] = v;
+                    }}
+                    history={history}
+                    onError={error}
+                    onChange={(effects, workspace, conditions, context) =>
+                      edit((p) => {
+                        const value = narrativeItem(p, selected)?.value;
+                        if (!value || !('effects' in value)) return;
+                        value.effects = effects;
+                        if ('condition' in value && conditions.condition)
+                          value.condition = conditions.condition;
+                        p.editor.blocks[selected] = workspace as (typeof p.editor.blocks)[string];
+                      }, context)
+                    }
+                  />
+                ) : (
+                  <div className="canvas-empty">
+                    {c
+                      ? 'Select a dialogue or reply to build its conditions and effects. Start & return settings are in the inspector.'
+                      : 'Select a stage or status hook to build its conditions and effects. Quest journal settings are in the inspector.'}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
         </>
       )}
       {upgrade && (
@@ -967,7 +1027,11 @@ export function NarrativeInspector({
         <button onClick={() => setShowUses(!showUses)}>Used by ({uses.length})</button>
         {item.kind !== 'narrative_hook' && (
           <ReferenceButton target={target} action="delete">
-            {draft ? 'Discard draft safely…' : 'Delete safely…'}
+            {uses.length
+              ? 'Review deletion…'
+              : draft
+                ? 'Discard draft'
+                : `Delete ${item.kind === 'quest_stage' ? 'stage' : item.kind}`}
           </ReferenceButton>
         )}
         {['conversation', 'quest'].includes(item.kind) && !draft && (

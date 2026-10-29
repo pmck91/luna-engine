@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -63,7 +64,7 @@ test('ordinary authoring preserves content five and unused canonical narrative c
     .getByRole('button', { name: 'Procedures', exact: true })
     .click();
   await page.getByRole('button', { name: 'Add procedure', exact: true }).click();
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   await inspector.getByLabel('Procedure name', { exact: true }).fill('Additional procedure');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('Saved');
@@ -150,9 +151,7 @@ test('a pending playtest command does not steal focus from authoring controls', 
   );
   await expect(definition).toBeFocused();
   await definition.press('Enter');
-  await expect(
-    page
-      .getByRole('complementary', { name: 'Inspector', exact: true })
-      .getByLabel('Procedure name', { exact: true }),
-  ).toHaveValue('Award');
+  await expect(authoringForms(page).getByLabel('Procedure name', { exact: true })).toHaveValue(
+    'Award',
+  );
 });

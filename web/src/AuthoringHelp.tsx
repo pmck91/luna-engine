@@ -25,6 +25,10 @@ export default function AuthoringHelp({
           ['containers', 'Containers and surfaces'],
           ['procedures', 'Procedures'],
           ['routines', 'Character routines'],
+          ['conversations', 'Conversations'],
+          ['quests', 'Quests and journal'],
+          ['turns', 'Turns and timers'],
+          ['undo', 'Player undo'],
           ['test', 'Testing and sharing'],
           ['keyboard', 'Keyboard shortcuts'],
         ].map(([id, name]) => (
@@ -55,6 +59,81 @@ export default function AuthoringHelp({
           <p>
             For a complete example, create another project and choose The Locked Study. Existing
             projects are never replaced by opening this guide.
+          </p>
+        </section>
+      ) : topic === 'conversations' ? (
+        <section>
+          <h3>Build a conversation</h3>
+          <p>
+            Choose Game data → Conversations, then Add conversation. Write dialogue and prewritten
+            replies. Graph shows destinations and terminal dialogue; select a dialogue or reply and
+            choose Logic for its conditions and effects.
+          </p>
+          <p>
+            Start &amp; return chooses the first dialogue and a different acknowledgement for later
+            visits. A terminal dialogue ends the conversation after its text and effects. Finish
+            construction drafts before playtesting. Players choose the offered replies; unoffered
+            topics cannot skip ahead.
+          </p>
+          <p>
+            START CONVERSATION begins the selected conversation. Reply requirements control when a
+            choice is available. Visit/chosen conditions remember progress. Playtest the first
+            visit, each branch and a return visit.
+          </p>
+        </section>
+      ) : topic === 'quests' ? (
+        <section>
+          <h3>Record progress in the journal</h3>
+          <p>
+            Open Game data → Quests. Add the quest’s introduction and completion journal lines, then
+            stages with earned journal lines and prerequisites. Finish drafts before playtesting.
+          </p>
+          <p>
+            START QUEST reveals the quest; COMPLETE QUEST STAGE records progress. COMPLETE QUEST
+            resolves it after required stages. Use status hooks such as On completed for once-only
+            rewards. Conditions can check quest status and completed stages.
+          </p>
+          <p>
+            Use Playtest → Quest log to check what the player has learned. Changing an authored line
+            does not rewrite journal entries already earned in a running game; restart or restore an
+            appropriate setup.
+          </p>
+        </section>
+      ) : topic === 'turns' ? (
+        <section>
+          <h3>Charge turns and schedule events</h3>
+          <p>
+            Enable turns in Game settings, reviewing any reserved-command conflicts. Set a default
+            cost and override individual actions where needed. Free commands do not advance timers
+            or routines.
+          </p>
+          <p>
+            Open Game data → Triggers → Scheduled timers, then Add timer. Build its guard and
+            effects and finish the draft. SCHEDULE TIMER starts its delay; CANCEL TIMER stops it.
+            TIMER PENDING tests whether it is waiting. Choose the retrigger policy deliberately.
+          </p>
+          <p>
+            Playtest → Turns &amp; timers shows the native clock and pending events. Test the turn
+            before a timer is due, its due turn, a false guard and a repeated schedule. Captured
+            setups preserve the clock and remaining delays.
+          </p>
+        </section>
+      ) : topic === 'undo' ? (
+        <section>
+          <h3>Offer player undo</h3>
+          <p>
+            In Game settings → Player assistance, enable Allow player undo. Review the content
+            upgrade and any reserved undo commands, then restart playtest. The player can choose
+            Undo last action or type undo in the runner, including after an ending.
+          </p>
+          <p>
+            Undo restores a complete game change and appends a transcript divider. Saving preserves
+            history; loading, restarting or applying debug state clears it. New hints remain known
+            and clear earlier history.
+          </p>
+          <p>
+            Project Undo in the header restores authoring changes separately. Inside a text field
+            Ctrl/Cmd Z keeps its normal text-editing meaning.
           </p>
         </section>
       ) : topic === 'routines' ? (
@@ -101,9 +180,11 @@ export default function AuthoringHelp({
             requires every child, ANY requires one, and NOT reverses a test.
           </p>
           <p>
-            Use Add block to choose a compatible connection and preview the insertion. Use Flow
-            outline to select, insert, or reorder effects with buttons. A replaced input is saved as
-            a disconnected draft. Drafts do not run and do not enter an exported game.
+            Use Graph / Logic in conversations to give either view the full editing area. Focus
+            workspace temporarily tucks away playtest without restarting it. Use Add block to choose
+            a compatible connection and preview the insertion. Use Flow outline to select, insert,
+            or reorder effects with buttons. A replaced input is saved as a disconnected draft.
+            Drafts do not run and do not enter an exported game.
           </p>
           <p>
             Messages accept colour controls and live placeholders such as %chances% or

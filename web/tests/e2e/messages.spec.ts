@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
 import { openEditor, selectBlock } from '../editor';
 import { join } from 'node:path';
@@ -14,7 +15,7 @@ test('new entities print live descriptions with variable and property messages',
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Folder name').fill(folder);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
   await hierarchy.getByRole('button', { name: /Variables/ }).click();
   await inspector.getByLabel('New variable or property name').fill('chances');

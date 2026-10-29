@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Locator } from '@playwright/test';
 import { openEditor, openNewAction, flowSettings } from '../editor';
 import { join, resolve } from 'node:path';
@@ -17,7 +18,7 @@ test('central triggers author command, lifecycle, and value rules with exported 
   await page.getByLabel('Folder name').fill(folder);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const triggersMenu = hierarchy.getByRole('button', { name: 'Triggers', exact: true });
   async function addHealth(value: string) {
     await inspector.getByLabel('New variable or property name').fill('health');

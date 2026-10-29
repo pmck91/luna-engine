@@ -1,3 +1,4 @@
+import { focusCreated } from './creationFocus';
 import TurnSettings, { ActionTurnSettings } from './TurnSettings';
 import type { Project, Action, Trigger, Exit, PatternPart, Effect, Event } from './contracts';
 import ContainerSettings, { ContainerUpgrade } from './ContainerSettings';
@@ -105,7 +106,7 @@ export default function Inspector({
         </p>
         {p.vocabulary.map((v, i) => (
           <FindingSubject.Provider value={v.id} key={v.id}>
-            <details key={v.id}>
+            <details key={v.id} data-edit-subject={v.id}>
               <summary>{v.canonical || 'New verb'}</summary>
               <Text
                 label="Canonical verb"
@@ -160,11 +161,17 @@ export default function Inspector({
           </FindingSubject.Provider>
         ))}
         <button
-          onClick={() =>
-            edit((n) => {
-              n.vocabulary.push({ id: id(), canonical: 'new verb', synonyms: [], event: null });
-            })
-          }
+          className="primary"
+          onClick={() => {
+            const key = id();
+            edit(
+              (n) => {
+                n.vocabulary.push({ id: key, canonical: 'new verb', synonyms: [], event: null });
+              },
+              { label: 'Add verb' },
+            );
+            focusCreated(key, 'Canonical verb');
+          }}
         >
           Add verb
         </button>
@@ -457,6 +464,7 @@ export default function Inspector({
               <summary>Custom state</summary>
               <Values
                 referenceOwner={o.id}
+                scopeLabel={`Properties on ${o.name}`}
                 values={o.state}
                 onChange={(state) => update({ state })}
               />

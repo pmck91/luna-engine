@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test } from '@playwright/test';
 import { chooseFlow, openEditor, selectBlock } from '../editor';
 import { join } from 'node:path';
@@ -10,7 +11,7 @@ test('breadcrumbs distinguish the Actions workspace from an explicitly selected 
   await page.getByLabel('Folder name').fill(`ux-breadcrumbs-${info.project.name}`);
   await page.getByLabel('Start with The Locked Study example').check();
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
   const breadcrumbs = page.getByRole('navigation', { name: 'Editor navigation' });
   const path = breadcrumbs.locator(
@@ -123,7 +124,7 @@ test('focused block inspection preserves occurrences, inline content and navigat
   await page.reload();
   await page.getByLabel('Open project', { exact: true }).selectOption(folder);
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   await hierarchy.getByRole('button', { name: /Starting location/ }).click();
   await inspector.getByRole('button', { name: /Examine room/ }).click();
   const canvas = page.getByLabel('Logic block workspace').locator('.blocklyBlockCanvas');
@@ -192,7 +193,7 @@ test('project undo orders form, block, map and deletion changes across saves', a
   await page.getByLabel('Folder name').fill(folder);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const undo = page.getByRole('button', { name: 'Undo project change', exact: true });
   const redo = page.getByRole('button', { name: 'Redo project change', exact: true });
   await hierarchy.getByRole('button', { name: /Starting location/ }).click();
@@ -234,7 +235,6 @@ test('project undo orders form, block, map and deletion changes across saves', a
   await expect(playtest).not.toContainText('Edits need restart');
   expect(moved.x).toBeGreaterThan(before.x + 50);
   await hierarchy.getByRole('button', { name: /◇ Key/ }).click();
-  page.once('dialog', (dialog) => dialog.accept());
   await inspector.getByRole('button', { name: 'Delete selected entity', exact: true }).click();
   await expect(hierarchy.getByRole('button', { name: /◇ Key/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Save', exact: true }).click();

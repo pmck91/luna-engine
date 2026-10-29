@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import type {
   Action,
@@ -148,7 +149,7 @@ test('findings select the exact nested condition while invalid drafts remain sav
     draftId = 'fixture-draft';
     p.editor.blocks[rule.id] = savedWorkspace(rule, { type: 'carrying', object: 'draft-key' });
   });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
   await page.getByRole('button', { name: 'Actions', exact: true }).click();
@@ -278,7 +279,7 @@ test('reference previews rename all uses atomically and require compatible repla
     });
   });
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   await hierarchy.getByRole('button', { name: /◇ Keeper/ }).click();
   await inspector.getByText('Custom state', { exact: true }).click();
   await inspector.getByRole('button', { name: 'Rename health', exact: true }).click();
@@ -418,7 +419,7 @@ test('findings focus individual replies and hint clues, and hint draft repairs s
       },
     };
   });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const findings = page.getByRole('region', { name: 'Validation findings' });
   await page.getByRole('button', { name: /^Validate/ }).click();
   await findings.getByRole('button').filter({ hasText: 'missing_reply' }).click();
@@ -470,7 +471,7 @@ test('a delayed validation response cannot repaint findings from an older edit',
     p.game.title = 'Old validation';
     p.game.opening_text = '<red>Broken';
   });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   await expect.poll(() => page.evaluate(() => (window as any).heldValidation)).toBeGreaterThan(0);
   await inspector.getByLabel('Title', { exact: true }).fill('New validation');
   await inspector.getByLabel('Opening text', { exact: true }).fill('Fixed.');

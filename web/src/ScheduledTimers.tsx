@@ -1,3 +1,4 @@
+import { focusCreated } from './creationFocus';
 import { playContentKey } from './playtest';
 import { useState, type Ref } from 'react';
 import type { Project, ScheduledTrigger, Diagnostic } from './contracts';
@@ -20,6 +21,7 @@ import { bindTimer, duplicateTimer, moveTimer, promoteTimer } from './timerEditi
 import { TurnEnableReview } from './TurnSettings';
 import { ReferenceButton } from './ReferenceManager';
 import { allEffects } from './model';
+import LibraryWorkspace, { LibraryEmpty, useLibrarySearch } from './LibraryWorkspace';
 
 export function TimerCreation({
   project,
@@ -54,6 +56,7 @@ export function TimerCreation({
             { label: from ? 'Create and bind timer' : 'Create timer' },
           );
           created(definition.id);
+          focusCreated(definition.id, 'Timer name');
           close();
         }}
       >
@@ -102,25 +105,32 @@ export default function ScheduledTimers({
   blockViews: { current: Record<string, BlockView> };
   error: (message: string) => void;
 }) {
-  const [creating, setCreating] = useState(false),
-    [query, setQuery] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useLibrarySearch('timers');
+  const visible = authoringTimers(project).filter((t) =>
+    t.name.toLowerCase().includes(query.trim().toLowerCase()),
+  );
   return (
-    <section className="procedure-workspace timer-workspace" aria-label="Scheduled triggers editor">
-      <section className="procedure-library" aria-label="Scheduled timer library">
-        <div className="section-heading">
-          <h2>Scheduled</h2>
-          <button className="primary" onClick={() => setCreating(true)}>
-            Add timer
-          </button>
-        </div>
-        <p className="muted">
-          Named events that run after subsequent player turns. One countdown per timer.
-        </p>
-        <Text label="Search timers" value={query} onChange={setQuery} />
-        <div className="procedure-list">
-          {authoringTimers(project)
-            .filter((t) => t.name.toLowerCase().includes(query.toLowerCase()))
-            .map((t) => (
+    <LibraryWorkspace
+      kind="timers"
+      label="Scheduled timers"
+      className="timer-workspace"
+      selected={active?.name}
+      selectedId={active?.id}
+      library={
+        <>
+          <div className="section-heading">
+            <h2>Scheduled timers</h2>
+            <button className="primary" onClick={() => setCreating(true)}>
+              Add timer
+            </button>
+          </div>
+          <p className="muted">
+            Named events that run after subsequent player turns. One countdown per timer.
+          </p>
+          <Text label="Search timers" value={query} onChange={setQuery} />
+          <div className="procedure-list">
+            {visible.map((t) => (
               <button
                 key={t.id}
                 className={`list-item ${active?.id === t.id ? 'active' : ''}`}
@@ -135,8 +145,13 @@ export default function ScheduledTimers({
                 </small>
               </button>
             ))}
-        </div>
-      </section>
+          </div>
+          {!visible.length && (
+            <LibraryEmpty kind="timers" query={query} clear={() => setQuery('')} />
+          )}
+        </>
+      }
+    >
       <section className="action-editor" aria-label="Timer logic">
         {active ? (
           <div className="action-blocks">
@@ -176,10 +191,13 @@ export default function ScheduledTimers({
           project={project}
           edit={edit}
           close={() => setCreating(false)}
-          created={select}
+          created={(id) => {
+            setQuery('');
+            select(id);
+          }}
         />
       )}
-    </section>
+    </LibraryWorkspace>
   );
 }
 export function TimerInspector({

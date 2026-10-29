@@ -1,0 +1,3160 @@
+{
+  "date": "2026-10-28",
+  "baseline": "8ea59d0",
+  "branch": "main",
+  "method": "Agent-led heuristic review with live browser observations on temporary project copies; not a human usability or screen-reader study.",
+  "survey": {
+    "browser": "chromium",
+    "application_errors": [],
+    "states": [
+      {
+        "name": "01-welcome",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": null,
+        "panels": [],
+        "saveStatus": {
+          "text": "",
+          "visible": true
+        }
+      },
+      {
+        "name": "02-world",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Triggers›Scheduled›Lab bell",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 206,
+            "w": 960,
+            "h": 530,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "procedure-workspace timer-workspace",
+            "x": 226,
+            "y": 206,
+            "w": 960,
+            "h": 530,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 206,
+            "w": 240,
+            "h": 530,
+            "scrollWidth": 239,
+            "clientWidth": 239,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "action-blocks",
+            "x": 466,
+            "y": 206,
+            "w": 720,
+            "h": 530,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "flow-surface",
+            "x": 466,
+            "y": 206,
+            "w": 720,
+            "h": 530,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "03-actions",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Workshop›lever›Actions",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "action-blocks",
+            "x": 226,
+            "y": 264,
+            "w": 960,
+            "h": 472,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 472,
+            "clientHeight": 472
+          },
+          {
+            "class": "flow-surface",
+            "x": 226,
+            "y": 264,
+            "w": 960,
+            "h": 472,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 472,
+            "clientHeight": 472
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 1367,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "04-hints",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Workshop›lever›Hints",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "hint-content",
+            "x": 226,
+            "y": 294.59375,
+            "w": 960,
+            "h": 441.40625,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 441,
+            "clientHeight": 441
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "05-variables-library",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›World map",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 1122,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "05-command-vocabulary-library",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›World map",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 944,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "05-endings-library",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›World map",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "05-procedures-library",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Procedures",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "procedure-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 240,
+            "h": 577,
+            "scrollWidth": 239,
+            "clientWidth": 239,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Saved",
+          "visible": true
+        }
+      },
+      {
+        "name": "06-procedures-selected",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Procedures›Whole lab change",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "procedure-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 240,
+            "h": 577,
+            "scrollWidth": 239,
+            "clientWidth": 239,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "action-blocks",
+            "x": 466,
+            "y": 159,
+            "w": 720,
+            "h": 577,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "flow-surface",
+            "x": 466,
+            "y": 159,
+            "w": 720,
+            "h": 577,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "05-routines-library",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Routines",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "procedure-workspace routine-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 240,
+            "h": 577,
+            "scrollWidth": 239,
+            "clientWidth": 239,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "06-routines-selected",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Keeper›Routines›Keeper lab demonstration",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "procedure-workspace routine-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 240,
+            "h": 577,
+            "scrollWidth": 239,
+            "clientWidth": 239,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "action-blocks",
+            "x": 466,
+            "y": 159,
+            "w": 720,
+            "h": 577,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "flow-surface",
+            "x": 466,
+            "y": 159,
+            "w": 720,
+            "h": 577,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "05-conversations-library",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Conversations",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "narrative-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "06-conversations-selected",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Conversations›A reversible reply",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "narrative-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 970,
+            "clientHeight": 577
+          },
+          {
+            "class": "narrative-detail",
+            "x": 226,
+            "y": 659,
+            "w": 960,
+            "h": 470,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 470,
+            "clientHeight": 470
+          },
+          {
+            "class": "narrative-logic",
+            "x": 466,
+            "y": 659,
+            "w": 720,
+            "h": 470,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 470,
+            "clientHeight": 470
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 1288,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "05-quests-library",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Quests",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "narrative-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "06-quests-selected",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Quests›Restore the whole change",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "narrative-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "narrative-detail",
+            "x": 226,
+            "y": 219,
+            "w": 960,
+            "h": 470,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 470,
+            "clientHeight": 470
+          },
+          {
+            "class": "narrative-logic",
+            "x": 466,
+            "y": 219,
+            "w": 720,
+            "h": 470,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 470,
+            "clientHeight": 470
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 1092,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Saved",
+          "visible": true
+        }
+      },
+      {
+        "name": "05-triggers-library",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Triggers",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 206,
+            "w": 960,
+            "h": 530,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "action-blocks",
+            "x": 226,
+            "y": 322,
+            "w": 960,
+            "h": 414,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 414,
+            "clientHeight": 414
+          },
+          {
+            "class": "flow-surface",
+            "x": 226,
+            "y": 322,
+            "w": 960,
+            "h": 414,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 414,
+            "clientHeight": 414
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "07-timer",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›Triggers›Scheduled›Lab bell",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 206,
+            "w": 960,
+            "h": 530,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "procedure-workspace timer-workspace",
+            "x": 226,
+            "y": 206,
+            "w": 960,
+            "h": 530,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 206,
+            "w": 240,
+            "h": 530,
+            "scrollWidth": 239,
+            "clientWidth": 239,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "action-blocks",
+            "x": 466,
+            "y": 206,
+            "w": 720,
+            "h": 530,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "flow-surface",
+            "x": 466,
+            "y": 206,
+            "w": 720,
+            "h": 530,
+            "scrollWidth": 720,
+            "clientWidth": 720,
+            "scrollHeight": 530,
+            "clientHeight": 530
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 874,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "08-settings",
+        "viewport": {
+          "w": 1512,
+          "h": 982,
+          "documentWidth": 1512
+        },
+        "breadcrumb": "←→The Undo Workshop›World map",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 914,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 960,
+            "h": 668,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 668,
+            "clientHeight": 668
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 960,
+            "h": 577,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 577,
+            "clientHeight": 577
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 742,
+            "w": 960,
+            "h": 240,
+            "scrollWidth": 960,
+            "clientWidth": 960,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 1192,
+            "y": 68,
+            "w": 320,
+            "h": 914,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 914,
+            "clientHeight": 914
+          },
+          {
+            "class": "inspector",
+            "x": 1193,
+            "y": 108,
+            "w": 319,
+            "h": 874,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 3517,
+            "clientHeight": 874
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "09-routines-1100",
+        "viewport": {
+          "w": 1100,
+          "h": 800,
+          "documentWidth": 1100
+        },
+        "breadcrumb": "←→The Undo Workshop›Keeper›Routines›Keeper lab demonstration",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 838,
+            "h": 732,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 838,
+            "h": 486,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 486,
+            "clientHeight": 486
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 395,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 395,
+            "clientHeight": 395
+          },
+          {
+            "class": "procedure-workspace routine-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 395,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 395,
+            "clientHeight": 395
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 190,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 293,
+            "clientHeight": 189
+          },
+          {
+            "class": "action-blocks",
+            "x": 226,
+            "y": 349,
+            "w": 838,
+            "h": 205,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 205,
+            "clientHeight": 205
+          },
+          {
+            "class": "flow-surface",
+            "x": 226,
+            "y": 349,
+            "w": 838,
+            "h": 205,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 205,
+            "clientHeight": 205
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 560,
+            "w": 838,
+            "h": 240,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 780,
+            "y": 68,
+            "w": 320,
+            "h": 486,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 486,
+            "clientHeight": 486
+          },
+          {
+            "class": "inspector",
+            "x": 781,
+            "y": 108,
+            "w": 319,
+            "h": 446,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 762,
+            "clientHeight": 446
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": true
+        }
+      },
+      {
+        "name": "10-routines-playing-1100",
+        "viewport": {
+          "w": 1100,
+          "h": 800,
+          "documentWidth": 1100
+        },
+        "breadcrumb": "←→The Undo Workshop›Keeper›Routines›Keeper lab demonstration",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 838,
+            "h": 732,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 838,
+            "h": 386,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 386,
+            "clientHeight": 386
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 295,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "procedure-workspace routine-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 295,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 190,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 293,
+            "clientHeight": 189
+          },
+          {
+            "class": "action-blocks",
+            "x": 226,
+            "y": 349,
+            "w": 838,
+            "h": 105,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 105,
+            "clientHeight": 105
+          },
+          {
+            "class": "flow-surface",
+            "x": 226,
+            "y": 349,
+            "w": 838,
+            "h": 105,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 105,
+            "clientHeight": 105
+          },
+          {
+            "class": "playtest   has-player-undo",
+            "x": 226,
+            "y": 460,
+            "w": 838,
+            "h": 340,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 339,
+            "clientHeight": 339
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 780,
+            "y": 68,
+            "w": 320,
+            "h": 486,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 486,
+            "clientHeight": 486
+          },
+          {
+            "class": "inspector",
+            "x": 781,
+            "y": 108,
+            "w": 319,
+            "h": 446,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 762,
+            "clientHeight": 446
+          }
+        ],
+        "saveStatus": {
+          "text": "Saved",
+          "visible": true
+        }
+      },
+      {
+        "name": "11-routines-inspector-collapsed-1100",
+        "viewport": {
+          "w": 1100,
+          "h": 800,
+          "documentWidth": 1100
+        },
+        "breadcrumb": "←→The Undo Workshop›Keeper›Routines›Keeper lab demonstration",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 838,
+            "h": 732,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 838,
+            "h": 386,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 386,
+            "clientHeight": 386
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 295,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "procedure-workspace routine-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 295,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 190,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 293,
+            "clientHeight": 189
+          },
+          {
+            "class": "action-blocks",
+            "x": 226,
+            "y": 349,
+            "w": 838,
+            "h": 105,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 105,
+            "clientHeight": 105
+          },
+          {
+            "class": "flow-surface",
+            "x": 226,
+            "y": 349,
+            "w": 838,
+            "h": 105,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 105,
+            "clientHeight": 105
+          },
+          {
+            "class": "playtest   has-player-undo",
+            "x": 226,
+            "y": 460,
+            "w": 838,
+            "h": 340,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 339,
+            "clientHeight": 339
+          },
+          {
+            "class": "inspector-panel is-collapsed",
+            "x": 1064,
+            "y": 68,
+            "w": 36,
+            "h": 732,
+            "scrollWidth": 35,
+            "clientWidth": 35,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          }
+        ],
+        "saveStatus": {
+          "text": "Saved",
+          "visible": true
+        }
+      },
+      {
+        "name": "12-conversation-1100",
+        "viewport": {
+          "w": 1100,
+          "h": 800,
+          "documentWidth": 1100
+        },
+        "breadcrumb": "←→The Undo Workshop›Conversations›A reversible reply",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 838,
+            "h": 732,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 838,
+            "h": 386,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 386,
+            "clientHeight": 386
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 295,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "narrative-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 838,
+            "h": 295,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 970,
+            "clientHeight": 295
+          },
+          {
+            "class": "narrative-detail",
+            "x": 226,
+            "y": 659,
+            "w": 838,
+            "h": 470,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 470,
+            "clientHeight": 470
+          },
+          {
+            "class": "narrative-logic",
+            "x": 466,
+            "y": 659,
+            "w": 598,
+            "h": 470,
+            "scrollWidth": 598,
+            "clientWidth": 598,
+            "scrollHeight": 470,
+            "clientHeight": 470
+          },
+          {
+            "class": "playtest   has-player-undo",
+            "x": 226,
+            "y": 460,
+            "w": 838,
+            "h": 340,
+            "scrollWidth": 838,
+            "clientWidth": 838,
+            "scrollHeight": 339,
+            "clientHeight": 339
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 780,
+            "y": 68,
+            "w": 320,
+            "h": 486,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 486,
+            "clientHeight": 486
+          },
+          {
+            "class": "inspector",
+            "x": 781,
+            "y": 108,
+            "w": 319,
+            "h": 446,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 1274,
+            "clientHeight": 446
+          }
+        ],
+        "saveStatus": {
+          "text": "Saved",
+          "visible": true
+        }
+      },
+      {
+        "name": "09-routines-900",
+        "viewport": {
+          "w": 900,
+          "h": 800,
+          "documentWidth": 900
+        },
+        "breadcrumb": "←→The Undo Workshop›Keeper›Routines›Keeper lab demonstration",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 638,
+            "h": 732,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 638,
+            "h": 486,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 486,
+            "clientHeight": 486
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 395,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 395,
+            "clientHeight": 395
+          },
+          {
+            "class": "procedure-workspace routine-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 395,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 395,
+            "clientHeight": 395
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 190,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 293,
+            "clientHeight": 189
+          },
+          {
+            "class": "action-blocks",
+            "x": 226,
+            "y": 349,
+            "w": 638,
+            "h": 205,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 205,
+            "clientHeight": 205
+          },
+          {
+            "class": "flow-surface",
+            "x": 226,
+            "y": 349,
+            "w": 638,
+            "h": 205,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 205,
+            "clientHeight": 205
+          },
+          {
+            "class": "playtest   ",
+            "x": 226,
+            "y": 560,
+            "w": 638,
+            "h": 240,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 239,
+            "clientHeight": 239
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 580,
+            "y": 68,
+            "w": 320,
+            "h": 486,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 486,
+            "clientHeight": 486
+          },
+          {
+            "class": "inspector",
+            "x": 581,
+            "y": 108,
+            "w": 319,
+            "h": 446,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 762,
+            "clientHeight": 446
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": false
+        }
+      },
+      {
+        "name": "10-routines-playing-900",
+        "viewport": {
+          "w": 900,
+          "h": 800,
+          "documentWidth": 900
+        },
+        "breadcrumb": "←→The Undo Workshop›Keeper›Routines›Keeper lab demonstration",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 638,
+            "h": 732,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 638,
+            "h": 386,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 386,
+            "clientHeight": 386
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 295,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "procedure-workspace routine-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 295,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 190,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 293,
+            "clientHeight": 189
+          },
+          {
+            "class": "action-blocks",
+            "x": 226,
+            "y": 349,
+            "w": 638,
+            "h": 105,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 105,
+            "clientHeight": 105
+          },
+          {
+            "class": "flow-surface",
+            "x": 226,
+            "y": 349,
+            "w": 638,
+            "h": 105,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 105,
+            "clientHeight": 105
+          },
+          {
+            "class": "playtest   has-player-undo",
+            "x": 226,
+            "y": 460,
+            "w": 638,
+            "h": 340,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 339,
+            "clientHeight": 339
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 580,
+            "y": 68,
+            "w": 320,
+            "h": 486,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 486,
+            "clientHeight": 486
+          },
+          {
+            "class": "inspector",
+            "x": 581,
+            "y": 108,
+            "w": 319,
+            "h": 446,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 762,
+            "clientHeight": 446
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": false
+        }
+      },
+      {
+        "name": "11-routines-inspector-collapsed-900",
+        "viewport": {
+          "w": 900,
+          "h": 800,
+          "documentWidth": 900
+        },
+        "breadcrumb": "←→The Undo Workshop›Keeper›Routines›Keeper lab demonstration",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 638,
+            "h": 732,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 638,
+            "h": 386,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 386,
+            "clientHeight": 386
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 295,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "procedure-workspace routine-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 295,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "procedure-library",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 190,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 293,
+            "clientHeight": 189
+          },
+          {
+            "class": "action-blocks",
+            "x": 226,
+            "y": 349,
+            "w": 638,
+            "h": 105,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 105,
+            "clientHeight": 105
+          },
+          {
+            "class": "flow-surface",
+            "x": 226,
+            "y": 349,
+            "w": 638,
+            "h": 105,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 105,
+            "clientHeight": 105
+          },
+          {
+            "class": "playtest   has-player-undo",
+            "x": 226,
+            "y": 460,
+            "w": 638,
+            "h": 340,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 339,
+            "clientHeight": 339
+          },
+          {
+            "class": "inspector-panel is-collapsed",
+            "x": 864,
+            "y": 68,
+            "w": 36,
+            "h": 732,
+            "scrollWidth": 35,
+            "clientWidth": 35,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": false
+        }
+      },
+      {
+        "name": "12-conversation-900",
+        "viewport": {
+          "w": 900,
+          "h": 800,
+          "documentWidth": 900
+        },
+        "breadcrumb": "←→The Undo Workshop›Conversations›A reversible reply",
+        "panels": [
+          {
+            "class": "center",
+            "x": 226,
+            "y": 68,
+            "w": 638,
+            "h": 732,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 732,
+            "clientHeight": 732
+          },
+          {
+            "class": "canvas-section",
+            "x": 226,
+            "y": 68,
+            "w": 638,
+            "h": 386,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 386,
+            "clientHeight": 386
+          },
+          {
+            "class": "canvas",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 295,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 295,
+            "clientHeight": 295
+          },
+          {
+            "class": "narrative-workspace",
+            "x": 226,
+            "y": 159,
+            "w": 638,
+            "h": 295,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 1082,
+            "clientHeight": 295
+          },
+          {
+            "class": "narrative-detail",
+            "x": 226,
+            "y": 659,
+            "w": 638,
+            "h": 582,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 582,
+            "clientHeight": 582
+          },
+          {
+            "class": "narrative-logic",
+            "x": 226,
+            "y": 771,
+            "w": 638,
+            "h": 470,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 470,
+            "clientHeight": 470
+          },
+          {
+            "class": "playtest   has-player-undo",
+            "x": 226,
+            "y": 460,
+            "w": 638,
+            "h": 340,
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 339,
+            "clientHeight": 339
+          },
+          {
+            "class": "inspector-panel ",
+            "x": 580,
+            "y": 68,
+            "w": 320,
+            "h": 486,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 486,
+            "clientHeight": 486
+          },
+          {
+            "class": "inspector",
+            "x": 581,
+            "y": 108,
+            "w": 319,
+            "h": 446,
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 1274,
+            "clientHeight": 446
+          }
+        ],
+        "saveStatus": {
+          "text": "Unsaved changes",
+          "visible": false
+        }
+      }
+    ]
+  },
+  "targeted_observations": [
+    {
+      "name": "chromium",
+      "errors": [],
+      "checks": [
+        {
+          "what": "duplicate-global-value",
+          "input": "coins",
+          "alerts": [],
+          "addEnabled": true,
+          "breadcrumb": "←\n→\nThe Undo Workshop\n›\nWorld map"
+        },
+        {
+          "what": "new-global-value",
+          "type": "boolean",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Add",
+            "connected": true
+          }
+        },
+        {
+          "what": "duplicate-context-value",
+          "alerts": [
+            "This name already exists. Choose a different name."
+          ]
+        },
+        {
+          "what": "context-modal-cancel",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Create variable…",
+            "connected": true
+          },
+          "dialogCount": 0
+        },
+        {
+          "what": "active-workspace-semantics",
+          "snapshot": "- button \"World map\"\n- button \"Actions\"\n- button \"Hints\"",
+          "attributes": [
+            {
+              "text": "Actions",
+              "selected": null,
+              "pressed": null,
+              "current": null
+            }
+          ]
+        },
+        {
+          "what": "search-cancel-focus",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Search project",
+            "connected": true
+          }
+        },
+        {
+          "what": "search-query-preserved",
+          "query": "lever"
+        },
+        {
+          "what": "action-created",
+          "focus": {
+            "tag": "BODY",
+            "text": "Luna Engine/ The Undo WorkshopUnsaved changesSearch projectUndoRedoNewOpen…Packi",
+            "connected": true
+          },
+          "title": "examine lever"
+        },
+        {
+          "what": "action-next-tab",
+          "focus": {
+            "tag": "SELECT",
+            "text": "examinetakedropusegopullpushturnopenclosetalk",
+            "label": "Action verb",
+            "connected": true
+          }
+        },
+        {
+          "what": "procedure-created",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Add procedure",
+            "connected": true
+          },
+          "name": "New procedure",
+          "constructionNotice": 0
+        },
+        {
+          "what": "library-query-after-back",
+          "query": ""
+        },
+        {
+          "what": "routine-created",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Add routine",
+            "connected": true
+          },
+          "constructionNotice": 1,
+          "finishEnabled": false
+        },
+        {
+          "what": "delete-unused-entity",
+          "type": "confirm",
+          "message": "Delete this unused content? You can undo this change."
+        },
+        {
+          "what": "delete-cancel-preserved",
+          "name": "Audit unused object",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Delete selected entity",
+            "connected": true
+          }
+        },
+        {
+          "what": "save-as-dialog",
+          "type": "prompt",
+          "message": "New project folder name"
+        },
+        {
+          "what": "delete-unused-ending",
+          "groups": 1,
+          "dialogCount": 0,
+          "undoTitle": "Undo: Delete unused content (Ctrl/Cmd Z)"
+        },
+        {
+          "what": "delete-referenced-ending",
+          "inAppModal": "Delete content",
+          "text": "Delete content\nCancel\n\nWorkshop complete\n\n3 uses outside this content.\n\nRepair the listed uses before deleting this content.\n\nGame logic and placements\nfinish button › finish workshop › effects › 1 › ending\nSaved playtest setups\nSetup · Completed game › state › ending\nPlaytest check expectations\nCheck · Undo an ending › steps › 2 › completion › ending\n\nChoose a replacement before deleting referenced content.\n\nSaved setups capture this content. Re"
+        },
+        {
+          "what": "compact-layout",
+          "saveStatusVisible": false,
+          "bodyWidth": 900,
+          "viewportWidth": 900,
+          "panels": [
+            {
+              "class": "procedure-library",
+              "width": 638,
+              "height": 190
+            },
+            {
+              "class": "flow-surface",
+              "width": 638,
+              "height": 105
+            },
+            {
+              "class": "blocklySvg",
+              "width": 638,
+              "height": 31
+            },
+            {
+              "class": "playtest   has-player-undo",
+              "width": 638,
+              "height": 340
+            }
+          ]
+        },
+        {
+          "what": "compact-playtest-toggle-hit",
+          "reachable": false,
+          "coveredBy": "Inspector",
+          "inspectorBottom": 554,
+          "playtestTop": 460
+        },
+        {
+          "what": "compact-workaround",
+          "height": 31,
+          "width": 638
+        },
+        {
+          "what": "guide-topics",
+          "topics": [
+            "First adventure",
+            "Blocks and conditions",
+            "Containers and surfaces",
+            "Procedures",
+            "Character routines",
+            "Testing and sharing",
+            "Keyboard shortcuts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "firefox",
+      "errors": [],
+      "checks": [
+        {
+          "what": "duplicate-global-value",
+          "input": "coins",
+          "alerts": [],
+          "addEnabled": true,
+          "breadcrumb": "←\n→\nThe Undo Workshop\n›\nWorld map"
+        },
+        {
+          "what": "new-global-value",
+          "type": "boolean",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Add",
+            "connected": true
+          }
+        },
+        {
+          "what": "duplicate-context-value",
+          "alerts": [
+            "This name already exists. Choose a different name."
+          ]
+        },
+        {
+          "what": "context-modal-cancel",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Create variable…",
+            "connected": true
+          },
+          "dialogCount": 0
+        },
+        {
+          "what": "active-workspace-semantics",
+          "snapshot": "- button \"World map\"\n- button \"Actions\"\n- button \"Hints\"",
+          "attributes": [
+            {
+              "text": "Actions",
+              "selected": null,
+              "pressed": null,
+              "current": null
+            }
+          ]
+        },
+        {
+          "what": "search-cancel-focus",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Search project",
+            "connected": true
+          }
+        },
+        {
+          "what": "search-query-preserved",
+          "query": "lever"
+        },
+        {
+          "what": "action-created",
+          "focus": {
+            "tag": "BODY",
+            "text": "Luna Engine/ The Undo WorkshopUnsaved changesSearch projectUndoRedoNewOpen…Packi",
+            "connected": true
+          },
+          "title": "examine lever"
+        },
+        {
+          "what": "action-next-tab",
+          "focus": {
+            "tag": "SELECT",
+            "text": "examinetakedropusegopullpushturnopenclosetalk",
+            "label": "Action verb",
+            "connected": true
+          }
+        },
+        {
+          "what": "procedure-created",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Add procedure",
+            "connected": true
+          },
+          "name": "New procedure",
+          "constructionNotice": 0
+        },
+        {
+          "what": "library-query-after-back",
+          "query": ""
+        },
+        {
+          "what": "routine-created",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Add routine",
+            "connected": true
+          },
+          "constructionNotice": 1,
+          "finishEnabled": false
+        },
+        {
+          "what": "delete-unused-entity",
+          "type": "confirm",
+          "message": "Delete this unused content? You can undo this change."
+        },
+        {
+          "what": "delete-cancel-preserved",
+          "name": "Audit unused object",
+          "focus": {
+            "tag": "BUTTON",
+            "text": "Delete selected entity",
+            "connected": true
+          }
+        },
+        {
+          "what": "save-as-dialog",
+          "type": "prompt",
+          "message": "New project folder name"
+        },
+        {
+          "what": "delete-unused-ending",
+          "groups": 1,
+          "dialogCount": 0,
+          "undoTitle": "Undo: Delete unused content (Ctrl/Cmd Z)"
+        },
+        {
+          "what": "delete-referenced-ending",
+          "inAppModal": "Delete content",
+          "text": "Delete content\nCancel\n\nWorkshop complete\n\n3 uses outside this content.\n\nRepair the listed uses before deleting this content.\n\nGame logic and placements\nfinish button › finish workshop › effects › 1 › ending\nSaved playtest setups\nSetup · Completed game › state › ending\nPlaytest check expectations\nCheck · Undo an ending › steps › 2 › completion › ending\n\nChoose a replacement before deleting referenced content.\n\nSaved setups capture this content. Re"
+        },
+        {
+          "what": "compact-layout",
+          "saveStatusVisible": false,
+          "bodyWidth": 900,
+          "viewportWidth": 900,
+          "panels": [
+            {
+              "class": "procedure-library",
+              "width": 638,
+              "height": 190
+            },
+            {
+              "class": "flow-surface",
+              "width": 638,
+              "height": 106
+            },
+            {
+              "class": "blocklySvg",
+              "width": 638,
+              "height": 32
+            },
+            {
+              "class": "playtest   has-player-undo",
+              "width": 638,
+              "height": 340
+            }
+          ]
+        },
+        {
+          "what": "compact-playtest-toggle-hit",
+          "reachable": false,
+          "coveredBy": "Inspector",
+          "inspectorBottom": 554,
+          "playtestTop": 460
+        },
+        {
+          "what": "compact-workaround",
+          "height": 342,
+          "width": 638
+        },
+        {
+          "what": "guide-topics",
+          "topics": [
+            "First adventure",
+            "Blocks and conditions",
+            "Containers and surfaces",
+            "Procedures",
+            "Character routines",
+            "Testing and sharing",
+            "Keyboard shortcuts"
+          ]
+        }
+      ]
+    }
+  ],
+  "conversation_layout": [
+    {
+      "browser": "chromium",
+      "width": 900,
+      "reachable": false,
+      "coveredBy": "Inspector",
+      "inspectorBottom": 554,
+      "inspectorClass": "inspector-panel ",
+      "playtestTop": 480,
+      "playtestHeight": 320,
+      "playtestClass": "playtest  has-conversation "
+    },
+    {
+      "browser": "chromium",
+      "width": 1100,
+      "reachable": false,
+      "coveredBy": "Inspector",
+      "inspectorBottom": 554,
+      "inspectorClass": "inspector-panel ",
+      "playtestTop": 480,
+      "playtestHeight": 320,
+      "playtestClass": "playtest  has-conversation "
+    },
+    {
+      "browser": "firefox",
+      "width": 900,
+      "reachable": false,
+      "coveredBy": "Inspector",
+      "inspectorBottom": 554,
+      "inspectorClass": "inspector-panel ",
+      "playtestTop": 480,
+      "playtestHeight": 320,
+      "playtestClass": "playtest  has-conversation "
+    },
+    {
+      "browser": "firefox",
+      "width": 1100,
+      "reachable": false,
+      "coveredBy": "Inspector",
+      "inspectorBottom": 554,
+      "inspectorClass": "inspector-panel ",
+      "playtestTop": 480,
+      "playtestHeight": 320,
+      "playtestClass": "playtest  has-conversation "
+    }
+  ],
+  "regression_checks": {
+    "command": "LUNA_TEST_FIREFOX=1 playwright test ux-acceptance.spec.ts --grep \"author a complete|native dialogs\"",
+    "passed": 4,
+    "coverage": [
+      "Complete two-room authoring, save/reopen, export and installed runner continuation in Chromium and Firefox",
+      "Native dialog focus and sampled primary-control contrast in Chromium and Firefox"
+    ]
+  },
+  "captures": [
+    "consistency-2026-10-28-variables.png",
+    "consistency-2026-10-28-compact-routine.png",
+    "consistency-2026-10-28-compact-conversation.png",
+    "consistency-2026-10-28-value-validation.png"
+  ],
+  "scope_notes": [
+    "Observations include confirmed defects; these are not newly passing CI assertions.",
+    "No application code or original example content was changed.",
+    "Human screen-reader and first-time-author sessions remain pending.",
+    "Actual browser zoom was not rerun in this review."
+  ]
+}

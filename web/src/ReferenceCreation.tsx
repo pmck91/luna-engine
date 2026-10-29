@@ -1,8 +1,10 @@
+import ValueCreationFields from './ValueCreationFields';
+import { newValue, type ValueType } from './valueCreation';
 import { newTimer, appendTimer } from './turnModel';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Project, Value } from './contracts';
 import type { ProjectEdit } from './projectHistory';
-import { entity, id, valueFrom } from './model';
+import { entity, id } from './model';
 import { RichText } from './Forms';
 
 export type ReferenceSpec = {
@@ -104,8 +106,8 @@ function ReferenceDialog({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState('');
-  const [type, setType] = useState(request.numberOnly ? 'number' : 'boolean');
-  const [raw, setRaw] = useState(request.numberOnly ? '0' : '');
+  const [type, setType] = useState<ValueType>(request.numberOnly ? 'number' : 'boolean');
+  const [raw, setRaw] = useState(request.numberOnly ? '0' : 'false');
   const [text, setText] = useState('');
   const [synonyms, setSynonyms] = useState('');
   const [error, setError] = useState('');
@@ -137,6 +139,7 @@ function ReferenceDialog({
         Create and select it here, then continue editing. Cancel leaves your project unchanged.
       </p>
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
           try {
@@ -147,8 +150,7 @@ function ReferenceDialog({
               throw new Error('Select an existing entity for this property.');
             const existing =
               request.kind === 'variable' ? project.game.variables : (owner?.state ?? {});
-            if (isValue && Object.hasOwn(existing, key))
-              throw new Error('This name already exists. Choose a different name.');
+
             const words = synonyms
               .split(',')
               .map((word) => word.trim())
@@ -182,73 +184,43 @@ function ReferenceDialog({
               project.game.endings.some((ending) => ending.name.toLowerCase() === key.toLowerCase())
             )
               throw new Error('An ending with this name already exists.');
-            const schema = type === 'boolean' ? false : type === 'number' ? 0 : '';
-            if (isValue && type === 'number' && !raw.trim())
-              throw new Error('Enter an initial whole number.');
-            const initial = !isValue
-              ? false
-              : type === 'boolean'
-                ? raw === 'true'
-                : valueFrom(raw, schema);
+            const initial = isValue ? newValue(existing, name, type, raw).initial : false;
             create(key, initial, text, words);
           } catch (error) {
             setError(String(error).replace(/^Error: /, ''));
           }
         }}
       >
-        <label className="field">
-          Name
-          <input
-            autoFocus
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
+        {isValue ? (
+          <ValueCreationFields
+            name={name}
+            setName={(value) => {
+              setName(value);
               setError('');
             }}
+            type={type}
+            setType={setType}
+            raw={raw}
+            setRaw={setRaw}
+            numberOnly={request.numberOnly}
           />
-        </label>
+        ) : (
+          <label className="field">
+            Name
+            <input
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                setError('');
+              }}
+            />
+          </label>
+        )}
         {request.kind === 'verb' && (
           <label className="field">
             Synonyms (comma separated)
             <input value={synonyms} onChange={(event) => setSynonyms(event.target.value)} />
           </label>
-        )}
-        {isValue && (
-          <>
-            <label className="field">
-              Value type
-              <select
-                value={type}
-                disabled={request.numberOnly}
-                onChange={(event) => {
-                  setType(event.target.value);
-                  setRaw(event.target.value === 'number' ? '0' : '');
-                }}
-              >
-                <option value="boolean">Boolean</option>
-                <option value="number">Integer</option>
-                <option value="string">Text</option>
-              </select>
-            </label>
-            <label className="field">
-              Initial value
-              {type === 'boolean' ? (
-                <select value={raw || 'false'} onChange={(event) => setRaw(event.target.value)}>
-                  <option>false</option>
-                  <option>true</option>
-                </select>
-              ) : (
-                <input
-                  type={type === 'number' ? 'number' : 'text'}
-                  step={1}
-                  min={type === 'number' ? -2147483648 : undefined}
-                  max={type === 'number' ? 2147483647 : undefined}
-                  value={raw}
-                  onChange={(event) => setRaw(event.target.value)}
-                />
-              )}
-            </label>
-          </>
         )}
         {request.kind === 'ending' && (
           <RichText project={project} label="Ending text" value={text} onChange={setText} />

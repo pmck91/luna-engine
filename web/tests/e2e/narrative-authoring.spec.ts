@@ -11,6 +11,10 @@ const content = JSON.parse(
   ),
 ) as Project;
 async function insert(page: Page, name: string, point = /^Start of flow/) {
+  const logic = page
+    .getByRole('group', { name: 'Conversation view' })
+    .getByRole('button', { name: 'Logic', exact: true });
+  if (await logic.isVisible()) await logic.click();
   await page.getByRole('button', { name: 'Add block', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Add block', exact: true });
   const options = await dialog
@@ -446,7 +450,7 @@ test('draft destinations block play, promotion is undoable, copies retain drafts
   await page.getByRole('button', { name: 'Navigate forward', exact: true }).click();
   await expect(inspector.getByLabel('Dialogue name', { exact: true })).toHaveValue('Extra path');
   await page.getByRole('button', { name: 'Start & return', exact: true }).click();
-  await inspector.getByRole('button', { name: 'Delete safely…', exact: true }).click();
+  await inspector.getByRole('button', { name: 'Delete conversation', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Conversations', exact: true }).first(),
   ).toBeVisible();

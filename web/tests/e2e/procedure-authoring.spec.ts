@@ -305,7 +305,6 @@ test('review and repair signature drafts, preserve values through undo, and prot
   const copyFile = readdirSync(join(root, 'procedures')).find((file) => file !== 'award.json')!;
   const copy = JSON.parse(readFileSync(join(root, 'procedures', copyFile), 'utf8'));
   expect(copy.inputs[0].id).not.toBe('amount');
-  page.once('dialog', (dialog) => dialog.accept());
   await inspector.getByRole('button', { name: 'Delete procedure', exact: true }).click();
   await expect(page.getByRole('button', { name: /Award copy.*Used by/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Undo project change', exact: true }).click();
@@ -314,6 +313,8 @@ test('review and repair signature drafts, preserve values through undo, and prot
   const result = await command(page, 'use bell');
   expect(result.state.variables.score).toBe(7);
   await page.setViewportSize({ width: 900, height: 760 });
+  const browse = page.getByRole('button', { name: 'Browse procedures', exact: true });
+  if (await browse.isVisible()) await browse.click();
   await expect(page.getByRole('button', { name: 'Add procedure', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Award copy.*Used by/ }).focus();
   await page.keyboard.press('Enter');
@@ -323,6 +324,7 @@ test('review and repair signature drafts, preserve values through undo, and prot
   await page.getByRole('button', { name: 'Collapse playtest', exact: true }).click();
   await expect(inspector.getByLabel('Procedure name', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Collapse inspector', exact: true }).click();
+  if (await browse.isVisible()) await browse.click();
   await expect(page.getByRole('button', { name: 'Add procedure', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,

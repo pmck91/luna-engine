@@ -270,3 +270,49 @@
   font-size: 12px;
   padding: 6px 9px;
 }
+
+/* Graph and logic each receive the available canvas instead of stacking. */
+.narrative-workspace.is-open {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.narrative-workspace.is-open > .narrative-heading {
+  flex: 0 0 auto;
+}
+.narrative-workspace.is-open > .narrative-graph {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+.narrative-workspace.is-open > .narrative-detail {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.narrative-detail > .narrative-parts {
+  overflow: auto;
+}
+.narrative-detail > .narrative-logic {
+  min-height: 0;
+  overflow: hidden;
+}
+.narrative-detail > .narrative-logic > .flow-surface {
+  height: 100%;
+  min-height: 0;
+}
+@media (max-width: 900px) {
+  .narrative-workspace.is-open > .narrative-detail {
+    grid-template-rows: minmax(44px, 100px) minmax(0, 1fr);
+  }
+}
+
+.narrative-heading h2 {
+  flex: 1 1 200px;
+  min-width: min(180px, 100%);
+}
+.narrative-heading > .field {
+  flex: 1 1 160px;
+  max-width: 220px;
+  margin: 0;
+}

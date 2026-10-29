@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -8,8 +9,7 @@ import { newConversation, newReply } from '../../src/narrativeAuthoring';
 import { turnDefaults } from '../../src/turnModel';
 import { seedProject, selectBlock } from '../editor';
 
-const inspector = (page: Page) =>
-  page.getByRole('complementary', { name: 'Inspector', exact: true });
+const inspector = (page: Page) => authoringForms(page);
 const tree = (page: Page) => page.getByRole('navigation', { name: 'Project hierarchy' });
 async function settings(page: Page) {
   await tree(page).getByRole('button', { name: '⚙ Game settings', exact: true }).click();
@@ -18,7 +18,7 @@ async function scheduled(page: Page) {
   await tree(page).getByRole('button', { name: 'Triggers', exact: true }).click();
   await page
     .getByRole('group', { name: 'Trigger groups' })
-    .getByRole('button', { name: 'Scheduled', exact: true })
+    .getByRole('button', { name: 'Scheduled timers', exact: true })
     .click();
 }
 async function chooseAction(page: Page, key = 'arm') {
@@ -310,7 +310,6 @@ test('review exact WAIT upgrade collisions, repair hidden owners, undo policy an
     .getByRole('region', { name: 'Scheduled timer library' })
     .getByRole('button', { name: /Unfinished/ })
     .click();
-  page.once('dialog', (d) => d.accept());
   await inspector(page).getByRole('button', { name: 'Delete timer', exact: true }).click();
   await settings(page);
   await inspector(page).getByLabel('Enable turns', { exact: true }).click();
@@ -362,6 +361,10 @@ test('author independent success, blocked-action and reply turn overrides throug
   await tree(page).getByRole('button', { name: 'Conversations', exact: true }).click();
   await page.locator('.narrative-library-list').getByRole('button').first().click();
   await inspector(page).getByRole('button', { name: 'Open default dialogue', exact: true }).click();
+  await page
+    .getByRole('group', { name: 'Conversation view' })
+    .getByRole('button', { name: 'Logic', exact: true })
+    .click();
   await page
     .getByRole('button', { name: /1\. Yes\./ })
     .first()

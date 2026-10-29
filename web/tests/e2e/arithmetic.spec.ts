@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Locator } from '@playwright/test';
 import { openEditor, openNewAction } from '../editor';
 import { join } from 'node:path';
@@ -14,7 +15,7 @@ test('arithmetic blocks author live values and survive save, export, and reopen'
   await page.getByRole('button', { name: 'Create a project' }).click();
   await page.getByLabel('Folder name').fill(folder);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
   await hierarchy.getByRole('button', { name: /Variables/ }).click();
   async function addNumber(name: string, value: string) {

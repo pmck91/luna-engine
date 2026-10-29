@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -94,11 +95,7 @@ test('author parser messages, resolve questions and recent references, inspect e
   await page.getByRole('button', { name: 'Explain last command', exact: true }).click();
   await expect(explanation).toContainText('Resolved command: take Brass key');
   await explanation.getByRole('button', { name: 'Open Brass key', exact: true }).click();
-  await expect(
-    page
-      .getByRole('complementary', { name: 'Inspector', exact: true })
-      .getByLabel('Aliases (comma separated)'),
-  ).toBeFocused();
+  await expect(authoringForms(page).getByLabel('Aliases (comma separated)')).toBeFocused();
   view = await command(page, 'examine it');
   expect(JSON.stringify(view.result.messages)).toContain('Description of Brass key.');
   await command(page, 'take key');
@@ -207,7 +204,7 @@ test('review legacy upgrades and cancel collisions, preserve independent switche
     settings.getByLabel('Ask which entity when a command is ambiguous'),
   ).not.toBeChecked();
   await page.setViewportSize({ width: 900, height: 900 });
-  await page.getByRole('button', { name: 'Collapse inspector', exact: true }).click();
+  await expect(page.getByRole('complementary', { name: 'Inspector', exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(900);
   view = await command(page, 'examine it');
   expect(view.result.status).toBe('ok');

@@ -79,7 +79,7 @@ Follow the [gameplay feature roadmap](gameplay-feature-roadmap.md). Preserve the
 - [x] F6 / U4 example and measurements: Add the separate [Undo Workshop](../../examples/undo-workshop/ACCEPTANCE.md), checked content-8 export, eight setup-5 checkpoints and three saved checks. Retain 132 fresh populated-world observations and disclose the existing detailed-explanation limit in the [U4 review](../design/player-undo/final-review.md).
 - [x] F6 / U4 verification: Complete workspace/frontend checks, both browsers, packaged release smoke and developer notes: 531 Rust tests/doctests, 132 frontend tests, 173 browser passes with one existing Firefox zoom skip, plus lint/fmt/contracts/build checks and packaged smoke. Public guides stay deferred.
 - [x] F6 / U4 final owner acceptance and delivery authorization: Owner accepted the completed feature and requested commit/push on 28 October 2026 with “great lets commit and push”.
-- [ ] F6 branch closeout: Review the complete `feature/player-undo` branch on GitHub and merge after PR review.
+- [x] F6 branch closeout: U4 committed as `69846a3`, pushed and merged as `8ea59d0` (PR #8), confirmed by the owner and local `main` on 28 October 2026. Public guides remain deferred.
 - [ ] Agree which remaining gameplay candidates belong in v1 after the concrete UX reviews. Do not let the full roadmap or browser publishing become an implicit v1 gate.
 
 ## Documentation — v1
@@ -105,10 +105,15 @@ At the owner's request on 26 October 2026, write user-facing feature documentati
 - [ ] Expand the game-file architecture documentation under Developer documentation with schemas, stable references, editor metadata, bundles, versions, and compatibility rules.
 - [ ] Expand the runner architecture documentation under Developer documentation with command execution, rendering, save storage, and recovery/error handling.
 
-## Editor UX — follow-up evaluation
+## Editor UX — consistency review and follow-up evaluation
 
 These are follow-up sessions, not unresolved gates for the already accepted and merged UX implementation.
 
+- [x] Review consistency after the gameplay extensions, before public documentation: the [28 October review](../design/editor-ux/consistency-review.md) records 26 screen states, targeted Chromium/Firefox observations, four passing authoring/dialog regression cases, screenshots and prioritised findings. Agent-led review does not replace the human sessions below.
+- [x] Start the consistency cleanup on a separate branch: the owner requested `feature/editor-cleanup` after the review. The [plan](editor-cleanup.md), [layout mockups](../design/editor-ux/cleanup-wireframes.html) and [working review](../design/editor-ux/cleanup-review.md) cover the ten findings while preserving existing blocks. Optional layout feedback was requested during implementation; the owner accepted the completed UI on 29 October.
+- [x] Complete automated cleanup acceptance: frontend formatting/build and 136 unit tests, native lint/docs/contracts and 531 tests, full Chromium/Firefox coverage (187 passed, one documented zoom skip), 38 follow-up navigation checks, and standalone release-package smoke passed on 29 October. Preserve original examples and historical captures; see the [verification record](../design/editor-ux/cleanup-review.md).
+- [x] Review the cleanup UI with the owner: central data pages, compact libraries and conversation Graph/Logic flow. The owner accepted it with “looks great lets commit” on 29 October and requested the commit on `feature/editor-cleanup`. Keep public guide work separate.
+- [ ] Push the accepted cleanup when requested, then merge after pull-request review.
 - [ ] Run a separate human screen-reader session through core authoring, findings, dialog focus, and the transcript. Record practical usability issues; automated role/focus checks do not establish human assistive-technology usability.
 - [ ] Observe someone unfamiliar with the editor completing the first-adventure journey. Record confusing context changes, repeated setup, and recovery from mistakes. This session was not separately reported during final owner acceptance.
 

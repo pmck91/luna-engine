@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
@@ -239,7 +240,7 @@ test('runtime edits require an explicit restart and schema changes explain incom
   });
   await page.getByRole('button', { name: 'Start playtest', exact: true }).click();
   const hierarchy = page.getByRole('navigation', { name: 'Project hierarchy' });
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   await hierarchy.getByRole('button', { name: /◇ Study/ }).click();
   await inspector.getByLabel('Description', { exact: true }).fill('A changed room description.');
   await expect(page.locator('.session-status')).toContainText('Edits need restart');

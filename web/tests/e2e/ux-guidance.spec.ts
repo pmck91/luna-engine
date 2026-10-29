@@ -1,3 +1,4 @@
+import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
@@ -43,7 +44,7 @@ test('the optional tutorial supports a first adventure, branch checks, keyboard 
   await page.getByLabel('Follow the first-adventure tutorial').check();
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
   const guide = page.locator('.tutorial-checklist');
-  const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true });
+  const inspector = authoringForms(page);
   await guide.getByRole('button', { name: 'Open location', exact: true }).click();
   await inspector.getByLabel('Name', { exact: true }).fill('Workshop');
   await inspector.getByLabel('Description', { exact: true }).fill('A quiet workshop.');

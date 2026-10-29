@@ -1,3 +1,4 @@
+import { focusCreated } from './creationFocus';
 import type { HistoryControls } from './workspaceHistory';
 import type { ProjectEdit } from './projectHistory';
 import { useState } from 'react';
@@ -93,7 +94,7 @@ export default function Hints({
                     })
               }
             >
-              Remove puzzle
+              Delete puzzle
             </button>
             <ReferenceButton target={{ kind: 'puzzle', id: active.id }} />
           </div>
@@ -103,6 +104,7 @@ export default function Hints({
             const hint = hintSet();
             edit((p) => entity(p, ownerId)!.hints.push(hint));
             choose(hint.id);
+            focusCreated(ownerId, 'Puzzle name');
           }}
         >
           Add puzzle hints
