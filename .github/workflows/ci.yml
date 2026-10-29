@@ -1,5 +1,8 @@
 name: Validate Luna
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 jobs:
   test:
     runs-on: ubuntu-24.04
