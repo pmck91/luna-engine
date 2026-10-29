@@ -1,8 +1,8 @@
+import { execRunner } from '../native';
 import { expect, test } from '@playwright/test';
 import { openEditor } from '../editor';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import type { HintSet } from '../../src/contracts';
 
 test('hint blocks, forms, inspector messages, layout, and live progress stay in sync', async ({
@@ -180,11 +180,10 @@ test('hint blocks, forms, inspector messages, layout, and live progress stay in 
   const games = join(process.env.LUNA_TEST_DIR!, `${folder}-games`);
   const saves = join(process.env.LUNA_TEST_DIR!, `${folder}-saves`);
   const runner = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
-      ['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args],
-      { input, encoding: 'utf8' },
-    );
+    execRunner(['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args], {
+      input,
+      encoding: 'utf8',
+    });
   runner(['import', bundle]);
   const firstRun = runner(
     ['run', game.id, '--new'],

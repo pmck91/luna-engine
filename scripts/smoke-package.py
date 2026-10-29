@@ -5,35 +5,39 @@ import json
 import os
 from pathlib import Path
 import re
-import select
-import signal
+import time
 import subprocess
-import tarfile
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
 
+from release_common import extract_verified, native_target, package_path
+
 
 def main():
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("package", nargs="?", type=Path,
-                        default=root / "dist/luna-engine-linux-x86_64.tar.gz")
+                        default=package_path(native_target()))
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="luna-release-smoke-") as directory:
-        work = Path(directory)
-        with tarfile.open(args.package) as archive:
-            archive.extractall(work, filter="data")
-        package = work / "luna-engine-linux-x86_64"
+        work = Path(directory) / "Luna package — café"
+        work.mkdir()
+        package = extract_verified(args.package, work, target=native_target())
+        suffix = ".exe" if os.name == "nt" else ""
+        runner = package / ("luna" + suffix)
+        editor_binary = package / ("luna-editor" + suffix)
+        runner_config = work / "runner.toml"
+        runner_config.write_text("", encoding="utf-8")
         env = dict(os.environ, XDG_CONFIG_HOME=str(work / "config"),
                    XDG_DATA_HOME=str(work / "data"), PATH="", NO_COLOR="1")
         def run(arguments, commands="", *, profile="walkthrough"):
-            cli = [str(package / "luna"), "--games-dir", str(work / profile / "games"),
+            cli = [str(runner), "--config", str(runner_config), "--games-dir", str(work / profile / "games"),
                    "--saves-dir", str(work / profile / "saves")]
             result = subprocess.run(cli + arguments, input=commands, text=True,
-                                    capture_output=True, env=env, cwd=work, timeout=15)
+                                    capture_output=True, encoding="utf-8", env=env, cwd=work, timeout=15)
             if result.returncode:
                 raise RuntimeError(f"Packaged CLI failed ({profile}, {arguments}): {result.stderr}")
             return result.stdout
@@ -69,18 +73,28 @@ def main():
         assert not hidden.exists(), f"Restore an earlier frontend backup first: {hidden}"
         moved = frontend.exists()
         editor = None
+        stdout_log = (work / "editor-stdout.log").open("w", encoding="utf-8")
+        stderr_log = (work / "editor-stderr.log").open("w", encoding="utf-8")
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         try:
             if moved:
                 frontend.rename(hidden)
             editor = subprocess.Popen(
-                [str(package / "luna-editor"), "--no-browser", "--port", "0",
+                [str(editor_binary), "--config", str(work / "editor.json"), "--no-browser", "--port", "0",
                  "--projects-dir", str(package / "examples")],
-                cwd=work, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            assert select.select([editor.stdout], [], [], 10)[0], "Editor startup timed out"
-            line = editor.stdout.readline()
-            match = re.search(r"http://127\.0\.0\.1:\d+/#token=[a-z0-9-]+", line)
-            assert match, f"Editor did not print its launch URL: {line}"
+                cwd=work, env=env, stdout=stdout_log, stderr=stderr_log)
+            deadline = time.monotonic() + 15
+            match = None
+            while time.monotonic() < deadline:
+                launch = (work / "editor-stdout.log").read_text(encoding="utf-8")
+                match = re.search(r"http://127\.0\.0\.1:\d+/#token=[a-z0-9-]+", launch)
+                if match:
+                    break
+                if editor.poll() is not None:
+                    raise RuntimeError("Editor exited before startup: " +
+                        (work / "editor-stderr.log").read_text(encoding="utf-8"))
+                time.sleep(0.05)
+            assert match, "Editor startup timed out"
             url = urllib.parse.urlsplit(match[0])
             base = url._replace(fragment="").geturl()
             token = urllib.parse.parse_qs(url.fragment)["token"][0]
@@ -105,7 +119,7 @@ def main():
                 entry = response.read()
                 assert len(entry) > 100_000, "Embedded entry script is incomplete"
             if moved:
-                assert html == (hidden / "index.html").read_text(), "Embedded UI is from an older build"
+                assert html == (hidden / "index.html").read_text(encoding="utf-8"), "Embedded UI is from an older build"
                 assert entry == (hidden / script[1].lstrip("/")).read_bytes(), "Embedded entry differs from the built UI"
             config_url = urllib.parse.urljoin(base, "api/v1/config")
             try:
@@ -114,7 +128,27 @@ def main():
             except urllib.error.HTTPError as error:
                 assert error.code == 401
             config = api("config")
-            assert config["projects_root"] == str((package / "examples").resolve())
+            assert os.path.samefile(config["projects_root"], package / "examples")
+
+            # The public tutorial ships with every target. Exercise its actual
+            # packaged authoring project, export and completed save across processes.
+            observatory = api("open", "POST", {"folder": "observatory"})
+            observatory_bundle = work / "observatory-from-editor.luna"
+            observatory_bundle.write_bytes(api(f"projects/{observatory['handle']}/export", "POST", raw=True))
+            with zipfile.ZipFile(observatory_bundle) as exported, zipfile.ZipFile(package / "examples/observatory.luna") as checked:
+                assert json.loads(exported.read("manifest.json")) == json.loads(checked.read("manifest.json"))
+            for check in observatory["project"]["editor"]["playtest"]["checks"]:
+                assert api("playtests/checks", "POST", {"project": observatory["project"], "check": check})["passed"]
+            guide = (root / "docs/site/src/content/docs/tutorials/observatory/index.md").read_text(encoding="utf-8")
+            commands = guide.split("## Complete player route", 1)[1].split("```text", 1)[1].split("```", 1)[0].strip()
+            run(["import", str(observatory_bundle)], profile="observatory")
+            observatory_game = observatory["project"]["game"]
+            run(["run", observatory_game["id"], "--new"], commands + "\nsave finished\nquit\n", profile="observatory")
+            observatory_auto = work / "observatory/saves" / observatory_game["id"] / observatory_game["content_version"] / "autosave.json"
+            finished = json.loads(observatory_auto.read_text(encoding="utf-8"))["state"]
+            assert finished["ending"] == "first-light" and finished["variables"]["score"] == 10
+            run(["run", observatory_game["id"], "--load", "finished"], "look\nquit\n", profile="observatory")
+            assert json.loads(observatory_auto.read_text(encoding="utf-8"))["state"] == finished
 
             # Compare the checked bundle with the packaged editor's actual export,
             # then exercise nested saves across separate runner processes.
@@ -134,7 +168,7 @@ def main():
                 profile="packing")
             packing_saves = work / "packing/saves" / packing_game["id"] / packing_game["content_version"]
             def packed_save():
-                return json.loads((packing_saves / "autosave.json").read_text())
+                return json.loads((packing_saves / "autosave.json").read_text(encoding="utf-8"))
             nested = packed_save()
             assert nested["save_format"] == 3, nested
             assert nested["state"]["objects"]["key"]["placement"] == {"type": "inside", "object": "box"}
@@ -242,7 +276,7 @@ def main():
             assert all(name not in transcript for name in ["Copper key", "Hidden key", "Gold key"]), transcript
             gallery_saves = work / "parser/saves" / gallery_game["id"] / gallery_game["content_version"]
             def gallery_save():
-                return json.loads((gallery_saves / "autosave.json").read_text())
+                return json.loads((gallery_saves / "autosave.json").read_text(encoding="utf-8"))
             placed = gallery_save()
             assert placed["save_format"] == 3
             assert placed["state"]["variables"] == {"starts": 1, "takes": 1, "watches": 1, "placements": 1,
@@ -286,7 +320,7 @@ def main():
                 "use bell\nuse lever\nuse bell\nuse nested\nuse collect\nsave checkpoint\nquit\n", profile="workshop")
             workshop_saves = work / "workshop/saves" / workshop_game["id"] / workshop_game["content_version"]
             def workshop_state():
-                saved = json.loads((workshop_saves / "autosave.json").read_text())
+                saved = json.loads((workshop_saves / "autosave.json").read_text(encoding="utf-8"))
                 assert saved["save_format"] == 4
                 return saved["state"]
             before_failure = workshop_state()
@@ -331,7 +365,7 @@ def main():
             quest_id = keeper_project["quests"][0]["id"]
 
             def keeper_state():
-                saved = json.loads((keeper_saves / "autosave.json").read_text())
+                saved = json.loads((keeper_saves / "autosave.json").read_text(encoding="utf-8"))
                 assert saved["save_format"] == 5
                 return saved["state"]
 
@@ -408,16 +442,16 @@ def main():
                           "use bell\nuse lever\nquit\n", profile="procedures")
             assert "Second reply" in resumed and "First reply" in resumed, resumed
             procedure_autosave = work / "procedures/saves" / procedure_game["id"] / procedure_game["content_version"] / "autosave.json"
-            progress = json.loads(procedure_autosave.read_text())
+            progress = json.loads(procedure_autosave.read_text(encoding="utf-8"))
             assert progress["save_format"] == 7 and progress["state"]["variables"]["rewards"] == 3, progress
             assert len(progress["state"]["procedure_sequences"]) == 2, progress
             run(["run", procedure_game["id"], "--load", "autosave"], "look\nquit\n", profile="procedures")
-            assert json.loads(procedure_autosave.read_text())["state"] == progress["state"], "Restore replayed CALL effects"
+            assert json.loads(procedure_autosave.read_text(encoding="utf-8"))["state"] == progress["state"], "Restore replayed CALL effects"
 
             # N2 checks persistence of an explicit synthetic checkpoint. This
             # does not claim production conversation effects run yet.
-            narrative_project = json.loads((root / "tests/fixtures/narrative/content5.json").read_text())
-            narrative_state = json.loads((root / "tests/fixtures/narrative/state5.json").read_text())
+            narrative_project = json.loads((root / "tests/fixtures/narrative/content5.json").read_text(encoding="utf-8"))
+            narrative_state = json.loads((root / "tests/fixtures/narrative/state5.json").read_text(encoding="utf-8"))
             created_narrative = api("projects", "POST", {"folder": "smoke-narrative", "title": "Narrative persistence"})
             narrative_handle = created_narrative["handle"]
             api(f"projects/{narrative_handle}", "PUT", {
@@ -442,21 +476,21 @@ def main():
             run(["run", narrative_game["id"], "--new"], "look\nquit\n", profile="narrative")
             narrative_saves = work / "narrative/saves" / narrative_game["id"] / narrative_game["content_version"]
             narrative_autosave = narrative_saves / "autosave.json"
-            envelope = json.loads(narrative_autosave.read_text())
+            envelope = json.loads(narrative_autosave.read_text(encoding="utf-8"))
             assert envelope["save_format"] == 5
             envelope["state"] = narrative_state
             narrative_autosave.write_text(json.dumps(envelope))
             transcript = run(["run", narrative_game["id"], "--load", "autosave"],
                              "use story\nsave continued\nquit\n", profile="narrative")
             assert "The key was found." in transcript and "First" not in transcript, transcript
-            slots = [json.loads(path.read_text()) for path in narrative_saves.glob("*.json")]
+            slots = [json.loads(path.read_text(encoding="utf-8")) for path in narrative_saves.glob("*.json")]
             continued = next(slot for slot in slots if slot.get("label") == "continued")
             paused_narrative = {**narrative_state, "narrative": {**narrative_state["narrative"], "active": None}}
             assert continued["save_format"] == 5 and continued["state"] == paused_narrative
 
             # N3 earns canonical quest progress through native effects. Compare
             # editor execution/captured setups with exported, separate CLI runs.
-            quest_project = json.loads((root / "tests/fixtures/narrative/quests5.json").read_text())
+            quest_project = json.loads((root / "tests/fixtures/narrative/quests5.json").read_text(encoding="utf-8"))
             created_quest = api("projects", "POST", {"folder": "smoke-quests", "title": "Quest runtime"})
             quest_handle = created_quest["handle"]
             api(f"projects/{quest_handle}", "PUT", {
@@ -482,13 +516,13 @@ def main():
             run(["run", quest_game["id"], "--new"],
                 "use accept\nuse find\nsave progress\nquit\n", profile="quests")
             quest_saves = work / "quests/saves" / quest_game["id"] / quest_game["content_version"]
-            assert json.loads((quest_saves / "autosave.json").read_text())["state"] == quest_setup["state"]
+            assert json.loads((quest_saves / "autosave.json").read_text(encoding="utf-8"))["state"] == quest_setup["state"]
             quest_transcript = run(["run", quest_game["id"], "--load", "progress"],
                 "use return\nuse complete\nquest key\nsave completed\nquit\n", profile="quests")
             assert quest_transcript.count("Ten coins for your trouble.") == 1
             assert "Coins before reward: 0." in quest_transcript
             quest_auto = quest_saves / "autosave.json"
-            assert json.loads(quest_auto.read_text())["state"] == earned_quest
+            assert json.loads(quest_auto.read_text(encoding="utf-8"))["state"] == earned_quest
             auto_bytes = quest_auto.read_bytes()
             quest_transcript = run(["run", quest_game["id"], "--load", "autosave"],
                 "quests\nquest unknown\nquest key\nquit\n", profile="quests")
@@ -497,7 +531,7 @@ def main():
 
             # N4 uses the same native conversation in HTTP reply controls and
             # numbered terminal input, including entered checkpoints/revisits.
-            conversation_project = json.loads((root / "tests/fixtures/narrative/conversations5.json").read_text())
+            conversation_project = json.loads((root / "tests/fixtures/narrative/conversations5.json").read_text(encoding="utf-8"))
             created_conversation = api("projects", "POST", {"folder": "smoke-conversations", "title": "Conversations"})
             conversation_handle = created_conversation["handle"]
             api(f"projects/{conversation_handle}", "PUT", {
@@ -536,16 +570,16 @@ def main():
             run(["run", conversation_game["id"], "--new"], "talk keeper\nsave greeting\nquit\n", profile="conversations")
             conversation_saves = work / "conversations/saves" / conversation_game["id"] / conversation_game["content_version"]
             conversation_auto = conversation_saves / "autosave.json"
-            assert json.loads(conversation_auto.read_text())["state"] == greeting["state"]
+            assert json.loads(conversation_auto.read_text(encoding="utf-8"))["state"] == greeting["state"]
             exchange_text = run(["run", conversation_game["id"], "--load", "greeting"],
                 "1\ntake brass key\ntalk keeper\nreply 2\nsave exchange\nquit\n", profile="conversations")
             assert exchange_text.count("Ten coins for your trouble.") == 1
-            assert json.loads(conversation_auto.read_text())["state"] == exchange["state"]
+            assert json.loads(conversation_auto.read_text(encoding="utf-8"))["state"] == exchange["state"]
             revisit_text = run(["run", conversation_game["id"], "--load", "exchange"],
                 "1\ntalk keeper\ntalk keeper\nsave completed\nquit\n", profile="conversations")
             assert "Ten coins for your trouble." not in revisit_text
             assert revisit_text.count("Thank you again for finding my key.") == 2
-            assert json.loads(conversation_auto.read_text())["state"] == conversation_final["state"]
+            assert json.loads(conversation_auto.read_text(encoding="utf-8"))["state"] == conversation_final["state"]
 
             # Exercise canonical timers through the packaged editor, setup restore,
             # exported runner and independent processes with no development tools.
@@ -605,17 +639,17 @@ def main():
             timer_game = timer_project["game"]
             timer_auto = work / "timers/saves" / timer_game["id"] / timer_game["content_version"] / "autosave.json"
             run(["run", timer_game["id"], "--new"], "use arm\nlook\nsave armed\nquit\n", profile="timers")
-            assert json.loads(timer_auto.read_text())["save_format"] == 7
-            assert json.loads(timer_auto.read_text())["state"] == armed["state"]
+            assert json.loads(timer_auto.read_text(encoding="utf-8"))["save_format"] == 7
+            assert json.loads(timer_auto.read_text(encoding="utf-8"))["state"] == armed["state"]
             run(["run", timer_game["id"], "--load", "armed"], "look\nwait\nsave one more\nquit\n", profile="timers")
-            assert json.loads(timer_auto.read_text())["state"] == one_more["state"]
+            assert json.loads(timer_auto.read_text(encoding="utf-8"))["state"] == one_more["state"]
             chime_text = run(["run", timer_game["id"], "--load", "one more"], "wait\nsave fired\nquit\n", profile="timers")
             assert chime_text.count("The chime sounds.") == 1, chime_text
-            assert json.loads(timer_auto.read_text())["state"] == fired["state"]
+            assert json.loads(timer_auto.read_text(encoding="utf-8"))["state"] == fired["state"]
             canceled_text = run(["run", timer_game["id"], "--load", "armed"], "use cancel\nwait\nquit\n", profile="timers")
             assert "The chime sounds." not in canceled_text
-            assert json.loads(timer_auto.read_text())["state"]["turns"] == {"turn": 3, "pending": {}}
-            assert json.loads(timer_auto.read_text())["state"]["variables"]["firings"] == 0
+            assert json.loads(timer_auto.read_text(encoding="utf-8"))["state"]["turns"] == {"turn": 3, "pending": {}}
+            assert json.loads(timer_auto.read_text(encoding="utf-8"))["state"]["variables"]["firings"] == 0
 
             # The permanent workshop ships independently of the historical specimens.
             workshop = api("open", "POST", {"folder": "timer-workshop"})
@@ -632,7 +666,7 @@ def main():
 
             def workshop_run(commands, slot=None):
                 run(["run", workshop_game["id"], "--load", slot] if slot else ["run", workshop_game["id"], "--new"], commands + "\nquit\n", profile="timer-workshop")
-                envelope = json.loads(workshop_save.read_text())
+                envelope = json.loads(workshop_save.read_text(encoding="utf-8"))
                 assert envelope["save_format"] == 6
                 return envelope["state"]
 
@@ -698,7 +732,7 @@ def main():
             def routine_run(commands, slot=None):
                 transcript = run(["run", routine_game["id"], "--load", slot] if slot else
                                  ["run", routine_game["id"], "--new"], commands + "\nquit\n", profile="routines")
-                envelope = json.loads((routine_saves / "autosave.json").read_text())
+                envelope = json.loads((routine_saves / "autosave.json").read_text(encoding="utf-8"))
                 assert envelope["save_format"] == 7
                 return envelope["state"], transcript
 
@@ -783,14 +817,14 @@ def main():
 
             # Reject malformed stored cursors without rewriting the damaged bytes.
             damaged_path = next(path for path in routine_saves.glob("*.json")
-                                if json.loads(path.read_text())["label"] == "armed")
-            damaged = json.loads(damaged_path.read_text())
+                                if json.loads(path.read_text(encoding="utf-8"))["label"] == "armed")
+            damaged = json.loads(damaged_path.read_text(encoding="utf-8"))
             damaged["state"]["routines"]["runs"]["evening-patrol"]["cursor"]["wait"]["remaining"] = 0
             damaged_bytes = json.dumps(damaged).encode()
             damaged_path.write_bytes(damaged_bytes)
-            rejected = subprocess.run([str(package / "luna"), "--games-dir", str(work / "routines/games"),
+            rejected = subprocess.run([str(runner), "--config", str(runner_config), "--games-dir", str(work / "routines/games"),
                 "--saves-dir", str(work / "routines/saves"), "run", routine_game["id"], "--load", "armed"],
-                input="quit\n", text=True, capture_output=True, env=env, cwd=work, timeout=15)
+                input="quit\n", text=True, capture_output=True, encoding="utf-8", env=env, cwd=work, timeout=15)
             assert rejected.returncode != 0 and damaged_path.read_bytes() == damaged_bytes
 
             # Permanent U4 content: actual editor export, empty-history setup
@@ -828,8 +862,8 @@ def main():
             run(["import", str(undo_export)], profile="undo-workshop")
             undo_workshop_saves = work / "undo-workshop/saves" / undo_content_game["id"] / undo_content_game["content_version"]
             def undo_saved(label):
-                return next(json.loads(path.read_text()) for path in undo_workshop_saves.glob("*.json")
-                            if json.loads(path.read_text())["label"] == label)
+                return next(json.loads(path.read_text(encoding="utf-8")) for path in undo_workshop_saves.glob("*.json")
+                            if json.loads(path.read_text(encoding="utf-8"))["label"] == label)
             transcript = run(["run", undo_content_game["id"], "--new"],
                              "take brass key\nsave carrying\nundo\nsave empty\nquit\n", profile="undo-workshop")
             assert "Undid “take brass key”." in transcript
@@ -884,17 +918,19 @@ def main():
             assert "This playthrough has ended." in completed, completed
             assert "Outcome:" not in completed, completed
             autosave = work / "no-outcome/saves" / game["id"] / game["content_version"] / "autosave.json"
-            state = json.loads(autosave.read_text())
+            state = json.loads(autosave.read_text(encoding="utf-8"))
             assert state["save_format"] == (7 if game["format_version"] >= 7 else 6 if game["format_version"] >= 6 else 5 if game["format_version"] >= 5 else 4 if game["format_version"] >= 4 else 3 if game["format_version"] >= 2 else 2), state
             assert state["state"]["ending"] == "finish", state
         finally:
             if editor is not None and editor.poll() is None:
-                editor.send_signal(signal.SIGINT)
+                editor.terminate()
                 try:
                     editor.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     editor.kill()
-                    editor.wait()
+                    editor.wait(timeout=10)
+            stdout_log.close()
+            stderr_log.close()
             if moved:
                 hidden.rename(frontend)
         print("Packaged examples, containers, parser clarification/restart, player undo/content-8/session history and Undo Workshop, procedures/Reward Workshop, Keeper quest/checkpoints/rollback/revisits, narrative persistence/quest/conversation execution, turn timers/setup/process parity/cancellation, Timer Workshop callbacks/rollback/quests/endings, Routine Workshop holds/pauses/waits/order/offstage/rollback/corruption/endings, fixed walkthrough, optional outcomes, and embedded editor passed "

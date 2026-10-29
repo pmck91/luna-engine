@@ -1,8 +1,8 @@
 # Version 1 release preparation
 
-Status: **V1-0 in progress**, 29 October 2026. Implementation started on `feature/v1-release` from `main` at `86337e4`, including documentation merge `cabe082`. See the [release contract and evidence](v1-release-contract.md). First Pages publication remains unverified.
+Status: **portable packaging and draft automation implemented; native package acceptance in progress**. The owner reports native builds passing and has requested application version **1.0.0** directly, with Windows and macOS explicitly experimental. This supersedes the RC-first version proposal below; packaging and release acceptance remain open. Implementation started on `feature/v1-release` from `main` at `86337e4`, including documentation merge `cabe082`. See the [release contract and evidence](v1-release-contract.md). First Pages publication remains unverified.
 
-Begin implementation on **`feature/v1-release`**, created from current merged `main` after the documentation work is integrated. Prepare and test **`v1.0.0-rc.1`** before publishing **`v1.0.0`**. Recording this plan does not create a release tag, promise untested platform support or authorize publishing a release now.
+Begin implementation on **`feature/v1-release`**, created from current merged `main` after the documentation work is integrated. The owner chose **`1.0.0`** directly after the native build baseline passed; retain experimental Windows/macOS status and complete package acceptance before publishing **`v1.0.0`**. Recording this plan does not create a release tag, promise untested platform support or authorize publishing a release now.
 
 ## Outcome
 
@@ -47,26 +47,26 @@ Do not repair compatibility by changing identities, silently normalizing saved r
 
 - [x] Create `feature/v1-release` from current merged `main`; record the baseline and verify that the documentation is included (`86337e4`, documentation merge `cabe082`).
 - [ ] Confirm the four native runner/target combinations, supported compiler/Node/Python versions and proposed minimum OS versions. Choose a Linux baseline and macOS deployment targets deliberately.
-- [ ] Compile the frontend and release binaries on each native host; run native tests and record actual failures. Linux success and cross-target type checking do not substitute for native execution.
-- [ ] Freeze archive names/layout, example contents, checksums, CLI version output and RC/stable version rules. Identify whether system-runtime dependencies must be included or documented.
-- [ ] Agree the public distribution approach for signing/notarization. Keep certificate-dependent work explicit; unsigned build/testing can progress independently.
+- [x] Compile the frontend and release binaries on each native host and run native tests: baseline run `40912008147` passed on source `594fc99`. Fixed case-insensitive module collisions and CRLF tutorial parsing. New extracted package jobs must pass separately.
+- [x] Define archive names/layout, nine examples, checksums and matching 1.0.0 binary/metadata output. Native dependency checks record runtime needs; Windows uses static CRT, Mac/Windows remain experimental. See the release contract.
+- [x] Implement an explicit unsigned experimental distribution path and truthful package/public/draft notes. No credentials are needed; signed/notarized releases remain separate work requiring a policy/credential update before the packaging/hash step.
 
 Gate: four native build results and a concrete list of portability work, with no unverified support claims.
 
 ### V1-1 — Make packaged output portable and predictable
 
-- [ ] Introduce a shared portable packager, likely using Python's standard library, with explicit version/OS/architecture inputs and a single distributable file list. Retain the current shell entry point as a wrapper or update all callers/documentation intentionally.
-- [ ] Build the frontend before release compilation so both editor executables embed the current UI and Blockly media. Produce archives without depending on a source checkout at runtime.
-- [ ] Include the example projects and matching native bundles, including Restore the Observatory. Preserve the owner's Locked Study and the historical regression fixture.
-- [ ] Generate `.tar.gz` and `.zip` packages, executable permissions where applicable, SHA-256 checksums and release metadata identifying the exact source revision/target.
-- [ ] Check archive membership and size, and prove that installed docs dependencies/caches cannot enter an archive. Make reruns replace only the intended local output.
+- [x] Introduce a shared portable packager, likely using Python's standard library, with explicit version/OS/architecture inputs and a single distributable file list. Retain the current shell entry point as a wrapper or update all callers/documentation intentionally.
+- [x] Build the frontend before release compilation so both editor executables embed the current UI and Blockly media. Produce archives without depending on a source checkout at runtime.
+- [x] Include the example projects and matching native bundles, including Restore the Observatory. Preserve the owner's Locked Study and the historical regression fixture.
+- [x] Generate `.tar.gz` and `.zip` packages, executable permissions where applicable, SHA-256 checksums and release metadata identifying the exact source revision/target.
+- [x] Check archive membership and size, and prove that installed docs dependencies/caches cannot enter an archive. Make reruns replace only the intended local output.
 
 Gate: all four archives have the agreed contents, current embedded UI and verified checksums.
 
 ### V1-2 — Prove native portability and fix demonstrated failures
 
-- [ ] Adapt smoke/browser helpers for `.exe`, archive layouts and platform-specific configuration directories. Use explicit temporary configuration overrides; never redirect tests into a user's actual configuration or save library. If needed, add a small editor config-file override consistent with the runner.
-- [ ] Replace pipe `select()` and Unix-only shutdown assumptions with portable, bounded startup/cleanup. Preserve useful failure diagnostics without exposing session tokens.
+- [x] Adapt smoke/browser helpers for `.exe`, archive layouts and platform-specific configuration directories. Use explicit temporary configuration overrides; never redirect tests into a user's actual configuration or save library. If needed, add a small editor config-file override consistent with the runner.
+- [x] Replace pipe `select()` and Unix-only shutdown assumptions with portable, bounded startup/cleanup. Preserve useful failure diagnostics without exposing session tokens.
 - [ ] Test paths with spaces/Unicode, case-insensitive collisions and Windows-reserved filenames; define any necessary restrictions without silently changing game/save identity.
 - [ ] Verify atomic replacement, project recovery/conflict handling, save overwrite/corrupt-slot recovery, locking and cleanup under native filesystem behavior.
 - [ ] Verify UTF-8 player input/output, plain text/colour controls, native default-browser launch and correct per-user directories. Run the editor with its ordinary launch behavior during human acceptance as well as `--no-browser` in automation.
@@ -76,7 +76,7 @@ Gate: native Rust tests and installed/package smoke paths pass on each target wi
 
 ### V1-3 — Add ongoing platform build and test coverage
 
-- [ ] Add a matrix workflow, or reusable build workflow, that can prove packages on pull requests/manual runs before a release tag exists. Keep version/target/content selection shared with the release path.
+- [x] Add a matrix workflow, or reusable build workflow, that can prove packages on pull requests/manual runs before a release tag exists. Keep version/target/content selection shared with the release path.
 - [ ] Run Rust workspace tests and packaged editor/runner smoke checks on every target. Retain Linux's full frontend/browser acceptance and add meaningful native-host authoring/export/save journeys for macOS and Windows.
 - [ ] Exercise extracted release files outside the repository with the development frontend unavailable. Verify CLI import/play, named/autosave restoration across processes, completed games and editor-served embedded assets.
 - [ ] Retain per-target logs, checksums and useful failure artifacts; let all matrix jobs report their results if another target fails. Sequence compilation and browsers appropriately on limited-memory runners.
@@ -86,17 +86,17 @@ Gate: a successful four-target run on one source revision, with downloadable tes
 
 ### V1-4 — Automate release assembly and signing
 
-- [ ] Add tag-triggered release automation for the agreed version pattern, with a manual build path. Validate the tag against the application version and intended source commit before preparing release assets.
+- [x] Add tag-triggered release automation for the agreed version pattern, with a manual build path. Validate the tag against the application version and intended source commit before preparing release assets.
 - [ ] Build/test all targets from the same revision, verify the downloaded artifacts/checksums and assemble a **draft** GitHub Release only after all required jobs succeed. Do not publish a partial platform set.
-- [ ] Keep ordinary build jobs read-only. Restrict release-write permissions and signing credentials to trusted release jobs; provide clear setup instructions without committing credentials.
-- [ ] Implement macOS Developer ID signing/notarization and Windows signing according to the agreed distribution policy and available credentials. Sign final executables before archiving/checksumming. Verify any signed packages after distribution packaging.
-- [ ] Make reruns safe for drafts and failures. Preserve already published release assets; avoid silently replacing an existing stable release.
+- [x] Keep ordinary build jobs read-only. Restrict release-write permissions and signing credentials to trusted release jobs; provide clear setup instructions without committing credentials.
+- [ ] Current path deliberately distributes unsigned experimental Mac/Windows packages. Before adding signing, provide credentials, sign/notarize final executables before archiving/checksumming and verify final signed downloads. This is deferred rather than claimed implemented.
+- [x] Make reruns safe for drafts and failures. Preserve already published release assets; avoid silently replacing an existing stable release.
 
 Gate: a complete draft containing tested archives, checksums and release notes, with signing/notarization status accurately stated.
 
-### V1-5 — Review `v1.0.0-rc.1` as a real user download
+### V1-5 — Review the version 1 packages as real user downloads
 
-- [ ] Set the application version to the agreed RC value and synchronize lockfile/binary/release metadata. Do not relabel a 0.1.0 executable as 1.0.0 through its archive filename alone.
+- [x] Set application version 1.0.0 at the owner’s request and synchronize lockfile/binary/frontend/docs metadata. Both binaries report 1.0.0; game content versions and wire formats are unchanged.
 - [ ] After the preceding technical gates pass, create the RC tag and assemble its draft through the same release workflow intended for stable versions. Record the exact source, artifacts and prerelease status for owner review.
 - [ ] Download, extract and launch each target package. Check the normal user experience, including Windows/macOS download trust behavior under the actual signing policy.
 - [ ] Follow the public installation and Observatory walkthroughs, export from the packaged editor and run/import the exported game. Verify named/autosave reopening and that the user needs no Rust/Node build tooling.

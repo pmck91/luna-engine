@@ -6,6 +6,7 @@ import json
 import platform
 import subprocess
 from pathlib import Path
+from release_common import binary_directory, native_target
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORT = ROOT / "dist" / "native-baseline.json"
@@ -45,7 +46,7 @@ def main():
         report = json.loads(REPORT.read_text(encoding="utf-8"))
         suffix = ".exe" if platform.system() == "Windows" else ""
         report["binaries"] = {
-            name: output(str(ROOT / "target" / "release" / (name + suffix)), "--version")
+            name: output(str(binary_directory(native_target()) / (name + suffix)), "--version")
             for name in ("luna", "luna-editor")
         }
         report["status"] = "release-binaries-launched-tests-see-workflow"

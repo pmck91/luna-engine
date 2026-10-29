@@ -5,17 +5,42 @@ sidebar:
   order: 1
 ---
 
+## Platform support
+
+Luna Engine **1.0.0** targets Linux x86_64. **Windows x86_64 and macOS (Apple Silicon and Intel) builds are experimental and unsigned.** macOS builds are not notarized. Ordinary desktop launch and minimum OS compatibility need separate review from hosted build/test checks.
+
+The application version is separate from your game’s content version and the project/save format versions. Updating Luna to 1.0.0 does not change those formats.
+
 ## Use a packaged build
 
-Open the repository's [successful main build](https://github.com/pmck91/luna-engine/actions/workflows/ci.yml?query=branch%3Amain). Download the **luna-engine-linux-x86_64** artifact from the run summary. GitHub may require sign-in to download Actions artifacts.
+Open [GitHub Releases](https://github.com/pmck91/luna-engine/releases) and choose the archive matching your OS and processor. Before the first release is published, use a successful [native package workflow](https://github.com/pmck91/luna-engine/actions/workflows/native-release.yml) and download its `release-package-<platform>` artifact. GitHub may require sign-in for Actions artifacts. Those artifacts wrap the actual archive and checksum in an additional ZIP.
 
-Extract the artifact ZIP, then extract its inner `luna-engine-linux-x86_64.tar.gz`. From the resulting directory:
+| Platform          | Version 1 archive                         |
+| ----------------- | ----------------------------------------- |
+| Linux x86_64      | `luna-engine-v1.0.0-linux-x86_64.tar.gz`  |
+| Mac Apple Silicon | `luna-engine-v1.0.0-macos-aarch64.tar.gz` |
+| Mac Intel         | `luna-engine-v1.0.0-macos-x86_64.tar.gz`  |
+| Windows x86_64    | `luna-engine-v1.0.0-windows-x86_64.zip`   |
+
+Download the matching `.sha256` sidecar. Compare its hash with `sha256sum <archive>` on Linux, `shasum -a 256 <archive>` on Mac, or `Get-FileHash <archive> -Algorithm SHA256` in PowerShell.
+
+Extract the entire archive into a writable folder. On Linux or macOS, open a terminal in that folder:
 
 ```sh
 ./luna-editor --projects-dir ./examples
 ```
 
-The package contains the editor, the `luna` terminal runner and example projects. You do not need Rust, Node.js or Python to run it. The packaged target is Linux x86_64. Use a desktop Chromium or Firefox browser.
+On Windows, open PowerShell in the extracted folder:
+
+```powershell
+.\luna-editor.exe --projects-dir .\examples
+```
+
+The package contains the editor, the `luna` terminal runner and nine editable example projects with matching exported games. You do not need Rust, Node.js or Python to run it. Windows builds include the static MSVC runtime. Use a desktop Chromium or Firefox browser. Read `START-HERE.txt` for launch instructions; `build.json` records the exact version, source, target and file hashes.
+
+Unsigned downloads may be blocked or warned about by macOS Gatekeeper or Windows SmartScreen. Review the download source and checksum before deciding to run an experimental build; do not disable system-wide protections. There are no signing credentials to configure for users.
+
+The Linux package is built on Ubuntu 22.04 with a glibc 2.35 compatibility ceiling; other distributions need compatible system libraries. macOS builds set a deployment target of 11.0 and are tested on macOS 15 hosts; that does not establish compatibility with every older version. Windows builds are tested on Windows Server 2022 x64; Windows 10/11 desktop acceptance remains separate.
 
 If your file manager does not launch the executable, open a terminal in the extracted directory and run the command there. If a chosen port is occupied:
 

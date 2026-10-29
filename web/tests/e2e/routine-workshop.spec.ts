@@ -1,5 +1,5 @@
+import { execRunner } from '../native';
 import { expect, test, type Page } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
 import { copyFileSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { PlaytestView, Project } from '../../src/contracts';
@@ -194,8 +194,7 @@ test('Routine Workshop preserves connected groups and restores patrol, hold, pau
     bundle = `${root}.luna`;
   await (await download).saveAs(bundle);
   const run = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(root, 'games'),

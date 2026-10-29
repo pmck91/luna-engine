@@ -1,3 +1,4 @@
+import { editorConfig } from '../native';
 import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { join } from 'node:path';
@@ -113,11 +114,9 @@ test('the optional tutorial supports a first adventure, branch checks, keyboard 
   await guide.getByRole('button', { name: 'Hide tutorial', exact: true }).click();
   await expect
     .poll(() => {
-      const config = JSON.parse(
-        readFileSync(join(process.env.LUNA_TEST_DIR!, 'config', 'luna', 'editor.json'), 'utf8'),
-      );
+      const config = JSON.parse(readFileSync(editorConfig(process.env.LUNA_TEST_DIR!), 'utf8'));
       const pref = Object.entries(config.project_preferences).find(([key]) =>
-        key.endsWith(`/${folder}`),
+        key.replaceAll('\\', '/').endsWith(`/${folder}`),
       )?.[1] as any;
       return pref?.tutorial_steps.includes('room') && !pref.tutorial_visible;
     })

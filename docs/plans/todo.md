@@ -21,9 +21,15 @@ The owner chose to focus on gameplay features before the documentation milestone
 
 ## Next major work — version 1 release preparation
 
-The owner approved the cross-platform release approach on 29 October 2026 and requested it as the next major work item. Follow the [version 1 release plan](v1-release.md), with implementation on a new `feature/v1-release` branch from current merged `main` after documentation is integrated. Prove Linux x86_64, macOS Apple Silicon, macOS Intel and Windows x86_64 through `v1.0.0-rc.1` before publishing `v1.0.0`. Current verified application support remains Linux until the native platform checks pass.
+The owner reports the native matrix passing and requested application version
+**1.0.0** directly, superseding the RC-first version proposal below. README and
+public installation docs mark Windows and macOS builds **experimental**.
+Portable packaging and draft automation are implemented; four-host package and desktop acceptance remain open. The current distribution policy is explicitly unsigned; no release tag or
+publication is implied by the version update.
 
-- [x] Record the agreed four-target direction, current portability/packaging gaps, staged milestones and release acceptance criteria. V1-0 is now in progress on `feature/v1-release`; see the [release contract and evidence](v1-release-contract.md).
+The owner approved the cross-platform release approach on 29 October 2026 and requested it as the next major work item. Follow the [version 1 release plan](v1-release.md), with implementation on a new `feature/v1-release` branch from current merged `main` after documentation is integrated. Prove the extracted Linux x86_64, macOS Apple Silicon, macOS Intel and Windows x86_64 packages before publishing `v1.0.0`. The owner chose 1.0.0 directly instead of an RC version. Current verified application support remains Linux until the native platform checks pass.
+
+- [x] Record the agreed four-target direction, current portability/packaging gaps, staged milestones and release acceptance criteria. Native build baseline passed at `594fc99` (run `40912008147`); packaging and draft automation are implemented on `feature/v1-release` with acceptance in progress; see the [release contract and evidence](v1-release-contract.md).
 - [ ] **V1-0:** Create the release branch when work begins; prove native build targets and agree minimum OS/runtime, package layout, version and signing policy.
 - [ ] **V1-1:** Implement portable packaging with embedded UI, explicit distributable contents/examples, executable permissions, versioned archives and SHA-256 checksums. Exclude documentation dependencies, caches and development artifacts.
 - [ ] **V1-2:** Make test/process/configuration helpers portable and fix demonstrated platform issues; verify native paths, locking, recovery, terminal/browser behavior and real saves.

@@ -57,10 +57,12 @@ Markdown/MDX content lives in docs/site/src/content/docs. Public documentation e
 ## Package without installing
 
 ```sh
-./scripts/package.sh
+python3 scripts/package.py
 python3 scripts/smoke-package.py
 ```
 
-Packaging builds release executables and an archive/checksum in dist. The release editor embeds the complete UI and Blockly media. The smoke check extracts outside the repository, removes development tools from child PATH and exercises native export/import/play/save/restore.
+Use Python 3.12+ for packaging on all four native targets. The shell entry point `./scripts/package.sh` remains a Unix wrapper. Packaging builds release executables and a versioned archive/checksum in dist; `--skip-build` uses already-built binaries and checks their versions. The release editor embeds the complete UI and Blockly media. The smoke check verifies the checksum and membership, extracts outside the repository into a path with spaces/Unicode, removes development tools from child PATH and exercises native export/import/play/save/restore. Configuration and saves are isolated with explicit file/directory overrides.
 
 Run package smoke after browsers finish: it temporarily hides web/dist to prove embedded UI serving, then restores it. None of these commands install or publish a system package.
+
+See [release maintenance](/luna-engine/developer/releases/) for the native matrix, tag/version gates, draft assembly, unsigned policy and publication checklist.

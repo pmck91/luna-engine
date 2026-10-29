@@ -1,8 +1,8 @@
+import { execRunner } from '../native';
 import { expect, test, type Page } from '@playwright/test';
 import { openEditor, selectBlock, flowSettings } from '../editor';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 
 async function createProject(page: Page, folder: string) {
   page.setDefaultTimeout(10000);
@@ -118,11 +118,10 @@ test('action templates remap placeholders, validate replacements, and export ind
   const games = join(process.env.LUNA_TEST_DIR!, `${folder}-games`),
     saves = join(process.env.LUNA_TEST_DIR!, `${folder}-saves`);
   const runner = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
-      ['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args],
-      { input, encoding: 'utf8' },
-    );
+    execRunner(['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args], {
+      input,
+      encoding: 'utf8',
+    });
   runner(['import', bundle]);
   const played = runner(
     ['run', game.id, '--new'],

@@ -1,5 +1,5 @@
+import { execRunner } from '../native';
 import { expect, test, type Page } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
 import { cpSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { PlaytestView, ProjectView } from '../../src/contracts';
@@ -389,8 +389,7 @@ test('author the complete Keeper quest, restore checkpoints, roll back a handove
   await (await download).saveAs(bundle);
   const profile = join(process.env.LUNA_TEST_DIR!, folder + '-runner');
   const run = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(profile, 'games'),

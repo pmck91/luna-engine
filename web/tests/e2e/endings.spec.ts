@@ -1,8 +1,8 @@
+import { execRunner } from '../native';
 import { expect, test } from '@playwright/test';
 import { openEditor } from '../editor';
 import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 
 test('an ending without an outcome stays completed after reopen, export, and save/load', async ({
   page,
@@ -78,11 +78,10 @@ test('an ending without an outcome stays completed after reopen, export, and sav
   const games = join(process.env.LUNA_TEST_DIR!, `${folder}-games`);
   const saves = join(process.env.LUNA_TEST_DIR!, `${folder}-saves`);
   const runner = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
-      ['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args],
-      { input, encoding: 'utf8' },
-    );
+    execRunner(['--games-dir', games, '--saves-dir', saves, '--color', 'never', ...args], {
+      input,
+      encoding: 'utf8',
+    });
   runner(['import', bundle]);
   const completed = runner(
     ['run', saved.id, '--new'],

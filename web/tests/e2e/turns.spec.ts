@@ -1,8 +1,8 @@
+import { execRunner } from '../native';
 import { authoringForms } from '../editor';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 import type { PlaytestView, Project } from '../../src/contracts';
 import { action, character } from '../../src/model';
 import { newConversation, newReply } from '../../src/narrativeAuthoring';
@@ -179,11 +179,10 @@ test('author a scheduled event through real blocks, persist it, resume a pending
   const bundle = join(process.env.LUNA_TEST_DIR!, `${folder}.luna`);
   await (await download).saveAs(bundle);
   const run = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
-      ['--games-dir', join(root, 'games'), '--saves-dir', join(root, 'saves'), ...args],
-      { input, encoding: 'utf8' },
-    );
+    execRunner(['--games-dir', join(root, 'games'), '--saves-dir', join(root, 'saves'), ...args], {
+      input,
+      encoding: 'utf8',
+    });
   run(['import', bundle]);
   run(['run', p.game.id, '--new'], 'use arm\nsave armed\nquit\n');
   const auto = join(root, 'saves', p.game.id, p.game.content_version, 'autosave.json');

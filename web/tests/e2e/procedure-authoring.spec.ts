@@ -1,7 +1,7 @@
+import { execRunner } from '../native';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 import { action, character, object } from '../../src/model';
 import type { PlaytestView } from '../../src/contracts';
 import { seedProject, selectBlock } from '../editor';
@@ -178,8 +178,7 @@ test('author shared typed rewards, local blocks and messages, action and trigger
     'Recipient',
   ]);
   const runner = (args: string[], text = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(root, 'games'),

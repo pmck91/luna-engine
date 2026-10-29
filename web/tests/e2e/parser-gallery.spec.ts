@@ -1,7 +1,7 @@
+import { execRunner } from '../native';
 import { expect, test, type Page } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import type { PlaytestView, Project } from '../../src/contracts';
 import { seedProject } from '../editor';
 
@@ -114,8 +114,7 @@ test('Parser Gallery keeps multi-noun replies, rollback, setups and exported pro
   await (await download).saveAs(bundle);
   const profile = join(process.env.LUNA_TEST_DIR!, `${folder}-runner`);
   const run = (args: string[], input = '') =>
-    execFileSync(
-      resolve('../target/debug/luna'),
+    execRunner(
       [
         '--games-dir',
         join(profile, 'games'),

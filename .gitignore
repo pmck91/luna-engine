@@ -5,6 +5,7 @@
 /web/test-results/
 /web/playwright-report/
 /dist/
+/scripts/__pycache__/
 /docs/site/node_modules/
 /docs/site/dist/
 /docs/site/.astro/

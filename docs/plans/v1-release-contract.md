@@ -102,3 +102,64 @@ the runner still exposes the known obsolete format-1 label. This local host does
 not prove the Ubuntu 22.04/glibc 2.35 compatibility floor. Workflow YAML parsed
 successfully and contains the four intended native targets. Hosted native runs
 remain pending; this milestone is not marked complete.
+
+### Version and experimental support update
+
+The owner reports the native build is passing and requested application version
+`1.0.0` directly, superseding the earlier RC-first version proposal. The Rust
+workspace and private frontend/docs package metadata now use `1.0.0`. Runner
+version output no longer claims obsolete game format 1. Game/example content
+versions and content/save/setup wire formats are unchanged. README and public
+installation documentation explicitly mark Windows and both macOS architectures
+as experimental. Native CI success does not close packaging, signing, minimum
+OS or desktop acceptance gates. This change creates no tag or public release.
+
+### Portable packaging implementation
+
+The branch now contains a Python 3.12+ native packager, one shared target matrix,
+explicit tracked canonical/example/asset membership, file/archive SHA-256 checks,
+source/toolchain/dependency metadata, platform instructions, versioned tar/ZIP
+output and an unsigned distribution policy. The Unix shell entry point delegates
+to it. Source checkout text is normalized to LF across native hosts; .luna and
+image/archive files remain binary. Owner examples and historical fixture content
+are unchanged.
+
+Editor --config and explicit runner config isolate temporary native tests from
+real user settings. Smoke tests use .exe where appropriate, portable bounded
+startup/cleanup, explicit UTF-8, spaces/Unicode paths, embedded UI with web/dist
+hidden, all workshop export/save cases, and Observatory route/check/completed
+restore. Chromium authoring/export checks use another extracted executable; Linux
+native release CI also runs the full Chromium/Firefox suite. Native-library
+evidence checks the glibc 2.35 ceiling on Ubuntu 22.04, macOS non-system linkage
+and static Windows CRT imports.
+
+The tag workflow reuses the same four tested package jobs, validates tag/version/
+commit identity and clean metadata, requires exactly four matching archives and
+sidecars, and assembles only a draft with the built-in GitHub token. Existing
+drafts/published releases are never overwritten. A failed partial draft needs
+explicit inspection/deletion before rerunning; published assets require a new
+version/tag. The public release maintenance guide covers recovery and review.
+
+Local checks: 534 Rust tests/doctests, Clippy, 137 frontend tests and the release
+archive regressions (10 cases) pass. The native Linux archive has 181 files and nine example
+bundles, about 9.5 MiB compressed, with no documentation dependencies. Extracted
+package smoke and Observatory saves/checks pass. The public docs build 47 routes
+and pass 3,343 local link/asset/fragment checks. Local compilation is on Arch
+Linux; the editor currently needs glibc 2.39 there, so this local build is not
+evidence for the Ubuntu 22.04 release floor. Hosted native packages and ordinary
+Mac/Windows desktop launches remain pending, as does actual tag/draft execution.
+No tag or public release has been created.
+
+Browser portability follow-up: the first complete packaged-editor Chromium run
+passed 93/95 cases and exposed two tests reading the historical Linux config
+location. Both now use the explicit temporary config helper; all four cases in
+the affected specs pass. The suite's exported-runner launches are centralized
+with .exe selection and explicit temporary runner.toml, and package acceptance
+now supplies both extracted release executables rather than a debug runner.
+The final full packaged-editor/packaged-runner Chromium run passes all 95 cases. actionlint 1.7.7
+validates all workflows; Astro check reports zero errors/warnings.
+
+Windows release builds/tests use an explicit native --target so static CRT flags
+do not leak into host proc macros/build scripts, per Cargo’s target flag rules.
+Developer builds keep their default linkage. The shared target configuration
+and binary-directory helper account for the Windows target subdirectory.

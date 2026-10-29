@@ -27,7 +27,7 @@ enum OnExisting {
     Cancel,
 }
 #[derive(Parser)]
-#[command(name="luna",version=concat!(env!("CARGO_PKG_VERSION")," (game format 1)"),about="Import and play local parser-driven text adventures",color=clap::ColorChoice::Never)]
+#[command(name="luna",version,about="Import and play local parser-driven text adventures",color=clap::ColorChoice::Never)]
 struct Cli {
     #[arg(long, global = true)]
     config: Option<PathBuf>,
