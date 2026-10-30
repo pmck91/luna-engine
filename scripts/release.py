@@ -62,6 +62,12 @@ Download and extract the archive for your OS/CPU; it contains both applications,
 the embedded editor UI, nine editable examples and exported games. No Rust or
 Node installation is required. Start with START-HERE.txt in the archive.
 
+Luna is source available under PolyForm Noncommercial 1.0.0 with an additional
+royalty-free commercial-game permission. You may sell your own games with the
+required credit to Peter McKinney (pmck91), and bundle the unmodified runner
+with its notices. Read LICENSE and NOTICE in the archive for the complete terms.
+Commercialising Luna itself requires separate permission under those terms.
+
 **Windows and macOS builds are experimental and unsigned.** macOS downloads are
 not notarized. Gatekeeper or SmartScreen may warn or block launch. Native build,
 Rust tests, extracted package smoke and Chromium authoring checks run in CI;
@@ -73,7 +79,8 @@ Compare each archive's SHA-256 with its .sha256 sidecar. build.json inside each
 archive records exact source, target, toolchain and individual file hashes.
 
 [Documentation](https://pmck91.github.io/luna-engine/) ·
-[Installation](https://pmck91.github.io/luna-engine/getting-started/install/)
+[Installation](https://pmck91.github.io/luna-engine/getting-started/install/) ·
+[Licensing](https://pmck91.github.io/luna-engine/playing/licensing/)
 
 This draft is for owner review. Verify downloads and desktop launches before
 publishing. Application version {version()} does not change game/save formats.

@@ -15,6 +15,8 @@ The short [first adventure](/luna-engine/getting-started/first-adventure/) is a 
 - [Download the playable Observatory game](/luna-engine/downloads/observatory.luna).
 - [Browse the source and walkthrough](https://github.com/pmck91/luna-engine/tree/main/examples/observatory).
 
+The source ZIP includes LICENSE and NOTICE. When sharing the playable export or adapting the example, retain the applicable notices; see [licensing and game credits](/luna-engine/playing/licensing/).
+
 Open the finished project in a second editor session for reference, or create a blank project named **Restore the Observatory** and build along. Your generated IDs will differ; select entities by their displayed names. Keep the finished project separate from your work.
 
 Screenshots show the completed project in the current editor. They illustrate the target state; each chapter explains the smaller part you are adding. Saved setups in the downloadable project let you inspect later checkpoints.

@@ -7,9 +7,9 @@ sidebar:
 
 ## Platform support
 
-Luna Engine **1.0.0** targets Linux x86_64. **Windows x86_64 and macOS (Apple Silicon and Intel) builds are experimental and unsigned.** macOS builds are not notarized. Ordinary desktop launch and minimum OS compatibility need separate review from hosted build/test checks.
+Luna Engine **1.0.1** targets Linux x86_64. **Windows x86_64 and macOS (Apple Silicon and Intel) builds are experimental and unsigned.** macOS builds are not notarized. Ordinary desktop launch and minimum OS compatibility need separate review from hosted build/test checks.
 
-The application version is separate from your game’s content version and the project/save format versions. Updating Luna to 1.0.0 does not change those formats.
+The application version is separate from your game’s content version and the project/save format versions. Updating Luna to 1.0.1 does not change those formats.
 
 ## Use a packaged build
 
@@ -17,10 +17,10 @@ Open [GitHub Releases](https://github.com/pmck91/luna-engine/releases) and choos
 
 | Platform          | Version 1 archive                         |
 | ----------------- | ----------------------------------------- |
-| Linux x86_64      | `luna-engine-v1.0.0-linux-x86_64.tar.gz`  |
-| Mac Apple Silicon | `luna-engine-v1.0.0-macos-aarch64.tar.gz` |
-| Mac Intel         | `luna-engine-v1.0.0-macos-x86_64.tar.gz`  |
-| Windows x86_64    | `luna-engine-v1.0.0-windows-x86_64.zip`   |
+| Linux x86_64      | `luna-engine-v1.0.1-linux-x86_64.tar.gz`  |
+| Mac Apple Silicon | `luna-engine-v1.0.1-macos-aarch64.tar.gz` |
+| Mac Intel         | `luna-engine-v1.0.1-macos-x86_64.tar.gz`  |
+| Windows x86_64    | `luna-engine-v1.0.1-windows-x86_64.zip`   |
 
 Download the matching `.sha256` sidecar. Compare its hash with `sha256sum <archive>` on Linux, `shasum -a 256 <archive>` on Mac, or `Get-FileHash <archive> -Algorithm SHA256` in PowerShell.
 

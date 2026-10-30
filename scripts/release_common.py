@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TARGETS = json.loads((ROOT / "scripts/release-targets.json").read_text(encoding="utf-8"))
 EXAMPLES = ("locked-study", "packing-study", "parser-gallery", "procedure-workshop",
             "keeper-quest", "timer-workshop", "routine-workshop", "undo-workshop", "observatory")
+LICENSE_FILES = ("LICENSE", "NOTICE")
 
 
 def version():
@@ -103,10 +104,11 @@ def verify_archive(archive_path, *, revision=None, target=None):
             raise ValueError(f"Packaged file digest mismatch: {name}")
     suffix = ".exe" if selected["platform"].startswith("windows-") else ""
     required = {"README.md", "START-HERE.txt", "examples/README.md", "luna" + suffix, "luna-editor" + suffix}
+    required.update(LICENSE_FILES)
     required |= {f"examples/{example}.luna" for example in EXAMPLES}
     required |= {f"examples/{example}/game.json" for example in EXAMPLES}
     if not required <= metadata["files"].keys():
-        raise ValueError("Archive is missing required executable/example/instruction files")
+        raise ValueError("Archive is missing required executable/example/instruction/licence files")
     if modes and any(not modes[f"{root}/{name}" + suffix] & 0o111 for name in ("luna", "luna-editor")):
         raise ValueError("Unix executables have lost executable permissions")
     if any(part.startswith(".") or part in ("node_modules", "target", "dist", "__pycache__")

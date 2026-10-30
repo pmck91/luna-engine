@@ -15,6 +15,8 @@ Assets are bundled files. The current text runner does not display images or pla
 
 Share the `.luna` file and explain that the recipient needs the Luna runner. Share a ZIP of the editable project separately when inviting someone to edit.
 
+You can sell your own games royalty-free under Luna's commercial-game permission. Include the required game credit, and retain the licence and notices if you bundle the unmodified runner. Read [licensing and game credits](/luna-engine/playing/licensing/) before publishing.
+
 ## Import and run
 
 From the extracted Linux package:

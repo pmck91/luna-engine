@@ -10,20 +10,23 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from release_common import EXAMPLES, TARGETS, extract_verified, package_name, sha256, verify_archive, version
+from release_common import EXAMPLES, LICENSE_FILES, ROOT, TARGETS, extract_verified, package_name, sha256, verify_archive, version
 import release
 from check_native_dependencies import windows_imports
 
 
-def fixture(directory, target, *, extra=None, executable=True, revision="abc123"):
+def fixture(directory, target, *, extra=None, executable=True, revision="abc123", omit=()):
     """Small structurally complete archives, for validation rather than execution."""
     suffix = ".exe" if target["platform"].startswith("windows-") else ""
     files = {name: b"fixture" for name in ("README.md", "START-HERE.txt", "examples/README.md",
                                          "luna" + suffix, "luna-editor" + suffix)}
+    files.update({name: (ROOT / name).read_bytes() for name in LICENSE_FILES})
     for example in EXAMPLES:
         files[f"examples/{example}.luna"] = b"fixture"
         files[f"examples/{example}/game.json"] = b"{}"
     files.update(extra or {})
+    for name in omit:
+        del files[name]
     metadata = {"version": version(), "revision": revision, "target": target["target"],
                 "working_tree_dirty": False, "signing": "unsigned",
                 "files": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}}
@@ -67,6 +70,16 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Checksum mismatch"):
             extract_verified(path, self.directory / "destination")
         self.assertFalse((self.directory / "destination").exists())
+
+    def test_missing_licence_or_attribution_is_rejected_before_extraction(self):
+        # Even a self-consistent manifest/checksum cannot omit the legal terms.
+        for target in TARGETS:
+            for name in LICENSE_FILES:
+                with self.subTest(target=target["platform"], missing=name):
+                    path = fixture(self.directory, target, omit=(name,))
+                    with self.assertRaisesRegex(ValueError, "missing required.*licence"):
+                        extract_verified(path, self.directory / "destination")
+                    self.assertFalse((self.directory / "destination").exists())
 
     def test_wrong_revision_and_target_are_rejected(self):
         path = fixture(self.directory, TARGETS[0])

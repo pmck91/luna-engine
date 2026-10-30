@@ -979,7 +979,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "luna-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "luna-model",
@@ -990,7 +990,7 @@ dependencies = [
 
 [[package]]
 name = "luna-editor"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -1016,7 +1016,7 @@ dependencies = [
 
 [[package]]
 name = "luna-model"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -1028,7 +1028,7 @@ dependencies = [
 
 [[package]]
 name = "luna-project"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "fs2",
@@ -1044,7 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "luna-runner"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "chrono",
