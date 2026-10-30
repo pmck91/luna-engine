@@ -1,0 +1,227 @@
+Luna Engine licensing terms
+==========================
+
+Required Notice: Luna Engine by Peter McKinney (pmck91), Copyright 2026. https://github.com/pmck91/luna-engine
+
+Scope
+-----
+These terms cover the original Luna Engine code, documentation, artwork and
+examples supplied by Peter McKinney (pmck91), except material identified as
+having separate terms. Third-party dependencies and material retain their own
+copyrights and licences; these terms do not replace them.
+
+Luna is offered under the unmodified PolyForm Noncommercial License 1.0.0
+reproduced in Part I, together with the additional permission in Part II.
+Part II grants additional permitted purposes subject to its stated conditions.
+It does not change the text of Part I or restrict rights already granted there.
+This entire file and the Required Notice above must accompany any redistribution
+relying on Part II, including a bundled Luna runner.
+
+Part I — Base licence (unmodified text)
+======================================
+
+# PolyForm Noncommercial License 1.0.0
+
+<https://polyformproject.org/licenses/noncommercial/1.0.0>
+
+## Acceptance
+
+In order to get any license under these terms, you must agree
+to them as both strict obligations and conditions to all
+your licenses.
+
+## Copyright License
+
+The licensor grants you a copyright license for the
+software to do everything you might do with the software
+that would otherwise infringe the licensor's copyright
+in it for any permitted purpose.  However, you may
+only distribute the software according to [Distribution
+License](#distribution-license) and make changes or new works
+based on the software according to [Changes and New Works
+License](#changes-and-new-works-license).
+
+## Distribution License
+
+The licensor grants you an additional copyright license
+to distribute copies of the software.  Your license
+to distribute covers distributing the software with
+changes and new works permitted by [Changes and New Works
+License](#changes-and-new-works-license).
+
+## Notices
+
+You must ensure that anyone who gets a copy of any part of
+the software from you also gets a copy of these terms or the
+URL for them above, as well as copies of any plain-text lines
+beginning with `Required Notice:` that the licensor provided
+with the software.  For example:
+
+> Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
+
+## Changes and New Works License
+
+The licensor grants you an additional copyright license to
+make changes and new works based on the software for any
+permitted purpose.
+
+## Patent License
+
+The licensor grants you a patent license for the software that
+covers patent claims the licensor can license, or becomes able
+to license, that you would infringe by using the software.
+
+## Noncommercial Purposes
+
+Any noncommercial purpose is a permitted purpose.
+
+## Personal Uses
+
+Personal use for research, experiment, and testing for
+the benefit of public knowledge, personal study, private
+entertainment, hobby projects, amateur pursuits, or religious
+observance, without any anticipated commercial application,
+is use for a permitted purpose.
+
+## Noncommercial Organizations
+
+Use by any charitable organization, educational institution,
+public research organization, public safety or health
+organization, environmental protection organization,
+or government institution is use for a permitted purpose
+regardless of the source of funding or obligations resulting
+from the funding.
+
+## Fair Use
+
+You may have "fair use" rights for the software under the
+law. These terms do not limit them.
+
+## No Other Rights
+
+These terms do not allow you to sublicense or transfer any of
+your licenses to anyone else, or prevent the licensor from
+granting licenses to anyone else.  These terms do not imply
+any other licenses.
+
+## Patent Defense
+
+If you make any written claim that the software infringes or
+contributes to infringement of any patent, your patent license
+for the software granted under these terms ends immediately. If
+your company makes such a claim, your patent license ends
+immediately for work on behalf of your company.
+
+## Violations
+
+The first time you are notified in writing that you have
+violated any of these terms, or done anything with the software
+not covered by your licenses, your licenses can nonetheless
+continue if you come into full compliance with these terms,
+and take practical steps to correct past violations, within
+32 days of receiving notice.  Otherwise, all your licenses
+end immediately.
+
+## No Liability
+
+***As far as the law allows, the software comes as is, without
+any warranty or condition, and the licensor will not be liable
+to you for any damages arising out of these terms or the use
+or nature of the software, under any kind of legal claim.***
+
+## Definitions
+
+The **licensor** is the individual or entity offering these
+terms, and the **software** is the software the licensor makes
+available under these terms.
+
+**You** refers to the individual or entity agreeing to these
+terms.
+
+**Your company** is any legal entity, sole proprietorship,
+or other kind of organization that you work for, plus all
+organizations that have control over, are under the control of,
+or are under common control with that organization.  **Control**
+means ownership of substantially all the assets of an entity,
+or the power to direct its management and policies by vote,
+contract, or otherwise.  Control can be direct or indirect.
+
+**Your licenses** are all the licenses granted to you for the
+software under these terms.
+
+**Use** means anything you do with the software requiring one
+of your licenses.
+
+Part II — Luna commercial-game permission, version 1.0
+====================================================
+
+Peter McKinney (pmck91), to the extent of his rights in the software, grants
+the following additional permission to each recipient of this file.
+
+1. Game content and ownership
+
+A game is a playable work of interactive fiction or another authored game made
+with Luna. Its game content includes its authored narrative, dialogue, rules,
+puzzles, data and assets. A general-purpose engine, editor, game-authoring tool
+or general-purpose hosted runner is not game content, even if bundled with a
+game. Luna's source code and executable code remain Luna software.
+
+You retain all rights you hold in your original game content. Merely creating,
+exporting or running game content with Luna does not place that original
+content under Luna's licence or require you to publish its source. You must
+still have permission for any third-party content you use.
+
+2. Commercial game development and distribution
+
+Using Luna to create, test, demonstrate, promote, publish, distribute, sell and
+play games is an additional permitted purpose, including when done for profit
+by an individual or a business. No royalty or licence fee is owed to Peter
+McKinney for those activities under this permission. You may also adapt Luna's
+supplied example game content, templates and assets into your games, retaining
+applicable notices. This does not grant ownership of the originals to you.
+
+You, your publishers, distributors and stores may distribute games commercially.
+Players may run those games, including with the bundled runner described below.
+Charging for access to a particular game is permitted; providing general-purpose
+Luna authoring or runner functionality as a paid service is not granted by this
+additional permission.
+
+3. Bundling the runner
+
+You may copy and distribute an unmodified Luna runner executable with a game,
+including as part of a paid download or installer, solely to enable that game
+to be played. Compiling an unmodified Luna source release for a platform does
+not itself modify the runner. Supplying configuration, game content or a launch
+script does not itself modify it either.
+
+Keep this complete LICENSE file, the supplied NOTICE file and all applicable
+third-party notices with the bundled runner, readily accessible to recipients.
+Identify the runner as Luna. Do not represent it as your own engine. Recipients
+receive the same permission directly from Peter McKinney under these terms;
+the Luna software itself is not sublicensed under your game's licence.
+
+4. Game attribution
+
+As a condition of this additional permission, a game you publicly distribute or
+make publicly playable must include the following credit and link in its game
+credits or accompanying documentation, where players can reasonably find it:
+
+Luna Engine by Peter McKinney (pmck91)
+https://github.com/pmck91/luna-engine
+
+A splash screen, logo placement and endorsement statement are not required.
+Keep copyright and licence notices for any Luna material you redistribute.
+
+5. Limits
+
+This additional permission does not grant permission to sell Luna itself, sell
+a modified engine or editor derived from Luna, or offer Luna's engine, editor
+or general-purpose runner as a paid hosted service. It does not grant permission
+to distribute a modified Luna runner commercially, whether separately or with a
+game. Those activities require separate written permission from the relevant
+copyright holders unless independently permitted under Part I or applicable law.
+
+Except for the permitted purposes and runner distribution expressly granted
+above, Part I continues to apply, including its patent, notice, violation and
+no-liability provisions. Nothing here grants rights in third-party software or
+assets beyond the rights their own licensors provide.

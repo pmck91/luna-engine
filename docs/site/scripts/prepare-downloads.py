@@ -7,6 +7,7 @@ import zipfile
 SITE = Path(__file__).resolve().parents[1]
 ROOT = SITE.parents[1]
 DEST = SITE / "public/downloads"
+LICENSE_FILES = ("LICENSE", "NOTICE")
 
 
 def prepare(name):
@@ -42,8 +43,17 @@ def prepare(name):
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
             archive.writestr(info, path.read_bytes())
+        for legal_name in LICENSE_FILES:
+            info = zipfile.ZipInfo(f"{name}/{legal_name}", (2026, 10, 29, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, (ROOT / legal_name).read_bytes())
     print(f"Prepared {name} project and playable bundle")
 
+
+DEST.mkdir(parents=True, exist_ok=True)
+for name in LICENSE_FILES:
+    (DEST / name).write_bytes((ROOT / name).read_bytes())
 
 for example in ("locked-study", "observatory"):
     prepare(example)

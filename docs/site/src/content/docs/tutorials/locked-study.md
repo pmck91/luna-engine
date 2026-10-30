@@ -9,6 +9,8 @@ This is the owner's expanded **Locked Study** project, pinned to the source at `
 
 Download the [editable project](/luna-engine/downloads/locked-study-project.zip) or [playable export](/luna-engine/downloads/locked-study.luna). Extract the project into your projects directory and open locked-study. Use a copy when experimenting.
 
+The source ZIP includes LICENSE and NOTICE. When sharing the playable export or adapting the example, retain the applicable notices; see [licensing and game credits](/luna-engine/playing/licensing/).
+
 ## Read the painting
 
 Start a fresh playtest and enter:

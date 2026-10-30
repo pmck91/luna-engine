@@ -2,6 +2,7 @@
 name = "luna-model"
 version.workspace = true
 edition.workspace = true
+license-file.workspace = true
 
 [dependencies]
 anyhow.workspace = true

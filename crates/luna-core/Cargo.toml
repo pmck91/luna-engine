@@ -2,6 +2,7 @@
 name = "luna-core"
 version.workspace = true
 edition.workspace = true
+license-file.workspace = true
 
 [dependencies]
 luna-model = { path = "../luna-model" }

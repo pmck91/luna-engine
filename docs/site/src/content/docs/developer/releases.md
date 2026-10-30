@@ -19,7 +19,9 @@ python3 scripts/smoke-package.py
 
 The packager detects the native Rust host and supports Linux x86_64, macOS aarch64/x86_64 and Windows x86_64 MSVC. It builds the frontend before release compilation, then writes a versioned `.tar.gz` (Unix) or `.zip` (Windows) and SHA-256 sidecar under dist. `--skip-build` is for callers that already built the current release executables; it still verifies binary versions. The Unix shell wrapper delegates to the same implementation.
 
-The archive has one root directory containing both executables, README, START-HERE.txt, build.json and nine maintained examples with native exports. Only tracked canonical project files, declared assets and selected workshop prose are copied. Site dependencies, source trees, caches, locks and recovery files are excluded. Do not modify checked examples or historical fixtures just to make packaging pass.
+The archive has one root directory containing both executables, README, LICENSE, NOTICE, START-HERE.txt, build.json and nine maintained examples with native exports. The complete licence includes Luna's commercial-game permission; NOTICE carries Peter McKinney's attribution. Archive verification rejects packages missing either legal file. Only tracked canonical project files, declared assets and selected workshop prose are copied. Site dependencies, source trees, caches, locks and recovery files are excluded. Do not modify checked examples or historical fixtures just to make packaging pass.
+
+Use the licence shipped with the version you distribute. Licence changes on main do not replace the contents of an existing tagged release or its downloads. Read [licensing and game credits](/luna-engine/playing/licensing/) before redistributing Luna or bundling its runner.
 
 build.json records source revision, dirty-checkout status, target, compiler, Node version, unsigned status, binary versions and per-file hashes. Local dirty builds are useful for testing; tagged release assembly rejects them. A checksum proves integrity against the supplied sidecar; it is not a signing certificate.
 
@@ -50,11 +52,13 @@ macOS deployment target is 11.0; jobs execute on macOS 15. Windows jobs execute 
 
 Complete the package checks on the reviewed branch before merging. Update workspace version and Cargo.lock plus web/docs package metadata together; confirm `luna --version` and `luna-editor --version`. For v1 the owner chose 1.0.0 directly. Patch releases use 1.0.1, 1.0.2 and so on; ordinary CI runs retain the application version and identify their source by commit.
 
+Version **1.0.1** adds the licence, attribution notices and commercial-game permission to the repository and release packages. It does not change gameplay or game/save formats. Preserve the existing v1.0.0 tag and downloads.
+
 After approval to create a release tag, tag the exact reviewed commit and push it with your own GitHub credentials:
 
 ```sh
-git tag v1.0.0 <reviewed-commit>
-git push origin v1.0.0
+git tag v1.0.1 <reviewed-commit>
+git push origin v1.0.1
 ```
 
 This works on the feature branch as well as main. The tagged commit must contain both release workflows. Do not create an empty GitHub Release first: the automation refuses any existing release for that tag.

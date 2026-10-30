@@ -12,12 +12,12 @@ import tempfile
 import zipfile
 
 from check_native_dependencies import inspect_native_dependencies
-from release_common import EXAMPLES, ROOT, binary_directory, native_target, output, package_name, package_path, sha256, verify_archive, version
+from release_common import EXAMPLES, LICENSE_FILES, ROOT, binary_directory, native_target, output, package_name, package_path, sha256, verify_archive, version
 
 
 def distributable_sources():
     """Only canonical tracked project files, declared assets and workshop prose."""
-    files = ["README.md", "examples/README.md"]
+    files = ["README.md", "examples/README.md", *LICENSE_FILES]
     tracked = set(output("git", "ls-files", "-z", "examples").split("\0"))
     for example in EXAMPLES:
         prefix = f"examples/{example}/"

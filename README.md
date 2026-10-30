@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/pmck91/luna-engine/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/pmck91/luna-engine/actions/workflows/ci.yml/badge.svg?branch=main" alt="Latest main build"></a>
+  <a href="https://github.com/pmck91/luna-engine/releases/latest"><img src="https://img.shields.io/github/v/release/pmck91/luna-engine" alt="Latest release"></a>
 </p>
 
 **Create parser-driven text adventures with a visual block editor and a shared Rust game engine.** Build interactive fiction with connected rooms, objects, characters and puzzles, then share a playable game for Luna’s terminal runner.
@@ -19,7 +20,7 @@
 - Playtest beside your work, inspect state and replay saved checks.
 - Export a `.luna` game. Editor and runner execute the same transactional engine.
 
-Projects and player saves stay local. **Luna Engine 1.0.0** targets Linux x86_64. **Windows x86_64 and macOS (Apple Silicon and Intel) builds are experimental and unsigned**; macOS builds are not notarized. The editor opens in a desktop browser. Packaged applications need no Rust or Node installation.
+Projects and player saves stay local. **Luna Engine 1.0.1** targets Linux x86_64. **Windows x86_64 and macOS (Apple Silicon and Intel) builds are experimental and unsigned**; macOS builds are not notarized. The editor opens in a desktop browser. Packaged applications need no Rust or Node installation.
 
 ## Try Luna
 
@@ -36,3 +37,7 @@ Type to search your games, choose with Up/Down and Enter, then continue or selec
 On Windows, use PowerShell with `.\luna-editor.exe` and `.\luna.exe`. Launch instructions and exact build metadata are included in every archive.
 
 For local development, tests, packaging and architecture, start with [Developer documentation](https://pmck91.github.io/luna-engine/developer/development/). Repository [development notes](docs/development.md) and [design plans](docs/plans/todo.md) retain implementation evidence.
+
+## Licence
+
+Luna is **source available** under [PolyForm Noncommercial 1.0.0 with an additional commercial-game permission](LICENSE). You can create and sell your own games royalty-free, crediting **Luna Engine by Peter McKinney (pmck91)** and linking to this repository. You may bundle the unmodified runner with your game, retaining LICENSE, NOTICE and applicable third-party notices. Commercialising the engine/editor itself or providing a paid general-purpose Luna service requires separate permission. See [licensing and game credits](https://pmck91.github.io/luna-engine/playing/licensing/) for details.

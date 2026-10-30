@@ -3,6 +3,14 @@ Luna Engine — start here
 Documentation: https://pmck91.github.io/luna-engine/
 Version, source revision, target and file hashes: build.json
 
+Licensing: read LICENSE and NOTICE in this folder. Luna is source available,
+with a royalty-free commercial-game permission. Games relying on that permission
+must credit Luna Engine by Peter McKinney (pmck91) and link to
+https://github.com/pmck91/luna-engine
+Bundling the unmodified runner with a game is permitted; keep LICENSE, NOTICE
+and applicable third-party notices. Selling Luna itself or offering it as a paid
+general-purpose service requires separate permission under the included terms.
+
 Extract the entire archive into a writable folder before launching.
 No Rust, Node.js or Python installation is needed to run these applications.
 Keep the terminal running while editing. The editor opens a local desktop browser.

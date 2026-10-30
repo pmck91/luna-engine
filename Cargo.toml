@@ -3,8 +3,9 @@ members = ["crates/luna-model", "crates/luna-core", "crates/luna-project", "crat
 resolver = "2"
 
 [workspace.package]
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
+license-file = "LICENSE"
 
 [workspace.dependencies]
 anyhow = "1"
