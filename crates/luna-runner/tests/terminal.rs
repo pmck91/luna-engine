@@ -27,16 +27,46 @@ fn runner_binary() -> std::ffi::OsString {
     std::env::var_os("LUNA_TEST_RUNNER").unwrap_or_else(|| env!("CARGO_BIN_EXE_luna").into())
 }
 
-/// ConPTY renders a trailing blank as erase-to-end + cursor-forward, rather
-/// than a literal space. Recognize that same visible prompt without accepting
-/// arbitrary text beginning with '>'. All keyboard/state assertions still run.
+/// ConPTY can render a blank prompt with erase/cursor operations, interleaving
+/// cursor visibility changes when the screen scrolls. Match the displayed gap
+/// after '>', rather than one particular byte encoding of that gap.
 fn prompt_end(pending: &str) -> Option<usize> {
     for (index, _) in pending.match_indices('>') {
-        let tail = &pending[index + 1..];
-        let tail = tail.strip_prefix("\x1b[K").unwrap_or(tail);
-        for space in [" ", "\x1b[1C", "\x1b[C"] {
-            if tail.starts_with(space) {
-                return Some(pending.len() - tail.len() + space.len());
+        let mut tail = &pending[index + 1..];
+        let mut erased = false;
+        loop {
+            if tail.starts_with(' ') {
+                return Some(pending.len() - tail.len() + 1);
+            }
+            let Some(sequence) = tail.strip_prefix("\x1b[") else {
+                break;
+            };
+            let Some(end) = sequence.find(|c: char| ('\u{40}'..='\u{7e}').contains(&c)) else {
+                break; // Incomplete CSI; expect() will wait for the next read.
+            };
+            let parameters = &sequence[..end];
+            let command = sequence.as_bytes()[end];
+            tail = &sequence[end + 1..];
+            match (command, parameters) {
+                (b'K', "" | "0") => erased = true,
+                (b'h' | b'l', "?25") => {} // Show/hide cursor, without moving it.
+                (b'm', _) => {}            // Presentation attributes do not occupy cells.
+                (b'C', _)
+                    if parameters.is_empty()
+                        || parameters.parse::<u16>().is_ok_and(|n| n <= 32_767) =>
+                {
+                    return Some(pending.len() - tail.len());
+                }
+                (b'H' | b'f', _)
+                    if erased
+                        && parameters.split_once(';').is_some_and(|(row, column)| {
+                            row.parse::<u16>().is_ok_and(|n| n > 0) && column == "3"
+                        }) =>
+                {
+                    // Absolute column 3 is the cursor position after '> '.
+                    return Some(pending.len() - tail.len());
+                }
+                _ => break,
             }
         }
     }
@@ -50,6 +80,44 @@ fn prompt_detection_accepts_literal_and_conpty_spaces_without_matching_text() {
     assert_eq!(prompt_end(encoded), Some(encoded.len()));
     assert_eq!(prompt_end(">not a prompt"), None);
     assert_eq!(prompt_end(">\x1b[K"), None);
+}
+
+#[test]
+fn prompt_detection_handles_conpty_scroll_redraws_and_split_sequences() {
+    // Exact redraw from the failing Windows job. ConPTY fills the erased row
+    // with cursor-forward 99, then restores the input cursor at row 28, col 3.
+    let captured = "Counter is 2.\r\n>\x1b[K\x1b[?25l\x1b[99C\x1b[28;3H\x1b[?25h";
+    let expected = captured.find("\x1b[28;3H").unwrap();
+    for split in 0..=captured.len() {
+        let mut received = captured[..split].to_owned();
+        let early = prompt_end(&received);
+        if split < expected {
+            assert_eq!(early, None, "Incomplete redraw at byte {split}");
+        } else {
+            assert_eq!(early, Some(expected));
+        }
+        received.push_str(&captured[split..]);
+        assert_eq!(prompt_end(&received), Some(expected));
+    }
+    // Other equivalent encodings, including a direct absolute cursor move.
+    for prompt in [
+        ">\x1b[?25l\x1b[K\x1b[C",
+        ">\x1b[K\x1b[?25l\x1b[1C",
+        ">\x1b[K\x1b[0C", // Zero, like an omitted distance, means one cell.
+        ">\x1b[0m\x1b[0K\x1b[28;3H",
+    ] {
+        assert_eq!(prompt_end(prompt), Some(prompt.len()));
+    }
+    for incomplete in [
+        ">not a prompt\x1b[C",
+        ">\x1b[K\x1b[?25l\x1b[99",
+        ">\x1b[K\x1b[?25l\x1b[?25h",
+        ">\x1b[K\x1b[999999C",
+        ">\x1b[K\x1b[28;1H",
+        ">\x1b[K\x1b[99D",
+    ] {
+        assert_eq!(prompt_end(incomplete), None);
+    }
 }
 
 /// Answer terminal queries, including requests split across pipe reads. ConPTY
@@ -188,7 +256,7 @@ impl Terminal {
             match self.output.recv_timeout(remaining) {
                 Ok(chunk) => self.transcript.extend(chunk),
                 Err(error) => panic!(
-                    "Expected {needle:?}: {error}; transcript: {}",
+                    "Expected {needle:?}: {error}; transcript: {:?}",
                     String::from_utf8_lossy(&self.transcript)
                 ),
             }

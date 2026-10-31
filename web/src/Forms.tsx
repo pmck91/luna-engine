@@ -471,8 +471,20 @@ export function Values({
   const [type, setType] = useState<ValueType>('boolean');
   const [raw, setRaw] = useState('false');
   const [problem, setProblem] = useState('');
+  const container = useRef<HTMLDivElement>(null);
+  const focusValue = useRef<string | undefined>(undefined);
+  useLayoutEffect(() => {
+    const key = focusValue.current;
+    if (key === undefined) return;
+    focusValue.current = undefined;
+    // Finish focus as part of the commit, before the user can start another
+    // entry. A deferred animation frame can steal focus from that next entry.
+    container.current
+      ?.querySelector<HTMLElement>(`[aria-label="${CSS.escape(key)} value"]`)
+      ?.focus();
+  });
   return (
-    <div className="values">
+    <div className="values" ref={container}>
       {!fixed && (
         <p className="muted">
           {scopeLabel ??
@@ -596,18 +608,10 @@ export function Values({
             e.preventDefault();
             try {
               const { key, initial } = newValue(values, name, type, raw);
-              const owner = e.currentTarget.parentElement;
+              focusValue.current = key;
               onChange({ ...values, [key]: initial });
               setName('');
               setProblem('');
-              requestAnimationFrame(() => {
-                const row = [...document.querySelectorAll<HTMLElement>('.value-row')].find(
-                  (row) =>
-                    row.querySelector('span')?.textContent === key &&
-                    row.closest('.values') === owner,
-                );
-                row?.querySelector<HTMLElement>(`[aria-label="${CSS.escape(key)} value"]`)?.focus();
-              });
             } catch (error) {
               setProblem(String(error).replace(/^Error: /, ''));
             }
