@@ -22,6 +22,7 @@ test('authored hint stages, explicit solutions, and help settings survive save a
   for (const name of ['solved', 'chances']) {
     await inspector.getByLabel('New variable or property name').fill(name);
     await inspector.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(inspector.getByLabel(`${name} value`, { exact: true })).toBeFocused();
   }
   await inspector.getByLabel('chances type').selectOption('number');
   await inspector.getByLabel('chances value').fill('3');

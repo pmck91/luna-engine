@@ -152,6 +152,36 @@ test('compact routine editing recovers canvas space and retains search without c
   await expect(page.getByRole('button', { name: 'Expand inspector', exact: true })).toBeVisible();
 });
 
+test('creating a value does not steal focus from the next entry', async ({ page }, info) => {
+  await seedProject(page, `value-focus-${info.project.name}`, () => {});
+  await page
+    .getByRole('navigation', { name: 'Project hierarchy' })
+    .getByRole('button', { name: 'Variables', exact: true })
+    .click();
+  const workspace = page.getByRole('region', { name: 'Variables workspace', exact: true });
+  const name = workspace.getByLabel('New variable or property name');
+  await name.fill('solved');
+  // Model starting the next entry as soon as the new row is committed. This
+  // deliberately happens before paint, exposing a late animation-frame focus.
+  await workspace.evaluate((element) => {
+    const observer = new MutationObserver(() => {
+      if (!element.querySelector('[aria-label="solved value"]')) return;
+      observer.disconnect();
+      element.querySelector<HTMLInputElement>('.value-creation input')!.focus();
+    });
+    observer.observe(element, { childList: true, subtree: true });
+  });
+  await workspace.getByRole('button', { name: 'Add', exact: true }).click();
+  // Let any scheduled frame run, without a time-based sleep.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  await expect(name).toBeFocused();
+  await name.fill('chances');
+  await workspace.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(workspace.getByLabel('chances value', { exact: true })).toBeFocused();
+  await expect(workspace.getByLabel('solved value', { exact: true })).toHaveValue('false');
+  await expect(workspace.getByRole('alert')).toHaveCount(0);
+});
+
 test('data pages have truthful context, shared typed validation, and preserve inspector preferences', async ({
   page,
 }, info) => {
